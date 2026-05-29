@@ -1,0 +1,240 @@
+"""
+Tests for the Workday adapter.
+
+All HTTP is intercepted by a custom httpx transport that serves JSON
+from tests/fixtures/workday/. No network calls are made.
+"""
+
+import json
+from pathlib import Path
+
+import httpx
+import pytest
+
+from hk_jobs.adapters.workday import WorkdayAdapter, _map_time_type, _parse_locations, _strip_html
+
+FIXTURE_DIR = Path(__file__).parent / "fixtures" / "workday"
+
+
+# ── fixtures ──────────────────────────────────────────────────────────────────
+
+@pytest.fixture
+def listing_data():
+    return json.loads((FIXTURE_DIR / "listing.json").read_text())
+
+
+@pytest.fixture
+def detail_data():
+    return {
+        "JR-001": json.loads((FIXTURE_DIR / "detail_jr001.json").read_text()),
+        "JR-002": json.loads((FIXTURE_DIR / "detail_jr002.json").read_text()),
+    }
+
+
+class _MockTransport(httpx.BaseTransport):
+    """Serves fixture data without touching the network."""
+
+    def __init__(self, listing_json: dict, detail_by_id: dict[str, dict]) -> None:
+        self.listing_json = listing_json
+        self.detail_by_id = detail_by_id
+        self.post_calls: list[dict] = []
+        self.get_calls: list[str] = []
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            self.post_calls.append(json.loads(request.content))
+            return httpx.Response(200, json=self.listing_json)
+        # GET — detail endpoint; route by job ID in the URL path
+        url_path = str(request.url)
+        self.get_calls.append(url_path)
+        for job_id, data in self.detail_by_id.items():
+            if job_id in url_path:
+                return httpx.Response(200, json=data)
+        return httpx.Response(404, json={})
+
+
+@pytest.fixture
+def adapter(listing_data, detail_data, monkeypatch):
+    """WorkdayAdapter wired to mock transport; detail sleep removed."""
+    transport = _MockTransport(listing_data, detail_data)
+    monkeypatch.setattr("hk_jobs.adapters.workday._DETAIL_SLEEP", 0)
+
+    def _mock_client(self, timeout=20.0):
+        return httpx.Client(transport=transport, follow_redirects=True)
+
+    monkeypatch.setattr(WorkdayAdapter, "_client", _mock_client)
+    adapter_obj = WorkdayAdapter(
+        company="AIA",
+        company_slug="aia",
+        tenant="aia",
+        site="External",
+    )
+    adapter_obj._transport = transport  # expose for call-count assertions
+    return adapter_obj
+
+
+# ── _strip_html ───────────────────────────────────────────────────────────────
+
+def test_strip_html_removes_tags():
+    assert _strip_html("<p>Hello</p>") == "Hello"
+
+
+def test_strip_html_block_tags_become_newlines():
+    result = _strip_html("<p>Line one</p><p>Line two</p>")
+    assert "Line one" in result
+    assert "Line two" in result
+    assert "\n" in result
+
+
+def test_strip_html_decodes_entities():
+    assert "&" in _strip_html("&amp; &lt;test&gt;")
+    assert "–" in _strip_html("Asia&ndash;Pacific")
+
+
+def test_strip_html_empty_string():
+    assert _strip_html("") == ""
+
+
+def test_strip_html_plain_text_unchanged():
+    assert _strip_html("No HTML here") == "No HTML here"
+
+
+# ── _parse_locations ──────────────────────────────────────────────────────────
+
+def test_parse_locations_single():
+    assert _parse_locations("Hong Kong") == ["Hong Kong"]
+
+
+def test_parse_locations_pipe_separated():
+    result = _parse_locations("Hong Kong | Singapore")
+    assert result == ["Hong Kong", "Singapore"]
+
+
+def test_parse_locations_empty():
+    assert _parse_locations("") == []
+
+
+# ── _map_time_type ────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("Full time", "full-time"),
+        ("FULL TIME", "full-time"),
+        ("Part time", "part-time"),
+        ("Contract", "contract"),
+        ("Intern", "internship"),
+        ("Internship", "internship"),
+        ("Unknown", None),
+        ("", None),
+    ],
+)
+def test_map_time_type(raw, expected):
+    assert _map_time_type(raw) == expected
+
+
+# ── adapter — full fetch with details ─────────────────────────────────────────
+
+def test_fetch_jobs_returns_two_jobs(adapter):
+    jobs = adapter.fetch_jobs()
+    assert len(jobs) == 2
+
+
+def test_fetch_jobs_job_identity(adapter):
+    jobs = adapter.fetch_jobs()
+    jr001 = next(j for j in jobs if j.source_id == "JR-001")
+    assert jr001.company == "AIA"
+    assert jr001.company_slug == "aia"
+    assert jr001.source == "workday"
+    assert "aia.wd3.myworkdayjobs.com" in jr001.url
+
+
+def test_fetch_jobs_title_mapped(adapter):
+    jobs = adapter.fetch_jobs()
+    titles = {j.title for j in jobs}
+    assert "Software Engineer, Hong Kong" in titles
+    assert "Business Analyst" in titles
+
+
+def test_fetch_jobs_description_raw_is_html(adapter):
+    jobs = adapter.fetch_jobs()
+    jr001 = next(j for j in jobs if j.source_id == "JR-001")
+    assert "<p>" in jr001.description_raw or "<ul>" in jr001.description_raw
+
+
+def test_fetch_jobs_description_clean_has_no_tags(adapter):
+    jobs = adapter.fetch_jobs()
+    jr001 = next(j for j in jobs if j.source_id == "JR-001")
+    assert "<" not in jr001.description_clean
+    assert "Software Engineer" in jr001.description_clean
+
+
+def test_fetch_jobs_employment_type_mapped(adapter):
+    jobs = adapter.fetch_jobs()
+    for job in jobs:
+        assert job.employment_type == "full-time"
+
+
+def test_fetch_jobs_posted_at_parsed(adapter):
+    from datetime import timezone
+
+    jobs = adapter.fetch_jobs()
+    jr001 = next(j for j in jobs if j.source_id == "JR-001")
+    assert jr001.posted_at is not None
+    assert jr001.posted_at.year == 2024
+    assert jr001.posted_at.tzinfo == timezone.utc
+
+
+def test_fetch_jobs_locations_jr001(adapter):
+    jobs = adapter.fetch_jobs()
+    jr001 = next(j for j in jobs if j.source_id == "JR-001")
+    # detail has location="Hong Kong", additionalLocations=[]
+    assert jr001.locations == ["Hong Kong"]
+
+
+def test_fetch_jobs_locations_jr002_deduped(adapter):
+    jobs = adapter.fetch_jobs()
+    jr002 = next(j for j in jobs if j.source_id == "JR-002")
+    # detail has location="Hong Kong", additionalLocations=["Singapore"]
+    assert "Hong Kong" in jr002.locations
+    assert "Singapore" in jr002.locations
+    assert jr002.locations.count("Hong Kong") == 1  # no duplicate
+
+
+def test_detail_calls_made_per_job(adapter):
+    adapter.fetch_jobs()
+    assert len(adapter._transport.get_calls) == 2
+
+
+# ── adapter — no detail fetch ─────────────────────────────────────────────────
+
+def test_no_detail_fetch_skips_get(monkeypatch, listing_data):
+    transport = _MockTransport(listing_data, {})
+    monkeypatch.setattr("hk_jobs.adapters.workday._DETAIL_SLEEP", 0)
+
+    def _mock_client(self, timeout=20.0):
+        return httpx.Client(transport=transport, follow_redirects=True)
+
+    monkeypatch.setattr(WorkdayAdapter, "_client", _mock_client)
+
+    adapter = WorkdayAdapter(
+        company="AIA",
+        company_slug="aia",
+        tenant="aia",
+        site="External",
+        fetch_details=False,
+    )
+    jobs = adapter.fetch_jobs()
+    assert len(jobs) == 2
+    assert transport.get_calls == []
+    # Without detail fetch, descriptions are empty (listing has none)
+    assert jobs[0].description_raw == ""
+
+
+# ── adapter — registry ────────────────────────────────────────────────────────
+
+def test_workday_registered_in_adapters():
+    from hk_jobs.adapters import ADAPTERS
+
+    assert "workday" in ADAPTERS
+    assert ADAPTERS["workday"] is WorkdayAdapter

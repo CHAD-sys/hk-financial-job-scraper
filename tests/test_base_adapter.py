@@ -106,6 +106,7 @@ def test_adapters_registry_is_dict():
     assert isinstance(ADAPTERS, dict)
 
 
-def test_adapters_registry_initially_empty():
-    # Later phases will populate this; Phase 2 leaves it empty.
-    assert ADAPTERS == {}
+def test_adapters_registry_values_are_base_adapter_subclasses():
+    for name, cls in ADAPTERS.items():
+        assert isinstance(name, str)
+        assert issubclass(cls, BaseAdapter)
