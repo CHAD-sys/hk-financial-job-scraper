@@ -13,8 +13,7 @@ import pytest
 from hk_jobs.adapters.jobsdb import (
     JobsDBAdapter,
     _extract_source_id,
-    _map_employment_type,
-    _parse_detail_html,
+    _parse_listing_date,
     _parse_listing_html,
 )
 
@@ -29,22 +28,14 @@ def listing_html():
 
 
 @pytest.fixture
-def detail_html():
-    return (FIXTURE_DIR / "detail.html").read_text()
-
-
-@pytest.fixture
-def adapter(listing_html, detail_html, monkeypatch):
+def adapter(listing_html, monkeypatch):
     monkeypatch.setattr("hk_jobs.adapters.jobsdb._PAGE_SLEEP", 0)
 
     calls: list[str] = []
 
-    # Regular function so Python's descriptor protocol binds (self, url) correctly
     def _mock_fetch_url(self, url: str) -> tuple[int, str]:
         calls.append(url)
-        if "-jobs" in url:
-            return 200, listing_html
-        return 200, detail_html
+        return 200, listing_html
 
     monkeypatch.setattr(JobsDBAdapter, "_fetch_url", _mock_fetch_url)
 
@@ -54,7 +45,7 @@ def adapter(listing_html, detail_html, monkeypatch):
         jobsdb_slug="bank-of-china-hong-kong",
         max_pages=1,
     )
-    a._calls = calls  # expose for call-count assertions
+    a._calls = calls
     return a
 
 
@@ -88,36 +79,48 @@ def test_listing_card_teaser(listing_html):
     assert "credit" in cards[0]["teaser"].lower()
 
 
-# ── _parse_detail_html ────────────────────────────────────────────────────────
+# ── _parse_listing_date ───────────────────────────────────────────────────────
 
-def test_detail_extracts_description(detail_html):
-    raw, location, emp_type = _parse_detail_html(detail_html)
-    assert "<p>" in raw or "<ul>" in raw
-    assert "Credit Risk Analyst" in raw
-
-
-def test_detail_extracts_location(detail_html):
-    _, location, _ = _parse_detail_html(detail_html)
-    assert location == "Hong Kong"
+def test_parse_listing_date_today():
+    from datetime import UTC, datetime
+    result = _parse_listing_date("Posted today")
+    assert result is not None
+    assert abs((result - datetime.now(UTC)).total_seconds()) < 5
 
 
-def test_detail_extracts_employment_type(detail_html):
-    _, _, emp_type = _parse_detail_html(detail_html)
-    assert emp_type == "Full time"
+def test_parse_listing_date_days_ago():
+    from datetime import UTC, datetime, timedelta
+    result = _parse_listing_date("Posted 3 days ago")
+    expected = datetime.now(UTC) - timedelta(days=3)
+    assert result is not None
+    assert abs((result - expected).total_seconds()) < 5
 
 
-def test_detail_decodes_html_entities(detail_html):
-    raw, _, _ = _parse_detail_html(detail_html)
-    from hk_jobs.adapters.workday import _strip_html
-    clean = _strip_html(raw)
-    assert "&" in clean            # &amp; decoded
-    assert "’" in clean       # &rsquo; → right single quotation mark
-    assert "–" in clean            # &ndash; decoded
+def test_parse_listing_date_hours_ago():
+    from datetime import UTC, datetime, timedelta
+    result = _parse_listing_date("Posted 2 hours ago")
+    expected = datetime.now(UTC) - timedelta(hours=2)
+    assert result is not None
+    assert abs((result - expected).total_seconds()) < 5
+
+
+def test_parse_listing_date_empty():
+    assert _parse_listing_date("") is None
+
+
+def test_parse_listing_date_unrecognised():
+    assert _parse_listing_date("Be an early applicant") is None
 
 
 # ── _extract_source_id ────────────────────────────────────────────────────────
 
-def test_extract_source_id_numeric_suffix():
+def test_extract_source_id_modern_url():
+    # Modern format: /job/NUMERIC_ID?type=standard&...
+    url = "https://hk.jobsdb.com/job/92249354?type=standard&ref=search-standalone"
+    assert _extract_source_id(url) == "92249354"
+
+
+def test_extract_source_id_legacy_suffix():
     url = "https://hk.jobsdb.com/hk/en/job/credit-risk-analyst-100003456789"
     assert _extract_source_id(url) == "100003456789"
 
@@ -125,23 +128,6 @@ def test_extract_source_id_numeric_suffix():
 def test_extract_source_id_no_number_falls_back():
     url = "https://hk.jobsdb.com/hk/en/job/some-role"
     assert _extract_source_id(url) == url
-
-
-# ── _map_employment_type ──────────────────────────────────────────────────────
-
-@pytest.mark.parametrize(
-    "raw,expected",
-    [
-        ("Full time", "full-time"),
-        ("Full-time", "full-time"),
-        ("Part time", "part-time"),
-        ("Contract", "contract"),
-        ("Internship", "internship"),
-        ("Unknown", None),
-    ],
-)
-def test_map_employment_type(raw, expected):
-    assert _map_employment_type(raw) == expected
 
 
 # ── full adapter fetch ────────────────────────────────────────────────────────
@@ -159,21 +145,13 @@ def test_fetch_jobs_source_fields(adapter):
         assert job.company_slug == "bank-of-china-hk"
 
 
-def test_fetch_jobs_has_description(adapter):
+def test_fetch_jobs_titles(adapter):
     jobs = adapter.fetch_jobs()
-    for job in jobs:
-        assert job.description_raw != ""
-        assert "<" not in job.description_clean
-        assert job.description_clean != ""
+    titles = {j.title for j in jobs}
+    assert "Credit Risk Analyst" in titles
 
 
-def test_fetch_jobs_employment_type_mapped(adapter):
-    jobs = adapter.fetch_jobs()
-    for job in jobs:
-        assert job.employment_type == "full-time"
-
-
-def test_fetch_jobs_location_from_detail(adapter):
+def test_fetch_jobs_location(adapter):
     jobs = adapter.fetch_jobs()
     assert jobs[0].locations == ["Hong Kong"]
 
@@ -183,10 +161,18 @@ def test_fetch_jobs_source_id_extracted(adapter):
     assert jobs[0].source_id.isdigit()
 
 
-def test_request_count_listing_plus_details(adapter):
+def test_fetch_jobs_no_detail_fetch(adapter):
+    """Listing-only: only 1 URL should be fetched (the listing page)."""
     adapter.fetch_jobs()
-    # 1 listing fetch + 3 detail fetches = 4 total
-    assert len(adapter._calls) == 4
+    assert len(adapter._calls) == 1
+
+
+def test_fetch_jobs_descriptions_empty(adapter):
+    """Without detail pages, descriptions are empty strings — expected."""
+    jobs = adapter.fetch_jobs()
+    for job in jobs:
+        assert job.description_raw == ""
+        assert job.description_clean == ""
 
 
 # ── anti-bot challenge handling ───────────────────────────────────────────────
@@ -208,6 +194,7 @@ def test_captcha_body_returns_empty_list(monkeypatch):
     monkeypatch.setattr("hk_jobs.adapters.jobsdb._PAGE_SLEEP", 0)
 
     def _captcha(self, url):
+        # Short page containing challenge signal → triggers _is_challenge
         return 200, "<html><body>Please complete the captcha to continue.</body></html>"
 
     monkeypatch.setattr(JobsDBAdapter, "_fetch_url", _captcha)
