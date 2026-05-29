@@ -70,20 +70,20 @@ class JobsDBAdapter(BaseAdapter):
         self,
         company: str,
         company_slug: str,
-        jobsdb_company_slug: str,
+        jobsdb_slug: str,          # matches the YAML config key "jobsdb_slug"
         max_pages: int = 5,
         **kwargs,
     ) -> None:
         super().__init__(
             company,
             company_slug,
-            jobsdb_company_slug=jobsdb_company_slug,
+            jobsdb_slug=jobsdb_slug,
             max_pages=max_pages,
             **kwargs,
         )
-        self.jobsdb_company_slug = jobsdb_company_slug
+        self.jobsdb_slug = jobsdb_slug
         self.max_pages = max_pages
-        self._listing_url = f"{_BASE_URL}/{jobsdb_company_slug}-jobs"
+        self._listing_url = f"{_BASE_URL}/{jobsdb_slug}-jobs"
 
     def fetch_jobs(self) -> list[Job]:
         """Public entry point — wraps _fetch_all in _safe_fetch for error isolation."""

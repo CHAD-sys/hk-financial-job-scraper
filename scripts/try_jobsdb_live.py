@@ -48,7 +48,7 @@ def main() -> None:
     adapter = JobsDBAdapter(
         company=args.company,
         company_slug=args.slug.replace("-", "_"),
-        jobsdb_company_slug=args.slug,
+        jobsdb_slug=args.slug,
         max_pages=args.max_pages,
     )
 

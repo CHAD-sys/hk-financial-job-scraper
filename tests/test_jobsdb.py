@@ -65,7 +65,7 @@ def adapter(listing_html, detail_html, monkeypatch):
     a = JobsDBAdapter(
         company="Bank of China (HK)",
         company_slug="bank-of-china-hk",
-        jobsdb_company_slug="bank-of-china-hong-kong",
+        jobsdb_slug="bank-of-china-hong-kong",
         max_pages=1,
     )
     a._transport = transport
@@ -223,7 +223,7 @@ def test_403_returns_empty_list(monkeypatch):
     adapter = JobsDBAdapter(
         company="BOCHK",
         company_slug="bochk",
-        jobsdb_company_slug="bank-of-china-hong-kong",
+        jobsdb_slug="bank-of-china-hong-kong",
     )
     jobs = adapter.fetch_jobs()
     assert jobs == []
@@ -247,7 +247,7 @@ def test_captcha_body_returns_empty_list(monkeypatch):
     adapter = JobsDBAdapter(
         company="BOCHK",
         company_slug="bochk",
-        jobsdb_company_slug="bank-of-china-hong-kong",
+        jobsdb_slug="bank-of-china-hong-kong",
     )
     jobs = adapter.fetch_jobs()
     assert jobs == []
