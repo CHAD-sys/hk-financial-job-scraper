@@ -1,0 +1,27 @@
+{
+  "count": 3,
+  "positions": [
+    {
+      "id": "100000000000001",
+      "name": "Vice President, Risk Analytics",
+      "department": "Risk Management",
+      "locations": ["Hong Kong"],
+      "job_description": "<p>We are looking for a <strong>Vice President</strong> to join our Risk Analytics team in Hong Kong.</p><ul><li>Lead quantitative risk modelling</li><li>Partner with front-office teams</li></ul>",
+      "t_create": 1709251200000,
+      "canonicalPositionUrl": "https://hsbc.eightfold.ai/careers?pid=100000000000001",
+      "country": "HK",
+      "city": "Hong Kong"
+    },
+    {
+      "id": "100000000000002",
+      "name": "Associate, Compliance Advisory",
+      "department": "Compliance",
+      "locations": ["Hong Kong", "Singapore"],
+      "job_description": "<p>Join the <strong>Compliance Advisory</strong> team as an Associate.</p><ul><li>Advise business units on regulatory requirements</li><li>Conduct gap &amp; impact assessments</li></ul>",
+      "t_create": 1709337600000,
+      "canonicalPositionUrl": "https://hsbc.eightfold.ai/careers?pid=100000000000002",
+      "country": "HK",
+      "city": "Hong Kong"
+    }
+  ]
+}
