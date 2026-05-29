@@ -62,10 +62,13 @@ def run(args: argparse.Namespace) -> list[CompanyResult]:
 
     companies = load_companies(args.config)
 
-    if getattr(args, "company", None):
-        companies = [c for c in companies if c.slug == args.company]
+    raw_filter = getattr(args, "company", None)
+    if raw_filter:
+        # Accept either a single slug (str) or a list of slugs (from action='append')
+        slugs = set(raw_filter) if isinstance(raw_filter, list) else {raw_filter}
+        companies = [c for c in companies if c.slug in slugs]
         if not companies:
-            sys.exit(f"No enabled company with slug {args.company!r} in companies.yaml")
+            sys.exit(f"No enabled companies matching {sorted(slugs)} in companies.yaml")
 
     # In dry-run mode use an in-memory DB so JobStore / stats still work
     # internally but nothing is written to disk.
@@ -243,7 +246,11 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--only", "--company",
         dest="company",
         metavar="SLUG",
-        help="Run only one company by slug (e.g. aia-hk). Useful for debugging.",
+        action="append",
+        help=(
+            "Run only this company slug. Repeat to run several: "
+            "--only aia-hk --only blackrock-hk"
+        ),
     )
     p.add_argument(
         "--dry-run",

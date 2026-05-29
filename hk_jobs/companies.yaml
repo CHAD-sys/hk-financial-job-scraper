@@ -60,11 +60,10 @@ companies:
 
   - name: Standard Chartered Bank (HK)
     slug: standard-chartered-hk
-    adapter: workday             # TODO verify at sc.com/hk/en/careers
+    adapter: jobsdb              # switched from workday: 422 on /wday/cxs/standardchartered/External/jobs
     enabled: true
     config:
-      tenant: standardchartered  # TODO verify tenant slug
-      site: External             # TODO verify site name
+      jobsdb_slug: standardchartered   # TODO verify JobsDB slug
 
   - name: Hang Seng Bank
     slug: hang-seng-bank
@@ -154,11 +153,10 @@ companies:
 
   - name: Zurich Hong Kong
     slug: zurich-hk
-    adapter: workday             # TODO verify at zurich.com.hk/en/about-us/careers
+    adapter: jobsdb              # switched from workday: 422 on /wday/cxs/zurich/External/jobs
     enabled: true
     config:
-      tenant: zurich             # TODO verify tenant slug (may be "zurichinsurance")
-      site: External             # TODO verify site name
+      jobsdb_slug: zurich        # TODO verify JobsDB slug
 
   - name: FWD Insurance
     slug: fwd-insurance
@@ -210,28 +208,24 @@ companies:
 
   - name: Fidelity International HK
     slug: fidelity-international-hk
-    adapter: workday             # TODO verify at careers.fidelityinternational.com
+    adapter: jobsdb              # switched from workday: 422 on /wday/cxs/fidelityinternational/External/jobs
     enabled: true
     config:
-      tenant: fidelityinternational   # TODO verify tenant slug
-      site: External                  # TODO verify site name
+      jobsdb_slug: fidelity      # TODO verify JobsDB slug
 
   - name: BlackRock Hong Kong
     slug: blackrock-hk
-    adapter: workday             # TODO verify — known to use wd5 subdomain
+    adapter: jobsdb              # switched from workday: 422 on /wday/cxs/blackrock/Experienced/jobs
     enabled: true
     config:
-      tenant: blackrock          # TODO verify tenant slug
-      site: Experienced          # TODO verify (may be "External")
-      wd: wd5                    # TODO verify — wd5 indicated by URL pattern
+      jobsdb_slug: blackrock     # TODO verify JobsDB slug
 
   - name: Schroders Hong Kong
     slug: schroders-hk
-    adapter: workday             # TODO verify at schroders.com/en/hk/individual/about-us/careers
+    adapter: jobsdb              # switched from workday: 422 on /wday/cxs/schroders/External/jobs
     enabled: true
     config:
-      tenant: schroders          # TODO verify tenant slug
-      site: External             # TODO verify site name
+      jobsdb_slug: schroders     # TODO verify JobsDB slug
 
   - name: Amundi Hong Kong
     slug: amundi-hk
@@ -249,11 +243,10 @@ companies:
 
   - name: PIMCO Hong Kong
     slug: pimco-hk
-    adapter: workday             # TODO verify at pimco.com/en-us/careers
+    adapter: jobsdb              # switched from workday: 422 on /wday/cxs/pimco/External/jobs
     enabled: true
     config:
-      tenant: pimco              # TODO verify tenant slug
-      site: External             # TODO verify site name
+      jobsdb_slug: pimco         # TODO verify JobsDB slug
 
   - name: J.P. Morgan Asset Management HK
     slug: jpmorgan-am-hk
@@ -264,11 +257,10 @@ companies:
 
   - name: UBS Asset Management HK
     slug: ubs-am-hk
-    adapter: workday             # TODO verify at ubs.com/global/en/careers
+    adapter: jobsdb              # switched from workday: 422 on /wday/cxs/ubs/External/jobs
     enabled: true
     config:
-      tenant: ubs                # TODO verify tenant slug (may be "ubsag")
-      site: External             # TODO verify site name
+      jobsdb_slug: ubs           # TODO verify JobsDB slug
 
   - name: BNP Paribas Asset Management HK
     slug: bnp-paribas-am-hk

@@ -263,14 +263,21 @@ def test_only_flag_accepted_by_parse_args():
     from hk_jobs.pipeline import _parse_args
 
     args = _parse_args(["--only", "aia-hk", "--db", "data/jobs.db"])
-    assert args.company == "aia-hk"
+    assert args.company == ["aia-hk"]  # action='append' returns a list
+
+
+def test_only_flag_accepts_multiple_slugs():
+    from hk_jobs.pipeline import _parse_args
+
+    args = _parse_args(["--only", "aia-hk", "--only", "blackrock-hk", "--db", "data/jobs.db"])
+    assert set(args.company) == {"aia-hk", "blackrock-hk"}
 
 
 def test_company_flag_still_accepted_by_parse_args():
     from hk_jobs.pipeline import _parse_args
 
     args = _parse_args(["--company", "aia-hk", "--db", "data/jobs.db"])
-    assert args.company == "aia-hk"
+    assert args.company == ["aia-hk"]
 
 
 def test_verbose_flag_parsed():
