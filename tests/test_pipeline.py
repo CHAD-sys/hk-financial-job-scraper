@@ -34,11 +34,19 @@ def _cfg(slug: str = "aia-hk", adapter: str = "workday") -> CompanyConfig:
     )
 
 
-def _args(db: str, export: str | None = None, company: str | None = None) -> argparse.Namespace:
+def _args(
+    db: str,
+    export: str | None = None,
+    company: str | None = None,
+    dry_run: bool = False,
+    verbose: bool = False,
+) -> argparse.Namespace:
     return argparse.Namespace(
         db=db,
         export=export,
         company=company,
+        dry_run=dry_run,
+        verbose=verbose,
         no_enrich=True,   # skip enrichment so tests don't depend on enrich logic
         config=None,
         log_level="WARNING",
@@ -204,6 +212,92 @@ def test_mark_inactive_called_after_run(tmp_path: Path, monkeypatch):
         stats = store.stats()
     assert stats["active"] == 1
     assert stats["total"] == 2
+
+
+# ── --dry-run ─────────────────────────────────────────────────────────────────
+
+def test_dry_run_does_not_write_to_disk(tmp_path: Path, monkeypatch):
+    """--dry-run must leave the real DB file untouched."""
+    jobs = [_job("J-001"), _job("J-002")]
+    cfg = _cfg()
+    monkeypatch.setattr("hk_jobs.pipeline.load_companies", lambda path=None: [cfg])
+    monkeypatch.setattr(CompanyConfig, "build_adapter", lambda self: _MockAdapter(jobs))
+
+    db_path = str(tmp_path / "jobs.db")
+    run(_args(db_path, dry_run=True))
+
+    assert not Path(db_path).exists(), "dry-run must not create the database file"
+
+
+def test_dry_run_reports_would_be_inserted_count(tmp_path: Path, monkeypatch):
+    jobs = [_job("J-001"), _job("J-002"), _job("J-003")]
+    cfg = _cfg()
+    monkeypatch.setattr("hk_jobs.pipeline.load_companies", lambda path=None: [cfg])
+    monkeypatch.setattr(CompanyConfig, "build_adapter", lambda self: _MockAdapter(jobs))
+
+    results = run(_args(str(tmp_path / "jobs.db"), dry_run=True))
+
+    assert results[0].total_fetched == 3
+    assert results[0].inserted == 3   # would-be inserts
+    assert results[0].updated == 0
+    assert results[0].deactivated == 0
+
+
+def test_dry_run_does_not_call_mark_inactive(tmp_path: Path, monkeypatch):
+    """Running dry-run twice should not accumulate deactivated counts."""
+    jobs = [_job("J-001")]
+    cfg = _cfg()
+    monkeypatch.setattr("hk_jobs.pipeline.load_companies", lambda path=None: [cfg])
+    monkeypatch.setattr(CompanyConfig, "build_adapter", lambda self: _MockAdapter(jobs))
+
+    db = str(tmp_path / "jobs.db")
+    run(_args(db, dry_run=True))
+    results = run(_args(db, dry_run=True))
+
+    assert results[0].deactivated == 0
+
+
+# ── --only / --verbose ────────────────────────────────────────────────────────
+
+def test_only_flag_accepted_by_parse_args():
+    from hk_jobs.pipeline import _parse_args
+
+    args = _parse_args(["--only", "aia-hk", "--db", "data/jobs.db"])
+    assert args.company == "aia-hk"
+
+
+def test_company_flag_still_accepted_by_parse_args():
+    from hk_jobs.pipeline import _parse_args
+
+    args = _parse_args(["--company", "aia-hk", "--db", "data/jobs.db"])
+    assert args.company == "aia-hk"
+
+
+def test_verbose_flag_parsed():
+    from hk_jobs.pipeline import _parse_args
+
+    args = _parse_args(["-v", "--db", "data/jobs.db"])
+    assert args.verbose is True
+
+    args2 = _parse_args(["--verbose", "--db", "data/jobs.db"])
+    assert args2.verbose is True
+
+
+def test_verbose_logs_job_titles(tmp_path: Path, monkeypatch, caplog):
+    import logging
+
+    jobs = [_job("J-001"), _job("J-002")]
+    cfg = _cfg()
+    monkeypatch.setattr("hk_jobs.pipeline.load_companies", lambda path=None: [cfg])
+    monkeypatch.setattr(CompanyConfig, "build_adapter", lambda self: _MockAdapter(jobs))
+
+    with caplog.at_level(logging.DEBUG):
+        run(_args(str(tmp_path / "jobs.db"), verbose=True))
+
+    # Each job's source_id should appear in a DEBUG log line
+    debug_msgs = " ".join(caplog.messages)
+    assert "J-001" in debug_msgs
+    assert "J-002" in debug_msgs
 
 
 # ── constants ─────────────────────────────────────────────────────────────────

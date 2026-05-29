@@ -58,6 +58,8 @@ def run(args: argparse.Namespace) -> list[CompanyResult]:
     Returns the list of per-company results so callers (and tests) can
     inspect outcomes without having to re-read the database.
     """
+    dry_run: bool = getattr(args, "dry_run", False)
+
     companies = load_companies(args.config)
 
     if getattr(args, "company", None):
@@ -65,21 +67,29 @@ def run(args: argparse.Namespace) -> list[CompanyResult]:
         if not companies:
             sys.exit(f"No enabled company with slug {args.company!r} in companies.yaml")
 
-    Path(args.db).parent.mkdir(parents=True, exist_ok=True)
+    # In dry-run mode use an in-memory DB so JobStore / stats still work
+    # internally but nothing is written to disk.
+    db_path = ":memory:" if dry_run else args.db
+    if not dry_run:
+        Path(args.db).parent.mkdir(parents=True, exist_ok=True)
+
+    if dry_run:
+        logger.info("DRY RUN — adapters will run but nothing will be written to disk.")
+
     results: list[CompanyResult] = []
 
-    with JobStore(args.db) as store:
+    with JobStore(db_path) as store:
         run_time = datetime.now(UTC)
 
         for cfg in companies:
             result = _run_company(cfg, store, run_time, args)
             results.append(result)
 
-        if getattr(args, "export", None):
+        if not dry_run and getattr(args, "export", None):
             count = store.export_active_jsonl(args.export)
             logger.info("Exported %d active jobs → %s", count, args.export)
 
-        _print_report(results, store)
+        _print_report(results, store, dry_run=dry_run)
 
     return results
 
@@ -123,6 +133,29 @@ def _run_company(cfg, store: JobStore, run_time: datetime, args) -> CompanyResul
     if not getattr(args, "no_enrich", False):
         jobs = enrich_all(jobs)
 
+    # --verbose: log each job title so the user can eyeball the results live
+    if getattr(args, "verbose", False) and jobs:
+        for job in jobs:
+            logger.debug(
+                "  [%s]  %-55s  %s",
+                job.source_id,
+                job.title[:55],
+                ", ".join(job.locations) or "—",
+            )
+
+    dry_run: bool = getattr(args, "dry_run", False)
+
+    if dry_run:
+        # Upsert into the in-memory store so inserted/updated counts are accurate,
+        # but skip mark_inactive_for_run (no "previous run" to diff against).
+        inserted, _ = store.upsert_many(jobs)
+        elapsed = time.monotonic() - t0
+        if not jobs:
+            logger.warning("%s: returned 0 jobs (dry run)", cfg.name)
+        else:
+            logger.info("%s: %d jobs fetched — DRY RUN, not persisted", cfg.name, len(jobs))
+        return CompanyResult(cfg.name, cfg.slug, len(jobs), inserted, 0, 0, elapsed)
+
     inserted, updated = store.upsert_many(jobs)
     deactivated = store.mark_inactive_for_run(cfg.slug, run_time)
     elapsed = time.monotonic() - t0
@@ -143,7 +176,12 @@ def _run_company(cfg, store: JobStore, run_time: datetime, args) -> CompanyResul
     return CompanyResult(cfg.name, cfg.slug, len(jobs), inserted, updated, deactivated, elapsed)
 
 
-def _print_report(results: list[CompanyResult], store: JobStore) -> None:
+def _print_report(
+    results: list[CompanyResult],
+    store: JobStore,
+    *,
+    dry_run: bool = False,
+) -> None:
     """Print a concise end-of-run summary to stdout."""
     total_fetched = sum(r.total_fetched for r in results)
     total_new = sum(r.inserted for r in results)
@@ -152,14 +190,22 @@ def _print_report(results: list[CompanyResult], store: JobStore) -> None:
     errors = [r for r in results if not r.ok]
 
     stats = store.stats()
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
     print()
     print("=" * 62)
-    print(f"  RUN COMPLETE  {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}")
+    if dry_run:
+        print(f"  DRY RUN  {timestamp}  (nothing written to disk)")
+    else:
+        print(f"  RUN COMPLETE  {timestamp}")
     print("=" * 62)
     print(f"  Companies run  : {len(results)}")
-    print(f"  Jobs fetched   : {total_fetched:,}  ({total_new:,} new, {total_updated:,} updated)")
-    print(f"  Active in DB   : {stats['active']:,} / {stats['total']:,} total")
+    if dry_run:
+        print(f"  Jobs fetched   : {total_fetched:,}  ({total_new:,} would be new)")
+    else:
+        new_updated = f"{total_new:,} new, {total_updated:,} updated"
+        print(f"  Jobs fetched   : {total_fetched:,}  ({new_updated})")
+        print(f"  Active in DB   : {stats['active']:,} / {stats['total']:,} total")
 
     if zero_ok:
         print()
@@ -194,9 +240,23 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Export active jobs to JSONL after the run (e.g. data/jobs.jsonl)",
     )
     p.add_argument(
-        "--company",
+        "--only", "--company",
+        dest="company",
         metavar="SLUG",
         help="Run only one company by slug (e.g. aia-hk). Useful for debugging.",
+    )
+    p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=(
+            "Fetch and enrich jobs but do NOT write to the database. "
+            "Useful for verifying a new adapter config without touching stored data."
+        ),
+    )
+    p.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Print each fetched job (title, location, source_id). Implies DEBUG logging.",
     )
     p.add_argument(
         "--no-enrich",
@@ -220,6 +280,9 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> None:
     args = _parse_args(argv)
+    # --verbose implies DEBUG regardless of --log-level
+    if args.verbose:
+        args.log_level = "DEBUG"
     logging.basicConfig(
         level=getattr(logging, args.log_level),
         format="%(asctime)s  %(levelname)-8s  %(name)s — %(message)s",
