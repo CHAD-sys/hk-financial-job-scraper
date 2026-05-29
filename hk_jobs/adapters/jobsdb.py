@@ -51,10 +51,19 @@ _CHALLENGE_SIGNALS = ("captcha", "cf-challenge", "just a moment", "checking your
 
 
 def _is_challenge(status: int, html: str) -> bool:
-    """Return True if we got a Cloudflare or bot-protection response."""
+    """
+    Return True if we got a Cloudflare or bot-protection response.
+
+    Only scan for challenge text when the page is short — a real content
+    page is typically >100 KB and will never be a Cloudflare challenge page.
+    This prevents false positives when challenge phrases appear inside the
+    page's own JavaScript bundles.
+    """
     if status in (403, 429):
         return True
-    return any(sig in html.lower() for sig in _CHALLENGE_SIGNALS)
+    if len(html) < 100_000:
+        return any(sig in html.lower() for sig in _CHALLENGE_SIGNALS)
+    return False
 
 
 class JobsDBAdapter(BaseAdapter):
@@ -203,12 +212,18 @@ def _parse_listing_html(html: str) -> list[dict]:
     tree = HTMLParser(html)
     cards = []
 
-    for article in tree.css("[data-automation^='job-card']"):
+    # data-automation values confirmed from live JobsDB HTML (2026-05).
+    # JobsDB uses different attribute names than our original fixture assumed.
+    # If this returns 0 again, re-run scripts/test_scrapling_jobsdb.py to
+    # inspect current attribute names — they change with JobsDB deployments.
+    for article in tree.css("[data-automation='normalJob']"):
         title_node = article.css_first(
-            "[data-automation='job-title'] a, [data-automation='job-link']"
+            "[data-automation='jobTitle'] a, [data-automation='job-list-view-job-link']"
         )
-        location_node = article.css_first("[data-automation='job-location']")
-        teaser_node = article.css_first("[data-automation='job-teaser']")
+        location_node = article.css_first(
+            "[data-automation='jobCardLocation'], [data-automation='jobLocation']"
+        )
+        teaser_node = article.css_first("[data-automation='jobShortDescription']")
 
         if not title_node:
             continue
