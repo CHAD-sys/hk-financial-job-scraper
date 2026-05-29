@@ -1,279 +1,278 @@
 ##############################################################################
 #  ⚠  UNVERIFIED ATS ASSIGNMENTS — READ BEFORE RUNNING  ⚠
 #
-#  Every `adapter:` value in this file is an educated guess based on
-#  company size, industry norms, and ATS market-share data. NONE of them
-#  have been verified against the live careers pages.
+#  Every `adapter:` value and every config value marked "# TODO" below is
+#  an educated guess. NONE have been verified against live careers pages.
 #
 #  HOW TO VERIFY A SINGLE COMPANY (takes ~2 minutes per company):
 #    1. Open the company's careers page in Chrome.
-#    2. Open DevTools  →  Network tab  →  tick "XHR / Fetch".
-#    3. Type something in the job-search box, or scroll the listing.
-#    4. Look at the URLs that appear in the Network panel:
+#    2. DevTools  →  Network tab  →  tick "Fetch/XHR".
+#    3. Type in the job-search box or scroll the listing.
+#    4. Look at the request URLs that appear:
 #         • contains "myworkdayjobs.com"  →  adapter: workday
+#             URL path: /wday/cxs/{tenant}/{site}/jobs  →  note tenant + site
+#             Subdomain prefix (wd1/wd3/wd5) is the `wd:` value
 #         • contains "eightfold.ai"       →  adapter: eightfold
-#         • contains "successfactors"     →  adapter: successfactors  (not yet built)
-#         • contains "taleo.net"          →  adapter: jobsdb  (hostile, use fallback)
-#         • contains "icims.com"          →  adapter: jobsdb  (hostile, use fallback)
-#    5. For Workday: the URL path is
-#         /wday/cxs/{tenant}/{site}/jobs  →  copy tenant and site here.
-#    6. For Eightfold: the subdomain is
-#         {tenant}.eightfold.ai  →  copy tenant here.
-#         The "domain" field is the company's own internet domain.
-#    7. If nothing appears in the Network tab, the page is server-rendered;
-#       try navigating to a job detail page and look for an API call there.
+#             Subdomain: {tenant}.eightfold.ai  →  note tenant
+#             "domain" query param in the XHR call  →  note domain
+#         • contains "taleo.net"          →  adapter: jobsdb  (Taleo is hostile)
+#         • contains "icims.com"          →  adapter: jobsdb  (iCIMS is hostile)
+#         • no ATS XHR found             →  adapter: jobsdb  (fallback)
+#    5. For the JobsDB slug: visit hk.jobsdb.com, search the company,
+#       click their profile. The slug is the part before "-jobs" in the URL,
+#       e.g. hk.jobsdb.com/bank-of-china-hong-kong-jobs → "bank-of-china-hong-kong".
 #
-#  Set `enabled: false` to skip a company without removing its config.
-#  After you verify a company, please remove the "# UNVERIFIED" comment
-#  on its adapter line so we can track progress.
+#  Remove the "# TODO verify" comment once a value has been confirmed.
+#  Set `enabled: false` to pause a company without deleting its config.
 ##############################################################################
 
-# Schema for each entry:
+# Schema:
 #   name    : human-readable company name
-#   slug    : URL-safe lowercase identifier used as company_slug in Job objects
-#   adapter : one of: workday | eightfold | jobsdb
+#   slug    : kebab-case identifier — used as company_slug in Job objects
+#   adapter : workday | eightfold | jobsdb
 #   enabled : true | false
-#   config  : adapter-specific keys (see HOW TO VERIFY above)
-#     workday   → tenant (str), site (str), wd (str, default "wd3"),
+#   config  :
+#     workday   → tenant (str, TODO), site (str, TODO), wd (str, default "wd3"),
 #                 location_filter (str, default "Hong Kong")
-#     eightfold → tenant (str), domain (str),
+#     eightfold → tenant (str, TODO), domain (str, TODO),
 #                 location_filter (str, default "Hong Kong")
-#     jobsdb    → jobsdb_slug (str), max_pages (int, default 5)
+#     jobsdb    → jobsdb_slug (str, TODO), max_pages (int, default 5)
 
 companies:
 
-  # ── Banks ────────────────────────────────────────────────────────────────
+  # ── Banking ──────────────────────────────────────────────────────────────
+  # Source: https://www.hsbc.com.hk, https://www.bochk.com, etc.
 
-  - name: HSBC
-    slug: hsbc
-    adapter: eightfold   # UNVERIFIED — Phase 4 instructions suggest eightfold
+  - name: HSBC Hong Kong
+    slug: hsbc-hk
+    adapter: eightfold           # hsbc.eightfold.ai confirmed by user
     enabled: true
     config:
-      tenant: hsbc
-      domain: hsbc.com
+      tenant: hsbc               # TODO verify: open hsbc.eightfold.ai in DevTools
+      domain: hsbc.com           # TODO verify: check "domain" query param in XHR
 
-  - name: Standard Chartered
-    slug: standard-chartered
-    adapter: workday   # UNVERIFIED
+  - name: Bank of China (Hong Kong)
+    slug: bochk
+    adapter: jobsdb              # direct ATS unknown; JobsDB fallback
     enabled: true
     config:
-      tenant: standardchartered
-      site: External
+      jobsdb_slug: bank-of-china-hong-kong   # TODO verify JobsDB slug
 
-  - name: Bank of China (HK)
-    slug: bank-of-china-hk
-    adapter: jobsdb   # UNVERIFIED — Chinese state bank, direct ATS unknown
+  - name: Standard Chartered Bank (HK)
+    slug: standard-chartered-hk
+    adapter: workday             # TODO verify at sc.com/hk/en/careers
     enabled: true
     config:
-      jobsdb_slug: bank-of-china-hong-kong
+      tenant: standardchartered  # TODO verify tenant slug
+      site: External             # TODO verify site name
 
   - name: Hang Seng Bank
     slug: hang-seng-bank
-    adapter: eightfold   # UNVERIFIED — HSBC Group subsidiary, likely same ATS
+    adapter: eightfold           # HSBC Group subsidiary — likely same platform as HSBC
     enabled: true
     config:
-      tenant: hangseng
-      domain: hangseng.com
+      tenant: hangseng           # TODO verify: open hangseng.eightfold.ai in DevTools
+      domain: hangseng.com       # TODO verify domain param
 
-  - name: DBS Bank HK
+  - name: DBS Bank (Hong Kong)
     slug: dbs-hk
-    adapter: workday   # UNVERIFIED — DBS Group uses Workday globally
+    adapter: workday             # TODO verify at dbs.com/hk/about/careers
     enabled: true
     config:
-      tenant: dbs
-      site: External
+      tenant: dbs                # TODO verify — DBS Group uses Workday globally
+      site: External             # TODO verify site name
 
   - name: Bank of East Asia
     slug: bank-of-east-asia
-    adapter: jobsdb   # UNVERIFIED — local HK bank, ATS unclear
+    adapter: jobsdb              # direct ATS not identified; JobsDB fallback
     enabled: true
     config:
-      jobsdb_slug: bank-of-east-asia
+      jobsdb_slug: bank-of-east-asia   # TODO verify JobsDB slug
 
-  - name: Citibank HK
+  - name: Citibank Hong Kong
     slug: citibank-hk
-    adapter: jobsdb   # UNVERIFIED — Citi uses Taleo globally (hostile); fallback to JobsDB
+    adapter: jobsdb              # Citi uses Taleo (hostile) globally; JobsDB fallback
     enabled: true
     config:
-      jobsdb_slug: citibank-hong-kong
-
-  - name: OCBC Bank HK
-    slug: ocbc-hk
-    adapter: workday   # UNVERIFIED — OCBC Group uses Workday in some markets
-    enabled: true
-    config:
-      tenant: ocbc
-      site: External
-
-  - name: Dah Sing Bank
-    slug: dah-sing-bank
-    adapter: jobsdb   # UNVERIFIED — smaller local bank, ATS unclear
-    enabled: true
-    config:
-      jobsdb_slug: dah-sing-bank
-
-  - name: China Construction Bank (Asia)
-    slug: ccb-asia
-    adapter: jobsdb   # UNVERIFIED — Chinese state bank subsidiary
-    enabled: true
-    config:
-      jobsdb_slug: china-construction-bank-asia
+      jobsdb_slug: citibank-hong-kong  # TODO verify JobsDB slug
 
   - name: ICBC (Asia)
     slug: icbc-asia
-    adapter: jobsdb   # UNVERIFIED — Chinese state bank subsidiary
+    adapter: jobsdb              # Chinese state bank; direct ATS unknown
     enabled: true
     config:
-      jobsdb_slug: icbc-asia
+      jobsdb_slug: icbc-asia           # TODO verify JobsDB slug
 
-  - name: Wing Lung Bank
-    slug: wing-lung-bank
-    adapter: jobsdb   # UNVERIFIED — China Merchants Bank subsidiary
+  - name: China Construction Bank (Asia)
+    slug: ccb-asia
+    adapter: jobsdb              # Chinese state bank; direct ATS unknown
     enabled: true
     config:
-      jobsdb_slug: wing-lung-bank
+      jobsdb_slug: china-construction-bank-asia   # TODO verify JobsDB slug
 
-  - name: Fubon Bank (HK)
-    slug: fubon-bank-hk
-    adapter: jobsdb   # UNVERIFIED — Taiwanese bank subsidiary
+  - name: OCBC Wing Hang Bank
+    slug: ocbc-wing-hang
+    adapter: jobsdb              # TODO verify — OCBC Group may use Workday; fallback for now
     enabled: true
     config:
-      jobsdb_slug: fubon-bank-hong-kong
+      jobsdb_slug: ocbc-wing-hang-bank   # TODO verify JobsDB slug
 
-  # ── Insurers ─────────────────────────────────────────────────────────────
+  # ── Insurance ────────────────────────────────────────────────────────────
+  # Source: https://www.aia.com.hk, https://www.manulife.com.hk, etc.
 
-  - name: AIA
-    slug: aia
-    adapter: workday   # UNVERIFIED — confirmed as workday in CLAUDE.md Phase 0
+  - name: AIA Hong Kong
+    slug: aia-hk
+    adapter: workday             # CONFIRMED: aia.wd3.myworkdayjobs.com
     enabled: true
     config:
       tenant: aia
       site: External
+      wd: wd3
 
-  - name: Manulife HK
+  - name: Manulife Hong Kong
     slug: manulife-hk
-    adapter: workday   # UNVERIFIED — Manulife uses Workday globally
+    adapter: workday             # TODO verify at manulife.com.hk/en/career
     enabled: true
     config:
-      tenant: manulife
-      site: Global
+      tenant: manulife           # TODO verify tenant slug
+      site: External             # TODO verify (may be "Global")
 
-  - name: Prudential HK
+  - name: Prudential Hong Kong
     slug: prudential-hk
-    adapter: workday   # UNVERIFIED — Prudential uses Workday in Asia
+    adapter: workday             # TODO verify at prudential.com.hk/en/careers
     enabled: true
     config:
-      tenant: prudential
-      site: External
+      tenant: prudential         # TODO verify tenant slug
+      site: External             # TODO verify site name
 
   - name: AXA Hong Kong
     slug: axa-hk
-    adapter: workday   # UNVERIFIED — AXA Group uses Workday
+    adapter: jobsdb              # direct ATS not confirmed; JobsDB fallback
     enabled: true
     config:
-      tenant: axa
-      site: External
+      jobsdb_slug: axa-hong-kong   # TODO verify JobsDB slug
 
-  - name: FWD Group
-    slug: fwd-group
-    adapter: workday   # UNVERIFIED — FWD is HK-based; Workday is plausible
-    enabled: true
-    config:
-      tenant: fwd
-      site: External
-
-  - name: Sun Life HK
-    slug: sun-life-hk
-    adapter: workday   # UNVERIFIED — Sun Life Financial uses Workday globally
-    enabled: true
-    config:
-      tenant: sunlife
-      site: External
-
-  - name: Zurich Insurance HK
+  - name: Zurich Hong Kong
     slug: zurich-hk
-    adapter: workday   # UNVERIFIED — Zurich Group uses Workday
+    adapter: workday             # TODO verify at zurich.com.hk/en/about-us/careers
     enabled: true
     config:
-      tenant: zurich
-      site: External
+      tenant: zurich             # TODO verify tenant slug (may be "zurichinsurance")
+      site: External             # TODO verify site name
+
+  - name: FWD Insurance
+    slug: fwd-insurance
+    adapter: workday             # TODO verify at fwd.com.hk/en/careers
+    enabled: true
+    config:
+      tenant: fwd                # TODO verify tenant slug (may be "fwdinsurance")
+      site: External             # TODO verify site name
+
+  - name: Sun Life Hong Kong
+    slug: sun-life-hk
+    adapter: workday             # TODO verify at sunlife.com.hk/en/about-us/career
+    enabled: true
+    config:
+      tenant: sunlife            # TODO verify tenant slug
+      site: External             # TODO verify site name
 
   - name: HSBC Life
     slug: hsbc-life
-    adapter: eightfold   # UNVERIFIED — HSBC Group subsidiary; assume same ATS as HSBC
+    adapter: eightfold           # HSBC Group subsidiary — likely same platform as HSBC
     enabled: true
     config:
-      tenant: hsbc
-      domain: hsbc.com
+      tenant: hsbc               # TODO verify — may share HSBC's tenant or have own
+      domain: hsbclife.com       # TODO verify domain param in XHR
 
-  - name: China Life Insurance (Overseas)
-    slug: china-life-hk
-    adapter: jobsdb   # UNVERIFIED — Chinese state insurer; ATS unclear
+  - name: Generali Hong Kong
+    slug: generali-hk
+    adapter: jobsdb              # direct ATS not identified; JobsDB fallback
     enabled: true
     config:
-      jobsdb_slug: china-life-insurance-overseas
+      jobsdb_slug: generali-hong-kong   # TODO verify JobsDB slug
 
-  # ── Asset Managers ────────────────────────────────────────────────────────
-
-  - name: BlackRock
-    slug: blackrock
-    adapter: workday   # UNVERIFIED — confirmed as workday in CLAUDE.md Phase 0
+  - name: China Taiping Insurance
+    slug: china-taiping
+    adapter: jobsdb              # Chinese insurer; direct ATS unknown
     enabled: true
     config:
-      tenant: blackrock
-      site: Experienced
+      jobsdb_slug: china-taiping-insurance   # TODO verify JobsDB slug
 
-  - name: Fidelity International
-    slug: fidelity-international
-    adapter: workday   # UNVERIFIED — confirmed as workday in CLAUDE.md Phase 0
-    enabled: true
-    config:
-      tenant: fidelityinternational
-      site: External
+  # ── Asset Management ──────────────────────────────────────────────────────
+  # Source: https://www.valuepartners-group.com, https://www.fidelity.hk, etc.
 
-  - name: JP Morgan Asset Management
-    slug: jpmorgan-am
-    adapter: eightfold   # UNVERIFIED — JP Morgan Group uses Eightfold
-    enabled: true
-    config:
-      tenant: jpmorgan
-      domain: jpmorgan.com
-
-  - name: Invesco HK
-    slug: invesco-hk
-    adapter: workday   # UNVERIFIED — Invesco uses Workday globally
-    enabled: true
-    config:
-      tenant: invesco
-      site: External
-
-  - name: Schroders HK
-    slug: schroders-hk
-    adapter: workday   # UNVERIFIED — Schroders uses Workday globally
-    enabled: true
-    config:
-      tenant: schroders
-      site: External
-
-  - name: Principal Asset Management
-    slug: principal-am
-    adapter: workday   # UNVERIFIED — Principal Financial uses Workday
-    enabled: true
-    config:
-      tenant: principal
-      site: External
-
-  - name: Value Partners Group
+  - name: Value Partners
     slug: value-partners
-    adapter: jobsdb   # UNVERIFIED — HK-listed boutique; likely no major ATS
+    adapter: jobsdb              # HK-listed boutique; no major ATS identified
     enabled: true
     config:
-      jobsdb_slug: value-partners-group
+      jobsdb_slug: value-partners-group   # TODO verify JobsDB slug
 
-  - name: Hang Seng Investment Management
-    slug: hang-seng-im
-    adapter: eightfold   # UNVERIFIED — Hang Seng Bank subsidiary; assume same ATS
+  - name: Fidelity International HK
+    slug: fidelity-international-hk
+    adapter: workday             # TODO verify at careers.fidelityinternational.com
     enabled: true
     config:
-      tenant: hangseng
-      domain: hangseng.com
+      tenant: fidelityinternational   # TODO verify tenant slug
+      site: External                  # TODO verify site name
+
+  - name: BlackRock Hong Kong
+    slug: blackrock-hk
+    adapter: workday             # TODO verify — known to use wd5 subdomain
+    enabled: true
+    config:
+      tenant: blackrock          # TODO verify tenant slug
+      site: Experienced          # TODO verify (may be "External")
+      wd: wd5                    # TODO verify — wd5 indicated by URL pattern
+
+  - name: Schroders Hong Kong
+    slug: schroders-hk
+    adapter: workday             # TODO verify at schroders.com/en/hk/individual/about-us/careers
+    enabled: true
+    config:
+      tenant: schroders          # TODO verify tenant slug
+      site: External             # TODO verify site name
+
+  - name: Amundi Hong Kong
+    slug: amundi-hk
+    adapter: jobsdb              # direct ATS not confirmed; JobsDB fallback
+    enabled: true
+    config:
+      jobsdb_slug: amundi-hong-kong   # TODO verify JobsDB slug
+
+  - name: Man Group Hong Kong
+    slug: man-group-hk
+    adapter: jobsdb              # direct ATS not confirmed; JobsDB fallback
+    enabled: true
+    config:
+      jobsdb_slug: man-group          # TODO verify JobsDB slug
+
+  - name: PIMCO Hong Kong
+    slug: pimco-hk
+    adapter: workday             # TODO verify at pimco.com/en-us/careers
+    enabled: true
+    config:
+      tenant: pimco              # TODO verify tenant slug
+      site: External             # TODO verify site name
+
+  - name: J.P. Morgan Asset Management HK
+    slug: jpmorgan-am-hk
+    adapter: jobsdb              # TODO verify — JP Morgan group may use iCIMS (hostile)
+    enabled: true
+    config:
+      jobsdb_slug: jp-morgan-asset-management   # TODO verify JobsDB slug
+
+  - name: UBS Asset Management HK
+    slug: ubs-am-hk
+    adapter: workday             # TODO verify at ubs.com/global/en/careers
+    enabled: true
+    config:
+      tenant: ubs                # TODO verify tenant slug (may be "ubsag")
+      site: External             # TODO verify site name
+
+  - name: BNP Paribas Asset Management HK
+    slug: bnp-paribas-am-hk
+    adapter: jobsdb              # direct ATS not confirmed; JobsDB fallback
+    enabled: true
+    config:
+      jobsdb_slug: bnp-paribas-asset-management   # TODO verify JobsDB slug
