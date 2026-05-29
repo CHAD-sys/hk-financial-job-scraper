@@ -163,6 +163,27 @@ The pipeline always prints a summary:
 ### Why residential, not datacenter?
 Cloudflare checks the ASN (internet provider) of the source IP. Cloud providers (AWS, GCP, DigitalOcean) have well-known ASN ranges that Cloudflare blocks outright. Residential proxies have home ISP ASNs that look like regular users.
 
+### JobsDB now uses Scrapling for Cloudflare bypass
+
+The JobsDB adapter now uses [Scrapling](https://github.com/D4Vinci/Scrapling)'s
+`StealthyFetcher` — a headless Playwright browser with randomised TLS fingerprints
+that bypasses Cloudflare without needing a residential proxy. One-time setup:
+
+```bash
+pip install "scrapling[fetchers]"
+scrapling install          # downloads Playwright browsers (~150 MB, one-time)
+```
+
+After that, run the pipeline normally — no proxy or extra config needed.
+
+---
+
+### Residential proxy (alternative / additional layer)
+
+If you need IP rotation on top of Scrapling (e.g. for high-volume runs or
+stricter bot detection), you can still add a `proxy:` config to each jobsdb
+entry. See below for services.
+
 ### Recommended services
 
 | Service | Est. cost for this project | Notes |

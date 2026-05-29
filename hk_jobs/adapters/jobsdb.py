@@ -19,58 +19,59 @@ JobsDB fallback adapter.
 Why this exists: some large HK financial firms use Taleo or iCIMS, both of
 which actively fight scraping (aggressive CAPTCHAs, bot detection). Those
 same companies almost always post on JobsDB as well, so we fall back there.
-JobsDB's HTML uses `data-automation` attributes which are more stable than
-their hashed CSS class names and survive most redesigns.
+
+Cloudflare bypass: this adapter uses Scrapling's StealthyFetcher (headless
+Playwright with fingerprint spoofing) to bypass JobsDB's Cloudflare block.
+The httpx-based path returned 403 on every request from datacenter IPs.
+
+Requirements (beyond requirements.txt):
+    pip install "scrapling[fetchers]"
+    scrapling install
 """
 
 import logging
 import time
 
-import httpx
 from selectolax.parser import HTMLParser
 
-from hk_jobs.adapters.base import _DEFAULT_HEADERS, BaseAdapter
+from hk_jobs.adapters.base import BaseAdapter
 from hk_jobs.adapters.workday import _strip_html
-from hk_jobs.http_utils import with_retry
 from hk_jobs.schema import Job
 
 logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://hk.jobsdb.com"
-_REQUEST_SLEEP = 1.0  # seconds between every request — hard floor, not negotiable
 
-# Anti-bot signals we look for in the response body
+# Scrapling's solve_cloudflare has a built-in wait; we still sleep a little
+# between page fetches to avoid hammering the server.
+_PAGE_SLEEP = 1.0
+
+# Signals in the HTML body that mean we still got blocked somehow
 _CHALLENGE_SIGNALS = ("captcha", "cf-challenge", "just a moment", "checking your browser")
 
 
-def _is_challenge(resp: httpx.Response) -> bool:
-    """Return True if JobsDB (or a CDN in front of it) is blocking us."""
-    if resp.status_code in (403, 429):
+def _is_challenge(status: int, html: str) -> bool:
+    """Return True if we got a Cloudflare or bot-protection response."""
+    if status in (403, 429):
         return True
-    body_lower = resp.text.lower()
-    return any(sig in body_lower for sig in _CHALLENGE_SIGNALS)
+    return any(sig in html.lower() for sig in _CHALLENGE_SIGNALS)
 
 
 class JobsDBAdapter(BaseAdapter):
     """
     Scrapes job listings for one company from hk.jobsdb.com.
 
-    JobsDB is used as a fallback only — see the legal warning at the top of
-    this file. The adapter keeps a hard ≥1 s gap between every HTTP request
-    to reduce load on the source server.
+    Uses Scrapling's StealthyFetcher to bypass Cloudflare. Each page fetch
+    launches a headless Playwright browser with randomised fingerprints and
+    solves any Cloudflare challenge automatically.
 
-    'jobsdb_slug' is the URL slug JobsDB uses for this company, e.g.
-    'bank-of-china-hong-kong' for the listing at
-    hk.jobsdb.com/bank-of-china-hong-kong-jobs.
+    'jobsdb_slug' is the URL slug JobsDB uses for the company, e.g.
+    'bank-of-china-hong-kong' → hk.jobsdb.com/bank-of-china-hong-kong-jobs.
 
-    Optional 'proxy' config key: a residential proxy URL in the form
-    "http://user:pass@proxy-host:port". Datacenter proxies are usually
-    blocked by Cloudflare — use a residential or ISP proxy service.
-    Example services: Bright Data, Oxylabs, Smartproxy, IPRoyal.
-    Set in companies.yaml:
-        config:
-          jobsdb_slug: bank-of-china-hong-kong
-          proxy: "http://user:pass@residential-proxy.example.com:8080"
+    Optional 'proxy' config key — a proxy URL passed straight to Scrapling:
+        proxy: "http://user:pass@proxy-host:port"
+    Not required for Cloudflare bypass (Scrapling handles that via browser
+    fingerprinting), but useful for IP rotation on high-volume runs.
     """
 
     source_name = "jobsdb"
@@ -79,7 +80,7 @@ class JobsDBAdapter(BaseAdapter):
         self,
         company: str,
         company_slug: str,
-        jobsdb_slug: str,          # matches the YAML config key "jobsdb_slug"
+        jobsdb_slug: str,
         max_pages: int = 5,
         proxy: str | None = None,
         **kwargs,
@@ -101,92 +102,85 @@ class JobsDBAdapter(BaseAdapter):
         """Public entry point — wraps _fetch_all in _safe_fetch for error isolation."""
         return self._safe_fetch(self._fetch_all)
 
-    def _client(self, timeout: float = 20.0) -> httpx.Client:
+    def _fetch_url(self, url: str) -> tuple[int, str]:
         """
-        Return an httpx.Client, optionally routing through a residential proxy.
+        Fetch url and return (http_status, html_string).
 
-        httpx 0.27+ uses proxy= (a single URL string).  The old proxies= dict
-        was removed in 0.24.  Passing proxy=None is safe — httpx ignores it.
+        Uses Scrapling's StealthyFetcher for Cloudflare bypass.
+        This method is the single seam for tests — monkeypatch it to inject
+        fixture HTML without launching a real browser.
         """
-        return httpx.Client(
-            headers=_DEFAULT_HEADERS,
-            timeout=timeout,
-            follow_redirects=True,
-            proxy=self._proxy,   # None → no proxy; "http://..." → route all traffic
-        )
+        from scrapling.fetchers import StealthyFetcher
+
+        kwargs: dict = dict(headless=True, solve_cloudflare=True, network_idle=True)
+        if self._proxy:
+            kwargs["proxy"] = self._proxy
+
+        page = StealthyFetcher.fetch(url, **kwargs)
+        return page.status, str(page.html_content)
 
     # ── private helpers ────────────────────────────────────────────────────
 
     def _fetch_all(self) -> list[Job]:
         jobs: list[Job] = []
-        with self._client() as client:
-            for page in range(1, self.max_pages + 1):
-                cards = self._fetch_listing_page(client, page)
-                if not cards:
-                    break
-                for card in cards:
-                    job = self._fetch_detail(client, card)
-                    jobs.append(job)
+        for page_num in range(1, self.max_pages + 1):
+            cards = self._fetch_listing_page(page_num)
+            if not cards:
+                break
+            for card in cards:
+                job = self._fetch_detail(card)
+                jobs.append(job)
+            if page_num < self.max_pages:
+                time.sleep(_PAGE_SLEEP)
         return jobs
 
-    def _fetch_listing_page(self, client: httpx.Client, page: int) -> list[dict]:
-        """
-        Fetch one page of the company's JobsDB listing and return a list of
-        raw card dicts with title, url, location, and teaser.
-        """
-        params = {"page": page} if page > 1 else {}
-        time.sleep(_REQUEST_SLEEP)
-        resp = with_retry(lambda: client.get(self._listing_url, params=params))
+    def _fetch_listing_page(self, page_num: int) -> list[dict]:
+        url = f"{self._listing_url}?page={page_num}" if page_num > 1 else self._listing_url
+        status, html = self._fetch_url(url)
 
-        if _is_challenge(resp):
+        if _is_challenge(status, html):
             logger.error(
-                "JobsDB challenged us for %s (page %d, status %d) — "
-                "needs a proxy or try later. Stopping early.",
-                self.company,
-                page,
-                resp.status_code,
+                "JobsDB still blocking %s page %d (status %d) — "
+                "Scrapling could not bypass Cloudflare. Try updating Scrapling.",
+                self.company, page_num, status,
             )
             return []
 
-        resp.raise_for_status()
-        return _parse_listing_html(resp.text)
+        if status != 200:
+            logger.error("JobsDB returned HTTP %d for %s page %d", status, self.company, page_num)
+            return []
 
-    def _fetch_detail(self, client: httpx.Client, card: dict) -> Job:
-        """
-        Fetch the full job detail page and merge it into a Job.
+        cards = _parse_listing_html(html)
+        if not cards:
+            logger.debug(
+                "No job cards found on %s page %d — stopping pagination.",
+                self.company, page_num,
+            )
+        return cards
 
-        Falls back to listing-only data if the detail page is unavailable.
-        """
-        detail_url = card["url"]
-        time.sleep(_REQUEST_SLEEP)
+    def _fetch_detail(self, card: dict) -> Job:
+        """Fetch the full job detail page; fall back to listing data on any failure."""
         try:
-            resp = client.get(detail_url)
-            if _is_challenge(resp):
-                logger.warning(
-                    "JobsDB challenged us on detail page %s — using listing data only.",
-                    detail_url,
-                )
+            status, html = self._fetch_url(card["url"])
+            if _is_challenge(status, html) or status != 200:
                 return _card_to_job(self, card, raw_html="")
-            resp.raise_for_status()
-            raw_html, location, employment_type = _parse_detail_html(resp.text)
+            raw_html, location, employment_type = _parse_detail_html(html)
         except Exception:
             logger.warning(
                 "Could not fetch JobsDB detail %s for %s — using listing data only.",
-                detail_url,
-                self.company,
+                card["url"], self.company,
             )
             return _card_to_job(self, card, raw_html="")
 
-        # Detail location overrides listing location when present
         resolved_location = location or card.get("location", "")
         locations = [resolved_location] if resolved_location else []
 
         return Job(
             source=self.source_name,
-            source_id=_extract_source_id(detail_url),
+            source_id=_extract_source_id(card["url"]),
             company=self.company,
             company_slug=self.company_slug,
-            url=detail_url,
+            url=card["url"],
             title=card["title"],
             locations=locations,
             employment_type=_map_employment_type(employment_type),
@@ -201,17 +195,18 @@ def _parse_listing_html(html: str) -> list[dict]:
     """
     Extract job cards from a JobsDB company listing page.
 
-    Targets data-automation attributes rather than CSS classes — JobsDB's
-    class names are hashed and change on every deploy, but data-automation
-    values are tied to automated testing and stay stable.
+    Targets data-automation attributes — more stable than hashed CSS classes.
+    NOTE: JobsDB's exact attribute values may change across deploys. If this
+    returns 0 cards on a live page, run scripts/test_scrapling_jobsdb.py to
+    inspect the current HTML structure and update the selectors here.
     """
     tree = HTMLParser(html)
     cards = []
 
-    # Each job card has data-automation starting with "job-card-"
     for article in tree.css("[data-automation^='job-card']"):
-        title_node = article.css_first("[data-automation='job-title'] a, "
-                                       "[data-automation='job-link']")
+        title_node = article.css_first(
+            "[data-automation='job-title'] a, [data-automation='job-link']"
+        )
         location_node = article.css_first("[data-automation='job-location']")
         teaser_node = article.css_first("[data-automation='job-teaser']")
 
@@ -219,55 +214,36 @@ def _parse_listing_html(html: str) -> list[dict]:
             continue
 
         href = title_node.attributes.get("href", "")
-        # href may be relative ("/hk/en/job/...") or absolute
         url = href if href.startswith("http") else f"{_BASE_URL}{href}"
 
-        cards.append(
-            {
-                "title": title_node.text(strip=True),
-                "url": url,
-                "location": location_node.text(strip=True) if location_node else "",
-                "teaser": teaser_node.text(strip=True) if teaser_node else "",
-            }
-        )
+        cards.append({
+            "title": title_node.text(strip=True),
+            "url": url,
+            "location": location_node.text(strip=True) if location_node else "",
+            "teaser": teaser_node.text(strip=True) if teaser_node else "",
+        })
 
     return cards
 
 
 def _parse_detail_html(html: str) -> tuple[str, str, str]:
-    """
-    Extract (raw_html, location, employment_type) from a JobsDB detail page.
-
-    Returns empty strings for any field that can't be found so callers can
-    fall back to listing data gracefully.
-    """
+    """Return (raw_html, location, employment_type) from a JobsDB job detail page."""
     tree = HTMLParser(html)
 
-    # Full job description lives in [data-automation='jobAdDetails']
     details_node = tree.css_first("[data-automation='jobAdDetails']")
     raw_html = details_node.html or "" if details_node else ""
 
-    location = ""
     loc_node = tree.css_first("[data-automation='job-detail-location']")
-    if loc_node:
-        location = loc_node.text(strip=True)
+    location = loc_node.text(strip=True) if loc_node else ""
 
-    employment_type = ""
     et_node = tree.css_first("[data-automation='job-detail-employment-type']")
-    if et_node:
-        employment_type = et_node.text(strip=True)
+    employment_type = et_node.text(strip=True) if et_node else ""
 
     return raw_html, location, employment_type
 
 
 def _extract_source_id(url: str) -> str:
-    """
-    Pull the numeric job ID from a JobsDB URL.
-
-    JobsDB job URLs end with a numeric ID, e.g.:
-      /hk/en/job/credit-risk-analyst-100003456789  →  "100003456789"
-    Falls back to the full URL if no numeric suffix is found.
-    """
+    """Extract trailing numeric job ID from a JobsDB URL; fall back to full URL."""
     parts = url.rstrip("/").split("-")
     if parts and parts[-1].isdigit():
         return parts[-1]
@@ -275,7 +251,6 @@ def _extract_source_id(url: str) -> str:
 
 
 def _card_to_job(adapter: "JobsDBAdapter", card: dict, raw_html: str) -> Job:
-    """Build a Job from listing-card data only (no detail page available)."""
     loc = card.get("location", "")
     return Job(
         source=adapter.source_name,

@@ -1,13 +1,13 @@
 """
 Tests for the JobsDB fallback adapter.
 
-All HTTP is intercepted; no network calls are made.
+All HTTP is intercepted via monkeypatching _fetch_url — no Scrapling
+browser is launched and no network calls are made.
 Fixture HTML files live in tests/fixtures/jobsdb/.
 """
 
 from pathlib import Path
 
-import httpx
 import pytest
 
 from hk_jobs.adapters.jobsdb import (
@@ -21,7 +21,7 @@ from hk_jobs.adapters.jobsdb import (
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "jobsdb"
 
 
-# ── fixtures & mock transport ─────────────────────────────────────────────────
+# ── fixtures & fetch mock ─────────────────────────────────────────────────────
 
 @pytest.fixture
 def listing_html():
@@ -33,42 +33,28 @@ def detail_html():
     return (FIXTURE_DIR / "detail.html").read_text()
 
 
-class _MockTransport(httpx.BaseTransport):
-    """Returns listing HTML for the company URL, detail HTML for anything else."""
-
-    def __init__(self, listing_html: str, detail_html: str) -> None:
-        self.listing_html = listing_html
-        self.detail_html = detail_html
-        self.calls: list[str] = []
-
-    def handle_request(self, request: httpx.Request) -> httpx.Response:
-        url = str(request.url)
-        self.calls.append(url)
-        # Company listing page — identified by the "-jobs" slug pattern
-        if url.endswith("-jobs") or "-jobs?" in url:
-            return httpx.Response(
-                200, text=self.listing_html, headers={"content-type": "text/html"}
-            )
-        # Everything else (detail pages)
-        return httpx.Response(200, text=self.detail_html, headers={"content-type": "text/html"})
-
-
 @pytest.fixture
 def adapter(listing_html, detail_html, monkeypatch):
-    transport = _MockTransport(listing_html, detail_html)
-    monkeypatch.setattr("hk_jobs.adapters.jobsdb._REQUEST_SLEEP", 0)
+    monkeypatch.setattr("hk_jobs.adapters.jobsdb._PAGE_SLEEP", 0)
 
-    def _mock_client(self, timeout=20.0):
-        return httpx.Client(transport=transport, follow_redirects=True)
+    calls: list[str] = []
 
-    monkeypatch.setattr(JobsDBAdapter, "_client", _mock_client)
+    # Regular function so Python's descriptor protocol binds (self, url) correctly
+    def _mock_fetch_url(self, url: str) -> tuple[int, str]:
+        calls.append(url)
+        if "-jobs" in url:
+            return 200, listing_html
+        return 200, detail_html
+
+    monkeypatch.setattr(JobsDBAdapter, "_fetch_url", _mock_fetch_url)
+
     a = JobsDBAdapter(
         company="Bank of China (HK)",
         company_slug="bank-of-china-hk",
         jobsdb_slug="bank-of-china-hong-kong",
         max_pages=1,
     )
-    a._transport = transport
+    a._calls = calls  # expose for call-count assertions
     return a
 
 
@@ -183,74 +169,52 @@ def test_fetch_jobs_has_description(adapter):
 
 def test_fetch_jobs_employment_type_mapped(adapter):
     jobs = adapter.fetch_jobs()
-    # detail fixture says "Full time" → should map to "full-time"
     for job in jobs:
         assert job.employment_type == "full-time"
 
 
 def test_fetch_jobs_location_from_detail(adapter):
     jobs = adapter.fetch_jobs()
-    # detail fixture has location "Hong Kong"
     assert jobs[0].locations == ["Hong Kong"]
 
 
 def test_fetch_jobs_source_id_extracted(adapter):
     jobs = adapter.fetch_jobs()
-    first = jobs[0]
-    # URL ends in a numeric ID
-    assert first.source_id.isdigit()
+    assert jobs[0].source_id.isdigit()
 
 
 def test_request_count_listing_plus_details(adapter):
     adapter.fetch_jobs()
-    # 1 listing GET + 3 detail GETs = 4 total
-    assert len(adapter._transport.calls) == 4
+    # 1 listing fetch + 3 detail fetches = 4 total
+    assert len(adapter._calls) == 4
 
 
 # ── anti-bot challenge handling ───────────────────────────────────────────────
 
 def test_403_returns_empty_list(monkeypatch):
-    class _BlockTransport(httpx.BaseTransport):
-        def handle_request(self, request):
-            return httpx.Response(403, text="Forbidden")
+    monkeypatch.setattr("hk_jobs.adapters.jobsdb._PAGE_SLEEP", 0)
 
-    monkeypatch.setattr("hk_jobs.adapters.jobsdb._REQUEST_SLEEP", 0)
+    def _blocked(self, url):
+        return 403, "Forbidden"
 
-    def _mock_client(self, timeout=20.0):
-        return httpx.Client(transport=_BlockTransport(), follow_redirects=True)
-
-    monkeypatch.setattr(JobsDBAdapter, "_client", _mock_client)
+    monkeypatch.setattr(JobsDBAdapter, "_fetch_url", _blocked)
     adapter = JobsDBAdapter(
-        company="BOCHK",
-        company_slug="bochk",
-        jobsdb_slug="bank-of-china-hong-kong",
+        company="BOCHK", company_slug="bochk", jobsdb_slug="bank-of-china-hong-kong",
     )
-    jobs = adapter.fetch_jobs()
-    assert jobs == []
+    assert adapter.fetch_jobs() == []
 
 
 def test_captcha_body_returns_empty_list(monkeypatch):
-    class _CaptchaTransport(httpx.BaseTransport):
-        def handle_request(self, request):
-            return httpx.Response(
-                200,
-                text="<html><body>Please complete the captcha to continue.</body></html>",
-                headers={"content-type": "text/html"},
-            )
+    monkeypatch.setattr("hk_jobs.adapters.jobsdb._PAGE_SLEEP", 0)
 
-    monkeypatch.setattr("hk_jobs.adapters.jobsdb._REQUEST_SLEEP", 0)
+    def _captcha(self, url):
+        return 200, "<html><body>Please complete the captcha to continue.</body></html>"
 
-    def _mock_client(self, timeout=20.0):
-        return httpx.Client(transport=_CaptchaTransport(), follow_redirects=True)
-
-    monkeypatch.setattr(JobsDBAdapter, "_client", _mock_client)
+    monkeypatch.setattr(JobsDBAdapter, "_fetch_url", _captcha)
     adapter = JobsDBAdapter(
-        company="BOCHK",
-        company_slug="bochk",
-        jobsdb_slug="bank-of-china-hong-kong",
+        company="BOCHK", company_slug="bochk", jobsdb_slug="bank-of-china-hong-kong",
     )
-    jobs = adapter.fetch_jobs()
-    assert jobs == []
+    assert adapter.fetch_jobs() == []
 
 
 # ── registry ──────────────────────────────────────────────────────────────────
