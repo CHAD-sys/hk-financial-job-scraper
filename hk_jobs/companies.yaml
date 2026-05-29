@@ -74,11 +74,14 @@ companies:
 
   - name: Hang Seng Bank
     slug: hang-seng-bank
-    adapter: eightfold           # HSBC Group subsidiary — likely same platform as HSBC
-    enabled: true
+    adapter: eightfold
+    enabled: false               # DISABLED: Hang Seng jobs are already included in the HSBC HK result.
+                                 # Both share hsbc.eightfold.ai, but domain=hangseng.com returns 404 —
+                                 # Hang Seng jobs appear to be registered under hsbc.com in Eightfold.
+                                 # Re-enable only if you need Hang Seng results separated from HSBC.
     config:
-      tenant: hangseng           # TODO verify: open hangseng.eightfold.ai in DevTools
-      domain: hangseng.com       # TODO verify domain param
+      tenant: hsbc
+      domain: hangseng.com
 
   - name: DBS Bank (Hong Kong)
     slug: dbs-hk
