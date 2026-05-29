@@ -3,7 +3,7 @@
   "jobPostings": [
     {
       "title": "Software Engineer, Hong Kong",
-      "externalPath": "/en-US/External/job/Hong-Kong/Software-Engineer_JR-001",
+      "externalPath": "/job/Hong-Kong-HK/Software-Engineer_JR-001",
       "locationsText": "Hong Kong",
       "bulletFields": ["Hong Kong"],
       "postedOn": "Posted 3 Days Ago",
@@ -11,7 +11,7 @@
     },
     {
       "title": "Business Analyst",
-      "externalPath": "/en-US/External/job/Hong-Kong/Business-Analyst_JR-002",
+      "externalPath": "/job/Hong-Kong-HK/Business-Analyst_JR-002",
       "locationsText": "Hong Kong | Singapore",
       "bulletFields": ["Hong Kong", "Singapore"],
       "postedOn": "Posted 1 Day Ago",

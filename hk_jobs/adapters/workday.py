@@ -173,7 +173,10 @@ class WorkdayAdapter(BaseAdapter):
         external_path = posting.get("externalPath") or ""
         # Prefer jobReqId as the stable identifier; fall back to externalPath
         source_id = posting.get("jobReqId") or external_path or "unknown"
-        url = f"{self._base_url}/en-US{external_path}" if external_path else ""
+        # externalPath from AIA (and likely all modern Workday tenants) is
+        # "/job/{loc-slug}/{title-slug}_JR-XXXXX" — it does NOT include "/en-US/{site}".
+        # The human-facing URL is therefore: {base}/en-US/{site}{externalPath}.
+        url = f"{self._base_url}/en-US/{self.site}{external_path}" if external_path else ""
         return Job(
             source=self.source_name,
             source_id=source_id,
@@ -192,7 +195,10 @@ class WorkdayAdapter(BaseAdapter):
         time.sleep(_DETAIL_SLEEP)
 
         try:
-            resp = client.get(f"{self._api_base}/job{external_path}")
+            # The detail API path is {api_base}{externalPath}.
+            # externalPath already starts with "/job/...", so do NOT add "/job" here —
+            # that produced "/job/job/..." which Workday rejected with HTTP 422.
+            resp = with_retry(lambda: client.get(f"{self._api_base}{external_path}"))
             resp.raise_for_status()
             info = resp.json().get("jobPostingInfo") or {}
         except Exception:

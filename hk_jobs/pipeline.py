@@ -288,6 +288,11 @@ def main(argv: list[str] | None = None) -> None:
         format="%(asctime)s  %(levelname)-8s  %(name)s — %(message)s",
         datefmt="%H:%M:%S",
     )
+    if args.verbose:
+        # httpcore/httpx emit a log line for every TCP event at DEBUG level —
+        # that noise drowns the per-job output we actually want to see.
+        for noisy in ("httpcore", "httpx", "hpack", "h11"):
+            logging.getLogger(noisy).setLevel(logging.WARNING)
     run(args)
 
 
