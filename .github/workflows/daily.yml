@@ -1,0 +1,61 @@
+name: Daily HK Jobs Scrape
+
+on:
+  schedule:
+    # 02:00 HKT (UTC+8) = 18:00 UTC previous day
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+    inputs:
+      company:
+        description: "Run only this company slug (leave blank for all)"
+        required: false
+        default: ""
+
+jobs:
+  scrape:
+    name: Scrape + export
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run scraper
+        env:
+          COMPANY: ${{ github.event.inputs.company }}
+        run: |
+          EXTRA=""
+          if [[ -n "$COMPANY" ]]; then
+            EXTRA="--company $COMPANY"
+          fi
+          mkdir -p data
+          python -m hk_jobs.pipeline \
+            --db data/jobs.db \
+            --export data/jobs.jsonl \
+            --log-level INFO \
+            $EXTRA
+
+      - name: Upload JSONL snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: jobs-${{ github.run_id }}
+          path: data/jobs.jsonl
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload database (for incremental runs)
+        uses: actions/upload-artifact@v4
+        with:
+          name: jobs-db-${{ github.run_id }}
+          path: data/jobs.db
+          retention-days: 7
+          if-no-files-found: warn

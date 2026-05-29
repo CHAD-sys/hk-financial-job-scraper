@@ -31,6 +31,7 @@ from selectolax.parser import HTMLParser
 
 from hk_jobs.adapters.base import BaseAdapter
 from hk_jobs.adapters.workday import _strip_html
+from hk_jobs.http_utils import with_retry
 from hk_jobs.schema import Job
 
 logger = logging.getLogger(__name__)
@@ -109,7 +110,7 @@ class JobsDBAdapter(BaseAdapter):
         """
         params = {"page": page} if page > 1 else {}
         time.sleep(_REQUEST_SLEEP)
-        resp = client.get(self._listing_url, params=params)
+        resp = with_retry(lambda: client.get(self._listing_url, params=params))
 
         if _is_challenge(resp):
             logger.error(

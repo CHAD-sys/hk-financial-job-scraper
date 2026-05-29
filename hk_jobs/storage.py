@@ -21,9 +21,10 @@ Design principles:
 import json
 import sqlite3
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
-from hk_jobs.schema import Job
+from hk_jobs.schema import Job, jobs_to_jsonl
 
 # ── DDL ───────────────────────────────────────────────────────────────────────
 
@@ -243,6 +244,20 @@ class JobStore:
             "by_company": by_company,
         }
 
+    def export_active_jsonl(self, path: str) -> int:
+        """
+        Write all active jobs to a JSONL file, sorted by company then title.
+
+        Returns the number of jobs exported.
+        """
+        rows = self._conn.execute(
+            "SELECT * FROM jobs WHERE is_active=1 ORDER BY company_slug, title"
+        ).fetchall()
+        jobs = [_row_to_job(row) for row in rows]
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        jobs_to_jsonl(jobs, path)
+        return len(jobs)
+
     def close(self) -> None:
         """Close the underlying database connection."""
         self._conn.close()
@@ -282,3 +297,31 @@ def _job_to_row(job: Job) -> dict[str, Any]:
         "posted_at": job.posted_at.isoformat() if job.posted_at else None,
         "fetched_at": job.fetched_at.isoformat(),
     }
+
+
+def _row_to_job(row: sqlite3.Row) -> Job:
+    """Reconstruct a Job from a SQLite row (inverse of _job_to_row)."""
+    return Job(
+        source=row["source"],
+        source_id=row["source_id"],
+        company=row["company"],
+        company_slug=row["company_slug"],
+        url=row["url"],
+        title=row["title"],
+        description_raw=row["description_raw"],
+        description_clean=row["description_clean"],
+        locations=json.loads(row["locations"]),
+        remote_type=row["remote_type"],
+        department=row["department"],
+        seniority=row["seniority"],
+        employment_type=row["employment_type"],
+        salary_min=row["salary_min"],
+        salary_max=row["salary_max"],
+        salary_currency=row["salary_currency"],
+        skills_required=json.loads(row["skills_required"]),
+        skills_preferred=json.loads(row["skills_preferred"]),
+        years_experience_min=row["years_experience_min"],
+        posted_at=datetime.fromisoformat(row["posted_at"]) if row["posted_at"] else None,
+        fetched_at=datetime.fromisoformat(row["fetched_at"]),
+        is_active=bool(row["is_active"]),
+    )

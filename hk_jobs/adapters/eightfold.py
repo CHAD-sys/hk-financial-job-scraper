@@ -28,6 +28,7 @@ import httpx
 
 from hk_jobs.adapters.base import BaseAdapter
 from hk_jobs.adapters.workday import _strip_html
+from hk_jobs.http_utils import with_retry
 from hk_jobs.schema import Job
 
 logger = logging.getLogger(__name__)
@@ -89,15 +90,13 @@ class EightfoldAdapter(BaseAdapter):
         return jobs
 
     def _fetch_page(self, client: httpx.Client, start: int) -> dict:
-        resp = client.get(
-            self._api_base,
-            params={
-                "domain": self.domain,
-                "start": start,
-                "num": _PAGE_SIZE,
-                "location": self.location_filter,
-            },
-        )
+        params = {
+            "domain": self.domain,
+            "start": start,
+            "num": _PAGE_SIZE,
+            "location": self.location_filter,
+        }
+        resp = with_retry(lambda: client.get(self._api_base, params=params))
         resp.raise_for_status()
         return resp.json()
 

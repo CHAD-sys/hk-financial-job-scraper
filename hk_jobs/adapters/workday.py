@@ -28,6 +28,7 @@ from datetime import datetime
 import httpx
 
 from hk_jobs.adapters.base import BaseAdapter
+from hk_jobs.http_utils import with_retry
 from hk_jobs.schema import Job
 
 logger = logging.getLogger(__name__)
@@ -158,15 +159,13 @@ class WorkdayAdapter(BaseAdapter):
         return jobs
 
     def _fetch_page(self, client: httpx.Client, offset: int) -> dict:
-        resp = client.post(
-            f"{self._api_base}/jobs",
-            json={
-                "appliedFacets": {},
-                "limit": _PAGE_SIZE,
-                "offset": offset,
-                "searchText": self.location_filter,
-            },
-        )
+        body = {
+            "appliedFacets": {},
+            "limit": _PAGE_SIZE,
+            "offset": offset,
+            "searchText": self.location_filter,
+        }
+        resp = with_retry(lambda: client.post(f"{self._api_base}/jobs", json=body))
         resp.raise_for_status()
         return resp.json()
 
