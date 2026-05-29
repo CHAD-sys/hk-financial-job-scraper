@@ -1,0 +1,3 @@
+# HK Financial Job Scraper
+
+A daily scraper for open job postings at the 30 largest Hong Kong financial institutions (banks, insurers, asset managers). It calls each company's ATS (Applicant Tracking System) API directly — primarily Workday, Eightfold AI, and SAP SuccessFactors — extracts structured features from each posting (title, skills, seniority, location), and persists them to a SQLite database with soft-delete semantics so historical data is never lost. The output is a queryable job database intended for downstream CV-matching workflows; scraping and storage are the only scope of this project.

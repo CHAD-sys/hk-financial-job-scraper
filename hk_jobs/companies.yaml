@@ -1,0 +1,81 @@
+# companies.yaml — per-company ATS configuration
+#
+# IMPORTANT: Every entry here is a BEST-GUESS based on publicly visible
+# careers-page URLs. They MUST be verified by a human before the first
+# live scraping run. When a live call fails, the pipeline will log an
+# error rather than silently skip the company.
+#
+# Fields:
+#   name        Human-readable company name
+#   ats         One of: workday | eightfold | successfactors | jobsdb_fallback
+#   tenant      ATS-specific identifier (e.g. Workday tenant slug)
+#   site        Workday site slug (only needed for Workday sources)
+#   domain      Eightfold domain (only needed for Eightfold sources)
+#   jobsdb_slug Company slug on hk.jobsdb.com (used by jobsdb_fallback adapter)
+#   enabled     Set to false to skip a company without deleting its config
+
+companies:
+  - name: HSBC
+    ats: workday
+    tenant: hsbc
+    site: External
+    jobsdb_slug: HSBC
+    enabled: true
+
+  - name: Standard Chartered
+    ats: workday
+    tenant: standardchartered
+    site: Careers
+    jobsdb_slug: Standard-Chartered-Bank
+    enabled: true
+
+  - name: Hang Seng Bank
+    ats: workday
+    tenant: hangseng
+    site: External
+    jobsdb_slug: Hang-Seng-Bank
+    enabled: true
+
+  - name: Bank of China (HK)
+    ats: jobsdb_fallback
+    jobsdb_slug: Bank-of-China-Hong-Kong
+    enabled: true
+
+  - name: AIA
+    ats: workday
+    tenant: aia
+    site: AIA
+    jobsdb_slug: AIA
+    enabled: true
+
+  - name: Manulife
+    ats: workday
+    tenant: manulife
+    site: Global
+    jobsdb_slug: Manulife
+    enabled: true
+
+  - name: Prudential (HK)
+    ats: jobsdb_fallback
+    jobsdb_slug: Prudential
+    enabled: true
+
+  - name: BlackRock
+    ats: workday
+    tenant: blackrock
+    site: Experienced
+    jobsdb_slug: BlackRock
+    enabled: true
+
+  - name: Fidelity International
+    ats: workday
+    tenant: fidelityinternational
+    site: External
+    jobsdb_slug: Fidelity-International
+    enabled: true
+
+  - name: JP Morgan
+    ats: eightfold
+    domain: jpmorgan.com
+    jobsdb_slug: JPMorgan
+    enabled: true
