@@ -36,7 +36,13 @@
 #                 location_filter (str, default "Hong Kong")
 #     eightfold → tenant (str, TODO), domain (str, TODO),
 #                 location_filter (str, default "Hong Kong")
-#     jobsdb    → jobsdb_slug (str, TODO), max_pages (int, default 5)
+#     jobsdb    → jobsdb_slug (str, TODO), max_pages (int, default 5),
+#                 proxy (str, optional) — residential proxy URL to bypass Cloudflare.
+#                 Format: "http://user:pass@host:port"
+#                 Services: Bright Data (brightdata.com), Oxylabs, Smartproxy, IPRoyal.
+#                 Omit if you have direct access; required for most CI/datacenter IPs.
+#                 ⚠ Do NOT commit real credentials — use an env var or secrets manager:
+#                   proxy: !ENV HK_JOBS_PROXY   (requires a custom YAML loader)
 
 companies:
 
@@ -57,6 +63,7 @@ companies:
     enabled: true
     config:
       jobsdb_slug: bank-of-china-hong-kong   # TODO verify JobsDB slug
+      # proxy: "http://user:pass@residential-proxy.example.com:8080"  # uncomment + fill in
 
   - name: Standard Chartered Bank (HK)
     slug: standard-chartered-hk

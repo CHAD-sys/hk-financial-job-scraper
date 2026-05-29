@@ -156,17 +156,71 @@ The pipeline always prints a summary:
 
 ---
 
+## Unblocking JobsDB (residential proxy)
+
+21 of the 30 companies use the JobsDB fallback adapter. Cloudflare blocks requests from datacenter and cloud IPs with HTTP 403. A **residential proxy** — one that routes traffic through a real home internet connection — bypasses this.
+
+### Why residential, not datacenter?
+Cloudflare checks the ASN (internet provider) of the source IP. Cloud providers (AWS, GCP, DigitalOcean) have well-known ASN ranges that Cloudflare blocks outright. Residential proxies have home ISP ASNs that look like regular users.
+
+### Recommended services
+
+| Service | Est. cost for this project | Notes |
+|---|---|---|
+| [Bright Data](https://brightdata.com) | ~$15–30 / month | Largest pool; HK residential endpoints available |
+| [Oxylabs](https://oxylabs.io) | ~$15–30 / month | Strong HK coverage |
+| [Smartproxy](https://smartproxy.com) | ~$10–20 / month | Good entry-level option |
+| [IPRoyal](https://iproyal.com) | ~$7–15 / month | Cheaper; smaller pool |
+
+Light usage (30 companies × 5 pages × 1 KB/page × daily) is well under 1 GB/month.
+
+### Setup
+
+1. Sign up for a residential proxy service and get a proxy endpoint URL in the format:
+   ```
+   http://username:password@proxy-host.example.com:8080
+   ```
+
+2. Add the `proxy:` key to every `jobsdb` entry in `companies.yaml`:
+   ```yaml
+   - name: Bank of China (Hong Kong)
+     slug: bochk
+     adapter: jobsdb
+     enabled: true
+     config:
+       jobsdb_slug: bank-of-china-hong-kong
+       proxy: "http://user:pass@residential-proxy.example.com:8080"
+   ```
+
+3. **Do not commit credentials.** Use an environment variable instead:
+   ```bash
+   export HK_JOBS_PROXY="http://user:pass@proxy-host:8080"
+   ```
+   Then reference it in a wrapper script — or use a secrets manager (GitHub Actions secrets, etc.) and pass it at runtime.
+
+4. Verify one company first:
+   ```bash
+   python -m hk_jobs.pipeline --only bochk --dry-run -v
+   ```
+
+5. Once verified, a single proxy URL works for all 21 JobsDB companies — add it to each `jobsdb` entry's config block.
+
+---
+
 ## Pipeline flags
 
 ```
 python -m hk_jobs.pipeline [options]
 
-  --db PATH           SQLite database path (default: data/jobs.db)
-  --export PATH       Export active jobs to JSONL after the run
-  --company SLUG      Run only one company by slug (e.g. aia-hk)
-  --no-enrich         Skip rule-based enrichment (faster, but no skills/seniority)
-  --config PATH       Override the default companies.yaml path
-  --log-level LEVEL   DEBUG | INFO | WARNING | ERROR (default: INFO)
+  --db PATH              SQLite database path (default: data/jobs.db)
+  --export PATH          Export active jobs to JSONL after the run
+  --only SLUG            Run only this company slug; repeat for multiple:
+                           --only aia-hk --only blackrock-hk
+  --dry-run              Fetch and enrich but do NOT write to the database
+  -v / --verbose         Print each fetched job (title, location, ID)
+  --no-enrich            Skip rule-based enrichment (faster, no skills/seniority)
+  --config PATH          Override the default companies.yaml path
+  --log-level LEVEL      DEBUG | INFO | WARNING | ERROR (default: INFO)
 ```
 
 ---

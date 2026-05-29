@@ -29,7 +29,7 @@ import time
 import httpx
 from selectolax.parser import HTMLParser
 
-from hk_jobs.adapters.base import BaseAdapter
+from hk_jobs.adapters.base import _DEFAULT_HEADERS, BaseAdapter
 from hk_jobs.adapters.workday import _strip_html
 from hk_jobs.http_utils import with_retry
 from hk_jobs.schema import Job
@@ -59,9 +59,18 @@ class JobsDBAdapter(BaseAdapter):
     this file. The adapter keeps a hard ≥1 s gap between every HTTP request
     to reduce load on the source server.
 
-    'jobsdb_company_slug' is the URL slug JobsDB uses for this company, e.g.
+    'jobsdb_slug' is the URL slug JobsDB uses for this company, e.g.
     'bank-of-china-hong-kong' for the listing at
     hk.jobsdb.com/bank-of-china-hong-kong-jobs.
+
+    Optional 'proxy' config key: a residential proxy URL in the form
+    "http://user:pass@proxy-host:port". Datacenter proxies are usually
+    blocked by Cloudflare — use a residential or ISP proxy service.
+    Example services: Bright Data, Oxylabs, Smartproxy, IPRoyal.
+    Set in companies.yaml:
+        config:
+          jobsdb_slug: bank-of-china-hong-kong
+          proxy: "http://user:pass@residential-proxy.example.com:8080"
     """
 
     source_name = "jobsdb"
@@ -72,6 +81,7 @@ class JobsDBAdapter(BaseAdapter):
         company_slug: str,
         jobsdb_slug: str,          # matches the YAML config key "jobsdb_slug"
         max_pages: int = 5,
+        proxy: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -79,15 +89,31 @@ class JobsDBAdapter(BaseAdapter):
             company_slug,
             jobsdb_slug=jobsdb_slug,
             max_pages=max_pages,
+            proxy=proxy,
             **kwargs,
         )
         self.jobsdb_slug = jobsdb_slug
         self.max_pages = max_pages
+        self._proxy = proxy
         self._listing_url = f"{_BASE_URL}/{jobsdb_slug}-jobs"
 
     def fetch_jobs(self) -> list[Job]:
         """Public entry point — wraps _fetch_all in _safe_fetch for error isolation."""
         return self._safe_fetch(self._fetch_all)
+
+    def _client(self, timeout: float = 20.0) -> httpx.Client:
+        """
+        Return an httpx.Client, optionally routing through a residential proxy.
+
+        httpx 0.27+ uses proxy= (a single URL string).  The old proxies= dict
+        was removed in 0.24.  Passing proxy=None is safe — httpx ignores it.
+        """
+        return httpx.Client(
+            headers=_DEFAULT_HEADERS,
+            timeout=timeout,
+            follow_redirects=True,
+            proxy=self._proxy,   # None → no proxy; "http://..." → route all traffic
+        )
 
     # ── private helpers ────────────────────────────────────────────────────
 
