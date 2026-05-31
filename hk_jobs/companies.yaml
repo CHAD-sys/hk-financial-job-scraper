@@ -169,17 +169,21 @@ companies:
 
   - name: FWD Insurance
     slug: fwd-insurance
-    adapter: jobsdb              # Workday tenant fwd.wd1 exists but site name unknown; JobsDB fallback
+    adapter: workday             # verified: fwd.wd3.myworkdayjobs.com/FWDcareersite (187 total jobs)
     enabled: true
     config:
-      jobsdb_slug: fwd-insurance   # TODO verify JobsDB slug
+      tenant: fwd
+      site: FWDcareersite
+      wd: wd3
 
   - name: Sun Life Hong Kong
     slug: sun-life-hk
-    adapter: jobsdb              # Workday tenant sunlife.wd1 exists but site name unknown; JobsDB fallback
+    adapter: workday             # verified: sunlife.wd3.myworkdayjobs.com/Experienced-Jobs (278 total jobs)
     enabled: true
     config:
-      jobsdb_slug: sun-life-hong-kong   # TODO verify JobsDB slug
+      tenant: sunlife
+      site: Experienced-Jobs
+      wd: wd3
 
   - name: HSBC Life
     slug: hsbc-life

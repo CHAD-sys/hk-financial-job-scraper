@@ -179,37 +179,44 @@ def _parse_listing_html(html: str) -> list[dict]:
     Extract job cards from a JobsDB company listing page.
 
     data-automation values confirmed from live page (2026-05):
-      normalJob           — job card container
-      jobTitle            — title element (contains <a> with href)
-      job-list-view-job-link — the <a> link (fallback if nested under jobTitle)
-      jobCardLocation / jobLocation — location text
-      jobShortDescription — short teaser text
-      jobListingDate      — relative posting date ("Posted 3 days ago")
+      normalJob                — job card container (article)
+      jobTitle                 — the <a> tag that carries both the title text and href
+      job-list-view-job-link   — invisible full-card overlay <a> (href only, no text)
+      jobCardLocation          — first location span
+      jobShortDescription      — short teaser text
+      jobListingDate           — relative posting date ("19d ago", "1h ago")
 
-    If this returns 0, rerun scripts/test_scrapling_jobsdb.py to inspect
-    the current live attribute names — they change with JobsDB deployments.
+    IMPORTANT: jobTitle is an attribute ON the <a> tag (a[data-automation='jobTitle']),
+    NOT a parent container. The old selector "[data-automation='jobTitle'] a" was wrong.
+
+    If this returns 0, run scripts/test_scrapling_jobsdb.py to inspect current live HTML.
     """
     tree = HTMLParser(html)
     cards = []
 
     for article in tree.css("[data-automation='normalJob']"):
-        title_node = article.css_first(
-            "[data-automation='jobTitle'] a, [data-automation='job-list-view-job-link']"
-        )
+        # Title link: a[data-automation='jobTitle'] holds both title text and href
+        title_node = article.css_first("a[data-automation='jobTitle']")
+        # Fallback link for href only (no visible text — invisible card overlay)
+        link_node = article.css_first("[data-automation='job-list-view-job-link']")
+
+        if not title_node and not link_node:
+            continue
+
+        href_node = title_node or link_node
+        href = href_node.attributes.get("href", "")
+        url = href if href.startswith("http") else f"{_BASE_URL}{href}"
+        # Strip tracking params from href to get a clean job URL
+        url = url.split("?")[0] if "?" in url else url
+
         location_node = article.css_first(
             "[data-automation='jobCardLocation'], [data-automation='jobLocation']"
         )
         teaser_node = article.css_first("[data-automation='jobShortDescription']")
         date_node = article.css_first("[data-automation='jobListingDate']")
 
-        if not title_node:
-            continue
-
-        href = title_node.attributes.get("href", "")
-        url = href if href.startswith("http") else f"{_BASE_URL}{href}"
-
         cards.append({
-            "title": title_node.text(strip=True),
+            "title": title_node.text(strip=True) if title_node else "",
             "url": url,
             "location": location_node.text(strip=True) if location_node else "",
             "teaser": teaser_node.text(strip=True) if teaser_node else "",
@@ -223,15 +230,30 @@ def _parse_listing_date(text: str) -> datetime | None:
     """
     Parse a JobsDB relative date string into a UTC datetime.
 
-    Examples: "Posted today", "Posted 3 days ago", "Posted 2 hours ago".
+    Live page formats (2026-05): "19d ago", "2h ago", "30m ago",
+    and long-form "Listed N days ago", "Posted today".
     Returns None for unrecognised formats.
     """
     if not text:
         return None
     now = datetime.now(UTC)
     lower = text.lower()
+    # "today", "just now", "1h ago" with h=0, etc.
     if re.search(r"\btoday\b|\bjust now\b", lower):
         return now
+    # Short form: "19d ago"
+    m = re.search(r"(\d+)d\b", lower)
+    if m:
+        return now - timedelta(days=int(m.group(1)))
+    # Short form: "2h ago"
+    m = re.search(r"(\d+)h\b", lower)
+    if m:
+        return now - timedelta(hours=int(m.group(1)))
+    # Short form: "30m ago"
+    m = re.search(r"(\d+)m\b", lower)
+    if m:
+        return now - timedelta(minutes=int(m.group(1)))
+    # Long form: "Posted 3 days ago" / "Listed 3 days ago"
     m = re.search(r"(\d+)\s+day", lower)
     if m:
         return now - timedelta(days=int(m.group(1)))
