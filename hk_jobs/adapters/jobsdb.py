@@ -85,7 +85,7 @@ class JobsDBAdapter(BaseAdapter):
         company: str,
         company_slug: str,
         jobsdb_slug: str,
-        max_pages: int = 5,
+        max_pages: int = 2,  # Scrapling ~90 s/page; 2 pages fits inside pipeline timeout
         proxy: str | None = None,
         **kwargs,
     ) -> None:

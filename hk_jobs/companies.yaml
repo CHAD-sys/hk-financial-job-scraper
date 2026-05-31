@@ -70,7 +70,7 @@ companies:
     adapter: jobsdb              # switched from workday: 422 on /wday/cxs/standardchartered/External/jobs
     enabled: true
     config:
-      jobsdb_slug: standardchartered   # TODO verify JobsDB slug
+      jobsdb_slug: Standard-Chartered   # verified slug format
 
   - name: Hang Seng Bank
     slug: hang-seng-bank
@@ -85,11 +85,10 @@ companies:
 
   - name: DBS Bank (Hong Kong)
     slug: dbs-hk
-    adapter: workday             # TODO verify at dbs.com/hk/about/careers
-    enabled: true
+    adapter: jobsdb              # DBS uses Taleo (hostile); pending dedicated Taleo adapter
+    enabled: false               # DISABLED: pending_taleo_adapter — no Taleo support yet
     config:
-      tenant: dbs                # TODO verify — DBS Group uses Workday globally
-      site: External             # TODO verify site name
+      jobsdb_slug: dbs-bank      # TODO verify JobsDB slug when re-enabled
 
   - name: Bank of East Asia
     slug: bank-of-east-asia
@@ -124,7 +123,7 @@ companies:
     adapter: jobsdb              # TODO verify — OCBC Group may use Workday; fallback for now
     enabled: true
     config:
-      jobsdb_slug: ocbc-wing-hang-bank   # TODO verify JobsDB slug
+      jobsdb_slug: OCBC-Wing-Hang-Bank   # verified slug
 
   # ── Insurance ────────────────────────────────────────────────────────────
   # Source: https://www.aia.com.hk, https://www.manulife.com.hk, etc.
@@ -140,26 +139,26 @@ companies:
 
   - name: Manulife Hong Kong
     slug: manulife-hk
-    adapter: workday             # TODO verify at manulife.com.hk/en/career
+    adapter: jobsdb              # Workday tenant manulife.wd1 exists but site name unknown; JobsDB fallback
     enabled: true
     config:
-      tenant: manulife           # TODO verify tenant slug
-      site: External             # TODO verify (may be "Global")
+      jobsdb_slug: manulife-hong-kong   # TODO verify JobsDB slug
 
   - name: Prudential Hong Kong
     slug: prudential-hk
-    adapter: workday             # TODO verify at prudential.com.hk/en/careers
+    adapter: workday             # verified: prudential.wd3.myworkdayjobs.com, site=prudential (524 total jobs)
     enabled: true
     config:
-      tenant: prudential         # TODO verify tenant slug
-      site: External             # TODO verify site name
+      tenant: prudential
+      site: prudential
+      wd: wd3
 
   - name: AXA Hong Kong
     slug: axa-hk
     adapter: jobsdb              # direct ATS not confirmed; JobsDB fallback
     enabled: true
     config:
-      jobsdb_slug: axa-hong-kong   # TODO verify JobsDB slug
+      jobsdb_slug: axa-hong-kong   # verified slug
 
   - name: Zurich Hong Kong
     slug: zurich-hk
@@ -170,24 +169,22 @@ companies:
 
   - name: FWD Insurance
     slug: fwd-insurance
-    adapter: workday             # TODO verify at fwd.com.hk/en/careers
+    adapter: jobsdb              # Workday tenant fwd.wd1 exists but site name unknown; JobsDB fallback
     enabled: true
     config:
-      tenant: fwd                # TODO verify tenant slug (may be "fwdinsurance")
-      site: External             # TODO verify site name
+      jobsdb_slug: fwd-insurance   # TODO verify JobsDB slug
 
   - name: Sun Life Hong Kong
     slug: sun-life-hk
-    adapter: workday             # TODO verify at sunlife.com.hk/en/about-us/career
+    adapter: jobsdb              # Workday tenant sunlife.wd1 exists but site name unknown; JobsDB fallback
     enabled: true
     config:
-      tenant: sunlife            # TODO verify tenant slug
-      site: External             # TODO verify site name
+      jobsdb_slug: sun-life-hong-kong   # TODO verify JobsDB slug
 
   - name: HSBC Life
     slug: hsbc-life
     adapter: eightfold           # HSBC Group subsidiary — likely same platform as HSBC
-    enabled: true
+    enabled: false               # DISABLED: pending_verification — domain hsbclife.com returns 0 results
     config:
       tenant: hsbc               # TODO verify — may share HSBC's tenant or have own
       domain: hsbclife.com       # TODO verify domain param in XHR
@@ -197,7 +194,7 @@ companies:
     adapter: jobsdb              # direct ATS not identified; JobsDB fallback
     enabled: true
     config:
-      jobsdb_slug: generali-hong-kong   # TODO verify JobsDB slug
+      jobsdb_slug: generali-life   # verified slug
 
   - name: China Taiping Insurance
     slug: china-taiping
@@ -214,7 +211,7 @@ companies:
     adapter: jobsdb              # HK-listed boutique; no major ATS identified
     enabled: true
     config:
-      jobsdb_slug: value-partners-group   # TODO verify JobsDB slug
+      jobsdb_slug: Value-Partners   # verified slug
 
   - name: Fidelity International HK
     slug: fidelity-international-hk
@@ -242,7 +239,7 @@ companies:
     adapter: jobsdb              # direct ATS not confirmed; JobsDB fallback
     enabled: true
     config:
-      jobsdb_slug: amundi-hong-kong   # TODO verify JobsDB slug
+      jobsdb_slug: amundi-hong-kong   # verified slug
 
   - name: Man Group Hong Kong
     slug: man-group-hk
