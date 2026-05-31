@@ -18,7 +18,7 @@ import logging
 import sys
 import time
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from hk_jobs.config import load_companies
@@ -93,6 +93,14 @@ def run(args: argparse.Namespace) -> list[CompanyResult]:
             logger.info("Exported %d active jobs → %s", count, args.export)
 
         _print_report(results, store, dry_run=dry_run)
+
+    # Record a daily snapshot into job_history / company_metrics.
+    # Skipped in dry-run mode because dry-run uses an in-memory DB and
+    # intentionally writes nothing to disk.
+    if not dry_run:
+        from hk_jobs.analytics import record_scrape_snapshot
+        record_scrape_snapshot(args.db, results, date.today())
+        _log_trend_changes(results, args.db)
 
     return results
 
@@ -226,6 +234,31 @@ def _print_report(
     print()
 
 
+def _log_trend_changes(results: list[CompanyResult], db_path: str) -> None:
+    """Log companies whose trend changed significantly after the snapshot was recorded."""
+    import sqlite3
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        today = date.today().isoformat()
+        rows = conn.execute(
+            """SELECT company_name, trend_direction, trend_percent, jobs_added, jobs_removed
+               FROM job_history WHERE scraped_date = ?
+               AND trend_direction IN ('growing', 'declining')
+               ORDER BY ABS(trend_percent) DESC""",
+            (today,),
+        ).fetchall()
+        for r in rows:
+            direction = "↑" if r["trend_direction"] == "growing" else "↓"
+            logger.info(
+                "Trend %s %s: %s%+.1f%% (%+d jobs)",
+                direction, r["company_name"], "",
+                r["trend_percent"], r["jobs_added"] - r["jobs_removed"],
+            )
+    finally:
+        conn.close()
+
+
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         prog="python -m hk_jobs.pipeline",
@@ -282,6 +315,22 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
         help="Logging verbosity (default: INFO)",
     )
+    p.add_argument(
+        "--report",
+        choices=["trends", "velocity"],
+        metavar="{trends,velocity}",
+        help=(
+            "Print an analytics report without running the scrapers. "
+            "'trends' shows per-company 7/30d averages; "
+            "'velocity' ranks companies by hiring growth rate."
+        ),
+    )
+    p.add_argument(
+        "--export-trends",
+        dest="export_trends",
+        metavar="PATH",
+        help="Export the latest trend snapshot for every company to a JSONL file.",
+    )
     return p.parse_args(argv)
 
 
@@ -300,6 +349,25 @@ def main(argv: list[str] | None = None) -> None:
         # that noise drowns the per-job output we actually want to see.
         for noisy in ("httpcore", "httpx", "hpack", "h11"):
             logging.getLogger(noisy).setLevel(logging.WARNING)
+
+    # Ensure phase-11 tables exist on every real-DB run (idempotent).
+    if not getattr(args, "dry_run", False):
+        from hk_jobs.migrations import migrate_to_phase_11
+        Path(args.db).parent.mkdir(parents=True, exist_ok=True)
+        migrate_to_phase_11(args.db)
+
+    # --report / --export-trends: analytics-only mode, no scraping.
+    if args.report or getattr(args, "export_trends", None):
+        from hk_jobs import analytics
+        if args.report == "trends":
+            analytics.print_trends_report(args.db)
+        elif args.report == "velocity":
+            analytics.print_velocity_report(args.db)
+        if getattr(args, "export_trends", None):
+            count = analytics.export_trends_jsonl(args.db, args.export_trends)
+            logger.info("Exported %d trend records → %s", count, args.export_trends)
+        return
+
     run(args)
 
 
