@@ -187,11 +187,15 @@ companies:
 
   - name: HSBC Life
     slug: hsbc-life
-    adapter: eightfold           # HSBC Group subsidiary — likely same platform as HSBC
-    enabled: false               # DISABLED: pending_verification — domain hsbclife.com returns 0 results
+    adapter: eightfold
+    enabled: false               # DISABLED: HK roles already captured under HSBC HK (domain=hsbc.com).
+                                 # Verified via Eightfold API: 198 "HSBC Life" branded jobs exist but
+                                 # are overwhelmingly Singapore-based. The 46 HK matches (underwriting,
+                                 # insurance roles) appear in the HSBC HK 239-job result. No separate
+                                 # HK-specific Eightfold domain exists for HSBC Life.
     config:
-      tenant: hsbc               # TODO verify — may share HSBC's tenant or have own
-      domain: hsbclife.com       # TODO verify domain param in XHR
+      tenant: hsbc
+      domain: hsbclife.com       # moot — not used while disabled
 
   - name: Generali Hong Kong
     slug: generali-hk
