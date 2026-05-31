@@ -85,10 +85,10 @@ companies:
 
   - name: DBS Bank (Hong Kong)
     slug: dbs-hk
-    adapter: jobsdb              # DBS uses Taleo (hostile); pending dedicated Taleo adapter
-    enabled: false               # DISABLED: pending_taleo_adapter — no Taleo support yet
+    adapter: jobsdb              # DBS uses Taleo (hostile); JobsDB fallback hk.jobsdb.com/DBS-Bank-jobs
+    enabled: true
     config:
-      jobsdb_slug: dbs-bank      # TODO verify JobsDB slug when re-enabled
+      jobsdb_slug: DBS-Bank      # verified: hk.jobsdb.com/DBS-Bank-jobs
 
   - name: Bank of East Asia
     slug: bank-of-east-asia
@@ -142,7 +142,7 @@ companies:
     adapter: jobsdb              # Workday tenant manulife.wd1 exists but site name unknown; JobsDB fallback
     enabled: true
     config:
-      jobsdb_slug: manulife-hong-kong   # TODO verify JobsDB slug
+      jobsdb_slug: Manulife      # verified: hk.jobsdb.com/Manulife-jobs
 
   - name: Prudential Hong Kong
     slug: prudential-hk
