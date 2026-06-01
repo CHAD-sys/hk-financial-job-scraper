@@ -316,6 +316,21 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Logging verbosity (default: INFO)",
     )
     p.add_argument(
+        "--enrich",
+        action="store_true",
+        help=(
+            "Run Phase 12 LLM enrichment: send unenriched jobs to DeepSeek and "
+            "store structured results in job_enrichments. Requires DEEPSEEK_API_KEY env var."
+        ),
+    )
+    p.add_argument(
+        "--enrich-limit",
+        dest="enrich_limit",
+        type=int,
+        metavar="N",
+        help="Max number of jobs to enrich in this run (useful for testing).",
+    )
+    p.add_argument(
         "--report",
         choices=["trends", "velocity"],
         metavar="{trends,velocity}",
@@ -350,11 +365,12 @@ def main(argv: list[str] | None = None) -> None:
         for noisy in ("httpcore", "httpx", "hpack", "h11"):
             logging.getLogger(noisy).setLevel(logging.WARNING)
 
-    # Ensure phase-11 tables exist on every real-DB run (idempotent).
+    # Ensure phase 11 + 12 tables exist on every real-DB run (idempotent).
     if not getattr(args, "dry_run", False):
-        from hk_jobs.migrations import migrate_to_phase_11
+        from hk_jobs.migrations import migrate_to_phase_11, migrate_to_phase_12
         Path(args.db).parent.mkdir(parents=True, exist_ok=True)
         migrate_to_phase_11(args.db)
+        migrate_to_phase_12(args.db)
 
     # --report / --export-trends: analytics-only mode, no scraping.
     if args.report or getattr(args, "export_trends", None):
@@ -366,6 +382,12 @@ def main(argv: list[str] | None = None) -> None:
         if getattr(args, "export_trends", None):
             count = analytics.export_trends_jsonl(args.db, args.export_trends)
             logger.info("Exported %d trend records → %s", count, args.export_trends)
+        return
+
+    # --enrich: LLM enrichment pass, no scraping.
+    if getattr(args, "enrich", False):
+        from hk_jobs.enrichment import EnrichmentPipeline
+        EnrichmentPipeline(db_path=args.db).run(limit=getattr(args, "enrich_limit", None))
         return
 
     run(args)

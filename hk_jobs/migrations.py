@@ -42,6 +42,26 @@ CREATE TABLE IF NOT EXISTS company_metrics (
 """
 
 
+_JOB_ENRICHMENTS_DDL = """
+CREATE TABLE IF NOT EXISTS job_enrichments (
+    id                        INTEGER PRIMARY KEY AUTOINCREMENT,
+    source                    TEXT    NOT NULL,
+    source_id                 TEXT    NOT NULL,
+    seniority                 TEXT,
+    years_experience_required INTEGER,
+    required_skills           TEXT,           -- JSON array
+    remote_type               TEXT,
+    salary_hkd_min            INTEGER,
+    salary_hkd_max            INTEGER,
+    job_category              TEXT,
+    enriched_at               TIMESTAMP,
+    model_used                TEXT DEFAULT 'deepseek-chat',
+    UNIQUE (source, source_id),
+    FOREIGN KEY (source, source_id) REFERENCES jobs (source, source_id)
+);
+"""
+
+
 def migrate_to_phase_11(db_path: str) -> None:
     """
     Create job_history and company_metrics tables if they don't already exist.
@@ -66,5 +86,25 @@ def migrate_to_phase_11(db_path: str) -> None:
             logger.info("Phase 11 migration: created tables: %s", ", ".join(created))
         else:
             logger.debug("Phase 11 migration: tables already exist")
+    finally:
+        conn.close()
+
+
+def migrate_to_phase_12(db_path: str) -> None:
+    """Create job_enrichments table if it doesn't already exist."""
+    conn = sqlite3.connect(db_path)
+    try:
+        existing = {
+            row[0]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        with conn:
+            conn.execute(_JOB_ENRICHMENTS_DDL)
+        if "job_enrichments" not in existing:
+            logger.info("Phase 12 migration: created table job_enrichments")
+        else:
+            logger.debug("Phase 12 migration: job_enrichments already exists")
     finally:
         conn.close()
