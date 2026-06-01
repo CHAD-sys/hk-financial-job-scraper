@@ -103,13 +103,13 @@ class EightfoldAdapter(BaseAdapter):
     def _map_position(self, pos: dict) -> Job:
         raw_html = pos.get("job_description") or ""
 
-        # t_create is Unix time in milliseconds; convert to UTC datetime
+        # t_create is a Unix timestamp in seconds (confirmed from live API values ~1.76e9)
         posted_at: datetime | None = None
-        if t_ms := pos.get("t_create"):
+        if t_sec := pos.get("t_create"):
             try:
-                posted_at = datetime.fromtimestamp(int(t_ms) / 1000, tz=UTC)
+                posted_at = datetime.fromtimestamp(int(t_sec), tz=UTC)
             except (ValueError, OSError):
-                logger.debug("Could not parse t_create %r for '%s'", t_ms, pos.get("name"))
+                logger.debug("Could not parse t_create %r for '%s'", t_sec, pos.get("name"))
 
         # locations is already a list in Eightfold's response
         locations: list[str] = pos.get("locations") or []
