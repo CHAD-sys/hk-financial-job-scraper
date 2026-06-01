@@ -316,6 +316,23 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Logging verbosity (default: INFO)",
     )
     p.add_argument(
+        "--fetch-descriptions",
+        dest="fetch_descriptions",
+        action="store_true",
+        help=(
+            "Fetch full job description HTML from each job's detail page and store "
+            "in description_raw / description_clean. Skips JobsDB jobs (Cloudflare). "
+            "Use --fetch-limit to cap the number of requests."
+        ),
+    )
+    p.add_argument(
+        "--fetch-limit",
+        dest="fetch_limit",
+        type=int,
+        metavar="N",
+        help="Max number of descriptions to fetch (default: all).",
+    )
+    p.add_argument(
         "--enrich",
         action="store_true",
         help=(
@@ -388,6 +405,12 @@ def main(argv: list[str] | None = None) -> None:
     if getattr(args, "enrich", False):
         from hk_jobs.enrichment import EnrichmentPipeline
         EnrichmentPipeline(db_path=args.db).run(limit=getattr(args, "enrich_limit", None))
+        return
+
+    # --fetch-descriptions: pull full description text from detail pages.
+    if getattr(args, "fetch_descriptions", False):
+        from hk_jobs.description_fetcher import DescriptionFetcher
+        DescriptionFetcher(db_path=args.db).run(limit=getattr(args, "fetch_limit", None))
         return
 
     run(args)
