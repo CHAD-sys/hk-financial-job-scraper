@@ -20,6 +20,7 @@ import time
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
+from threading import Lock
 
 from hk_jobs.config import load_companies
 from hk_jobs.enrich import enrich_all
@@ -81,12 +82,30 @@ def run(args: argparse.Namespace) -> list[CompanyResult]:
 
     results: list[CompanyResult] = []
 
+    # Run up to PIPELINE_WORKERS companies concurrently.
+    # Eightfold/Workday finish in ~1 s each; JobsDB/Scrapling takes ~3 min each.
+    # Overlapping them cuts wall-clock time without stacking too many browsers.
+    # SQLite writes are serialised via a lock so concurrent upserts are safe.
+    PIPELINE_WORKERS = 5
+
     with JobStore(db_path) as store:
         run_time = datetime.now(UTC)
+        db_lock  = Lock()  # SQLite doesn't allow concurrent writes
 
-        for cfg in companies:
-            result = _run_company(cfg, store, run_time, args)
-            results.append(result)
+        def _run_locked(cfg):
+            # fetch + enrich happen without the lock (pure CPU / network)
+            result = _run_company(cfg, store, run_time, args, db_lock=db_lock)
+            return result
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=PIPELINE_WORKERS) as pool:
+            futures = {pool.submit(_run_locked, cfg): cfg for cfg in companies}
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    results.append(future.result())
+                except Exception as exc:
+                    cfg = futures[future]
+                    logger.error("%s: unexpected error: %s", cfg.name, exc)
+                    results.append(CompanyResult(cfg.name, cfg.slug, error=str(exc)))
 
         if not dry_run and getattr(args, "export", None):
             count = store.export_active_jsonl(args.export)
@@ -105,12 +124,18 @@ def run(args: argparse.Namespace) -> list[CompanyResult]:
     return results
 
 
-def _run_company(cfg, store: JobStore, run_time: datetime, args) -> CompanyResult:
-    """Fetch, enrich, and store jobs for one company. Returns a CompanyResult."""
+def _run_company(cfg, store: JobStore, run_time: datetime, args, db_lock=None) -> CompanyResult:
+    """
+    Fetch, enrich, and store jobs for one company. Returns a CompanyResult.
+
+    db_lock: optional threading.Lock that serialises SQLite writes when
+    multiple companies run concurrently via ThreadPoolExecutor.
+    """
     t0 = time.monotonic()
     adapter = cfg.build_adapter()
 
-    # Run the adapter in a thread so we can enforce a wall-clock timeout.
+    # Fetch jobs (network-bound; runs without the db_lock so other companies
+    # can write to the DB while this one is still fetching).
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         future = executor.submit(adapter.fetch_jobs)
         try:
@@ -134,17 +159,11 @@ def _run_company(cfg, store: JobStore, run_time: datetime, args) -> CompanyResul
                 error=f"{type(exc).__name__}: {exc}",
             )
 
-    # Stamp every job with the run's start time so mark_inactive_for_run can
-    # reliably distinguish "seen this run" (fetched_at == run_time) from "seen
-    # a previous run" (fetched_at < run_time).  Without this, tiny clock skew
-    # between job construction and run_time capture could mis-classify fresh
-    # jobs as stale and immediately deactivate them.
     jobs = [job.model_copy(update={"fetched_at": run_time}) for job in jobs]
 
     if not getattr(args, "no_enrich", False):
         jobs = enrich_all(jobs)
 
-    # --verbose: log each job title so the user can eyeball the results live
     if getattr(args, "verbose", False) and jobs:
         for job in jobs:
             logger.debug(
@@ -156,18 +175,19 @@ def _run_company(cfg, store: JobStore, run_time: datetime, args) -> CompanyResul
 
     dry_run: bool = getattr(args, "dry_run", False)
 
-    if dry_run:
-        # Upsert into the in-memory store so inserted/updated counts are accurate,
-        # but skip mark_inactive_for_run (no "previous run" to diff against).
-        inserted, _ = store.upsert_many(jobs)
-        elapsed = time.monotonic() - t0
-        if not jobs:
-            logger.warning("%s: returned 0 jobs (dry run)", cfg.name)
-        else:
-            logger.info("%s: %d jobs fetched — DRY RUN, not persisted", cfg.name, len(jobs))
-        return CompanyResult(cfg.name, cfg.slug, len(jobs), inserted, 0, 0, elapsed)
+    # Serialise all DB writes so concurrent threads don't corrupt SQLite.
+    _lock = db_lock or _NullLock()
+    with _lock:
+        if dry_run:
+            inserted, _ = store.upsert_many(jobs)
+            elapsed = time.monotonic() - t0
+            if not jobs:
+                logger.warning("%s: returned 0 jobs (dry run)", cfg.name)
+            else:
+                logger.info("%s: %d jobs fetched — DRY RUN, not persisted", cfg.name, len(jobs))
+            return CompanyResult(cfg.name, cfg.slug, len(jobs), inserted, 0, 0, elapsed)
 
-    inserted, updated = store.upsert_many(jobs)
+        inserted, updated = store.upsert_many(jobs)
     deactivated = store.mark_inactive_for_run(cfg.slug, run_time)
     elapsed = time.monotonic() - t0
 
@@ -185,6 +205,12 @@ def _run_company(cfg, store: JobStore, run_time: datetime, args) -> CompanyResul
         )
 
     return CompanyResult(cfg.name, cfg.slug, len(jobs), inserted, updated, deactivated, elapsed)
+
+
+class _NullLock:
+    """Drop-in for threading.Lock when no concurrency is needed."""
+    def __enter__(self): return self
+    def __exit__(self, *_): pass
 
 
 def _print_report(
