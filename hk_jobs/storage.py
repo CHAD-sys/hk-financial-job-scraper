@@ -140,7 +140,9 @@ class JobStore:
     def __init__(self, path: str = "data/jobs.db") -> None:
         # SQLite: isolation_level=None puts the connection in autocommit mode
         # by default; we manage transactions explicitly with BEGIN/COMMIT.
-        self._conn = sqlite3.connect(path)
+        # check_same_thread=False lets worker threads reuse this connection;
+        # callers must serialise writes with a threading.Lock (pipeline.py does this).
+        self._conn = sqlite3.connect(path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         # SQLite: WAL mode improves read concurrency and crash safety.
         self._conn.execute("PRAGMA journal_mode=WAL;")
