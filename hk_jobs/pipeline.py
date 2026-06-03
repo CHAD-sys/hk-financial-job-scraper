@@ -82,22 +82,33 @@ def run(args: argparse.Namespace) -> list[CompanyResult]:
 
     results: list[CompanyResult] = []
 
-    # Run up to PIPELINE_WORKERS companies concurrently.
-    # Eightfold/Workday finish in ~1 s each; JobsDB/Scrapling takes ~3 min each.
-    # Overlapping them cuts wall-clock time without stacking too many browsers.
-    # SQLite writes are serialised via a lock so concurrent upserts are safe.
-    PIPELINE_WORKERS = 5
+    # Company-level parallelism.
+    # Each worker runs one company's full scrape (both listing pages + DB write).
+    # Eightfold/Workday: ~1 min each.  JobsDB/Scrapling: ~3 min each (browser/page).
+    # With 10 workers and 21 JobsDB companies: ceil(21/10)×3 min ≈ 9 min total.
+    # Hard cap: >15 workers stacks too many Scrapling browser instances (~300 MB RAM each)
+    # and risks Cloudflare rate-limiting on JobsDB.
+    DEFAULT_WORKERS = 10
+    _requested = getattr(args, "parallel_workers", None) or DEFAULT_WORKERS
+    if _requested > 15:
+        logger.warning(
+            "--parallel-workers %d exceeds safe limit for Scrapling (each browser ~300 MB RAM). "
+            "Capping at 15 to avoid memory exhaustion and Cloudflare bans.",
+            _requested,
+        )
+        _requested = 15
+    n_workers = _requested
+    logger.info("Pipeline running with %d parallel company workers", n_workers)
 
     with JobStore(db_path) as store:
         run_time = datetime.now(UTC)
         db_lock  = Lock()  # SQLite doesn't allow concurrent writes
 
         def _run_locked(cfg):
-            # fetch + enrich happen without the lock (pure CPU / network)
             result = _run_company(cfg, store, run_time, args, db_lock=db_lock)
             return result
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=PIPELINE_WORKERS) as pool:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as pool:
             futures = {pool.submit(_run_locked, cfg): cfg for cfg in companies}
             for future in concurrent.futures.as_completed(futures):
                 try:
@@ -340,6 +351,19 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
         help="Logging verbosity (default: INFO)",
+    )
+    p.add_argument(
+        "--parallel-workers",
+        dest="parallel_workers",
+        type=int,
+        metavar="N",
+        default=10,
+        help=(
+            "Number of companies to scrape in parallel (default: 10). "
+            "Each JobsDB worker launches a Scrapling browser (~300 MB RAM). "
+            "Values above 15 are capped automatically to prevent memory exhaustion "
+            "and Cloudflare rate-limiting."
+        ),
     )
     p.add_argument(
         "--fetch-descriptions",
