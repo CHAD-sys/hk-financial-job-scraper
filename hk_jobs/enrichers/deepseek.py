@@ -118,7 +118,7 @@ class DeepSeekEnricher:
         if description.strip():
             desc_text = description.strip()[:_DESC_MAX_CHARS]
             prompt = _PROMPT_WITH_DESC.format(title=title, description=desc_text)
-            max_tokens = 1000  # ample room for 7-10 comprehensive skills
+            max_tokens = 350   # ~200 tokens actual output; 350 gives safe headroom
         else:
             prompt = _PROMPT_TITLE_ONLY.format(title=title)
             max_tokens = 250
