@@ -43,10 +43,13 @@ Return exactly this JSON:
   "job_category": "Engineering|Finance|Operations|Sales|HR|Other"
 }}
 
-For "skills": extract ALL relevant skills mentioned — aim for 5-10.
-Include: technical tools, programming languages, domain expertise (e.g. AML, derivatives, IFRS),
-certifications (e.g. CFA, CPA, HKSI), software (e.g. Bloomberg, Aladdin, SAP),
-methodologies (e.g. Agile, SWIFT), and key soft skills only if explicitly listed."""
+For "skills": extract 7-10 specific skills from the description. Cover all categories present:
+- Technical/domain: AML, derivatives, IFRS, credit analysis, actuarial, treasury, FX, fixed income
+- Software/tools: Bloomberg, Aladdin, SAP, Murex, Calypso, Excel, Python, SQL, Power BI
+- Certifications: CFA, CPA, ACCA, FRM, HKSI, SFC licence, MPF
+- Methodologies: Agile, SWIFT, Basel III, FATCA, MiFID, Solvency II
+- Management: team leadership, stakeholder management, project management
+List each as a short phrase. Do NOT pad with vague generics (e.g. "strong communication") unless explicitly required by the job."""
 
 _PROMPT_TITLE_ONLY = """\
 Extract structured data from this Hong Kong job posting. Return ONLY valid JSON, no markdown.
@@ -115,7 +118,7 @@ class DeepSeekEnricher:
         if description.strip():
             desc_text = description.strip()[:_DESC_MAX_CHARS]
             prompt = _PROMPT_WITH_DESC.format(title=title, description=desc_text)
-            max_tokens = 350  # more room for richer skill lists from description
+            max_tokens = 1000  # ample room for 7-10 comprehensive skills
         else:
             prompt = _PROMPT_TITLE_ONLY.format(title=title)
             max_tokens = 250
