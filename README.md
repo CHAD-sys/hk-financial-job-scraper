@@ -1,264 +1,224 @@
-# HK Financial Job Scraper
+# HK Financial Job Board Scraper
 
-A daily scraper for open job postings at the 30 largest Hong Kong financial institutions (banks, insurers, asset managers). It reads each company's ATS (Applicant Tracking System) JSON API directly, enriches each posting with structured features (seniority, skills, employment type), and persists everything to a SQLite database with soft-delete semantics.
+**Automated job intelligence for Hong Kong's financial sector**
+
+![Python](https://img.shields.io/badge/Python-3.11-blue) ![SQLite](https://img.shields.io/badge/Database-SQLite-green) ![DeepSeek](https://img.shields.io/badge/AI-DeepSeek-purple) ![Jobs](https://img.shields.io/badge/Jobs-1%2C592-orange) ![Coverage](https://img.shields.io/badge/Descriptions-99.9%25-brightgreen) ![Private](https://img.shields.io/badge/Visibility-Private-red)
 
 ---
 
-## Quick start
+## Overview
+
+A fully automated pipeline that scrapes job listings from 27 of Hong Kong's largest financial institutions, fetches full job descriptions, and enriches every listing with AI-extracted structured data (seniority, skills, job category, remote type). Runs daily and tracks hiring trends over time.
+
+> **27 companies → 1,592 active jobs → 99.9% descriptions → 100% AI-enriched**
+
+---
+
+## How It Works
+
+| Step | Description | Time |
+|------|-------------|------|
+| **Scrape** | Collects listings from 27 companies (up to 5 pages each) | ~9 min |
+| **Describe** | Fetches full descriptions via GraphQL & REST APIs | ~2 min |
+| **Enrich** | Extracts seniority, skills, category via DeepSeek AI | ~4 min |
+| **Track** | Records daily snapshots for trend analysis | ~1 min |
+| **Total** | Full daily pipeline | **~15 min** |
+
+---
+
+## Companies Covered
+
+**Banking (9)**
+HSBC HK, Standard Chartered, DBS, Bank of China HK, Bank of East Asia, Citibank HK, ICBC Asia, CCB Asia, OCBC Wing Hang
+
+**Insurance (9)**
+AIA HK, Prudential HK, FWD Insurance, Sun Life HK, AXA HK, Manulife HK, Zurich HK, Generali HK, China Taiping
+
+**Asset Management (9)**
+BlackRock HK, UBS Asset Management, Fidelity International, Man Group, BNP Paribas AM, PIMCO HK, JPMorgan AM, Schroders HK, Value Partners
+
+---
+
+## Architecture
+
+```
+3 Data Sources
+─────────────────────────────────────────────────────
+JobsDB (22 companies)  │  Workday (4 companies)  │  Eightfold (1 — HSBC)
+         │                        │                        │
+         ▼                        ▼                        ▼
+
+Stage 1 — Listings
+Scrapling headless browser (Cloudflare bypass) + Direct REST APIs
+10 parallel company workers · 5 pages per company · stop-when-empty
+         │
+         ▼
+
+Stage 2 — Descriptions
+JobsDB GraphQL API + Workday REST + Eightfold REST
+99.9% coverage · ~100 ms per job · no browser needed
+         │
+         ▼
+
+Stage 3 — AI Enrichment (DeepSeek deepseek-chat)
+Seniority (junior/mid/senior/lead) · Required skills · Job category · Remote type
+100% coverage · avg 5.0 skills per job · 20 concurrent workers
+         │
+         ▼
+
+SQLite Database (data/jobs.db)
+4 tables · 1,592 active jobs · daily trend snapshots
+```
+
+---
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|-----------|
+| Language | Python 3.11 |
+| Browser scraping | Scrapling (Playwright + Cloudflare bypass) |
+| HTTP client | httpx (async-capable, HTTP/2) |
+| HTML parsing | selectolax |
+| Data validation | Pydantic v2 |
+| Database | SQLite (WAL mode, Postgres-compatible SQL) |
+| AI enrichment | DeepSeek API (`deepseek-chat`) |
+| Parallelism | `ThreadPoolExecutor` (10 company workers, 20 API workers) |
+| Scheduling | Cron / systemd |
+
+---
+
+## Database Schema
+
+| Table | Rows | Purpose |
+|-------|------|---------|
+| `jobs` | 1,592 active | Listings — title, company, URL, locations, posted_at |
+| `job_enrichments` | 1,592 | AI fields — seniority, skills, category, remote_type, salary |
+| `job_history` | 28+ | Daily snapshots per company for trend tracking |
+| `company_metrics` | 28 | 7-day and 30-day rolling averages + growth rates |
+
+---
+
+## Setup
+
+**Requirements:** Python 3.11+, DeepSeek API key
 
 ```bash
-# 1. Clone and create a virtual environment
 git clone <repo-url>
 cd hk-job-scraper
 python -m venv .venv
-source .venv/bin/activate       # Windows: .venv\Scripts\activate
-
-# 2. Install dependencies
+source .venv/bin/activate
 pip install -r requirements.txt
-
-# 3. Verify the test suite
-pytest                          # 200+ tests, all should pass
-
-# 4. Smoke-test one company (no database write)
-python scripts/try_workday_live.py --tenant aia --site External --wd wd3
-
-# 5. Run the full pipeline
-bash scripts/run_daily.sh       # writes data/jobs.db + data/jobs_YYYYMMDD.jsonl
-
-# Or directly:
-python -m hk_jobs.pipeline --db data/jobs.db --export data/jobs.jsonl
-
-# One company only (useful while verifying configs):
-python -m hk_jobs.pipeline --company aia-hk --db data/jobs.db
+# Install Scrapling browser engine (first time only)
+scrapling install
 ```
 
----
-
-## What's where
-
-| File | One-sentence description |
-|---|---|
-| `hk_jobs/schema.py` | The canonical `Job` Pydantic model — one format every adapter maps into. |
-| `hk_jobs/adapters/base.py` | Abstract `BaseAdapter` with browser User-Agent, retry helper, and `_safe_fetch` error isolation. |
-| `hk_jobs/adapters/workday.py` | Hits Workday's internal JSON API (POST /jobs → paginate → GET detail). Used by ~13 companies. |
-| `hk_jobs/adapters/eightfold.py` | Hits Eightfold AI's JSON API (GET /api/apply/v2/jobs). Used by HSBC group companies. |
-| `hk_jobs/adapters/jobsdb.py` | **Prototype fallback only** — scrapes hk.jobsdb.com HTML. Used when a company's own ATS is hostile. See legal note below. |
-| `hk_jobs/http_utils.py` | `with_retry()` — exponential backoff on timeouts, network errors, and 429/5xx responses. |
-| `hk_jobs/enrich.py` | Rule-based feature extraction: seniority, employment type, remote type, years of experience, and skills from a 100-term HK finance vocabulary. |
-| `hk_jobs/storage.py` | `JobStore` — SQLite with upsert-on-conflict and soft-delete. Lists stored as JSON; datetimes as ISO text. |
-| `hk_jobs/config.py` | Loads and validates `companies.yaml`; returns `CompanyConfig` objects with `build_adapter()`. |
-| `hk_jobs/pipeline.py` | Orchestrator: loads config → runs adapters (with per-company timeout) → enriches → upserts → marks inactive → prints summary. |
-| `hk_jobs/companies.yaml` | All 30 companies with ATS config. **Every value is a guess — see verification guide below.** |
-| `scripts/run_daily.sh` | One-command full run + export. |
-| `scripts/try_workday_live.py` | Live smoke-test for Workday — run locally to verify a tenant config. |
-| `scripts/try_eightfold_live.py` | Live smoke-test for Eightfold. |
-| `scripts/try_jobsdb_live.py` | Live smoke-test for JobsDB fallback. |
-| `.github/workflows/daily.yml` | GitHub Actions workflow — runs at 02:00 HKT, uploads JSONL artifact. |
-
----
-
-## How scraping works: the ATS strategy
-
-Companies don't hand-edit careers pages. They use an **ATS (Applicant Tracking System)** that serves job data via an internal JSON API. We call that API directly — far faster and more reliable than driving a headless browser.
-
-| ATS | URL pattern | Our approach | Companies |
-|---|---|---|---|
-| **Workday** | `*.myworkdayjobs.com` | POST `/wday/cxs/{tenant}/{site}/jobs` → paginate → GET detail | Standard Chartered, AIA, Manulife, BlackRock, and ~9 others |
-| **Eightfold AI** | `*.eightfold.ai` | GET `/api/apply/v2/jobs?domain=…` → paginate | HSBC, Hang Seng Bank, HSBC Life |
-| **JobsDB fallback** | `hk.jobsdb.com` | HTML scrape with `selectolax` | BOCHK, Citibank HK, and ~11 others whose own ATS is hostile |
-
-Hostile ATSes (Taleo, iCIMS) fight scraping aggressively. Since almost every HK employer also posts on JobsDB, we fall back there.
-
----
-
-## Verifying ATS configs (do this before the first live run)
-
-Every `adapter:`, `tenant:`, `site:`, `domain:`, and `jobsdb_slug:` in `companies.yaml` is marked `# TODO verify` unless explicitly confirmed. Here's how to verify each one in ~2 minutes:
-
-1. Open the company's careers page in Chrome.
-2. Open DevTools → **Network** tab → tick **Fetch/XHR**.
-3. Type in the job-search box or scroll the listing.
-4. Look at the request URLs:
-   - `myworkdayjobs.com` in the URL → `adapter: workday`. The path is `/wday/cxs/{tenant}/{site}/jobs` — copy `tenant` and `site`.
-   - `eightfold.ai` in the URL → `adapter: eightfold`. Subdomain is `{tenant}.eightfold.ai`. Check the `domain` query parameter.
-   - `taleo.net` or `icims.com` → `adapter: jobsdb` (hostile, use fallback).
-5. For the JobsDB slug: search the company on `hk.jobsdb.com`, click their company page, and copy the slug from the URL before `-jobs`.
-6. Remove the `# TODO verify` comment from `companies.yaml` once confirmed.
-
-Then test with:
+**Configuration:**
 ```bash
-python -m hk_jobs.pipeline --company <slug> --db /tmp/test.db
+export DEEPSEEK_API_KEY=your-key-here
 ```
 
 ---
 
-## Scheduling
-
-### cron
-```cron
-# Runs at 18:00 UTC = 02:00 HKT (UTC+8)
-0 18 * * * cd /path/to/hk-job-scraper && bash scripts/run_daily.sh >> logs/scraper.log 2>&1
-```
-
-### systemd timer
-```ini
-# /etc/systemd/system/hk-jobs.service
-[Unit]
-Description=HK Financial Job Scraper
-
-[Service]
-Type=oneshot
-WorkingDirectory=/path/to/hk-job-scraper
-ExecStart=/path/to/hk-job-scraper/scripts/run_daily.sh
-StandardOutput=append:/var/log/hk-jobs.log
-StandardError=inherit
-```
-```ini
-# /etc/systemd/system/hk-jobs.timer
-[Unit]
-Description=Run HK jobs scraper daily at 02:00 HKT
-
-[Timer]
-OnCalendar=*-*-* 18:00:00 UTC
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-```
-```bash
-systemctl enable --now hk-jobs.timer
-```
-
-### GitHub Actions
-See `.github/workflows/daily.yml`. Runs at 02:00 HKT, uploads a JSONL artifact (`jobs-<run-id>`) retained for 30 days. Trigger a manual run from the Actions tab and optionally pass a `company` slug to run only one company.
-
----
-
-## End-of-run report
-
-The pipeline always prints a summary:
-
-```
-==============================================================
-  RUN COMPLETE  2024-03-01 18:02 UTC
-==============================================================
-  Companies run  : 30
-  Jobs fetched   : 1,847  (312 new, 1,535 updated)
-  Active in DB   : 1,847 / 2,103 total
-
-  ⚠  2 companies returned 0 jobs — check config:
-       China Taiping Insurance  (china-taiping)
-       Man Group Hong Kong      (man-group-hk)
-==============================================================
-```
-
-**0-job companies** almost always mean a broken config (wrong slug/tenant, ATS URL changed) or an anti-bot block — not genuinely zero openings. Investigate with the matching `scripts/try_*_live.py` script.
-
----
-
-## Unblocking JobsDB (residential proxy)
-
-21 of the 30 companies use the JobsDB fallback adapter. Cloudflare blocks requests from datacenter and cloud IPs with HTTP 403. A **residential proxy** — one that routes traffic through a real home internet connection — bypasses this.
-
-### Why residential, not datacenter?
-Cloudflare checks the ASN (internet provider) of the source IP. Cloud providers (AWS, GCP, DigitalOcean) have well-known ASN ranges that Cloudflare blocks outright. Residential proxies have home ISP ASNs that look like regular users.
-
-### JobsDB now uses Scrapling for Cloudflare bypass
-
-The JobsDB adapter now uses [Scrapling](https://github.com/D4Vinci/Scrapling)'s
-`StealthyFetcher` — a headless Playwright browser with randomised TLS fingerprints
-that bypasses Cloudflare without needing a residential proxy. One-time setup:
+## Usage
 
 ```bash
-pip install "scrapling[fetchers]"
-scrapling install          # downloads Playwright browsers (~150 MB, one-time)
-```
+# Full scrape — collect all listings from 27 companies
+python -m hk_jobs.pipeline
 
-After that, run the pipeline normally — no proxy or extra config needed.
+# Fetch full descriptions (GraphQL + REST, ~2 min)
+python -m hk_jobs.pipeline --fetch-descriptions
 
----
+# AI enrichment — seniority, skills, category (requires DEEPSEEK_API_KEY)
+python -m hk_jobs.pipeline --enrich
 
-### Residential proxy (alternative / additional layer)
+# View hiring trends report
+python -m hk_jobs.pipeline --report trends
 
-If you need IP rotation on top of Scrapling (e.g. for high-volume runs or
-stricter bot detection), you can still add a `proxy:` config to each jobsdb
-entry. See below for services.
+# View hiring velocity ranking
+python -m hk_jobs.pipeline --report velocity
 
-### Recommended services
+# Export trend data to JSONL
+python -m hk_jobs.pipeline --export-trends data/trends.jsonl
 
-| Service | Est. cost for this project | Notes |
-|---|---|---|
-| [Bright Data](https://brightdata.com) | ~$15–30 / month | Largest pool; HK residential endpoints available |
-| [Oxylabs](https://oxylabs.io) | ~$15–30 / month | Strong HK coverage |
-| [Smartproxy](https://smartproxy.com) | ~$10–20 / month | Good entry-level option |
-| [IPRoyal](https://iproyal.com) | ~$7–15 / month | Cheaper; smaller pool |
+# Dry run — scrape without writing to database
+python -m hk_jobs.pipeline --dry-run -v
 
-Light usage (30 companies × 5 pages × 1 KB/page × daily) is well under 1 GB/month.
+# Custom parallelism (default: 10, max safe: 15)
+python -m hk_jobs.pipeline --parallel-workers 15
 
-### Setup
-
-1. Sign up for a residential proxy service and get a proxy endpoint URL in the format:
-   ```
-   http://username:password@proxy-host.example.com:8080
-   ```
-
-2. Add the `proxy:` key to every `jobsdb` entry in `companies.yaml`:
-   ```yaml
-   - name: Bank of China (Hong Kong)
-     slug: bochk
-     adapter: jobsdb
-     enabled: true
-     config:
-       jobsdb_slug: bank-of-china-hong-kong
-       proxy: "http://user:pass@residential-proxy.example.com:8080"
-   ```
-
-3. **Do not commit credentials.** Use an environment variable instead:
-   ```bash
-   export HK_JOBS_PROXY="http://user:pass@proxy-host:8080"
-   ```
-   Then reference it in a wrapper script — or use a secrets manager (GitHub Actions secrets, etc.) and pass it at runtime.
-
-4. Verify one company first:
-   ```bash
-   python -m hk_jobs.pipeline --only bochk --dry-run -v
-   ```
-
-5. Once verified, a single proxy URL works for all 21 JobsDB companies — add it to each `jobsdb` entry's config block.
-
----
-
-## Pipeline flags
-
-```
-python -m hk_jobs.pipeline [options]
-
-  --db PATH              SQLite database path (default: data/jobs.db)
-  --export PATH          Export active jobs to JSONL after the run
-  --only SLUG            Run only this company slug; repeat for multiple:
-                           --only aia-hk --only blackrock-hk
-  --dry-run              Fetch and enrich but do NOT write to the database
-  -v / --verbose         Print each fetched job (title, location, ID)
-  --no-enrich            Skip rule-based enrichment (faster, no skills/seniority)
-  --config PATH          Override the default companies.yaml path
-  --log-level LEVEL      DEBUG | INFO | WARNING | ERROR (default: INFO)
+# Single company test
+python -m hk_jobs.pipeline --only hsbc-hk --dry-run -v
 ```
 
 ---
 
-## Legal notices and caveats
+## Daily Automation
 
-### JobsDB scraping
-The `jobsdb` adapter scrapes `hk.jobsdb.com`, which **violates JobsDB's Terms of Service**. It exists only as a prototype fallback for companies whose own ATS is too hostile to scrape directly. **Do not use in production** without either (a) written permission from JobsDB / SEEK or (b) a paid data-feed arrangement. See `hk_jobs/adapters/jobsdb.py` for the full warning.
+Cron job (runs at 2 AM HKT = 18:00 UTC):
 
-### ATS config values are guesses
-Every `tenant:`, `site:`, `domain:`, and `jobsdb_slug:` in `companies.yaml` is an educated guess. The pipeline logs a clear error when a config is wrong; it will never silently return 0 jobs without a warning. Verify each company before relying on its data (see verification guide above).
+```bash
+0 18 * * * cd /opt/hk-job-scraper && source .venv/bin/activate && source config/api_keys.env && python -m hk_jobs.pipeline && python -m hk_jobs.pipeline --fetch-descriptions && python -m hk_jobs.pipeline --enrich >> logs/daily_runs.log 2>&1
+```
 
-### Hong Kong PDPO (Personal Data Privacy Ordinance)
-Job postings collected here are publicly advertised and are **not personal data** under the PDPO. However, the downstream project that matches member CVs against this database will handle personal data. When building that project, ensure:
-- CVs are collected only with explicit member consent.
-- Retention periods are defined and enforced.
-- Members can request deletion of their CV data.
-- Matching results are not disclosed to third parties without consent.
+Or use the included script:
+```bash
+bash scripts/daily_run.sh
+```
 
-Consult `hk.pcpd.org.hk` for current PCPD guidance on employment-related data processing.
+---
+
+## Results
+
+| Metric | Value |
+|--------|-------|
+| Active jobs | **1,592** |
+| Companies tracked | **27** |
+| Description coverage | **99.9%** |
+| Enrichment coverage | **100%** |
+| Avg skills per job | **5.0** |
+| Daily run time | **~15 minutes** |
+| Monthly AI cost | **~$0.55 USD** |
+
+---
+
+## Project Structure
+
+```
+hk-job-scraper/
+├── hk_jobs/
+│   ├── adapters/
+│   │   ├── jobsdb.py            # Scrapling + GraphQL pagination (5 pages/company)
+│   │   ├── workday.py           # Workday REST API adapter
+│   │   └── eightfold.py         # Eightfold REST API adapter
+│   ├── enrichers/
+│   │   └── deepseek.py          # DeepSeek AI (title + description, v5 prompt)
+│   ├── companies.yaml           # Config for all 30 companies
+│   ├── pipeline.py              # Main orchestration + CLI (argparse)
+│   ├── description_fetcher.py   # Description pipeline (GraphQL + REST)
+│   ├── enrichment.py            # AI enrichment pipeline (20 concurrent workers)
+│   ├── analytics.py             # Trend reporting and JSONL export
+│   ├── migrations.py            # SQLite schema migrations
+│   └── schema.py                # Pydantic Job model
+├── scripts/
+│   ├── daily_run.sh             # Production cron wrapper
+│   └── generate_intelligence_report.py  # PDF report generator
+├── tests/
+├── data/                        # gitignored — SQLite DB files
+├── config/                      # gitignored — API keys
+├── requirements.txt
+└── README.md
+```
+
+---
+
+## Team
+
+| Role | Name |
+|------|------|
+| Project Lead | Benjamin |
+| AI & Development | Amine |
+
+---
+
+> **Private repository — Finex Members Only**
