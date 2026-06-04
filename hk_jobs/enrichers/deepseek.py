@@ -1,13 +1,10 @@
 """
-DeepSeek LLM enricher — optimized for speed.
+DeepSeek LLM enricher — v3: includes job description for richer skill extraction.
 
-Changes vs v1:
-  - Title-only prompt (shorter → faster inference, ~1 s/call vs ~2 s)
-  - max_tokens 500 → 250 (enough for the JSON schema)
-  - temperature 0.3 → 0.2 (more deterministic JSON output)
-  - timeout 30 s → 60 s (headroom for occasional slow responses)
-  - Exponential-backoff retry (3 attempts: 0 s, 1 s, 2 s back-off)
-  - No per-call sleep — callers use ThreadPoolExecutor instead
+v1: title-only, 500 max_tokens
+v2: title-only, 250 max_tokens, 20 concurrent workers
+v3: title + description (capped 2 000 chars clean text), 350 max_tokens
+    — skills coverage expected to jump from 75% → 90%+
 
 API key: set DEEPSEEK_API_KEY env var.
 """
@@ -26,11 +23,32 @@ logger = logging.getLogger(__name__)
 
 _API_URL = "https://api.deepseek.com/chat/completions"
 _MODEL = "deepseek-chat"
+_DESC_MAX_CHARS = 2_000   # cap to keep prompt tight; descriptions are typically 1–4 KB
 
-_PROMPT = """\
-Job title: {title}
+_PROMPT_WITH_DESC = """\
+Extract structured data from this Hong Kong job posting. Return ONLY valid JSON, no markdown.
 
-Return ONLY this JSON, no markdown:
+Title: {title}
+Description:
+{description}
+
+Return exactly this JSON:
+{{
+  "seniority": "junior|mid|senior|lead",
+  "years_experience": <integer or null>,
+  "skills": ["skill1", "skill2"],
+  "remote_type": "on-site|hybrid|remote",
+  "salary_hkd_min": <integer or null>,
+  "salary_hkd_max": <integer or null>,
+  "job_category": "Engineering|Finance|Operations|Sales|HR|Other"
+}}"""
+
+_PROMPT_TITLE_ONLY = """\
+Extract structured data from this Hong Kong job posting. Return ONLY valid JSON, no markdown.
+
+Title: {title}
+
+Return exactly this JSON:
 {{
   "seniority": "junior|mid|senior|lead",
   "years_experience": <integer or null>,
@@ -51,7 +69,7 @@ class DeepSeekEnricher:
             )
 
     def close(self) -> None:
-        pass  # stateless — httpx clients are created per-call for thread safety
+        pass
 
     def __enter__(self) -> "DeepSeekEnricher":
         return self
@@ -63,25 +81,38 @@ class DeepSeekEnricher:
 
     def enrich_batch(
         self,
-        jobs: list[tuple[str, str, str, str]],  # (source, source_id, title, description)
+        jobs: list[tuple[str, str, str, str]],  # (source, source_id, title, description_clean)
     ) -> dict[tuple[str, str], dict[str, Any] | None]:
         """
-        Enrich jobs sequentially. Callers should wrap this in a ThreadPoolExecutor
-        if they want parallel execution across batches.
+        Enrich jobs sequentially. Callers wrap this in ThreadPoolExecutor for parallelism.
+        description_clean should be plain text (HTML already stripped).
         """
         results: dict[tuple[str, str], dict[str, Any] | None] = {}
-        for source, source_id, title, _description in jobs:
+        for source, source_id, title, description in jobs:
             key = (source, source_id)
-            result = self._enrich_with_retry(title)
+            result = self._enrich_with_retry(title, description or "")
             results[key] = result
             if result:
-                logger.info("✓ %s/%s → %s", source, source_id, result.get("seniority"))
+                logger.info(
+                    "✓ %s/%s → %s  skills=%d",
+                    source, source_id,
+                    result.get("seniority"),
+                    len(result.get("skills") or []),
+                )
             else:
                 logger.error("✗ %s/%s: all retries failed", source, source_id)
         return results
 
-    def enrich_single(self, title: str) -> dict[str, Any]:
+    def enrich_single(self, title: str, description: str = "") -> dict[str, Any]:
         """Single API call. Raises on error."""
+        if description.strip():
+            desc_text = description.strip()[:_DESC_MAX_CHARS]
+            prompt = _PROMPT_WITH_DESC.format(title=title, description=desc_text)
+            max_tokens = 350  # more room for richer skill lists from description
+        else:
+            prompt = _PROMPT_TITLE_ONLY.format(title=title)
+            max_tokens = 250
+
         with httpx.Client(timeout=60.0) as client:
             resp = client.post(
                 _API_URL,
@@ -91,9 +122,9 @@ class DeepSeekEnricher:
                 },
                 json={
                     "model": _MODEL,
-                    "messages": [{"role": "user", "content": _PROMPT.format(title=title)}],
+                    "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.2,
-                    "max_tokens": 250,
+                    "max_tokens": max_tokens,
                     "top_p": 0.9,
                 },
             )
@@ -102,26 +133,27 @@ class DeepSeekEnricher:
             raise RuntimeError(f"API {resp.status_code}: {resp.text[:120]}")
 
         text = resp.json()["choices"][0]["message"]["content"].strip()
-        # Strip markdown fences if model ignores instructions
         text = text.replace("```json", "").replace("```", "").strip()
         return json.loads(text)
 
     # ── helpers ───────────────────────────────────────────────────────────────
 
     def _enrich_with_retry(
-        self, title: str, max_retries: int = 3
+        self, title: str, description: str = "", max_retries: int = 3
     ) -> dict[str, Any] | None:
         for attempt in range(max_retries):
             try:
-                return self.enrich_single(title)
+                return self.enrich_single(title, description)
             except Exception as exc:
                 if attempt < max_retries - 1:
-                    wait = 2 ** attempt  # 1 s, 2 s
+                    wait = 2 ** attempt
                     logger.warning(
                         "Attempt %d/%d failed for %r — retrying in %ds: %s",
                         attempt + 1, max_retries, title[:50], wait, exc,
                     )
                     time.sleep(wait)
                 else:
-                    logger.error("All %d retries failed for %r: %s", max_retries, title[:50], exc)
+                    logger.error(
+                        "All %d retries failed for %r: %s", max_retries, title[:50], exc
+                    )
         return None

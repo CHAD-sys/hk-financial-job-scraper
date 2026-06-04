@@ -133,7 +133,7 @@ class EnrichmentPipeline:
         self, conn: sqlite3.Connection, limit: int | None
     ) -> list[sqlite3.Row]:
         sql = """
-            SELECT j.source, j.source_id, j.title, j.description_raw
+            SELECT j.source, j.source_id, j.title, j.description_clean
               FROM jobs j
               LEFT JOIN job_enrichments e
                 ON j.source = e.source AND j.source_id = e.source_id
