@@ -10,7 +10,10 @@ Source routing:
               (derived from the human-facing URL, no config needed)
   eightfold → GET https://{tenant}.eightfold.ai/api/apply/v2/jobs/{id}?domain={domain}
               (tenant + domain read from companies.yaml via the adapter config)
-  jobsdb    → SKIP — Cloudflare protects detail pages; no JSON detail API.
+  jobsdb    → POST https://hk.jobsdb.com/graphql   ← discovered 2026-06-04
+              Query: { jobDetails(id: ID!) { job { content abstract } } }
+              Returns full HTML description in the 'content' field.
+              No Scrapling needed — plain httpx, ~100 ms per job.
 
 Usage:
   python -m hk_jobs.pipeline --fetch-descriptions
@@ -33,9 +36,8 @@ from hk_jobs.config import load_companies
 
 logger = logging.getLogger(__name__)
 
-_CLOUDFLARE_SOURCES = frozenset({"jobsdb"})
-_MAX_WORKERS = 5
-_REQUEST_DELAY = 0.3
+_MAX_WORKERS = 20   # all sources now use plain httpx — safe to go higher
+_REQUEST_DELAY = 0.1
 
 _HEADERS = {
     "User-Agent": (
@@ -44,6 +46,16 @@ _HEADERS = {
     ),
     "Accept": "application/json",
 }
+
+# JobsDB GraphQL
+_JOBSDB_GQL_URL = "https://hk.jobsdb.com/graphql"
+_JOBSDB_GQL_HEADERS = {
+    **_HEADERS,
+    "Content-Type": "application/json",
+    "X-Seek-Site": "JobsDB",
+    "X-Seek-Locale": "en-HK",
+}
+_JOBSDB_QUERY = '{ jobDetails(id: "%s") { job { id content abstract } } }'
 
 
 class FetchResult(NamedTuple):
@@ -81,21 +93,17 @@ class DescriptionFetcher:
                 logger.info("No jobs with empty descriptions — nothing to do")
                 return
 
-            skippable = [r for r in jobs if r["source"] in _CLOUDFLARE_SOURCES]
-            fetchable  = [r for r in jobs if r["source"] not in _CLOUDFLARE_SOURCES]
-
-            if skippable:
-                logger.warning(
-                    "Skipping %d JobsDB jobs — Cloudflare blocks detail pages and "
-                    "JobsDB has no public JSON detail API.",
-                    len(skippable),
-                )
+            by_source = {}
+            for j in jobs:
+                by_source.setdefault(j["source"], 0)
+                by_source[j["source"]] += 1
             logger.info(
-                "Fetching descriptions for %d jobs via ATS JSON APIs (%d workers) …",
-                len(fetchable), _MAX_WORKERS,
+                "Fetching descriptions for %d jobs via JSON APIs (%d workers) — %s",
+                len(jobs), _MAX_WORKERS,
+                ", ".join(f"{s}:{n}" for s, n in sorted(by_source.items())),
             )
 
-            results = self._fetch_parallel(fetchable)
+            results = self._fetch_parallel(jobs)
             self._write_results(conn, results)
         finally:
             conn.close()
@@ -133,8 +141,6 @@ class DescriptionFetcher:
     def _fetch_single(
         self, source: str, source_id: str, company_slug: str, url: str
     ) -> FetchResult:
-        if source in _CLOUDFLARE_SOURCES:
-            return FetchResult(source, source_id, None, None, skipped=True)
         try:
             time.sleep(_REQUEST_DELAY)
             if source == "workday":
@@ -144,6 +150,8 @@ class DescriptionFetcher:
                 tenant = ef_cfg.get("tenant", "hsbc")
                 domain = ef_cfg.get("domain", "hsbc.com")
                 raw_html = _fetch_eightfold_description(source_id, tenant, domain)
+            elif source == "jobsdb":
+                raw_html = _fetch_jobsdb_description(source_id)
             else:
                 logger.warning("Unknown source '%s' — skipping %s", source, source_id)
                 return FetchResult(source, source_id, None, None, skipped=True)
@@ -234,3 +242,29 @@ def _fetch_eightfold_description(
         resp.raise_for_status()
 
     return resp.json().get("job_description") or None
+
+
+def _fetch_jobsdb_description(source_id: str) -> str | None:
+    """
+    Fetch full job description from JobsDB via their GraphQL API.
+
+    Discovered 2026-06-04: hk.jobsdb.com/graphql accepts unauthenticated
+    POST requests. The 'content' field contains the full HTML description
+    (~1.5–2.5 KB per job). No Scrapling / Cloudflare bypass needed.
+
+    Returns raw HTML string, or None if the job is not found / expired.
+    """
+    query = _JOBSDB_QUERY % source_id
+    with httpx.Client(timeout=15, follow_redirects=True) as client:
+        resp = client.post(
+            _JOBSDB_GQL_URL,
+            json={"query": query},
+            headers=_JOBSDB_GQL_HEADERS,
+        )
+        resp.raise_for_status()
+
+    data = resp.json()
+    jd = (data.get("data") or {}).get("jobDetails") or {}
+    job = jd.get("job") or {}
+    # 'content' = full HTML description; 'abstract' = brief teaser (fallback)
+    return job.get("content") or job.get("abstract") or None
