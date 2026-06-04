@@ -36,12 +36,17 @@ Return exactly this JSON:
 {{
   "seniority": "junior|mid|senior|lead",
   "years_experience": <integer or null>,
-  "skills": ["skill1", "skill2"],
+  "skills": ["skill1", "skill2", ...],
   "remote_type": "on-site|hybrid|remote",
   "salary_hkd_min": <integer or null>,
   "salary_hkd_max": <integer or null>,
   "job_category": "Engineering|Finance|Operations|Sales|HR|Other"
-}}"""
+}}
+
+For "skills": extract ALL relevant skills mentioned — aim for 5-10.
+Include: technical tools, programming languages, domain expertise (e.g. AML, derivatives, IFRS),
+certifications (e.g. CFA, CPA, HKSI), software (e.g. Bloomberg, Aladdin, SAP),
+methodologies (e.g. Agile, SWIFT), and key soft skills only if explicitly listed."""
 
 _PROMPT_TITLE_ONLY = """\
 Extract structured data from this Hong Kong job posting. Return ONLY valid JSON, no markdown.
@@ -52,12 +57,14 @@ Return exactly this JSON:
 {{
   "seniority": "junior|mid|senior|lead",
   "years_experience": <integer or null>,
-  "skills": ["skill1", "skill2"],
+  "skills": ["skill1", "skill2", ...],
   "remote_type": "on-site|hybrid|remote",
   "salary_hkd_min": <integer or null>,
   "salary_hkd_max": <integer or null>,
   "job_category": "Engineering|Finance|Operations|Sales|HR|Other"
-}}"""
+}}
+
+For "skills": infer 3-5 skills from the title — domain expertise, likely tools or certifications."""
 
 
 class DeepSeekEnricher:
