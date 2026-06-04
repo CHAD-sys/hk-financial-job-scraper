@@ -217,7 +217,7 @@ hk-job-scraper/
 | Role | Name |
 |------|------|
 | Project Lead | Benjamin |
-| AI & Development | Amine |
+| AI & Development | Amine & Kenson |
 
 ---
 
