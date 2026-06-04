@@ -36,8 +36,8 @@ from hk_jobs.config import load_companies
 
 logger = logging.getLogger(__name__)
 
-_MAX_WORKERS = 20   # all sources now use plain httpx — safe to go higher
-_REQUEST_DELAY = 0.1
+_MAX_WORKERS = 3    # conservative for JobsDB GraphQL rate limits; bump to 10 when not throttled
+_REQUEST_DELAY = 1.0
 
 _HEADERS = {
     "User-Agent": (
@@ -244,7 +244,7 @@ def _fetch_eightfold_description(
     return resp.json().get("job_description") or None
 
 
-def _fetch_jobsdb_description(source_id: str) -> str | None:
+def _fetch_jobsdb_description(source_id: str, max_retries: int = 3) -> str | None:
     """
     Fetch full job description from JobsDB via their GraphQL API.
 
@@ -252,19 +252,25 @@ def _fetch_jobsdb_description(source_id: str) -> str | None:
     POST requests. The 'content' field contains the full HTML description
     (~1.5–2.5 KB per job). No Scrapling / Cloudflare bypass needed.
 
+    Retries on 429 with exponential backoff (2 s, 4 s, 8 s).
     Returns raw HTML string, or None if the job is not found / expired.
     """
     query = _JOBSDB_QUERY % source_id
-    with httpx.Client(timeout=15, follow_redirects=True) as client:
-        resp = client.post(
-            _JOBSDB_GQL_URL,
-            json={"query": query},
-            headers=_JOBSDB_GQL_HEADERS,
-        )
+    for attempt in range(max_retries):
+        with httpx.Client(timeout=15, follow_redirects=True) as client:
+            resp = client.post(
+                _JOBSDB_GQL_URL,
+                json={"query": query},
+                headers=_JOBSDB_GQL_HEADERS,
+            )
+        if resp.status_code == 429:
+            wait = 2 ** (attempt + 1)   # 2 s, 4 s, 8 s
+            logger.warning("429 for jobsdb/%s — retrying in %ds", source_id, wait)
+            time.sleep(wait)
+            continue
         resp.raise_for_status()
-
-    data = resp.json()
-    jd = (data.get("data") or {}).get("jobDetails") or {}
-    job = jd.get("job") or {}
-    # 'content' = full HTML description; 'abstract' = brief teaser (fallback)
-    return job.get("content") or job.get("abstract") or None
+        data = resp.json()
+        jd = (data.get("data") or {}).get("jobDetails") or {}
+        job = jd.get("job") or {}
+        return job.get("content") or job.get("abstract") or None
+    raise RuntimeError(f"429 persisted after {max_retries} retries for jobsdb/{source_id}")
