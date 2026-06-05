@@ -353,6 +353,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Logging verbosity (default: INFO)",
     )
     p.add_argument(
+        "--weekly-report",
+        dest="weekly_report",
+        action="store_true",
+        help="Send weekly trend report email (run every Monday via cron).",
+    )
+    p.add_argument(
         "--notify-summary",
         dest="notify_summary",
         action="store_true",
@@ -458,6 +464,12 @@ def main(argv: list[str] | None = None) -> None:
         Path(args.db).parent.mkdir(parents=True, exist_ok=True)
         migrate_to_phase_11(args.db)
         migrate_to_phase_12(args.db)
+
+    # --weekly-report: send Monday trend report email (no scraping).
+    if getattr(args, "weekly_report", False):
+        from hk_jobs.reports.weekly import generate_weekly_report
+        generate_weekly_report(db_path=args.db)
+        return
 
     # --notify-summary: send daily summary email (no scraping).
     if getattr(args, "notify_summary", False):
