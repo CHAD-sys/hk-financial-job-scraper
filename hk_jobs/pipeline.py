@@ -353,6 +353,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Logging verbosity (default: INFO)",
     )
     p.add_argument(
+        "--notify-summary",
+        dest="notify_summary",
+        action="store_true",
+        help="Send daily summary email after run (requires SMTP_USER/SMTP_PASS env vars).",
+    )
+    p.add_argument(
         "--backup",
         action="store_true",
         help="Backup jobs.db to data/backups/jobs_YYYY-MM-DD.db with 30-day retention.",
@@ -453,6 +459,12 @@ def main(argv: list[str] | None = None) -> None:
         migrate_to_phase_11(args.db)
         migrate_to_phase_12(args.db)
 
+    # --notify-summary: send daily summary email (no scraping).
+    if getattr(args, "notify_summary", False):
+        from hk_jobs.notifications import send_daily_summary
+        send_daily_summary(db_path=args.db)
+        return
+
     # --backup: create a dated copy of jobs.db, prune old backups.
     if getattr(args, "backup", False):
         from hk_jobs.backup import backup_database
@@ -489,7 +501,21 @@ def main(argv: list[str] | None = None) -> None:
         )
         return
 
-    run(args)
+    _start = time.monotonic()
+    try:
+        run(args)
+    except Exception as exc:
+        if not getattr(args, "dry_run", False):
+            try:
+                from hk_jobs.notifications import send_failure_alert
+                send_failure_alert(
+                    phase="Pipeline",
+                    error=str(exc),
+                    duration_seconds=int(time.monotonic() - _start),
+                )
+            except Exception:
+                pass
+        raise
 
 
 if __name__ == "__main__":

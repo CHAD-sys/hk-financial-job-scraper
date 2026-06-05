@@ -48,4 +48,9 @@ log "--- Phase 4: Backing up database ---"
 python -m hk_jobs.pipeline --backup 2>&1 | tee -a "$LOG_FILE"
 log "Phase 4 complete"
 
+# Phase 5: Send daily summary email
+log "--- Phase 5: Sending daily summary email ---"
+python -m hk_jobs.pipeline --notify-summary 2>&1 | tee -a "$LOG_FILE"
+log "Phase 5 complete"
+
 log "=== Daily pipeline finished ==="
