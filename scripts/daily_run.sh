@@ -43,4 +43,9 @@ log "--- Phase 3: DeepSeek enrichment (incremental) ---"
 python -m hk_jobs.pipeline --enrich --incremental 2>&1 | tee -a "$LOG_FILE"
 log "Phase 3 complete"
 
+# Phase 4: Backup database (30-day rolling retention)
+log "--- Phase 4: Backing up database ---"
+python -m hk_jobs.pipeline --backup 2>&1 | tee -a "$LOG_FILE"
+log "Phase 4 complete"
+
 log "=== Daily pipeline finished ==="

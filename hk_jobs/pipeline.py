@@ -353,6 +353,11 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Logging verbosity (default: INFO)",
     )
     p.add_argument(
+        "--backup",
+        action="store_true",
+        help="Backup jobs.db to data/backups/jobs_YYYY-MM-DD.db with 30-day retention.",
+    )
+    p.add_argument(
         "--incremental",
         action="store_true",
         help=(
@@ -447,6 +452,12 @@ def main(argv: list[str] | None = None) -> None:
         Path(args.db).parent.mkdir(parents=True, exist_ok=True)
         migrate_to_phase_11(args.db)
         migrate_to_phase_12(args.db)
+
+    # --backup: create a dated copy of jobs.db, prune old backups.
+    if getattr(args, "backup", False):
+        from hk_jobs.backup import backup_database
+        backup_database(db_path=args.db)
+        return
 
     # --report / --export-trends: analytics-only mode, no scraping.
     if args.report or getattr(args, "export_trends", None):
