@@ -84,11 +84,11 @@ class DescriptionFetcher:
 
     # ── public API ────────────────────────────────────────────────────────────
 
-    def run(self, limit: int | None = None) -> None:
+    def run(self, limit: int | None = None, incremental: bool = False) -> None:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         try:
-            jobs = self._fetch_unenriched(conn, limit)
+            jobs = self._fetch_unenriched(conn, limit, incremental=incremental)
             if not jobs:
                 logger.info("No jobs with empty descriptions — nothing to do")
                 return
@@ -97,9 +97,10 @@ class DescriptionFetcher:
             for j in jobs:
                 by_source.setdefault(j["source"], 0)
                 by_source[j["source"]] += 1
+            mode = "incremental (today's new jobs only)" if incremental else "full"
             logger.info(
-                "Fetching descriptions for %d jobs via JSON APIs (%d workers) — %s",
-                len(jobs), _MAX_WORKERS,
+                "Fetching descriptions for %d jobs [%s] via JSON APIs (%d workers) — %s",
+                len(jobs), mode, _MAX_WORKERS,
                 ", ".join(f"{s}:{n}" for s, n in sorted(by_source.items())),
             )
 
@@ -111,18 +112,30 @@ class DescriptionFetcher:
     # ── helpers ───────────────────────────────────────────────────────────────
 
     def _fetch_unenriched(
-        self, conn: sqlite3.Connection, limit: int | None
+        self, conn: sqlite3.Connection, limit: int | None, incremental: bool = False
     ) -> list[sqlite3.Row]:
-        sql = """
+        today_filter = "AND DATE(fetched_at) = DATE('now')" if incremental else ""
+        sql = f"""
             SELECT source, source_id, company_slug, url
               FROM jobs
              WHERE is_active = 1
                AND (description_raw IS NULL OR description_raw = '')
+               {today_filter}
              ORDER BY fetched_at DESC
         """
         if limit:
             sql += f" LIMIT {limit}"
-        return conn.execute(sql).fetchall()
+        rows = conn.execute(sql).fetchall()
+        if incremental:
+            total = conn.execute(
+                "SELECT COUNT(*) FROM jobs WHERE is_active=1 "
+                "AND (description_raw IS NULL OR description_raw = '')"
+            ).fetchone()[0]
+            logger.info(
+                "Incremental mode: %d new jobs to describe, skipping %d existing",
+                len(rows), total - len(rows),
+            )
+        return rows
 
     def _fetch_parallel(self, jobs: list[sqlite3.Row]) -> list[FetchResult]:
         results: list[FetchResult] = []

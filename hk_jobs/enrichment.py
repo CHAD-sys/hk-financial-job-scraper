@@ -35,19 +35,20 @@ class EnrichmentPipeline:
         self.db_path = db_path
         self._api_key = api_key
 
-    def run(self, batch_size: int = _BATCH_SIZE, limit: int | None = None) -> None:
+    def run(self, batch_size: int = _BATCH_SIZE, limit: int | None = None, incremental: bool = False) -> None:
         logger.info("Phase 12 enrichment — starting (workers=%d)", _MAX_WORKERS)
 
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         try:
-            jobs = self._fetch_unenriched(conn, limit)
+            jobs = self._fetch_unenriched(conn, limit, incremental=incremental)
             if not jobs:
                 logger.info("No unenriched jobs — nothing to do")
                 return
 
             total = len(jobs)
-            logger.info("Enriching %d jobs with %d concurrent workers …", total, _MAX_WORKERS)
+            mode = "incremental (today's new jobs only)" if incremental else "full"
+            logger.info("Enriching %d jobs [%s] with %d concurrent workers …", total, mode, _MAX_WORKERS)
 
             enriched = failed = 0
             enricher = DeepSeekEnricher(api_key=self._api_key)
@@ -130,17 +131,30 @@ class EnrichmentPipeline:
             conn.close()
 
     def _fetch_unenriched(
-        self, conn: sqlite3.Connection, limit: int | None
+        self, conn: sqlite3.Connection, limit: int | None, incremental: bool = False
     ) -> list[sqlite3.Row]:
-        sql = """
+        today_filter = "AND DATE(j.fetched_at) = DATE('now')" if incremental else ""
+        sql = f"""
             SELECT j.source, j.source_id, j.title, j.description_clean
               FROM jobs j
               LEFT JOIN job_enrichments e
                 ON j.source = e.source AND j.source_id = e.source_id
              WHERE e.source_id IS NULL
                AND j.is_active = 1
+               {today_filter}
              ORDER BY j.fetched_at DESC
         """
         if limit:
             sql += f" LIMIT {limit}"
-        return conn.execute(sql).fetchall()
+        rows = conn.execute(sql).fetchall()
+        if incremental:
+            total = conn.execute("""
+                SELECT COUNT(*) FROM jobs j
+                LEFT JOIN job_enrichments e ON j.source=e.source AND j.source_id=e.source_id
+                WHERE e.source_id IS NULL AND j.is_active=1
+            """).fetchone()[0]
+            logger.info(
+                "Incremental mode: %d new jobs to enrich, skipping %d existing",
+                len(rows), total - len(rows),
+            )
+        return rows

@@ -353,6 +353,15 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Logging verbosity (default: INFO)",
     )
     p.add_argument(
+        "--incremental",
+        action="store_true",
+        help=(
+            "Only process jobs whose fetched_at is today (i.e. found in today's scrape). "
+            "Makes --fetch-descriptions and --enrich much faster on routine daily runs — "
+            "skips all existing jobs, processes only newly discovered ones."
+        ),
+    )
+    p.add_argument(
         "--parallel-workers",
         dest="parallel_workers",
         type=int,
@@ -454,13 +463,19 @@ def main(argv: list[str] | None = None) -> None:
     # --enrich: LLM enrichment pass, no scraping.
     if getattr(args, "enrich", False):
         from hk_jobs.enrichment import EnrichmentPipeline
-        EnrichmentPipeline(db_path=args.db).run(limit=getattr(args, "enrich_limit", None))
+        EnrichmentPipeline(db_path=args.db).run(
+            limit=getattr(args, "enrich_limit", None),
+            incremental=getattr(args, "incremental", False),
+        )
         return
 
     # --fetch-descriptions: pull full description text from detail pages.
     if getattr(args, "fetch_descriptions", False):
         from hk_jobs.description_fetcher import DescriptionFetcher
-        DescriptionFetcher(db_path=args.db).run(limit=getattr(args, "fetch_limit", None))
+        DescriptionFetcher(db_path=args.db).run(
+            limit=getattr(args, "fetch_limit", None),
+            incremental=getattr(args, "incremental", False),
+        )
         return
 
     run(args)

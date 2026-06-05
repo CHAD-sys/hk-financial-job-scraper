@@ -33,14 +33,14 @@ log "--- Phase 1: Scraping listings ---"
 python -m hk_jobs.pipeline 2>&1 | tee -a "$LOG_FILE"
 log "Phase 1 complete"
 
-# Phase 2: Fetch full descriptions (GraphQL + REST)
-log "--- Phase 2: Fetching descriptions ---"
-python -m hk_jobs.pipeline --fetch-descriptions 2>&1 | tee -a "$LOG_FILE"
+# Phase 2: Fetch descriptions for NEW jobs only (--incremental skips existing)
+log "--- Phase 2: Fetching descriptions (incremental) ---"
+python -m hk_jobs.pipeline --fetch-descriptions --incremental 2>&1 | tee -a "$LOG_FILE"
 log "Phase 2 complete"
 
-# Phase 3: AI enrichment (new jobs only)
-log "--- Phase 3: DeepSeek enrichment ---"
-python -m hk_jobs.pipeline --enrich 2>&1 | tee -a "$LOG_FILE"
+# Phase 3: Enrich NEW jobs only (--incremental skips already-enriched)
+log "--- Phase 3: DeepSeek enrichment (incremental) ---"
+python -m hk_jobs.pipeline --enrich --incremental 2>&1 | tee -a "$LOG_FILE"
 log "Phase 3 complete"
 
 log "=== Daily pipeline finished ==="
