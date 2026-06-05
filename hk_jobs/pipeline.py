@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 # Maximum wall-clock seconds allowed per company. A company that hangs
 # (e.g. a very slow server or an infinite pagination loop) will be killed
 # and skipped so the other 29 companies still complete on schedule.
-COMPANY_TIMEOUT_SECS = 900  # 5 pages × 90 s/page + Cloudflare solve time; gives safe headroom
+COMPANY_TIMEOUT_SECS = 1200  # 10 pages × 90 s/page + Cloudflare solve time
 
 
 @dataclass
