@@ -199,7 +199,7 @@ def _run_company(cfg, store: JobStore, run_time: datetime, args, db_lock=None) -
             return CompanyResult(cfg.name, cfg.slug, len(jobs), inserted, 0, 0, elapsed)
 
         inserted, updated = store.upsert_many(jobs)
-        deactivated = store.mark_inactive_for_run(cfg.slug, run_time)
+        deactivated = store.mark_inactive_for_run(cfg.slug, run_time, new_job_count=len(jobs))
     elapsed = time.monotonic() - t0
 
     if not jobs:

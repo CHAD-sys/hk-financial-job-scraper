@@ -19,12 +19,15 @@ Design principles:
 """
 
 import json
+import logging
 import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from hk_jobs.schema import Job, jobs_to_jsonl
+
+logger = logging.getLogger(__name__)
 
 # ── DDL ───────────────────────────────────────────────────────────────────────
 
@@ -188,7 +191,7 @@ class JobStore:
 
         return inserted, updated
 
-    def mark_inactive_for_run(self, company_slug: str, fetched_at: datetime) -> int:
+    def mark_inactive_for_run(self, company_slug: str, fetched_at: datetime, new_job_count: int = None) -> int:
         """
         Soft-delete jobs for a company that were NOT seen in this run.
 
@@ -199,8 +202,51 @@ class JobStore:
         We mark it inactive rather than deleting it (see module docstring
         for why).
 
+        Safety check: if new_job_count is 0 or suspiciously low (< 30% of
+        historical average), skip deactivation — likely a transient scrape
+        failure (e.g. Cloudflare block) rather than jobs actually disappearing.
+
         Returns the number of rows deactivated.
         """
+        # Safety: never deactivate if scrape returned 0 jobs (likely Cloudflare block)
+        if new_job_count == 0:
+            logger.warning(
+                "%s: returned 0 jobs — skipping deactivation. "
+                "Likely transient block (Cloudflare, rate-limit). Jobs remain active.",
+                company_slug,
+            )
+            return 0
+
+        # Check historical average for this company
+        if new_job_count is not None:
+            row = self._conn.execute(
+                """
+                SELECT AVG(CAST(active_count AS FLOAT)) as avg_count
+                FROM (
+                    SELECT SUM(is_active) as active_count
+                    FROM jobs
+                    WHERE company_slug = ?
+                    AND fetched_at < ?
+                    GROUP BY DATE(fetched_at)
+                    ORDER BY DATE(fetched_at) DESC
+                    LIMIT 7
+                )
+                """,
+                (company_slug, fetched_at.isoformat()),
+            ).fetchone()
+
+            if row and row["avg_count"]:
+                historical_avg = row["avg_count"]
+                # If new count is < 30% of average, likely a failed scrape
+                if new_job_count < (historical_avg * 0.3):
+                    logger.warning(
+                        "%s: got %d jobs vs avg %.0f (%.1f%% of average) — "
+                        "skipping deactivation. Likely transient scrape failure.",
+                        company_slug, new_job_count, historical_avg,
+                        (new_job_count / historical_avg * 100) if historical_avg else 0,
+                    )
+                    return 0
+
         fetched_iso = fetched_at.isoformat()
         cursor = self._conn.execute(
             """
