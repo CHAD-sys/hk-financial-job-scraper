@@ -2,7 +2,7 @@
 
 **Automated job intelligence for Hong Kong's financial sector**
 
-![Python](https://img.shields.io/badge/Python-3.11-blue) ![SQLite](https://img.shields.io/badge/Database-SQLite-green) ![DeepSeek](https://img.shields.io/badge/AI-DeepSeek-purple) ![Jobs](https://img.shields.io/badge/Jobs-1%2C592-orange) ![Coverage](https://img.shields.io/badge/Descriptions-99.9%25-brightgreen) ![Private](https://img.shields.io/badge/Visibility-Private-red)
+![Python](https://img.shields.io/badge/Python-3.11-blue) ![SQLite](https://img.shields.io/badge/Database-SQLite-green) ![DeepSeek](https://img.shields.io/badge/AI-DeepSeek-purple) ![Jobs](https://img.shields.io/badge/Jobs-2%2C000%2B-orange) ![Coverage](https://img.shields.io/badge/Descriptions-99.9%25-brightgreen) ![Public](https://img.shields.io/badge/Visibility-Public-brightgreen)
 
 ---
 
@@ -10,7 +10,7 @@
 
 A fully automated pipeline that scrapes job listings from 27 of Hong Kong's largest financial institutions, fetches full job descriptions, and enriches every listing with AI-extracted structured data (seniority, skills, job category, remote type). Runs daily and tracks hiring trends over time.
 
-> **27 companies → 1,592 active jobs → 99.9% descriptions → 100% AI-enriched**
+> **27 companies → 2,000+ active jobs → 99.9% descriptions → 100% AI-enriched**
 
 ---
 
