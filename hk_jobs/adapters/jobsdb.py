@@ -31,6 +31,7 @@ Requirements (beyond requirements.txt):
 """
 
 import logging
+import random
 import re
 import time
 from datetime import UTC, datetime, timedelta
@@ -44,7 +45,18 @@ from hk_jobs.schema import Job
 logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://hk.jobsdb.com"
-_PAGE_SLEEP = 1.0  # polite gap between listing page fetches
+
+# Polite, randomised gap between listing-page fetches. A fixed 1.0s delay is an
+# obvious robot signature; jittering it (2–5s) looks more human and eases the
+# rate-pressure that triggers Cloudflare blocks.
+_PAGE_SLEEP_MIN = 2.0
+_PAGE_SLEEP_MAX = 5.0
+
+# A Cloudflare block or network blip on one page is usually transient: a second
+# or third attempt (after a growing back-off) often gets through. We retry a
+# single page up to this many times before giving up on it.
+_MAX_PAGE_RETRIES = 3
+_RETRY_BACKOFF_BASE = 5.0  # seconds; multiplied by attempt number, plus jitter
 
 # Signals that mean we're still hitting a bot-protection challenge page
 _CHALLENGE_SIGNALS = ("captcha", "cf-challenge", "just a moment", "checking your browser")
@@ -111,7 +123,13 @@ class JobsDBAdapter(BaseAdapter):
         """
         from scrapling.fetchers import StealthyFetcher
 
-        kwargs: dict = dict(headless=True, solve_cloudflare=True, network_idle=True)
+        # network_idle MUST stay False. JobsDB listing pages run continuous
+        # background traffic (ads, analytics beacons) that never goes idle, so
+        # network_idle=True makes Playwright block until its internal timeout —
+        # the page returns HTTP 200 in ~60s but the call then hangs for the full
+        # COMPANY_TIMEOUT_SECS and the company is lost. With network_idle=False
+        # the same page (which already contains all job cards) parses in 10–20s.
+        kwargs: dict = dict(headless=True, solve_cloudflare=True, network_idle=False)
         if self._proxy:
             kwargs["proxy"] = self._proxy
         page = StealthyFetcher.fetch(url, **kwargs)
@@ -122,23 +140,76 @@ class JobsDBAdapter(BaseAdapter):
     def _fetch_all(self) -> list[Job]:
         jobs: list[Job] = []
         for page_num in range(1, self.max_pages + 1):
-            new_jobs = self._fetch_listing_page(page_num)
+            try:
+                new_jobs = self._fetch_listing_page(page_num)
+            except Exception as exc:
+                # A page raised even after retries (e.g. the network dropped
+                # mid-run). Keep whatever pages we already collected rather than
+                # losing the whole company — partial data beats none, and the
+                # company-level retry pass can fill the rest in later.
+                logger.warning(
+                    "%s: page %d failed (%s) — stopping pagination, keeping %d jobs so far.",
+                    self.company, page_num, type(exc).__name__, len(jobs),
+                )
+                break
             if not new_jobs:
                 break
             jobs.extend(new_jobs)
             if page_num < self.max_pages:
-                time.sleep(_PAGE_SLEEP)
+                time.sleep(random.uniform(_PAGE_SLEEP_MIN, _PAGE_SLEEP_MAX))
         return jobs
+
+    def _fetch_with_retries(self, url: str, page_num: int) -> tuple[int, str]:
+        """
+        Fetch one listing page, retrying on transient failures.
+
+        Two kinds of transient failure are handled, because both were observed
+        killing whole companies in production:
+
+          • Network blips — timeouts, DNS errors, connection resets raised by
+            the headless browser. Retried; re-raised only after the final
+            attempt (then _fetch_all preserves the pages collected so far).
+          • Cloudflare challenges — a challenge *response* (403/429 or a short
+            challenge page). Retried; the last challenge response is returned so
+            the caller can log a clear "still blocked" error.
+
+        A genuinely good response (200, or any non-challenge status like 404) is
+        returned immediately. Each retry waits a growing, jittered back-off so we
+        never hammer the source in a tight loop.
+        """
+        status, html = 0, ""
+        for attempt in range(1, _MAX_PAGE_RETRIES + 1):
+            try:
+                status, html = self._fetch_url(url)
+            except Exception as exc:
+                logger.warning(
+                    "%s page %d: fetch raised %s on attempt %d/%d",
+                    self.company, page_num, type(exc).__name__, attempt, _MAX_PAGE_RETRIES,
+                )
+                if attempt == _MAX_PAGE_RETRIES:
+                    raise  # exhausted — let _fetch_all keep partial results
+                time.sleep(_RETRY_BACKOFF_BASE * attempt + random.uniform(0, 3))
+                continue
+
+            if not _is_challenge(status, html):
+                return status, html
+            logger.warning(
+                "%s page %d: Cloudflare challenge on attempt %d/%d — backing off",
+                self.company, page_num, attempt, _MAX_PAGE_RETRIES,
+            )
+            if attempt < _MAX_PAGE_RETRIES:
+                time.sleep(_RETRY_BACKOFF_BASE * attempt + random.uniform(0, 3))
+        return status, html
 
     def _fetch_listing_page(self, page_num: int) -> list[Job]:
         url = f"{self._listing_url}?page={page_num}" if page_num > 1 else self._listing_url
-        status, html = self._fetch_url(url)
+        status, html = self._fetch_with_retries(url, page_num)
 
         if _is_challenge(status, html):
             logger.error(
-                "JobsDB still blocking %s page %d (status %d) — "
+                "JobsDB still blocking %s page %d (status %d) after %d attempts — "
                 "Scrapling could not bypass Cloudflare. Try updating Scrapling.",
-                self.company, page_num, status,
+                self.company, page_num, status, _MAX_PAGE_RETRIES,
             )
             return []
 

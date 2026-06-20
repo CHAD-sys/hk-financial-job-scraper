@@ -29,7 +29,8 @@ def listing_html():
 
 @pytest.fixture
 def adapter(listing_html, monkeypatch):
-    monkeypatch.setattr("hk_jobs.adapters.jobsdb._PAGE_SLEEP", 0)
+    # Neutralise all delays (page gaps + retry back-offs) so tests run instantly.
+    monkeypatch.setattr("hk_jobs.adapters.jobsdb.time.sleep", lambda *a, **k: None)
 
     calls: list[str] = []
 
@@ -178,7 +179,8 @@ def test_fetch_jobs_descriptions_empty(adapter):
 # ── anti-bot challenge handling ───────────────────────────────────────────────
 
 def test_403_returns_empty_list(monkeypatch):
-    monkeypatch.setattr("hk_jobs.adapters.jobsdb._PAGE_SLEEP", 0)
+    # Neutralise all delays (page gaps + retry back-offs) so tests run instantly.
+    monkeypatch.setattr("hk_jobs.adapters.jobsdb.time.sleep", lambda *a, **k: None)
 
     def _blocked(self, url):
         return 403, "Forbidden"
@@ -191,7 +193,8 @@ def test_403_returns_empty_list(monkeypatch):
 
 
 def test_captcha_body_returns_empty_list(monkeypatch):
-    monkeypatch.setattr("hk_jobs.adapters.jobsdb._PAGE_SLEEP", 0)
+    # Neutralise all delays (page gaps + retry back-offs) so tests run instantly.
+    monkeypatch.setattr("hk_jobs.adapters.jobsdb.time.sleep", lambda *a, **k: None)
 
     def _captcha(self, url):
         # Short page containing challenge signal → triggers _is_challenge
@@ -202,6 +205,48 @@ def test_captcha_body_returns_empty_list(monkeypatch):
         company="BOCHK", company_slug="bochk", jobsdb_slug="bank-of-china-hong-kong",
     )
     assert adapter.fetch_jobs() == []
+
+
+# ── transient-failure retry / partial results ─────────────────────────────────
+
+def test_network_exception_is_retried_then_succeeds(monkeypatch, listing_html):
+    """A network blip on the first attempt should be retried, not fatal."""
+    monkeypatch.setattr("hk_jobs.adapters.jobsdb.time.sleep", lambda *a, **k: None)
+
+    attempts = {"n": 0}
+
+    def _flaky(self, url):
+        attempts["n"] += 1
+        if attempts["n"] == 1:
+            raise TimeoutError("Page.goto: Timeout 60000ms exceeded")
+        return 200, listing_html
+
+    monkeypatch.setattr(JobsDBAdapter, "_fetch_url", _flaky)
+    adapter = JobsDBAdapter(
+        company="BOCHK", company_slug="bochk", jobsdb_slug="bank-of-china-hong-kong",
+        max_pages=1,
+    )
+    jobs = adapter.fetch_jobs()
+    assert attempts["n"] == 2          # retried once
+    assert len(jobs) == 3              # then parsed the fixture successfully
+
+
+def test_partial_results_preserved_when_later_page_fails(monkeypatch, listing_html):
+    """If page 2 keeps failing, page-1 jobs must still be returned."""
+    monkeypatch.setattr("hk_jobs.adapters.jobsdb.time.sleep", lambda *a, **k: None)
+
+    def _page1_ok_then_fail(self, url):
+        if "page=2" in url:
+            raise TimeoutError("network dropped")
+        return 200, listing_html
+
+    monkeypatch.setattr(JobsDBAdapter, "_fetch_url", _page1_ok_then_fail)
+    adapter = JobsDBAdapter(
+        company="BOCHK", company_slug="bochk", jobsdb_slug="bank-of-china-hong-kong",
+        max_pages=3,
+    )
+    jobs = adapter.fetch_jobs()
+    assert len(jobs) == 3              # page-1 results kept despite page-2 failure
 
 
 # ── registry ──────────────────────────────────────────────────────────────────

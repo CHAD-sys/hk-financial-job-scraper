@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import logging
+import random
 import sys
 import time
 from dataclasses import dataclass
@@ -32,6 +33,12 @@ logger = logging.getLogger(__name__)
 # (e.g. a very slow server or an infinite pagination loop) will be killed
 # and skipped so the other 29 companies still complete on schedule.
 COMPANY_TIMEOUT_SECS = 1200  # 10 pages × 90 s/page + Cloudflare solve time
+
+# Randomised gap before each company starts fetching. Staggering the workers
+# (rather than firing all of them at the same instant) spreads out the load on
+# JobsDB/Cloudflare and reduces synchronised-burst blocks.
+COMPANY_DELAY_MIN = 2.0
+COMPANY_DELAY_MAX = 5.0
 
 
 @dataclass
@@ -85,10 +92,12 @@ def run(args: argparse.Namespace) -> list[CompanyResult]:
     # Company-level parallelism.
     # Each worker runs one company's full scrape (both listing pages + DB write).
     # Eightfold/Workday: ~1 min each.  JobsDB/Scrapling: ~3 min each (browser/page).
-    # With 10 workers and 21 JobsDB companies: ceil(21/10)×3 min ≈ 9 min total.
+    # Default is 5 (not 10): fewer simultaneous Scrapling browsers means less
+    # RAM pressure and — more importantly — far fewer synchronised hits on
+    # JobsDB's Cloudflare, which was triggering mass blocks. Slower but steadier.
     # Hard cap: >15 workers stacks too many Scrapling browser instances (~300 MB RAM each)
     # and risks Cloudflare rate-limiting on JobsDB.
-    DEFAULT_WORKERS = 10
+    DEFAULT_WORKERS = 5
     _requested = getattr(args, "parallel_workers", None) or DEFAULT_WORKERS
     if _requested > 15:
         logger.warning(
@@ -118,6 +127,15 @@ def run(args: argparse.Namespace) -> list[CompanyResult]:
                     logger.error("%s: unexpected error: %s", cfg.name, exc)
                     results.append(CompanyResult(cfg.name, cfg.slug, error=str(exc)))
 
+        # Retry pass: companies that returned 0 jobs are almost always transient
+        # Cloudflare blocks or network blips, not genuinely empty. Retry them once
+        # — sequentially and slowly (one browser at a time) so we don't recreate
+        # the synchronised burst that got us blocked in the first place. The
+        # data-protection guard already kept each company's existing jobs, so this
+        # only adds today's listings back if the retry succeeds.
+        if not dry_run and getattr(args, "retry_failed", False):
+            results = _retry_failed_companies(results, companies, store, run_time, args, db_lock)
+
         if not dry_run and getattr(args, "export", None):
             count = store.export_active_jsonl(args.export)
             logger.info("Exported %d active jobs → %s", count, args.export)
@@ -144,6 +162,12 @@ def _run_company(cfg, store: JobStore, run_time: datetime, args, db_lock=None) -
     """
     t0 = time.monotonic()
     adapter = cfg.build_adapter()
+
+    # Stagger real runs: wait a short random beat before starting so the workers
+    # don't all hit JobsDB at the same instant (synchronised bursts are what trip
+    # Cloudflare). Skipped in tests / dry-run, which never set the throttle flag.
+    if getattr(args, "throttle", False) and not getattr(args, "dry_run", False):
+        time.sleep(random.uniform(COMPANY_DELAY_MIN, COMPANY_DELAY_MAX))
 
     # Fetch jobs (network-bound; runs without the db_lock so other companies
     # can write to the DB while this one is still fetching).
@@ -216,6 +240,50 @@ def _run_company(cfg, store: JobStore, run_time: datetime, args, db_lock=None) -
         )
 
     return CompanyResult(cfg.name, cfg.slug, len(jobs), inserted, updated, deactivated, elapsed)
+
+
+def _retry_failed_companies(
+    results: list[CompanyResult],
+    companies: list,
+    store: JobStore,
+    run_time: datetime,
+    args,
+    db_lock,
+) -> list[CompanyResult]:
+    """
+    Retry companies that returned 0 jobs, one at a time with a delay.
+
+    A company that fetched 0 jobs is almost always a transient block (Cloudflare)
+    or a network blip rather than a genuinely empty employer, so it's worth one
+    more try. We do this sequentially — a single browser at a time, with a short
+    random gap between companies — precisely so we don't recreate the parallel
+    burst that caused the blocks. Successful retries are swapped into the results;
+    companies that still come back empty keep their (protected) existing jobs.
+    """
+    failed = [r for r in results if r.total_fetched == 0]
+    if not failed:
+        return results
+
+    slug_to_cfg = {c.slug: c for c in companies}
+    logger.info(
+        "Retry pass: %d companies returned 0 jobs, retrying one at a time: %s",
+        len(failed), ", ".join(r.slug for r in failed),
+    )
+
+    by_slug = {r.slug: r for r in results}
+    for r in failed:
+        cfg = slug_to_cfg.get(r.slug)
+        if cfg is None:
+            continue
+        time.sleep(random.uniform(COMPANY_DELAY_MIN, COMPANY_DELAY_MAX))
+        retry = _run_company(cfg, store, run_time, args, db_lock=db_lock)
+        if retry.total_fetched > 0:
+            logger.info("Retry succeeded for %s: %d jobs", cfg.name, retry.total_fetched)
+            by_slug[r.slug] = retry
+        else:
+            logger.warning("Retry still failed for %s (0 jobs)", cfg.name)
+
+    return list(by_slug.values())
 
 
 class _NullLock:
@@ -383,12 +451,34 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         dest="parallel_workers",
         type=int,
         metavar="N",
-        default=10,
+        default=5,
         help=(
-            "Number of companies to scrape in parallel (default: 10). "
+            "Number of companies to scrape in parallel (default: 5). "
             "Each JobsDB worker launches a Scrapling browser (~300 MB RAM). "
-            "Values above 15 are capped automatically to prevent memory exhaustion "
-            "and Cloudflare rate-limiting."
+            "Lower values are gentler on JobsDB's Cloudflare (fewer synchronised "
+            "hits); raise it if you have spare RAM and aren't being blocked. "
+            "Values above 15 are capped automatically."
+        ),
+    )
+    p.add_argument(
+        "--no-throttle",
+        dest="throttle",
+        action="store_false",
+        default=True,
+        help=(
+            "Disable the random 2–5s stagger before each company starts. "
+            "Throttling is on by default to avoid synchronised Cloudflare bursts."
+        ),
+    )
+    p.add_argument(
+        "--no-retry",
+        dest="retry_failed",
+        action="store_false",
+        default=True,
+        help=(
+            "Disable the end-of-run retry pass. By default, companies that return "
+            "0 jobs (usually a transient Cloudflare block) are retried once, "
+            "sequentially and slowly, before the run finishes."
         ),
     )
     p.add_argument(
