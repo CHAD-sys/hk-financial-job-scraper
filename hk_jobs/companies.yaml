@@ -63,6 +63,7 @@ companies:
     enabled: true
     config:
       jobsdb_slug: bank-of-china-hong-kong   # TODO verify JobsDB slug
+      max_pages: 10   # known-big firm: override the global default of 6 to keep full coverage
       # proxy: "http://user:pass@residential-proxy.example.com:8080"  # uncomment + fill in
 
   - name: Standard Chartered Bank (HK)
@@ -96,6 +97,7 @@ companies:
     enabled: true
     config:
       jobsdb_slug: bank-of-east-asia   # TODO verify JobsDB slug
+      max_pages: 10   # known-big firm: override the global default of 6 to keep full coverage
 
   - name: Citibank Hong Kong
     slug: citibank-hk
@@ -103,6 +105,7 @@ companies:
     enabled: true
     config:
       jobsdb_slug: citibank-hong-kong  # TODO verify JobsDB slug
+      max_pages: 10   # known-big firm: override the global default of 6 to keep full coverage
 
   - name: ICBC (Asia)
     slug: icbc-asia
@@ -143,6 +146,7 @@ companies:
     enabled: true
     config:
       jobsdb_slug: Manulife      # verified: hk.jobsdb.com/Manulife-jobs
+      max_pages: 10   # known-big firm: override the global default of 6 to keep full coverage
 
   - name: Prudential Hong Kong
     slug: prudential-hk
@@ -159,6 +163,7 @@ companies:
     enabled: true
     config:
       jobsdb_slug: axa-hong-kong   # verified slug
+      max_pages: 10   # known-big firm: override the global default of 6 to keep full coverage
 
   - name: Zurich Hong Kong
     slug: zurich-hk
@@ -220,6 +225,7 @@ companies:
     enabled: true
     config:
       jobsdb_slug: Value-Partners   # verified slug
+      max_pages: 10   # known-big firm: override the global default of 6 to keep full coverage
 
   - name: Fidelity International HK
     slug: fidelity-international-hk
@@ -283,3 +289,360 @@ companies:
     enabled: true
     config:
       jobsdb_slug: bnp-paribas-asset-management   # TODO verify JobsDB slug
+
+  ##############################################################################
+  #  2026-06 EXPANSION — onboarded via scripts/discover_companies.py
+  #  All confirmed reachable on JobsDB (HK_Job_Count > 0 on a real company page;
+  #  a nonsense slug returns 0, so these are validated pages, not fuzzy search).
+  #  See scripts/discovered_companies.csv for the full probe record.
+  #  NOTE: Western investment banks (Goldman, JPMorgan, BofA, Deutsche, Morgan
+  #  Stanley, Barclays) may include third-party/agency reposts under the brand
+  #  page — disable individually if the scraped data proves low-quality.
+  ##############################################################################
+
+  # ── Expansion: Mainland China / Asian banks ───────────────────────────────
+  - name: Agricultural Bank of China
+    slug: agricultural-bank-china
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Agricultural-Bank-of-China
+
+  - name: Bank of Communications
+    slug: bank-of-communications
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Bank-of-Communications
+
+  - name: China CITIC Bank
+    slug: citic-bank
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: China-CITIC-Bank
+
+  - name: China Everbright Bank
+    slug: everbright-bank
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: China-Everbright-Bank
+
+  - name: China Merchants Bank
+    slug: china-merchants-bank
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: China-Merchants-Bank
+
+  - name: China Minsheng Bank
+    slug: minsheng-bank
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: China-Minsheng-Bank
+
+  - name: Postal Savings Bank of China
+    slug: psbc
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Postal-Savings-Bank-of-China
+
+  - name: Mitsubishi UFJ (MUFG)
+    slug: mufg
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Mitsubishi-UFJ-Financial-Group
+
+  - name: Mizuho Financial Group
+    slug: mizuho
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Mizuho-Financial-Group
+
+  - name: SMBC Group
+    slug: smbc
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: SMBC-Group
+
+  - name: ANZ Group
+    slug: anz
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: ANZ-Group
+
+  - name: UOB
+    slug: uob
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: UOB
+
+  - name: Maybank
+    slug: maybank
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Maybank
+
+  - name: Hana Financial Group
+    slug: hana-financial
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Hana-Financial-Group
+
+  - name: State Bank of India
+    slug: sbi
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: State-Bank-of-India
+
+  # ── Expansion: Western investment banks (see agency-repost note above) ─────
+  - name: Bank of America
+    slug: bank-of-america
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Bank-of-America
+
+  - name: Deutsche Bank
+    slug: deutsche-bank
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Deutsche-Bank
+
+  - name: Goldman Sachs
+    slug: goldman-sachs
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Goldman-Sachs
+
+  - name: JPMorgan Chase
+    slug: jpmorgan-chase
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: JPMorgan-Chase
+
+  - name: Morgan Stanley
+    slug: morgan-stanley
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Morgan-Stanley
+
+  - name: Barclays
+    slug: barclays
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Barclays
+
+  # ── Expansion: Insurance ───────────────────────────────────────────────────
+  - name: China Life Insurance
+    slug: china-life
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: China-Life-Insurance
+
+  - name: China Pacific Insurance
+    slug: china-pacific-insurance
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: China-Pacific-Insurance
+
+  - name: Ping An Insurance
+    slug: ping-an
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Ping-An-Insurance
+
+  - name: Chubb
+    slug: chubb
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Chubb
+
+  - name: Allianz
+    slug: allianz
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Allianz
+
+  - name: Swiss Re
+    slug: swiss-re
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Swiss-Re
+
+  - name: Samsung Life Insurance
+    slug: samsung-life
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Samsung-Life-Insurance
+
+  - name: Dai-ichi Life Insurance
+    slug: dai-ichi-life
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Dai-ichi-Life-Insurance
+
+  - name: MetLife
+    slug: metlife
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: MetLife
+
+  - name: Nippon Life Insurance
+    slug: nippon-life
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Nippon-Life-Insurance
+
+  # ── Expansion: Asset management ────────────────────────────────────────────
+  - name: Macquarie Group
+    slug: macquarie
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Macquarie-Group
+
+  - name: State Street Global Advisors
+    slug: state-street
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: State-Street-Global-Advisors
+
+  - name: Invesco
+    slug: invesco
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Invesco
+
+  - name: Northern Trust
+    slug: northern-trust
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Northern-Trust
+
+  - name: Franklin Templeton
+    slug: franklin-templeton
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Franklin-Templeton
+
+  - name: KKR
+    slug: kkr
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: KKR
+
+  ##############################################################################
+  #  2026-06 EXPANSION — DEAD ENDS (probed, no reachable HK jobs)
+  #  Returned 0 on JobsDB under the probed slug AND on Workday/Eightfold tenant
+  #  guesses. Kept here (enabled: false) so we don't re-investigate them. Several
+  #  likely DO have HK offices but on their own ATS / a different JobsDB slug —
+  #  re-enable with the correct jobsdb_slug if you find one.
+  ##############################################################################
+  - name: Apollo Global Management
+    slug: apollo
+    adapter: jobsdb
+    enabled: false   # no HK JobsDB page under probed slug as of 2026-06
+    config:
+      jobsdb_slug: Apollo-Global-Management
+
+  - name: Brookfield Asset Management
+    slug: brookfield
+    adapter: jobsdb
+    enabled: false   # no HK JobsDB page under probed slug as of 2026-06
+    config:
+      jobsdb_slug: Brookfield-Asset-Management
+
+  - name: Carlyle Group
+    slug: carlyle
+    adapter: jobsdb
+    enabled: false   # no HK JobsDB page under probed slug as of 2026-06
+    config:
+      jobsdb_slug: Carlyle-Group
+
+  - name: GIC Private Limited
+    slug: gic
+    adapter: jobsdb
+    enabled: false   # no HK JobsDB page under probed slug as of 2026-06
+    config:
+      jobsdb_slug: GIC-Private-Limited
+
+  - name: KB Financial Group
+    slug: kb-financial
+    adapter: jobsdb
+    enabled: false   # no HK JobsDB page under probed slug as of 2026-06
+    config:
+      jobsdb_slug: KB-Financial-Group
+
+  - name: Munich Re
+    slug: munich-re
+    adapter: jobsdb
+    enabled: false   # no HK JobsDB page under probed slug as of 2026-06
+    config:
+      jobsdb_slug: Munich-Re
+
+  - name: Shinhan Financial Group
+    slug: shinhan
+    adapter: jobsdb
+    enabled: false   # no HK JobsDB page under probed slug as of 2026-06
+    config:
+      jobsdb_slug: Shinhan-Financial-Group
+
+  - name: Societe Generale
+    slug: societe-generale
+    adapter: jobsdb
+    enabled: false   # no HK JobsDB page under probed slug as of 2026-06
+    config:
+      jobsdb_slug: Societe-Generale
+
+  - name: T. Rowe Price
+    slug: t-rowe-price
+    adapter: jobsdb
+    enabled: false   # no HK JobsDB page under probed slug as of 2026-06
+    config:
+      jobsdb_slug: T-Rowe-Price
+
+  - name: Temasek Holdings
+    slug: temasek
+    adapter: jobsdb
+    enabled: false   # no HK JobsDB page under probed slug as of 2026-06
+    config:
+      jobsdb_slug: Temasek-Holdings
+
+  - name: Tokio Marine Holdings
+    slug: tokio-marine
+    adapter: jobsdb
+    enabled: false   # no HK JobsDB page under probed slug as of 2026-06
+    config:
+      jobsdb_slug: Tokio-Marine-Holdings

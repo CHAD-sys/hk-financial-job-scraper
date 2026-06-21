@@ -1,0 +1,134 @@
+#,Company,Sector,Global_Website,Likely_HK_Presence
+1,Industrial and Commercial Bank of China,Banking,https://www.icbc.com.cn,STRONG
+2,Agricultural Bank of China,Banking,https://www.abchina.com,STRONG
+3,China Construction Bank,Banking,https://www.ccb.com,STRONG
+4,Bank of China,Banking,https://www.boc.cn,STRONG
+5,JPMorgan Chase,Investment Bank,https://www.jpmorganchase.com,STRONG
+6,Bank of America,Investment Bank,https://www.bankofamerica.com,STRONG
+7,BNP Paribas,Banking,https://group.bnpparibas,STRONG
+8,HSBC,Banking,https://www.hsbc.com,STRONG
+9,Credit Agricole,Banking,https://www.credit-agricole.com,CHECK
+10,Postal Savings Bank of China,Banking,https://www.psbc.com,STRONG
+11,Mitsubishi UFJ Financial Group,Banking,https://www.mufg.jp,STRONG
+12,Citigroup,Investment Bank,https://www.citigroup.com,STRONG
+13,Banco Santander,Banking,https://www.santander.com,CHECK
+14,Wells Fargo,Banking,https://www.wellsfargo.com,CHECK
+15,Barclays,Investment Bank,https://www.barclays.com,STRONG
+16,SMBC Group,Banking,https://www.smfg.co.jp,STRONG
+17,Societe Generale,Banking,https://www.societegenerale.com,STRONG
+18,Mizuho Financial Group,Banking,https://www.mizuho-fg.co.jp,STRONG
+19,China Merchants Bank,Banking,https://www.cmbchina.com,STRONG
+20,Goldman Sachs,Investment Bank,https://www.goldmansachs.com,STRONG
+21,Royal Bank of Canada,Banking,https://www.rbc.com,CHECK
+22,Deutsche Bank,Investment Bank,https://www.db.com,STRONG
+23,UBS,Asset Management,https://www.ubs.com,STRONG
+24,Toronto-Dominion Bank,Banking,https://www.td.com,CHECK
+25,Morgan Stanley,Investment Bank,https://www.morganstanley.com,STRONG
+26,Lloyds Banking Group,Banking,https://www.lloydsbankinggroup.com,CHECK
+27,ING Group,Banking,https://www.ing.com,CHECK
+28,Intesa Sanpaolo,Banking,https://www.intesasanpaolo.com,CHECK
+29,Scotiabank,Banking,https://www.scotiabank.com,CHECK
+30,Bank of Montreal,Banking,https://www.bmo.com,CHECK
+31,UniCredit,Banking,https://www.unicreditgroup.eu,CHECK
+32,BBVA,Banking,https://www.bbva.com,CHECK
+33,NatWest Group,Banking,https://www.natwestgroup.com,CHECK
+34,Standard Chartered,Banking,https://www.sc.com,STRONG
+35,State Bank of India,Banking,https://www.onlinesbi.com,STRONG
+36,ANZ Group,Banking,https://www.anz.com,STRONG
+37,Ping An Insurance,Insurance,https://www.pingan.com,STRONG
+38,AXA,Insurance,https://www.axa.com,STRONG
+39,Allianz,Insurance,https://www.allianz.com,STRONG
+40,Prudential plc,Insurance,https://www.prudentialplc.com,STRONG
+41,Zurich Insurance Group,Insurance,https://www.zurich.com,STRONG
+42,AIA Group,Insurance,https://www.aia.com,STRONG
+43,Manulife,Insurance,https://www.manulife.com,STRONG
+44,China Life Insurance,Insurance,https://www.e-chinalife.com,STRONG
+45,MetLife,Insurance,https://www.metlife.com,STRONG
+46,Generali Group,Insurance,https://www.generali.com,STRONG
+47,Sun Life Financial,Insurance,https://www.sunlife.com,STRONG
+48,BlackRock,Asset Management,https://www.blackrock.com,STRONG
+49,Vanguard Group,Asset Management,https://www.vanguard.com,CHECK
+50,Fidelity Investments,Asset Management,https://www.fidelity.com,STRONG
+51,State Street Global Advisors,Asset Management,https://www.ssga.com,STRONG
+52,Amundi,Asset Management,https://www.amundi.com,STRONG
+53,Schroders,Asset Management,https://www.schroders.com,STRONG
+54,PIMCO,Asset Management,https://www.pimco.com,STRONG
+55,J.P. Morgan Asset Management,Asset Management,https://am.jpmorgan.com,STRONG
+56,BNP Paribas Asset Management,Asset Management,https://www.bnpparibas-am.com,STRONG
+57,Man Group,Asset Management,https://www.man.com,STRONG
+58,Northern Trust,Asset Management,https://www.northerntrust.com,STRONG
+59,Franklin Templeton,Asset Management,https://www.franklintempleton.com,STRONG
+60,Invesco,Asset Management,https://www.invesco.com,STRONG
+61,T. Rowe Price,Asset Management,https://www.troweprice.com,STRONG
+62,Legg Mason,Asset Management,https://www.leggmason.com,CHECK
+63,Dimensional Fund Advisors,Asset Management,https://www.dimensional.com,CHECK
+64,Wellington Management,Asset Management,https://www.wellington.com,CHECK
+65,Apollo Global Management,Asset Management,https://www.apollo.com,STRONG
+66,Brookfield Asset Management,Asset Management,https://www.brookfield.com,STRONG
+67,KKR,Asset Management,https://www.kkr.com,STRONG
+68,Carlyle Group,Asset Management,https://www.carlyle.com,STRONG
+69,Macquarie Group,Asset Management,https://www.macquarie.com,STRONG
+70,China Pacific Insurance,Insurance,https://www.cpic.com.cn,STRONG
+71,New York Life Insurance,Insurance,https://www.newyorklife.com,CHECK
+72,Nippon Life Insurance,Insurance,https://www.nissay.co.jp,STRONG
+73,Dai-ichi Life Insurance,Insurance,https://www.dai-ichi-life.co.jp,STRONG
+74,Samsung Life Insurance,Insurance,https://www.samsunglife.com,STRONG
+75,Aviva,Insurance,https://www.aviva.com,CHECK
+76,CNP Assurances,Insurance,https://www.cnp.fr,CHECK
+77,Swiss Re,Insurance,https://www.swissre.com,STRONG
+78,Munich Re,Insurance,https://www.munichre.com,STRONG
+79,Reinsurance Group of America,Insurance,https://www.rgare.com,CHECK
+80,Mapfre,Insurance,https://www.mapfre.com,CHECK
+81,Tokio Marine Holdings,Insurance,https://www.tokiomarinehd.com,STRONG
+82,Chubb,Insurance,https://www.chubb.com,STRONG
+83,Travelers Insurance,Insurance,https://www.travelers.com,CHECK
+84,Liberty Mutual,Insurance,https://www.libertymutual.com,CHECK
+85,MassMutual,Insurance,https://www.massmutual.com,CHECK
+86,Northwestern Mutual,Insurance,https://www.northwesternmutual.com,CHECK
+87,Principal Financial Group,Insurance,https://www.principal.com,CHECK
+88,Ameriprise Financial,Insurance,https://www.ameriprise.com,CHECK
+89,Cigna,Insurance,https://www.cigna.com,CHECK
+90,UnitedHealth Group,Insurance,https://www.unitedhealthgroup.com,CHECK
+91,Aegon,Insurance,https://www.aegon.com,CHECK
+92,China Minsheng Bank,Banking,https://www.cmbc.com.cn,STRONG
+93,China CITIC Bank,Banking,https://www.citicbank.com,STRONG
+94,China Everbright Bank,Banking,https://www.cebbank.com,STRONG
+95,Bank of Communications,Banking,https://www.bankcomm.com,STRONG
+96,Shinhan Financial Group,Banking,https://www.shinhangroup.com,STRONG
+97,KB Financial Group,Banking,https://www.kbfg.com,STRONG
+98,Hana Financial Group,Banking,https://www.hanafn.com,STRONG
+99,OCBC Bank,Banking,https://www.ocbc.com,STRONG
+100,UOB,Banking,https://www.uobgroup.com,STRONG
+101,Maybank,Banking,https://www.maybank.com,STRONG
+102,Westpac,Banking,https://www.westpac.com.au,CHECK
+103,National Australia Bank,Banking,https://www.nab.com.au,CHECK
+104,Commonwealth Bank of Australia,Banking,https://www.commbank.com.au,CHECK
+105,Bank Rakyat Indonesia,Banking,https://www.bri.co.id,CHECK
+106,Bank Mandiri,Banking,https://www.bankmandiri.co.id,CHECK
+107,Kasikornbank,Banking,https://www.kasikornbank.com,CHECK
+108,Siam Commercial Bank,Banking,https://www.scb.co.th,CHECK
+109,Banco Bradesco,Banking,https://www.bradesco.com.br,CHECK
+110,Itau Unibanco,Banking,https://www.itau.com.br,CHECK
+111,BTG Pactual,Investment Bank,https://www.btgpactual.com,CHECK
+112,CaixaBank,Banking,https://www.caixabank.com,CHECK
+113,KBC Group,Banking,https://www.kbc.com,CHECK
+114,Danske Bank,Banking,https://www.danskebank.com,CHECK
+115,Skandinaviska Enskilda Banken SEB,Banking,https://www.sebgroup.com,CHECK
+116,Nordea,Banking,https://www.nordea.com,CHECK
+117,Handelsbanken,Banking,https://www.handelsbanken.com,CHECK
+118,Swedbank,Banking,https://www.swedbank.com,CHECK
+119,Raiffeisen Bank International,Banking,https://www.rbinternational.com,CHECK
+120,Erste Group Bank,Banking,https://www.erstegroup.com,CHECK
+121,Bank of Ireland,Banking,https://www.bankofireland.com,CHECK
+122,Permanent TSB,Banking,https://www.permanenttsb.ie,CHECK
+123,Absa Group,Banking,https://www.absa.africa,CHECK
+124,FirstRand,Banking,https://www.firstrand.co.za,CHECK
+125,Nedbank,Banking,https://www.nedbank.co.za,CHECK
+126,Standard Bank Group,Banking,https://www.standardbank.com,CHECK
+127,National Bank of Canada,Banking,https://www.nbc.ca,CHECK
+128,Desjardins Group,Banking,https://www.desjardins.com,CHECK
+129,Caisse de depot et placement du Quebec,Asset Management,https://www.cdpq.com,CHECK
+130,Ontario Teachers Pension Plan,Asset Management,https://www.otpp.com,CHECK
+131,CPP Investments,Asset Management,https://www.cppinvestments.com,CHECK
+132,Temasek Holdings,Asset Management,https://www.temasek.com.sg,STRONG
+133,GIC Private Limited,Asset Management,https://www.gic.com.sg,STRONG

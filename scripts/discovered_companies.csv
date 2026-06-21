@@ -1,0 +1,53 @@
+Company,Sector,Platform,Slug_or_Tenant,HK_Job_Count,Status
+Agricultural Bank of China,Banking,jobsdb,Agricultural-Bank-of-China,30,reachable
+Bank of America,Investment Bank,jobsdb,Bank-of-America,30,reachable
+Bank of Communications,Banking,jobsdb,Bank-of-Communications,30,reachable
+China CITIC Bank,Banking,jobsdb,China-CITIC-Bank,30,reachable
+China Everbright Bank,Banking,jobsdb,China-Everbright-Bank,30,reachable
+China Life Insurance,Insurance,jobsdb,China-Life-Insurance,30,reachable
+China Merchants Bank,Banking,jobsdb,China-Merchants-Bank,30,reachable
+China Minsheng Bank,Banking,jobsdb,China-Minsheng-Bank,30,reachable
+Chubb,Insurance,jobsdb,Chubb,30,reachable
+Citigroup,Investment Bank,jobsdb,Citigroup,30,reachable
+Deutsche Bank,Investment Bank,jobsdb,Deutsche-Bank,30,reachable
+Goldman Sachs,Investment Bank,jobsdb,Goldman-Sachs,30,reachable
+Industrial and Commercial Bank of China,Banking,jobsdb,Industrial-and-Commercial-Bank-of-China,30,reachable
+JPMorgan Chase,Investment Bank,jobsdb,JPMorgan-Chase,30,reachable
+Macquarie Group,Asset Management,jobsdb,Macquarie-Group,30,reachable
+OCBC Bank,Banking,jobsdb,ocbc-bank,30,reachable
+Standard Chartered,Banking,jobsdb,Standard-Chartered,30,reachable
+UOB,Banking,jobsdb,UOB,30,reachable
+Morgan Stanley,Investment Bank,jobsdb,Morgan-Stanley,27,reachable
+Mitsubishi UFJ Financial Group,Banking,jobsdb,Mitsubishi-UFJ-Financial-Group,26,reachable
+China Pacific Insurance,Insurance,jobsdb,China-Pacific-Insurance,13,reachable
+Mizuho Financial Group,Banking,jobsdb,Mizuho-Financial-Group,13,reachable
+Ping An Insurance,Insurance,jobsdb,Ping-An-Insurance,12,reachable
+State Street Global Advisors,Asset Management,jobsdb,State-Street-Global-Advisors,9,reachable
+ANZ Group,Banking,jobsdb,ANZ-Group,8,reachable
+Invesco,Asset Management,jobsdb,Invesco,8,reachable
+Postal Savings Bank of China,Banking,jobsdb,Postal-Savings-Bank-of-China,7,reachable
+Allianz,Insurance,jobsdb,Allianz,5,reachable
+Swiss Re,Insurance,jobsdb,Swiss-Re,5,reachable
+Northern Trust,Asset Management,jobsdb,Northern-Trust,3,reachable
+SMBC Group,Banking,jobsdb,SMBC-Group,3,reachable
+Samsung Life Insurance,Insurance,jobsdb,Samsung-Life-Insurance,3,reachable
+Hana Financial Group,Banking,jobsdb,Hana-Financial-Group,2,reachable
+Maybank,Banking,jobsdb,Maybank,2,reachable
+Barclays,Investment Bank,jobsdb,Barclays,1,reachable
+Dai-ichi Life Insurance,Insurance,jobsdb,Dai-ichi-Life-Insurance,1,reachable
+Franklin Templeton,Asset Management,jobsdb,Franklin-Templeton,1,reachable
+KKR,Asset Management,jobsdb,KKR,1,reachable
+MetLife,Insurance,jobsdb,MetLife,1,reachable
+Nippon Life Insurance,Insurance,jobsdb,Nippon-Life-Insurance,1,reachable
+State Bank of India,Banking,jobsdb,State-Bank-of-India,1,reachable
+Apollo Global Management,Asset Management,,,0,unreachable
+Brookfield Asset Management,Asset Management,,,0,unreachable
+Carlyle Group,Asset Management,,,0,unreachable
+GIC Private Limited,Asset Management,,,0,unreachable
+KB Financial Group,Banking,,,0,unreachable
+Munich Re,Insurance,,,0,unreachable
+Shinhan Financial Group,Banking,,,0,unreachable
+Societe Generale,Banking,,,0,unreachable
+T. Rowe Price,Asset Management,,,0,unreachable
+Temasek Holdings,Asset Management,,,0,unreachable
+Tokio Marine Holdings,Insurance,,,0,unreachable

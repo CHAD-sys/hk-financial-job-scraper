@@ -46,11 +46,11 @@ logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://hk.jobsdb.com"
 
-# Polite, randomised gap between listing-page fetches. A fixed 1.0s delay is an
-# obvious robot signature; jittering it (2–5s) looks more human and eases the
+# Polite, randomised gap between listing-page fetches. A fixed delay is an
+# obvious robot signature; jittering it (1.5–3.5s) looks more human and eases the
 # rate-pressure that triggers Cloudflare blocks.
-_PAGE_SLEEP_MIN = 2.0
-_PAGE_SLEEP_MAX = 5.0
+_PAGE_SLEEP_MIN = 1.5
+_PAGE_SLEEP_MAX = 3.5
 
 # A Cloudflare block or network blip on one page is usually transient: a second
 # or third attempt (after a growing back-off) often gets through. We retry a
@@ -97,7 +97,9 @@ class JobsDBAdapter(BaseAdapter):
         company: str,
         company_slug: str,
         jobsdb_slug: str,
-        max_pages: int = 10,  # Scrapling ~90 s/page; stops early if page is empty
+        max_pages: int = 6,  # ~30 jobs/page → up to 180; stops early if page is empty.
+                             # Capped at 6 (not 10) to limit Cloudflare exposure on the
+                             # big first-time scrape; raise per-company for >180-job firms.
         proxy: str | None = None,
         **kwargs,
     ) -> None:
