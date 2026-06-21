@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 _MAX_WORKERS = 3    # conservative for JobsDB GraphQL rate limits; bump to 10 when not throttled
 _REQUEST_DELAY = 1.0
 _WRITE_BATCH = 200  # commit to the DB every N fetched jobs so progress survives a kill/crash
+_HTTP_TIMEOUT = 15.0  # hard per-request timeout (s); a single hung request can never freeze the run
 
 _HEADERS = {
     "User-Agent": (
@@ -289,25 +290,47 @@ def _fetch_jobsdb_description(source_id: str, max_retries: int = 3) -> str | Non
     POST requests. The 'content' field contains the full HTML description
     (~1.5–2.5 KB per job). No Scrapling / Cloudflare bypass needed.
 
-    Retries on 429 with exponential backoff (2 s, 4 s, 8 s).
-    Returns raw HTML string, or None if the job is not found / expired.
+    Resilience (so one job can never freeze the whole run):
+      - hard per-request timeout of _HTTP_TIMEOUT seconds on every call;
+      - bounded exponential backoff (2 s, 4 s, 8 s) on HTTP 429 *and* on
+        network/timeout errors;
+      - after max_retries, give up on this job and return None (never raise,
+        never block the queue).
+
+    Returns raw HTML string, or None if the job is not found / expired / failed.
     """
     query = _JOBSDB_QUERY % source_id
     for attempt in range(max_retries):
-        with httpx.Client(timeout=15, follow_redirects=True) as client:
-            resp = client.post(
-                _JOBSDB_GQL_URL,
-                json={"query": query},
-                headers=_JOBSDB_GQL_HEADERS,
+        wait = 2 ** (attempt + 1)   # 2 s, 4 s, 8 s
+        try:
+            with httpx.Client(timeout=_HTTP_TIMEOUT, follow_redirects=True) as client:
+                resp = client.post(
+                    _JOBSDB_GQL_URL,
+                    json={"query": query},
+                    headers=_JOBSDB_GQL_HEADERS,
+                )
+        except httpx.HTTPError as exc:
+            # Timeout, connection reset, DNS hiccup, etc. — transient; back off.
+            logger.warning(
+                "jobsdb/%s request error (%s) — retry %d/%d in %ds",
+                source_id, type(exc).__name__, attempt + 1, max_retries, wait,
             )
-        if resp.status_code == 429:
-            wait = 2 ** (attempt + 1)   # 2 s, 4 s, 8 s
-            logger.warning("429 for jobsdb/%s — retrying in %ds", source_id, wait)
             time.sleep(wait)
             continue
+
+        if resp.status_code == 429:
+            logger.warning(
+                "429 for jobsdb/%s — retry %d/%d in %ds",
+                source_id, attempt + 1, max_retries, wait,
+            )
+            time.sleep(wait)
+            continue
+
         resp.raise_for_status()
         data = resp.json()
         jd = (data.get("data") or {}).get("jobDetails") or {}
         job = jd.get("job") or {}
         return job.get("content") or job.get("abstract") or None
-    raise RuntimeError(f"429 persisted after {max_retries} retries for jobsdb/{source_id}")
+
+    logger.warning("jobsdb/%s: giving up after %d retries", source_id, max_retries)
+    return None
