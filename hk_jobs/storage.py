@@ -107,8 +107,13 @@ INSERT INTO jobs (
 )
 ON CONFLICT (source, source_id) DO UPDATE SET
     title              = excluded.title,
-    description_raw    = excluded.description_raw,
-    description_clean  = excluded.description_clean,
+    -- Preserve previously-fetched descriptions. Listing-only scrapes carry an
+    -- empty description; without this guard every re-scrape would wipe the
+    -- descriptions populated by the separate --fetch-descriptions pass, forcing
+    -- a full daily re-fetch. NULLIF(...,'') turns an empty incoming value into
+    -- NULL so COALESCE falls back to the existing stored value.
+    description_raw    = COALESCE(NULLIF(excluded.description_raw, ''), jobs.description_raw),
+    description_clean  = COALESCE(NULLIF(excluded.description_clean, ''), jobs.description_clean),
     locations          = excluded.locations,
     remote_type        = excluded.remote_type,
     department         = excluded.department,
