@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 
 _MAX_WORKERS = 3    # conservative for JobsDB GraphQL rate limits; bump to 10 when not throttled
 _REQUEST_DELAY = 1.0
+_WRITE_BATCH = 200  # commit to the DB every N fetched jobs so progress survives a kill/crash
 
 _HEADERS = {
     "User-Agent": (
@@ -104,8 +105,27 @@ class DescriptionFetcher:
                 ", ".join(f"{s}:{n}" for s, n in sorted(by_source.items())),
             )
 
-            results = self._fetch_parallel(jobs)
-            self._write_results(conn, results)
+            # Fetch + commit in batches so progress is durable: if the process is
+            # killed or crashes mid-run, everything already committed stays written
+            # (previously results were only persisted once, at the very end).
+            total = len(jobs)
+            written = skipped = failed = 0
+            for start in range(0, total, _WRITE_BATCH):
+                batch = jobs[start:start + _WRITE_BATCH]
+                results = self._fetch_parallel(batch)
+                s, sk, f = self._write_results(conn, results)
+                written += s
+                skipped += sk
+                failed += f
+                logger.info(
+                    "descriptions: committed batch, total %d/%d written so far (%d skipped, %d failed)",
+                    written, total, skipped, failed,
+                )
+
+            logger.info(
+                "✅ Descriptions complete: %d written, %d skipped (no API), %d failed (of %d)",
+                written, skipped, failed, total,
+            )
         finally:
             conn.close()
 
@@ -184,7 +204,14 @@ class DescriptionFetcher:
             logger.error("✗ %s/%s: %s", source, source_id, exc)
             return FetchResult(source, source_id, None, None)
 
-    def _write_results(self, conn: sqlite3.Connection, results: list[FetchResult]) -> None:
+    def _write_results(
+        self, conn: sqlite3.Connection, results: list[FetchResult]
+    ) -> tuple[int, int, int]:
+        """Persist one batch of results. Returns (written, skipped, failed).
+
+        The ``with conn`` block commits this batch atomically, so each batch is
+        durable the moment it returns — a later kill cannot undo it.
+        """
         success = skipped = failed = 0
         with conn:
             for r in results:
@@ -204,10 +231,7 @@ class DescriptionFetcher:
                     (r.raw_html, r.clean_text, r.source, r.source_id),
                 )
                 success += 1
-        logger.info(
-            "✅ Descriptions: %d written, %d skipped (no API), %d failed",
-            success, skipped, failed,
-        )
+        return success, skipped, failed
 
 
 # ── ATS-specific fetchers ─────────────────────────────────────────────────────
