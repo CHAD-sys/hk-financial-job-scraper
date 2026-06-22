@@ -34,9 +34,9 @@ logger = logging.getLogger(__name__)
 # and skipped so the other 29 companies still complete on schedule.
 COMPANY_TIMEOUT_SECS = 1200  # 10 pages × 90 s/page + Cloudflare solve time
 
-# Randomised gap before each company starts fetching. Staggering the workers
-# (rather than firing all of them at the same instant) spreads out the load on
-# JobsDB/Cloudflare and reduces synchronised-burst blocks.
+# Gap between sequential retries in the end-of-run retry pass only (not the main
+# scrape, which runs at full speed). Spacing out re-attempts of a company that
+# just returned 0 avoids hammering a source that's momentarily failing.
 COMPANY_DELAY_MIN = 2.0
 COMPANY_DELAY_MAX = 5.0
 
@@ -92,12 +92,11 @@ def run(args: argparse.Namespace) -> list[CompanyResult]:
     # Company-level parallelism.
     # Each worker runs one company's full scrape (both listing pages + DB write).
     # Eightfold/Workday: ~1 min each.  JobsDB/Scrapling: ~3 min each (browser/page).
-    # Default is 5 (not 10): fewer simultaneous Scrapling browsers means less
-    # RAM pressure and — more importantly — far fewer synchronised hits on
-    # JobsDB's Cloudflare, which was triggering mass blocks. Slower but steadier.
-    # Hard cap: >15 workers stacks too many Scrapling browser instances (~300 MB RAM each)
-    # and risks Cloudflare rate-limiting on JobsDB.
-    DEFAULT_WORKERS = 5
+    # Default 10: the original working value. The slow scraping was caused by the
+    # network_idle=True hang in the adapter (since fixed), not concurrency, so the
+    # earlier drop to 5 + inter-company/page delays was unnecessary throttling.
+    # Hard cap: >15 workers stacks too many Scrapling browser instances (~300 MB RAM each).
+    DEFAULT_WORKERS = 10
     _requested = getattr(args, "parallel_workers", None) or DEFAULT_WORKERS
     if _requested > 15:
         logger.warning(
@@ -162,12 +161,6 @@ def _run_company(cfg, store: JobStore, run_time: datetime, args, db_lock=None) -
     """
     t0 = time.monotonic()
     adapter = cfg.build_adapter()
-
-    # Stagger real runs: wait a short random beat before starting so the workers
-    # don't all hit JobsDB at the same instant (synchronised bursts are what trip
-    # Cloudflare). Skipped in tests / dry-run, which never set the throttle flag.
-    if getattr(args, "throttle", False) and not getattr(args, "dry_run", False):
-        time.sleep(random.uniform(COMPANY_DELAY_MIN, COMPANY_DELAY_MAX))
 
     # Fetch jobs (network-bound; runs without the db_lock so other companies
     # can write to the DB while this one is still fetching).
@@ -451,23 +444,11 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         dest="parallel_workers",
         type=int,
         metavar="N",
-        default=5,
+        default=10,
         help=(
-            "Number of companies to scrape in parallel (default: 5). "
+            "Number of companies to scrape in parallel (default: 10). "
             "Each JobsDB worker launches a Scrapling browser (~300 MB RAM). "
-            "Lower values are gentler on JobsDB's Cloudflare (fewer synchronised "
-            "hits); raise it if you have spare RAM and aren't being blocked. "
-            "Values above 15 are capped automatically."
-        ),
-    )
-    p.add_argument(
-        "--no-throttle",
-        dest="throttle",
-        action="store_false",
-        default=True,
-        help=(
-            "Disable the random 2–5s stagger before each company starts. "
-            "Throttling is on by default to avoid synchronised Cloudflare bursts."
+            "Values above 15 are capped automatically to avoid memory exhaustion."
         ),
     )
     p.add_argument(

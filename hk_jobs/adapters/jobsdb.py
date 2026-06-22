@@ -46,12 +46,6 @@ logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://hk.jobsdb.com"
 
-# Polite, randomised gap between listing-page fetches. A fixed delay is an
-# obvious robot signature; jittering it (1.5–3.5s) looks more human and eases the
-# rate-pressure that triggers Cloudflare blocks.
-_PAGE_SLEEP_MIN = 1.5
-_PAGE_SLEEP_MAX = 3.5
-
 # A Cloudflare block or network blip on one page is usually transient: a second
 # or third attempt (after a growing back-off) often gets through. We retry a
 # single page up to this many times before giving up on it.
@@ -157,8 +151,6 @@ class JobsDBAdapter(BaseAdapter):
             if not new_jobs:
                 break
             jobs.extend(new_jobs)
-            if page_num < self.max_pages:
-                time.sleep(random.uniform(_PAGE_SLEEP_MIN, _PAGE_SLEEP_MAX))
         return jobs
 
     def _fetch_with_retries(self, url: str, page_num: int) -> tuple[int, str]:
