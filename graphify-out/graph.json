@@ -6520,7 +6520,7 @@
       "label": "Companies config (hk_jobs/companies.yaml)",
       "file_type": "document",
       "source_file": "docs/DATA_MODEL.md",
-      "source_location": "L95",
+      "source_location": "L96",
       "_origin": "ast",
       "id": "docs_data_model_companies_config_hk_jobs_companies_yaml",
       "community": 18,
@@ -6530,7 +6530,7 @@
       "label": "Company list (name \u2192 adapter \u2192 slug \u2192 enabled)",
       "file_type": "document",
       "source_file": "docs/DATA_MODEL.md",
-      "source_location": "L103",
+      "source_location": "L104",
       "_origin": "ast",
       "id": "docs_data_model_company_list_name_adapter_slug_enabled",
       "community": 18,
@@ -6540,7 +6540,7 @@
       "label": "Discovery inputs/outputs (scripts/*.csv)",
       "file_type": "document",
       "source_file": "docs/DATA_MODEL.md",
-      "source_location": "L184",
+      "source_location": "L185",
       "_origin": "ast",
       "id": "docs_data_model_discovery_inputs_outputs_scripts_csv",
       "community": 18,
@@ -6550,7 +6550,7 @@
       "label": "Master list (companies_master_list.csv)",
       "file_type": "document",
       "source_file": "docs/DATA_MODEL.md",
-      "source_location": "L186",
+      "source_location": "L187",
       "_origin": "ast",
       "id": "docs_data_model_master_list_companies_master_list_csv",
       "community": 18,
@@ -6560,7 +6560,7 @@
       "label": "Discovery results (discovered_companies.csv)",
       "file_type": "document",
       "source_file": "docs/DATA_MODEL.md",
-      "source_location": "L190",
+      "source_location": "L191",
       "_origin": "ast",
       "id": "docs_data_model_discovery_results_discovered_companies_csv",
       "community": 18,
@@ -7548,9 +7548,9 @@
       "source_file": "hk_jobs/adapters/jobsdb.py",
       "source_location": "L60",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "adapters_jobsdb_rationale_60",
-      "target": "adapters_jobsdb_is_challenge",
-      "confidence_score": 1.0
+      "target": "adapters_jobsdb_is_challenge"
     },
     {
       "relation": "method",
@@ -7638,9 +7638,9 @@
       "source_file": "hk_jobs/adapters/jobsdb.py",
       "source_location": "L75",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "adapters_jobsdb_rationale_75",
-      "target": "adapters_jobsdb_jobsdbadapter",
-      "confidence_score": 1.0
+      "target": "adapters_jobsdb_jobsdbadapter"
     },
     {
       "relation": "imports",
@@ -7823,9 +7823,9 @@
       "source_file": "hk_jobs/adapters/jobsdb.py",
       "source_location": "L114",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "adapters_jobsdb_rationale_114",
-      "target": "adapters_jobsdb_jobsdbadapter_fetch_url",
-      "confidence_score": 1.0
+      "target": "adapters_jobsdb_jobsdbadapter_fetch_url"
     },
     {
       "relation": "calls",
@@ -7855,9 +7855,9 @@
       "source_file": "hk_jobs/adapters/jobsdb.py",
       "source_location": "L157",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "adapters_jobsdb_rationale_157",
-      "target": "adapters_jobsdb_jobsdbadapter_fetch_with_retries",
-      "confidence_score": 1.0
+      "target": "adapters_jobsdb_jobsdbadapter_fetch_with_retries"
     },
     {
       "relation": "calls",
@@ -7909,9 +7909,9 @@
       "source_file": "hk_jobs/adapters/jobsdb.py",
       "source_location": "L243",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "adapters_jobsdb_rationale_243",
-      "target": "adapters_jobsdb_parse_listing_html",
-      "confidence_score": 1.0
+      "target": "adapters_jobsdb_parse_listing_html"
     },
     {
       "relation": "imports",
@@ -7996,9 +7996,9 @@
       "source_file": "hk_jobs/adapters/jobsdb.py",
       "source_location": "L295",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "adapters_jobsdb_rationale_295",
-      "target": "adapters_jobsdb_parse_listing_date",
-      "confidence_score": 1.0
+      "target": "adapters_jobsdb_parse_listing_date"
     },
     {
       "relation": "imports",
@@ -8082,9 +8082,9 @@
       "source_file": "hk_jobs/adapters/jobsdb.py",
       "source_location": "L332",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "adapters_jobsdb_rationale_332",
-      "target": "adapters_jobsdb_extract_source_id",
-      "confidence_score": 1.0
+      "target": "adapters_jobsdb_extract_source_id"
     },
     {
       "relation": "imports",
@@ -11860,9 +11860,9 @@
       "source_file": "hk_jobs/pipeline.py",
       "source_location": "L156",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "hk_jobs_pipeline_rationale_156",
-      "target": "hk_jobs_pipeline_run_company",
-      "confidence_score": 1.0
+      "target": "hk_jobs_pipeline_run_company"
     },
     {
       "relation": "calls",
@@ -11967,9 +11967,9 @@
       "source_file": "hk_jobs/pipeline.py",
       "source_location": "L246",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "hk_jobs_pipeline_rationale_246",
-      "target": "hk_jobs_pipeline_retry_failed_companies",
-      "confidence_score": 1.0
+      "target": "hk_jobs_pipeline_retry_failed_companies"
     },
     {
       "relation": "method",
@@ -12007,9 +12007,9 @@
       "source_file": "hk_jobs/pipeline.py",
       "source_location": "L283",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "hk_jobs_pipeline_rationale_283",
-      "target": "hk_jobs_pipeline_nulllock",
-      "confidence_score": 1.0
+      "target": "hk_jobs_pipeline_nulllock"
     },
     {
       "relation": "rationale_for",
@@ -12017,9 +12017,9 @@
       "source_file": "hk_jobs/pipeline.py",
       "source_location": "L294",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "hk_jobs_pipeline_rationale_294",
-      "target": "hk_jobs_pipeline_print_report",
-      "confidence_score": 1.0
+      "target": "hk_jobs_pipeline_print_report"
     },
     {
       "relation": "rationale_for",
@@ -12027,9 +12027,9 @@
       "source_file": "hk_jobs/pipeline.py",
       "source_location": "L336",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "hk_jobs_pipeline_rationale_336",
-      "target": "hk_jobs_pipeline_log_trend_changes",
-      "confidence_score": 1.0
+      "target": "hk_jobs_pipeline_log_trend_changes"
     },
     {
       "relation": "calls",
@@ -19213,5 +19213,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "64ed893a515ef8c50b2d61dd0dfea625d51482c2"
+  "built_at_commit": "8cf92a344e1281c3b889752d62d81edb03340e86"
 }

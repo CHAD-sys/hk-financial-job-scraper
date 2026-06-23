@@ -120,8 +120,8 @@
     "semantic_hash": ""
   },
   "scripts/daily_run.sh": {
-    "mtime": 1780655202.842691,
-    "ast_hash": "20838b8990f27847ed2955d97f1c38a8",
+    "mtime": 1782185313.435274,
+    "ast_hash": "a5f8d0039e9b74e26567b9d3abdf9bd8",
     "semantic_hash": ""
   },
   "scripts/discover_companies.py": {
@@ -285,8 +285,8 @@
     "semantic_hash": ""
   },
   "docs/DATA_MODEL.md": {
-    "mtime": 1782184979.2680693,
-    "ast_hash": "1771e4054ec5052147dba1ee7143bfcd",
+    "mtime": 1782210479.0236926,
+    "ast_hash": "f4b6332c1a14d169d5042a2487e72841",
     "semantic_hash": ""
   }
 }
