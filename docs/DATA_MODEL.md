@@ -20,7 +20,7 @@ Machine-generated description of the project's data artifacts (SQLite DB, discov
 
 ### Table: job_enrichments
 
-4166 rows. Columns:
+4505 rows. Columns:
 
 - `id` INTEGER (primary key)
 - `source` TEXT
@@ -37,7 +37,7 @@ Machine-generated description of the project's data artifacts (SQLite DB, discov
 
 ### Table: job_history
 
-445 rows. Columns:
+510 rows. Columns:
 
 - `id` INTEGER (primary key)
 - `company_id` TEXT
@@ -52,7 +52,7 @@ Machine-generated description of the project's data artifacts (SQLite DB, discov
 
 ### Table: jobs
 
-4527 rows. Columns:
+4827 rows. Columns:
 
 - `source` TEXT (primary key)
 - `source_id` TEXT (primary key)
@@ -87,10 +87,10 @@ Machine-generated description of the project's data artifacts (SQLite DB, discov
 
 ### Current contents
 
-- Active jobs: 2647
+- Active jobs: 2742
 - Distinct companies with active jobs: 62
-- Active jobs with descriptions: 1879
-- Active jobs with AI enrichment: 2647
+- Active jobs with descriptions: 2742
+- Active jobs with AI enrichment: 2742
 
 ## Companies config (hk_jobs/companies.yaml)
 
