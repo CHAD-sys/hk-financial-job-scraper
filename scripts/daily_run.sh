@@ -33,14 +33,18 @@ log "--- Phase 1: Scraping listings ---"
 python -m hk_jobs.pipeline 2>&1 | tee -a "$LOG_FILE"
 log "Phase 1 complete"
 
-# Phase 2: Fetch descriptions for NEW jobs only (--incremental skips existing)
-log "--- Phase 2: Fetching descriptions (incremental) ---"
-python -m hk_jobs.pipeline --fetch-descriptions --incremental 2>&1 | tee -a "$LOG_FILE"
+# Phase 2: Fetch descriptions (full mode — only touches jobs with no description).
+# NOT --incremental: that filters on DATE(fetched_at)=today, which silently no-ops
+# whenever the scrape runs long or crosses UTC midnight. Full mode already skips
+# jobs that already have descriptions, so it's both safe and complete.
+log "--- Phase 2: Fetching descriptions (full — missing only) ---"
+python -m hk_jobs.pipeline --fetch-descriptions 2>&1 | tee -a "$LOG_FILE"
 log "Phase 2 complete"
 
-# Phase 3: Enrich NEW jobs only (--incremental skips already-enriched)
-log "--- Phase 3: DeepSeek enrichment (incremental) ---"
-python -m hk_jobs.pipeline --enrich --incremental 2>&1 | tee -a "$LOG_FILE"
+# Phase 3: Enrich (full mode — only touches unenriched jobs). Not --incremental,
+# for the same date-filter reason as Phase 2.
+log "--- Phase 3: DeepSeek enrichment (full — unenriched only) ---"
+python -m hk_jobs.pipeline --enrich 2>&1 | tee -a "$LOG_FILE"
 log "Phase 3 complete"
 
 # Phase 4: Backup database (30-day rolling retention)
