@@ -80,6 +80,26 @@ def test_listing_card_teaser(listing_html):
     assert "credit" in cards[0]["teaser"].lower()
 
 
+# ── Fix A: advertiser extraction ─────────────────────────────────────────────
+
+def test_listing_card_advertiser_extracted(listing_html):
+    """Card 1 has data-automation='jobAdvertiser' — must be extracted."""
+    cards = _parse_listing_html(listing_html)
+    assert cards[0]["advertiser"] == "Bank of China (Hong Kong)"
+
+
+def test_listing_card_advertiser_cross_company(listing_html):
+    """Card 2 has a DIFFERENT advertiser (AIA) — must be captured, not the config name."""
+    cards = _parse_listing_html(listing_html)
+    assert cards[1]["advertiser"] == "AIA International Limited"
+
+
+def test_listing_card_advertiser_absent_is_none(listing_html):
+    """Card 3 has no advertiser node — must return None, not empty string."""
+    cards = _parse_listing_html(listing_html)
+    assert cards[2]["advertiser"] is None
+
+
 # ── _parse_listing_date ───────────────────────────────────────────────────────
 
 def test_parse_listing_date_today():
@@ -142,8 +162,24 @@ def test_fetch_jobs_source_fields(adapter):
     jobs = adapter.fetch_jobs()
     for job in jobs:
         assert job.source == "jobsdb"
-        assert job.company == "Bank of China (HK)"
         assert job.company_slug == "bank-of-china-hk"
+        # scraped_under_slug records the page the job came from
+        assert job.scraped_under_slug == "bank-of-china-hk"
+
+
+def test_fetch_jobs_company_from_card_advertiser(adapter):
+    """Fix A: company is extracted from the card, not stamped from config."""
+    jobs = adapter.fetch_jobs()
+    # Card 1: advertiser = "Bank of China (Hong Kong)" (matches config roughly)
+    assert jobs[0].company == "Bank of China (Hong Kong)"
+    # Card 2: advertiser = "AIA International Limited" (cross-contamination detected)
+    assert jobs[1].company == "AIA International Limited"
+
+
+def test_fetch_jobs_fallback_to_config_company_when_no_advertiser(adapter):
+    """Card 3 has no advertiser node — must fall back to config company."""
+    jobs = adapter.fetch_jobs()
+    assert jobs[2].company == "Bank of China (HK)"
 
 
 def test_fetch_jobs_titles(adapter):

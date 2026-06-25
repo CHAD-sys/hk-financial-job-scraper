@@ -3,26 +3,28 @@
 <head><meta charset="UTF-8"><title>Bank of China (HK) Jobs | JobsDB</title></head>
 <body>
 
+<!-- Card 1: advertiser matches the config company (normal case) -->
 <article data-automation="normalJob">
-  <h1 data-automation="jobTitle">
-    <a data-automation="job-list-view-job-link" href="/hk/en/job/credit-risk-analyst-100003456789">Credit Risk Analyst</a>
-  </h1>
+  <a data-automation="jobTitle" href="/job/100003456789">Credit Risk Analyst</a>
+  <a data-automation="job-list-view-job-link" href="/job/100003456789">Credit Risk Analyst</a>
+  <span data-automation="jobAdvertiser">Bank of China (Hong Kong)</span>
   <span data-automation="jobCardLocation">Hong Kong</span>
   <p data-automation="jobShortDescription">Analyse credit exposure across the HK loan portfolio and report to senior management.</p>
 </article>
 
+<!-- Card 2: advertiser differs from config company (cross-contamination case) -->
 <article data-automation="normalJob">
-  <h1 data-automation="jobTitle">
-    <a data-automation="job-list-view-job-link" href="/hk/en/job/relationship-manager-corporate-100003456790">Relationship Manager, Corporate Banking</a>
-  </h1>
+  <a data-automation="jobTitle" href="/job/100003456790">Relationship Manager, Corporate Banking</a>
+  <a data-automation="job-list-view-job-link" href="/job/100003456790">Relationship Manager, Corporate Banking</a>
+  <span data-automation="jobAdvertiser">AIA International Limited</span>
   <span data-automation="jobCardLocation">Kowloon</span>
   <p data-automation="jobShortDescription">Manage key corporate accounts and grow the lending book.</p>
 </article>
 
+<!-- Card 3: no advertiser node — must fall back to config company -->
 <article data-automation="normalJob">
-  <h1 data-automation="jobTitle">
-    <a data-automation="job-list-view-job-link" href="/hk/en/job/compliance-officer-aml-100003456791">Compliance Officer, AML</a>
-  </h1>
+  <a data-automation="jobTitle" href="/job/100003456791">Compliance Officer, AML</a>
+  <a data-automation="job-list-view-job-link" href="/job/100003456791">Compliance Officer, AML</a>
   <span data-automation="jobCardLocation">Hong Kong</span>
   <p data-automation="jobShortDescription">Lead AML transaction monitoring and regulatory reporting for the HK entity.</p>
 </article>

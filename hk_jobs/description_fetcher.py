@@ -57,7 +57,14 @@ _JOBSDB_GQL_HEADERS = {
     "X-Seek-Site": "JobsDB",
     "X-Seek-Locale": "en-HK",
 }
-_JOBSDB_QUERY = '{ jobDetails(id: "%s") { job { id content abstract } } }'
+# Include advertiser.name alongside the description so we can repair company
+# names for rows that were mislabeled when the scraper assigned self.company
+# to all cards regardless of who actually posted them (Fix A, Phase 13).
+_JOBSDB_QUERY = '{ jobDetails(id: "%s") { job { id content abstract advertiser { name } } } }'
+
+# Lightweight query used by --repair-companies: fetches only the advertiser
+# name without the full description content (~95% fewer bytes per request).
+_JOBSDB_ADVERTISER_QUERY = '{ jobDetails(id: "%s") { job { id advertiser { name } } } }'
 
 
 class FetchResult(NamedTuple):
@@ -66,6 +73,7 @@ class FetchResult(NamedTuple):
     raw_html: str | None
     clean_text: str | None
     skipped: bool = False
+    advertiser_name: str | None = None   # populated for jobsdb source (Phase 13)
 
 
 class DescriptionFetcher:
@@ -86,7 +94,11 @@ class DescriptionFetcher:
 
     # ── public API ────────────────────────────────────────────────────────────
 
-    def run(self, limit: int | None = None, incremental: bool = False) -> None:
+    def run(self, limit: int | None = None, incremental: bool = False, repair_companies: bool = False) -> None:
+        if repair_companies:
+            self._run_company_repair(limit)
+            return
+
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         try:
@@ -179,27 +191,27 @@ class DescriptionFetcher:
             time.sleep(_REQUEST_DELAY)
             if source == "workday":
                 raw_html = _fetch_workday_description(url)
+                return FetchResult(source, source_id, raw_html, _strip_html(raw_html) if raw_html else None)
             elif source == "eightfold":
                 ef_cfg = self._ef_config.get(company_slug, {})
                 tenant = ef_cfg.get("tenant", "hsbc")
                 domain = ef_cfg.get("domain", "hsbc.com")
                 raw_html = _fetch_eightfold_description(source_id, tenant, domain)
+                return FetchResult(source, source_id, raw_html, _strip_html(raw_html) if raw_html else None)
             elif source == "jobsdb":
-                raw_html = _fetch_jobsdb_description(source_id)
+                raw_html, advertiser_name = _fetch_jobsdb_description(source_id)
+                if not raw_html:
+                    logger.warning("✗ %s/%s: empty description returned", source, source_id)
+                    return FetchResult(source, source_id, None, None, advertiser_name=advertiser_name)
+                clean = _strip_html(raw_html)
+                logger.info(
+                    "✓ %s/%s: %d chars raw, %d chars clean, advertiser=%r",
+                    source, source_id, len(raw_html), len(clean), advertiser_name,
+                )
+                return FetchResult(source, source_id, raw_html, clean, advertiser_name=advertiser_name)
             else:
                 logger.warning("Unknown source '%s' — skipping %s", source, source_id)
                 return FetchResult(source, source_id, None, None, skipped=True)
-
-            if not raw_html:
-                logger.warning("✗ %s/%s: empty description returned", source, source_id)
-                return FetchResult(source, source_id, None, None)
-
-            clean = _strip_html(raw_html)
-            logger.info(
-                "✓ %s/%s: %d chars raw, %d chars clean",
-                source, source_id, len(raw_html), len(clean),
-            )
-            return FetchResult(source, source_id, raw_html, clean)
 
         except Exception as exc:
             logger.error("✗ %s/%s: %s", source, source_id, exc)
@@ -209,6 +221,10 @@ class DescriptionFetcher:
         self, conn: sqlite3.Connection, results: list[FetchResult]
     ) -> tuple[int, int, int]:
         """Persist one batch of results. Returns (written, skipped, failed).
+
+        Also updates the company column from advertiser_name when available
+        (Phase 13 Fix A). COALESCE(NULLIF(...,''), jobs.company) means an
+        empty/None advertiser_name leaves the existing company value intact.
 
         The ``with conn`` block commits this batch atomically, so each batch is
         durable the moment it returns — a later kill cannot undo it.
@@ -226,13 +242,82 @@ class DescriptionFetcher:
                     """
                     UPDATE jobs
                        SET description_raw   = ?,
-                           description_clean = ?
+                           description_clean = ?,
+                           company           = COALESCE(NULLIF(?, ''), company)
                      WHERE source = ? AND source_id = ?
                     """,
-                    (r.raw_html, r.clean_text, r.source, r.source_id),
+                    (r.raw_html, r.clean_text, r.advertiser_name or "", r.source, r.source_id),
                 )
                 success += 1
         return success, skipped, failed
+
+    # ── Company repair (Phase 13) ─────────────────────────────────────────────
+
+    def _run_company_repair(self, limit: int | None = None) -> None:
+        """
+        Repair mislabeled company fields for existing JobsDB rows.
+
+        Calls the lightweight GraphQL advertiser-only query for every active
+        JobsDB job and updates company where the DB value differs from the
+        authoritative advertiser.name.  Descriptions are NOT re-fetched —
+        this is a pure metadata-correction pass.
+
+        Designed for one-off use: after deploying Fix A, run
+            python -m hk_jobs.pipeline --repair-companies
+        to backfill all 2,356 existing rows.  Future scrapes will set the
+        correct company on INSERT (via _card_to_job), so this only needs
+        to run once per existing dataset.
+        """
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            sql = """
+                SELECT source_id, company FROM jobs
+                WHERE source = 'jobsdb' AND is_active = 1
+                ORDER BY source_id
+            """
+            if limit:
+                sql += f" LIMIT {limit}"
+            rows = conn.execute(sql).fetchall()
+            total = len(rows)
+            logger.info("Company repair: checking %d JobsDB jobs", total)
+
+            corrected = unchanged = failed = 0
+            for row in rows:
+                time.sleep(_REQUEST_DELAY)
+                try:
+                    _, advertiser_name = _fetch_jobsdb_description(
+                        row["source_id"], query_override=_JOBSDB_ADVERTISER_QUERY
+                    )
+                except Exception as exc:
+                    logger.warning("repair: %s — %s", row["source_id"], exc)
+                    failed += 1
+                    continue
+
+                if not advertiser_name:
+                    failed += 1
+                    continue
+
+                if advertiser_name != row["company"]:
+                    with conn:
+                        conn.execute(
+                            "UPDATE jobs SET company = ? WHERE source = 'jobsdb' AND source_id = ?",
+                            (advertiser_name, row["source_id"]),
+                        )
+                    logger.info(
+                        "repair: %s  %r → %r",
+                        row["source_id"], row["company"], advertiser_name,
+                    )
+                    corrected += 1
+                else:
+                    unchanged += 1
+
+            logger.info(
+                "✅ Company repair complete: %d corrected, %d unchanged, %d failed (of %d)",
+                corrected, unchanged, failed, total,
+            )
+        finally:
+            conn.close()
 
 
 # ── ATS-specific fetchers ─────────────────────────────────────────────────────
@@ -282,24 +367,32 @@ def _fetch_eightfold_description(
     return resp.json().get("job_description") or None
 
 
-def _fetch_jobsdb_description(source_id: str, max_retries: int = 3) -> str | None:
+def _fetch_jobsdb_description(
+    source_id: str,
+    max_retries: int = 3,
+    query_override: str | None = None,
+) -> tuple[str | None, str | None]:
     """
-    Fetch full job description from JobsDB via their GraphQL API.
+    Fetch job description and advertiser name from JobsDB via their GraphQL API.
 
     Discovered 2026-06-04: hk.jobsdb.com/graphql accepts unauthenticated
     POST requests. The 'content' field contains the full HTML description
     (~1.5–2.5 KB per job). No Scrapling / Cloudflare bypass needed.
 
+    Phase 13: the query now also requests advertiser.name so the caller can
+    correct the company field for rows that were mislabeled by the scraper.
+    Pass query_override=_JOBSDB_ADVERTISER_QUERY to fetch only the name
+    (used by --repair-companies, avoids downloading descriptions again).
+
     Resilience (so one job can never freeze the whole run):
       - hard per-request timeout of _HTTP_TIMEOUT seconds on every call;
       - bounded exponential backoff (2 s, 4 s, 8 s) on HTTP 429 *and* on
         network/timeout errors;
-      - after max_retries, give up on this job and return None (never raise,
-        never block the queue).
+      - after max_retries, give up on this job and return (None, None).
 
-    Returns raw HTML string, or None if the job is not found / expired / failed.
+    Returns (raw_html | None, advertiser_name | None).
     """
-    query = _JOBSDB_QUERY % source_id
+    query = (query_override or _JOBSDB_QUERY) % source_id
     for attempt in range(max_retries):
         wait = 2 ** (attempt + 1)   # 2 s, 4 s, 8 s
         try:
@@ -330,7 +423,9 @@ def _fetch_jobsdb_description(source_id: str, max_retries: int = 3) -> str | Non
         data = resp.json()
         jd = (data.get("data") or {}).get("jobDetails") or {}
         job = jd.get("job") or {}
-        return job.get("content") or job.get("abstract") or None
+        content = job.get("content") or job.get("abstract") or None
+        advertiser_name = (job.get("advertiser") or {}).get("name") or None
+        return content, advertiser_name
 
     logger.warning("jobsdb/%s: giving up after %d retries", source_id, max_retries)
-    return None
+    return None, None

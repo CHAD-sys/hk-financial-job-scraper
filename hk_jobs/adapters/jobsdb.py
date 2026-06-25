@@ -46,6 +46,28 @@ logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://hk.jobsdb.com"
 
+# ── Advertiser-name selector candidates ───────────────────────────────────────
+# JobsDB renders each card's hiring company with one of these data-automation
+# attributes.  We try them in preference order and take the first non-empty hit.
+#
+# The fixture HTML (tests/fixtures/jobsdb/listing.html) uses "jobAdvertiser"
+# — the most common value observed.  If live scraping finds a different
+# attribute, add it here; the fallback chain means no card is ever silently
+# skipped.
+#
+# IMPORTANT: these selectors could not be verified against live Cloudflare-
+# protected HTML without a running Scrapling browser.  If card extraction
+# yields nothing in production (you'll see "no advertiser" WARNING logs),
+# run scripts/test_scrapling_jobsdb.py and inspect the raw HTML to find the
+# correct attribute, then prepend it to this list.
+_ADVERTISER_SELECTORS = [
+    "[data-automation='jobAdvertiser']",
+    "[data-automation='advertiser']",
+    "[data-automation='jobCompany']",
+    "[data-automation='companyName']",
+    "[data-automation='advertiserName']",
+]
+
 # A Cloudflare block or network blip on one page is usually transient: a second
 # or third attempt (after a growing back-off) often gets through. We retry a
 # single page up to this many times before giving up on it.
@@ -223,10 +245,26 @@ class JobsDBAdapter(BaseAdapter):
 
     def _card_to_job(self, card: dict) -> Job:
         loc = card.get("location", "")
+
+        # Use the advertiser name extracted from the card HTML (Fix A).
+        # Fall back to the config company name only when the node is absent —
+        # this can happen on hand-crafted fixtures or if JobsDB changes its HTML.
+        advertiser = card.get("advertiser") or ""
+        if not advertiser:
+            logger.warning(
+                "%s: no advertiser node found in card for job %s "
+                "— falling back to config company name. "
+                "If this appears frequently in production, check _ADVERTISER_SELECTORS "
+                "against live HTML via scripts/test_scrapling_jobsdb.py.",
+                self.company,
+                _extract_source_id(card["url"]),
+            )
+            advertiser = self.company
+
         return Job(
             source=self.source_name,
             source_id=_extract_source_id(card["url"]),
-            company=self.company,
+            company=advertiser,
             company_slug=self.company_slug,
             url=card["url"],
             title=card["title"],
@@ -234,6 +272,7 @@ class JobsDBAdapter(BaseAdapter):
             description_raw="",    # listing page doesn't include full description
             description_clean="",
             posted_at=_parse_listing_date(card.get("listing_date", "")),
+            scraped_under_slug=self.company_slug,
         )
 
 
@@ -280,12 +319,24 @@ def _parse_listing_html(html: str) -> list[dict]:
         teaser_node = article.css_first("[data-automation='jobShortDescription']")
         date_node = article.css_first("[data-automation='jobListingDate']")
 
+        # Fix A: extract the real advertiser/hiring company from the card.
+        # Try selector candidates in order; take first non-empty text match.
+        advertiser: str | None = None
+        for sel in _ADVERTISER_SELECTORS:
+            node = article.css_first(sel)
+            if node:
+                text = node.text(strip=True)
+                if text:
+                    advertiser = text
+                    break
+
         cards.append({
             "title": title_node.text(strip=True) if title_node else "",
             "url": url,
             "location": location_node.text(strip=True) if location_node else "",
             "teaser": teaser_node.text(strip=True) if teaser_node else "",
             "listing_date": date_node.text(strip=True) if date_node else "",
+            "advertiser": advertiser,   # None when node is absent → fallback in _card_to_job
         })
 
     return cards
