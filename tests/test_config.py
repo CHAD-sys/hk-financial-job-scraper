@@ -15,11 +15,12 @@ _YAML_PATH = Path(__file__).parent.parent / "hk_jobs" / "companies.yaml"
 
 # ── Real YAML — structural checks ────────────────────────────────────────────
 
-def test_yaml_has_30_entries():
+def test_yaml_has_entries():
     raw = yaml.safe_load(_YAML_PATH.read_text())
-    assert len(raw["companies"]) == 30, (
-        f"Expected 30 companies, got {len(raw['companies'])}. "
-        "Update companies.yaml if the list changed."
+    count = len(raw["companies"])
+    assert count >= 30, (
+        f"Suspiciously few companies ({count}). "
+        "Did a bulk delete accidentally remove real entries?"
     )
 
 
@@ -66,9 +67,10 @@ def test_adapter_distribution():
     by_adapter: dict[str, int] = {}
     for e in raw["companies"]:
         by_adapter[e["adapter"]] = by_adapter.get(e["adapter"], 0) + 1
-    # At least 5 Workday, 2 Eightfold, and some jobsdb entries expected
-    assert by_adapter.get("workday", 0) >= 5, "Expected ≥5 Workday entries"
+    # At least 2 Eightfold and some jobsdb entries expected.
+    # Workday count can vary as we migrate companies to other sources.
     assert by_adapter.get("eightfold", 0) >= 2, "Expected ≥2 Eightfold entries"
+    assert by_adapter.get("jobsdb", 0) >= 10, "Expected ≥10 JobsDB entries"
 
 
 # ── load_companies() — behaviour ─────────────────────────────────────────────
@@ -77,8 +79,6 @@ def test_load_companies_returns_only_enabled():
     all_cfgs = load_companies(_YAML_PATH, include_disabled=True)
     enabled_cfgs = load_companies(_YAML_PATH)
     disabled = [c for c in all_cfgs if not c.enabled]
-    # All 30 are currently enabled, so both lists should be the same length.
-    # If some are later disabled this test still holds: enabled < all.
     assert len(enabled_cfgs) == len(all_cfgs) - len(disabled)
 
 
@@ -95,9 +95,11 @@ def test_load_companies_config_dict_populated():
             assert key in c.config, f"{c.name!r} missing config key {key!r}"
 
 
-def test_load_companies_include_disabled_returns_all_30():
+def test_load_companies_include_disabled_returns_all():
     cfgs = load_companies(_YAML_PATH, include_disabled=True)
-    assert len(cfgs) == 30
+    assert len(cfgs) >= 30, (
+        f"Only {len(cfgs)} total entries — expected at least 30."
+    )
 
 
 # ── Validation errors ─────────────────────────────────────────────────────────

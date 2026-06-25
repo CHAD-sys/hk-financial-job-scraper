@@ -36,7 +36,10 @@
 #                 location_filter (str, default "Hong Kong")
 #     eightfold → tenant (str, TODO), domain (str, TODO),
 #                 location_filter (str, default "Hong Kong")
-#     jobsdb    → jobsdb_slug (str, TODO), max_pages (int, default 5),
+#     jobsdb    → jobsdb_slug (str), max_pages (int, default 5),
+#                 use_company_profile (bool, default true) — true scrapes
+#                   /{slug}-jobs/at-this-company (employer-verified listings only);
+#                   false scrapes /{slug}-jobs (broader listing, may include agents).
 #                 proxy (str, optional) — residential proxy URL to bypass Cloudflare.
 #                 Format: "http://user:pass@host:port"
 #                 Services: Bright Data (brightdata.com), Oxylabs, Smartproxy, IPRoyal.
@@ -59,10 +62,11 @@ companies:
 
   - name: Bank of China (Hong Kong)
     slug: bochk
-    adapter: jobsdb              # direct ATS unknown; JobsDB fallback
+    adapter: jobsdb
     enabled: true
     config:
-      jobsdb_slug: bank-of-china-hong-kong   # TODO verify JobsDB slug
+      jobsdb_slug: Bank-of-China-(Hong-Kong)
+      use_company_profile: true
       max_pages: 10   # known-big firm: override the global default of 6 to keep full coverage
       # proxy: "http://user:pass@residential-proxy.example.com:8080"  # uncomment + fill in
 
@@ -86,17 +90,18 @@ companies:
 
   - name: DBS Bank (Hong Kong)
     slug: dbs-hk
-    adapter: jobsdb              # DBS uses Taleo (hostile); JobsDB fallback hk.jobsdb.com/DBS-Bank-jobs
-    enabled: true
+    adapter: jobsdb
+    enabled: false               # TODO: source via eFinancialCareers
     config:
-      jobsdb_slug: DBS-Bank      # verified: hk.jobsdb.com/DBS-Bank-jobs
+      jobsdb_slug: DBS-Bank
 
   - name: Bank of East Asia
     slug: bank-of-east-asia
-    adapter: jobsdb              # direct ATS not identified; JobsDB fallback
+    adapter: jobsdb
     enabled: true
     config:
-      jobsdb_slug: bank-of-east-asia   # TODO verify JobsDB slug
+      jobsdb_slug: The-Bank-of-East-Asia
+      use_company_profile: true
       max_pages: 10   # known-big firm: override the global default of 6 to keep full coverage
 
   - name: Citibank Hong Kong
@@ -104,7 +109,8 @@ companies:
     adapter: jobsdb              # Citi uses Taleo (hostile) globally; JobsDB fallback
     enabled: true
     config:
-      jobsdb_slug: citibank-hong-kong  # TODO verify JobsDB slug
+      jobsdb_slug: citi
+      use_company_profile: true
       max_pages: 10   # known-big firm: override the global default of 6 to keep full coverage
 
   - name: ICBC (Asia)
@@ -112,7 +118,8 @@ companies:
     adapter: jobsdb              # Chinese state bank; direct ATS unknown
     enabled: true
     config:
-      jobsdb_slug: icbc-asia           # TODO verify JobsDB slug
+      jobsdb_slug: Industrial-&-Commercial-Bank-of-China
+      use_company_profile: true
 
   - name: China Construction Bank (Asia)
     slug: ccb-asia
@@ -123,10 +130,11 @@ companies:
 
   - name: OCBC Wing Hang Bank
     slug: ocbc-wing-hang
-    adapter: jobsdb              # TODO verify — OCBC Group may use Workday; fallback for now
+    adapter: jobsdb
     enabled: true
     config:
-      jobsdb_slug: OCBC-Wing-Hang-Bank   # verified slug
+      jobsdb_slug: OCBC-Bank
+      use_company_profile: true
 
   # ── Insurance ────────────────────────────────────────────────────────────
   # Source: https://www.aia.com.hk, https://www.manulife.com.hk, etc.
@@ -162,7 +170,8 @@ companies:
     adapter: jobsdb              # direct ATS not confirmed; JobsDB fallback
     enabled: true
     config:
-      jobsdb_slug: axa-hong-kong   # verified slug
+      jobsdb_slug: axa
+      use_company_profile: true
       max_pages: 10   # known-big firm: override the global default of 6 to keep full coverage
 
   - name: Zurich Hong Kong
@@ -170,7 +179,8 @@ companies:
     adapter: jobsdb              # switched from workday: 422 on /wday/cxs/zurich/External/jobs
     enabled: true
     config:
-      jobsdb_slug: zurich        # TODO verify JobsDB slug
+      jobsdb_slug: Zurich-Insurance-Group
+      use_company_profile: true
 
   - name: FWD Insurance
     slug: fwd-insurance
@@ -214,7 +224,8 @@ companies:
     adapter: jobsdb              # Chinese insurer; direct ATS unknown
     enabled: true
     config:
-      jobsdb_slug: china-taiping-insurance   # TODO verify JobsDB slug
+      jobsdb_slug: China-Taiping-Life-Insurance-(Hong-Kong)-Company-Limited
+      use_company_profile: true
 
   # ── Asset Management ──────────────────────────────────────────────────────
   # Source: https://www.valuepartners-group.com, https://www.fidelity.hk, etc.
@@ -232,7 +243,8 @@ companies:
     adapter: jobsdb              # switched from workday: 422 on /wday/cxs/fidelityinternational/External/jobs
     enabled: true
     config:
-      jobsdb_slug: fidelity      # TODO verify JobsDB slug
+      jobsdb_slug: Fidelity-(Far-East)-Trading
+      use_company_profile: true
 
   - name: BlackRock Hong Kong
     slug: blackrock-hk
@@ -250,17 +262,17 @@ companies:
 
   - name: Amundi Hong Kong
     slug: amundi-hk
-    adapter: jobsdb              # direct ATS not confirmed; JobsDB fallback
-    enabled: true
+    adapter: jobsdb
+    enabled: false               # TODO: source via eFinancialCareers
     config:
-      jobsdb_slug: amundi-hong-kong   # verified slug
+      jobsdb_slug: amundi-hong-kong
 
   - name: Man Group Hong Kong
     slug: man-group-hk
-    adapter: jobsdb              # direct ATS not confirmed; JobsDB fallback
-    enabled: true
+    adapter: jobsdb
+    enabled: false               # TODO: source via eFinancialCareers
     config:
-      jobsdb_slug: man-group          # TODO verify JobsDB slug
+      jobsdb_slug: man-group
 
   - name: PIMCO Hong Kong
     slug: pimco-hk
@@ -268,13 +280,6 @@ companies:
     enabled: true
     config:
       jobsdb_slug: pimco         # TODO verify JobsDB slug
-
-  - name: J.P. Morgan Asset Management HK
-    slug: jpmorgan-am-hk
-    adapter: jobsdb              # TODO verify — JP Morgan group may use iCIMS (hostile)
-    enabled: true
-    config:
-      jobsdb_slug: jp-morgan-asset-management   # TODO verify JobsDB slug
 
   - name: UBS Asset Management HK
     slug: ubs-am-hk
@@ -320,7 +325,8 @@ companies:
     adapter: jobsdb
     enabled: true
     config:
-      jobsdb_slug: China-CITIC-Bank
+      jobsdb_slug: China-CITIC-Bank-International-Limited
+      use_company_profile: false    # no /at-this-company profile; use plain listing
 
   - name: China Everbright Bank
     slug: everbright-bank
@@ -355,21 +361,24 @@ companies:
     adapter: jobsdb
     enabled: true
     config:
-      jobsdb_slug: Mitsubishi-UFJ-Financial-Group
+      jobsdb_slug: MUFG-Bank
+      use_company_profile: true
 
   - name: Mizuho Financial Group
     slug: mizuho
     adapter: jobsdb
     enabled: true
     config:
-      jobsdb_slug: Mizuho-Financial-Group
+      jobsdb_slug: Mizuho-Bank
+      use_company_profile: true
 
   - name: SMBC Group
     slug: smbc
     adapter: jobsdb
     enabled: true
     config:
-      jobsdb_slug: SMBC-Group
+      jobsdb_slug: Sumitomo-Mitsui-Banking-Corporation
+      use_company_profile: true
 
   - name: ANZ Group
     slug: anz
@@ -383,7 +392,8 @@ companies:
     adapter: jobsdb
     enabled: true
     config:
-      jobsdb_slug: UOB
+      jobsdb_slug: United-Overseas-Bank
+      use_company_profile: true
 
   - name: Maybank
     slug: maybank
@@ -391,13 +401,6 @@ companies:
     enabled: true
     config:
       jobsdb_slug: Maybank
-
-  - name: Hana Financial Group
-    slug: hana-financial
-    adapter: jobsdb
-    enabled: true
-    config:
-      jobsdb_slug: Hana-Financial-Group
 
   - name: State Bank of India
     slug: sbi
@@ -424,16 +427,17 @@ companies:
   - name: Goldman Sachs
     slug: goldman-sachs
     adapter: jobsdb
-    enabled: true
+    enabled: false               # TODO: source via eFinancialCareers
     config:
       jobsdb_slug: Goldman-Sachs
 
-  - name: JPMorgan Chase
-    slug: jpmorgan-chase
-    adapter: jobsdb
+  - name: JPMorgan
+    slug: jpmorgan
+    adapter: jobsdb              # covers both bank and asset management (merged)
     enabled: true
     config:
-      jobsdb_slug: JPMorgan-Chase
+      jobsdb_slug: JPMorganChase
+      use_company_profile: true
 
   - name: Morgan Stanley
     slug: morgan-stanley
@@ -462,7 +466,8 @@ companies:
     adapter: jobsdb
     enabled: true
     config:
-      jobsdb_slug: China-Pacific-Insurance
+      jobsdb_slug: China-Pacific-Life-Insurance
+      use_company_profile: true
 
   - name: Ping An Insurance
     slug: ping-an
@@ -476,14 +481,16 @@ companies:
     adapter: jobsdb
     enabled: true
     config:
-      jobsdb_slug: Chubb
+      jobsdb_slug: Chubb-Insurance
+      use_company_profile: true
 
   - name: Allianz
     slug: allianz
     adapter: jobsdb
     enabled: true
     config:
-      jobsdb_slug: Allianz
+      jobsdb_slug: Allianz-Worldwide-Partners
+      use_company_profile: true
 
   - name: Swiss Re
     slug: swiss-re
@@ -499,17 +506,10 @@ companies:
     config:
       jobsdb_slug: Samsung-Life-Insurance
 
-  - name: Dai-ichi Life Insurance
-    slug: dai-ichi-life
-    adapter: jobsdb
-    enabled: true
-    config:
-      jobsdb_slug: Dai-ichi-Life-Insurance
-
   - name: MetLife
     slug: metlife
     adapter: jobsdb
-    enabled: true
+    enabled: false               # TODO: source via eFinancialCareers
     config:
       jobsdb_slug: MetLife
 
@@ -540,7 +540,8 @@ companies:
     adapter: jobsdb
     enabled: true
     config:
-      jobsdb_slug: Invesco
+      jobsdb_slug: Invesco-Hong-Kong-Limited
+      use_company_profile: true
 
   - name: Northern Trust
     slug: northern-trust
@@ -549,19 +550,13 @@ companies:
     config:
       jobsdb_slug: Northern-Trust
 
-  - name: Franklin Templeton
-    slug: franklin-templeton
-    adapter: jobsdb
-    enabled: true
-    config:
-      jobsdb_slug: Franklin-Templeton
-
   - name: KKR
     slug: kkr
     adapter: jobsdb
     enabled: true
     config:
       jobsdb_slug: KKR
+      use_company_profile: false    # no /at-this-company profile; use plain listing
 
   ##############################################################################
   #  2026-06 EXPANSION — DEAD ENDS (probed, no reachable HK jobs)
