@@ -109,7 +109,7 @@ companies:
     adapter: jobsdb              # Citi uses Taleo (hostile) globally; JobsDB fallback
     enabled: true
     config:
-      jobsdb_slug: citi
+      jobsdb_slug: Citibank
       use_company_profile: true
       max_pages: 10   # known-big firm: override the global default of 6 to keep full coverage
 
