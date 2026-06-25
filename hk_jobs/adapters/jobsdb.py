@@ -113,6 +113,8 @@ class JobsDBAdapter(BaseAdapter):
         company: str,
         company_slug: str,
         jobsdb_slug: str,
+        use_company_profile: bool = True,   # default true → /at-this-company (employer-only)
+                                             # set false in config for companies without a profile
         max_pages: int = 6,  # ~30 jobs/page → up to 180; stops early if page is empty.
                              # Capped at 6 (not 10) to limit Cloudflare exposure on the
                              # big first-time scrape; raise per-company for >180-job firms.
@@ -121,13 +123,16 @@ class JobsDBAdapter(BaseAdapter):
     ) -> None:
         super().__init__(
             company, company_slug,
-            jobsdb_slug=jobsdb_slug, max_pages=max_pages, proxy=proxy,
+            jobsdb_slug=jobsdb_slug, use_company_profile=use_company_profile,
+            max_pages=max_pages, proxy=proxy,
             **kwargs,
         )
         self.jobsdb_slug = jobsdb_slug
+        self.use_company_profile = use_company_profile
         self.max_pages = max_pages
         self._proxy = proxy
-        self._listing_url = f"{_BASE_URL}/{jobsdb_slug}-jobs"
+        base = f"{_BASE_URL}/{jobsdb_slug}-jobs"
+        self._listing_url = f"{base}/at-this-company" if use_company_profile else base
 
     def fetch_jobs(self) -> list[Job]:
         return self._safe_fetch(self._fetch_all)
