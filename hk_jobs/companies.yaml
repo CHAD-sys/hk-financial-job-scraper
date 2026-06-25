@@ -67,7 +67,7 @@ companies:
     config:
       jobsdb_slug: Bank-of-China-(Hong-Kong)
       use_company_profile: true
-      max_pages: 10   # known-big firm: override the global default of 6 to keep full coverage
+      max_pages: 12   # ~330 jobs exist; 10 pages (300) truncated. Bumped to 12 for full coverage.
       # proxy: "http://user:pass@residential-proxy.example.com:8080"  # uncomment + fill in
 
   - name: Standard Chartered Bank (HK)
@@ -327,6 +327,7 @@ companies:
     config:
       jobsdb_slug: China-CITIC-Bank-International-Limited
       use_company_profile: false    # no /at-this-company profile; use plain listing
+      max_pages: 10   # plain listing pulled 180 (6-page default cap); bumped to 10 for full coverage
 
   - name: China Everbright Bank
     slug: everbright-bank
