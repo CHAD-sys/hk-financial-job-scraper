@@ -495,6 +495,18 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Max number of jobs to enrich in this run (useful for testing).",
     )
     p.add_argument(
+        "--repair-companies",
+        dest="repair_companies",
+        action="store_true",
+        help=(
+            "Phase 13 Fix A backfill: query JobsDB GraphQL for each active JobsDB job "
+            "and update the company column from the authoritative advertiser.name field. "
+            "Fixes rows that were mislabeled before the card-extraction fix was deployed. "
+            "No descriptions are re-fetched — this is a metadata-only correction pass. "
+            "Use --fetch-limit to process a subset for testing."
+        ),
+    )
+    p.add_argument(
         "--report",
         choices=["trends", "velocity"],
         metavar="{trends,velocity}",
@@ -529,12 +541,13 @@ def main(argv: list[str] | None = None) -> None:
         for noisy in ("httpcore", "httpx", "hpack", "h11"):
             logging.getLogger(noisy).setLevel(logging.WARNING)
 
-    # Ensure phase 11 + 12 tables exist on every real-DB run (idempotent).
+    # Ensure phase 11–13 tables/columns exist on every real-DB run (idempotent).
     if not getattr(args, "dry_run", False):
-        from hk_jobs.migrations import migrate_to_phase_11, migrate_to_phase_12
+        from hk_jobs.migrations import migrate_to_phase_11, migrate_to_phase_12, migrate_to_phase_13
         Path(args.db).parent.mkdir(parents=True, exist_ok=True)
         migrate_to_phase_11(args.db)
         migrate_to_phase_12(args.db)
+        migrate_to_phase_13(args.db)
 
     # --weekly-report: send Monday trend report email (no scraping).
     if getattr(args, "weekly_report", False):
@@ -581,6 +594,16 @@ def main(argv: list[str] | None = None) -> None:
         DescriptionFetcher(db_path=args.db).run(
             limit=getattr(args, "fetch_limit", None),
             incremental=getattr(args, "incremental", False),
+        )
+        return
+
+    # --repair-companies: fix mislabeled company fields for existing JobsDB rows
+    # using the GraphQL advertiser.name (Phase 13 Fix A backfill).
+    if getattr(args, "repair_companies", False):
+        from hk_jobs.description_fetcher import DescriptionFetcher
+        DescriptionFetcher(db_path=args.db).run(
+            limit=getattr(args, "fetch_limit", None),
+            repair_companies=True,
         )
         return
 

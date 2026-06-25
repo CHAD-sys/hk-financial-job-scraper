@@ -70,6 +70,12 @@ CREATE TABLE IF NOT EXISTS jobs (
     fetched_at      TEXT NOT NULL,                -- ISO 8601
     is_active       INTEGER NOT NULL DEFAULT 1,   -- SQLite: 1/0 for boolean
 
+    -- Provenance (Phase 13)
+    -- The company_slug of the page this job was scraped from.  For direct ATS
+    -- sources (Workday, Eightfold) this equals company_slug.  For JobsDB it
+    -- may differ when a company's page surfaces third-party listings.
+    scraped_under_slug TEXT,
+
     PRIMARY KEY (source, source_id)
 );
 """
@@ -95,7 +101,8 @@ INSERT INTO jobs (
     department, seniority, employment_type,
     salary_min, salary_max, salary_currency,
     skills_required, skills_preferred, years_experience_min,
-    posted_at, fetched_at, is_active
+    posted_at, fetched_at, is_active,
+    scraped_under_slug
 ) VALUES (
     :source, :source_id, :company, :company_slug, :url, :dedup_hash,
     :title, :description_raw, :description_clean,
@@ -103,7 +110,8 @@ INSERT INTO jobs (
     :department, :seniority, :employment_type,
     :salary_min, :salary_max, :salary_currency,
     :skills_required, :skills_preferred, :years_experience_min,
-    :posted_at, :fetched_at, 1
+    :posted_at, :fetched_at, 1,
+    :scraped_under_slug
 )
 ON CONFLICT (source, source_id) DO UPDATE SET
     title              = excluded.title,
@@ -129,7 +137,15 @@ ON CONFLICT (source, source_id) DO UPDATE SET
     fetched_at         = excluded.fetched_at,
     dedup_hash         = excluded.dedup_hash,
     url                = excluded.url,
-    is_active          = 1
+    is_active          = 1,
+    -- Backfill provenance for rows that pre-date Phase 13 (NULL → new value).
+    -- Never overwrite a previously-set scraped_under_slug.
+    scraped_under_slug = COALESCE(jobs.scraped_under_slug, excluded.scraped_under_slug)
+    -- NOTE: company is intentionally NOT updated here. The correct advertiser
+    -- name is set on INSERT from the card HTML (Fix A), and repaired for
+    -- existing rows by --repair-companies (GraphQL advertiser.name).
+    -- Leaving company stable on re-scrape prevents a card-extraction fallback
+    -- from overwriting a correct company set by a prior repair pass.
 ;
 """
 
@@ -349,11 +365,18 @@ def _job_to_row(job: Job) -> dict[str, Any]:
         "years_experience_min": job.years_experience_min,
         "posted_at": job.posted_at.isoformat() if job.posted_at else None,
         "fetched_at": job.fetched_at.isoformat(),
+        "scraped_under_slug": job.scraped_under_slug,
     }
 
 
 def _row_to_job(row: sqlite3.Row) -> Job:
     """Reconstruct a Job from a SQLite row (inverse of _job_to_row)."""
+    # scraped_under_slug was added in Phase 13 — guard against pre-migration rows.
+    try:
+        scraped_under_slug = row["scraped_under_slug"]
+    except IndexError:
+        scraped_under_slug = None
+
     return Job(
         source=row["source"],
         source_id=row["source_id"],
@@ -377,4 +400,5 @@ def _row_to_job(row: sqlite3.Row) -> Job:
         posted_at=datetime.fromisoformat(row["posted_at"]) if row["posted_at"] else None,
         fetched_at=datetime.fromisoformat(row["fetched_at"]),
         is_active=bool(row["is_active"]),
+        scraped_under_slug=scraped_under_slug,
     )

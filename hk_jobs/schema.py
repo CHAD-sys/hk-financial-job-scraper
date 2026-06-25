@@ -81,6 +81,18 @@ class Job(BaseModel):
     fetched_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     is_active: bool = True
 
+    # ── Provenance ────────────────────────────────────────────────────────
+    scraped_under_slug: str | None = Field(
+        default=None,
+        description=(
+            "The company_slug of the page this job was found on. "
+            "For Workday/Eightfold this equals company_slug. "
+            "For JobsDB it may differ when an employer page surfaces third-party "
+            "listings: a job with company='AIA International Limited' can have "
+            "scraped_under_slug='manulife-hk' if found on Manulife's page."
+        ),
+    )
+
     def dedup_hash(self) -> str:
         """
         Return a 12-character fingerprint that identifies this job posting.

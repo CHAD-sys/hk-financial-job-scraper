@@ -108,3 +108,27 @@ def migrate_to_phase_12(db_path: str) -> None:
             logger.debug("Phase 12 migration: job_enrichments already exists")
     finally:
         conn.close()
+
+
+def migrate_to_phase_13(db_path: str) -> None:
+    """
+    Add scraped_under_slug column to jobs table.
+
+    This column records which company's JobsDB page a job was found on.
+    For direct ATS sources (Workday, Eightfold) it equals company_slug.
+    For JobsDB it may differ: a job whose true advertiser is AIA can appear
+    on the Manulife page, giving company='AIA International Limited' but
+    scraped_under_slug='manulife-hk'. That provenance is useful for auditing
+    data quality and understanding which employers cross-post on JobsDB.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+        if "scraped_under_slug" not in cols:
+            with conn:
+                conn.execute("ALTER TABLE jobs ADD COLUMN scraped_under_slug TEXT")
+            logger.info("Phase 13 migration: added scraped_under_slug column to jobs")
+        else:
+            logger.debug("Phase 13 migration: scraped_under_slug already exists")
+    finally:
+        conn.close()
