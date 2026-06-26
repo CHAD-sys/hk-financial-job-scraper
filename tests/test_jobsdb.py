@@ -285,6 +285,65 @@ def test_partial_results_preserved_when_later_page_fails(monkeypatch, listing_ht
     assert len(jobs) == 3              # page-1 results kept despite page-2 failure
 
 
+# ── advertiser allowlist (plain-listing companies) ────────────────────────────
+
+from hk_jobs.adapters.jobsdb import _advertiser_accepted, _normalize_advertiser_tokens
+
+
+def _acc(*names):
+    return [_normalize_advertiser_tokens(n) for n in names]
+
+
+def test_allowlist_accepts_legal_entity_variants():
+    acc = _acc("China CITIC Bank International Limited", "China CITIC Bank")
+    assert _advertiser_accepted("China CITIC Bank International Limited", acc)
+    assert _advertiser_accepted("China CITIC Bank", acc)
+    assert _advertiser_accepted("CHINA CITIC BANK INT'L LTD.", acc)
+
+
+def test_allowlist_rejects_cross_advertisers():
+    acc = _acc("China CITIC Bank International Limited", "China CITIC Bank")
+    for bad in ("Hang Seng Bank Ltd", "Nanyang Commercial Bank, Limited",
+                "Hua Xia Bank Co., Limited Hong Kong Branch", "Chong Hing Bank Limited",
+                "Shanghai Commercial Bank Ltd", "CITIC Telecom International Holdings Limited"):
+        assert not _advertiser_accepted(bad, acc), bad
+
+
+def test_allowlist_empty_advertiser_rejected():
+    assert not _advertiser_accepted("", _acc("KKR"))
+
+
+def test_plain_listing_adapter_filters_cross_advertisers(listing_html, monkeypatch):
+    """Plain-listing adapter must drop cards whose advertiser isn't accepted.
+
+    Fixture has 3 cards: 'Bank of China (Hong Kong)', 'AIA International Limited',
+    and one with no advertiser. Accepting only Bank of China keeps card 1.
+    """
+    monkeypatch.setattr("hk_jobs.adapters.jobsdb.time.sleep", lambda *a, **k: None)
+    monkeypatch.setattr(JobsDBAdapter, "_fetch_url", lambda self, url: (200, listing_html))
+    adapter = JobsDBAdapter(
+        company="Bank of China (HK)", company_slug="bochk",
+        jobsdb_slug="bank-of-china", use_company_profile=False,
+        accepted_advertisers=["Bank of China (Hong Kong)"], max_pages=1,
+    )
+    jobs = adapter.fetch_jobs()
+    assert len(jobs) == 1
+    assert "Bank of China" in jobs[0].company
+
+
+def test_profile_company_ignores_allowlist(listing_html, monkeypatch):
+    """use_company_profile=True companies keep all cards even if allowlist is set."""
+    monkeypatch.setattr("hk_jobs.adapters.jobsdb.time.sleep", lambda *a, **k: None)
+    monkeypatch.setattr(JobsDBAdapter, "_fetch_url", lambda self, url: (200, listing_html))
+    adapter = JobsDBAdapter(
+        company="Bank of China (HK)", company_slug="bochk",
+        jobsdb_slug="bank-of-china", use_company_profile=True,
+        accepted_advertisers=["Bank of China (Hong Kong)"], max_pages=1,
+    )
+    # all 3 cards kept (profile pages are already employer-scoped)
+    assert len(adapter.fetch_jobs()) == 3
+
+
 # ── registry ──────────────────────────────────────────────────────────────────
 
 def test_jobsdb_registered():

@@ -328,6 +328,11 @@ companies:
       jobsdb_slug: China-CITIC-Bank-International-Limited
       use_company_profile: false    # no /at-this-company profile; use plain listing
       max_pages: 10   # plain listing pulled 180 (6-page default cap); bumped to 10 for full coverage
+      accepted_advertisers:         # plain listing leaks other banks — keep only genuine CITIC
+        - China CITIC Bank International Limited
+        - China CITIC Bank International
+        - CITIC Bank International
+        - China CITIC Bank
 
   - name: China Everbright Bank
     slug: everbright-bank
@@ -558,6 +563,9 @@ companies:
     config:
       jobsdb_slug: KKR
       use_company_profile: false    # no /at-this-company profile; use plain listing
+      accepted_advertisers:         # plain listing — keep only genuine KKR postings
+        - KKR
+        - Kohlberg Kravis Roberts
 
   ##############################################################################
   #  2026-06 EXPANSION — DEAD ENDS (probed, no reachable HK jobs)

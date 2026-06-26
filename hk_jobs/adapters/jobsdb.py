@@ -34,6 +34,7 @@ import logging
 import random
 import re
 import time
+from collections import Counter
 from datetime import UTC, datetime, timedelta
 
 from selectolax.parser import HTMLParser
@@ -67,6 +68,38 @@ _ADVERTISER_SELECTORS = [
     "[data-automation='companyName']",
     "[data-automation='advertiserName']",
 ]
+
+# ── Advertiser allowlist matching (plain-listing companies only) ───────────────
+# Corporate-suffix / location noise words stripped before comparing advertiser
+# names, so "China CITIC Bank International Limited", "China CITIC Bank", and
+# "CITIC Bank Int'l Ltd." all reduce to the same distinctive token set.
+_ADVERTISER_NOISE_TOKENS = frozenset({
+    "ltd", "limited", "co", "company", "corporation", "corp", "inc",
+    "incorporated", "plc", "llc", "the", "branch",
+})
+
+
+def _normalize_advertiser_tokens(name: str) -> frozenset[str]:
+    """Lowercase, strip punctuation + corporate-suffix noise, return token set."""
+    cleaned = re.sub(r"[^a-z0-9\s]", " ", name.lower())
+    return frozenset(
+        t for t in cleaned.split() if t and t not in _ADVERTISER_NOISE_TOKENS
+    )
+
+
+def _advertiser_accepted(advertiser: str, accepted: list[frozenset[str]]) -> bool:
+    """
+    True if `advertiser` matches any accepted name.
+
+    Match is token-subset in either direction, so a short genuine form
+    ("China CITIC Bank") matches a longer legal entity ("China CITIC Bank
+    International Limited") and vice-versa, while unrelated banks (Hang Seng,
+    Nanyang, Hua Xia, …) share too few tokens and are rejected.
+    """
+    card = _normalize_advertiser_tokens(advertiser)
+    if not card:
+        return False
+    return any(acc and (acc <= card or card <= acc) for acc in accepted)
 
 # A Cloudflare block or network blip on one page is usually transient: a second
 # or third attempt (after a growing back-off) often gets through. We retry a
@@ -115,6 +148,7 @@ class JobsDBAdapter(BaseAdapter):
         jobsdb_slug: str,
         use_company_profile: bool = True,   # default true → /at-this-company (employer-only)
                                              # set false in config for companies without a profile
+        accepted_advertisers: list[str] | None = None,  # plain-listing allowlist (see below)
         max_pages: int = 6,  # ~30 jobs/page → up to 180; stops early if page is empty.
                              # Capped at 6 (not 10) to limit Cloudflare exposure on the
                              # big first-time scrape; raise per-company for >180-job firms.
@@ -124,6 +158,7 @@ class JobsDBAdapter(BaseAdapter):
         super().__init__(
             company, company_slug,
             jobsdb_slug=jobsdb_slug, use_company_profile=use_company_profile,
+            accepted_advertisers=accepted_advertisers,
             max_pages=max_pages, proxy=proxy,
             **kwargs,
         )
@@ -133,6 +168,24 @@ class JobsDBAdapter(BaseAdapter):
         self._proxy = proxy
         base = f"{_BASE_URL}/{jobsdb_slug}-jobs"
         self._listing_url = f"{base}/at-this-company" if use_company_profile else base
+
+        # Plain-listing pages (use_company_profile=False) are keyword searches that
+        # surface OTHER employers' postings. The allowlist keeps only cards whose
+        # real advertiser matches one of these accepted names; everything else is
+        # dropped before it reaches the DB, so contamination never enters.
+        # /at-this-company companies are already employer-scoped, so they ignore it.
+        self._accepted_adv: list[frozenset[str]] = [
+            toks
+            for a in (accepted_advertisers or [])
+            if (toks := _normalize_advertiser_tokens(a))
+        ]
+        if not use_company_profile and not self._accepted_adv:
+            logger.warning(
+                "%s uses a plain listing (use_company_profile=false) but has no "
+                "accepted_advertisers configured — cross-advertiser jobs will NOT "
+                "be filtered. Add accepted_advertisers in companies.yaml.",
+                self.company,
+            )
 
     def fetch_jobs(self) -> list[Job]:
         return self._safe_fetch(self._fetch_all)
@@ -246,7 +299,38 @@ class JobsDBAdapter(BaseAdapter):
             )
             return []
 
+        cards = self._apply_advertiser_allowlist(cards, page_num)
         return [self._card_to_job(card) for card in cards]
+
+    def _apply_advertiser_allowlist(self, cards: list[dict], page_num: int) -> list[dict]:
+        """
+        For plain-listing companies, drop cards whose advertiser isn't accepted.
+
+        No-op for /at-this-company companies (already employer-scoped) or when no
+        allowlist is configured. Logs how many cards were dropped and under which
+        advertiser names so contamination sources stay visible.
+        """
+        if self.use_company_profile or not self._accepted_adv:
+            return cards
+
+        kept: list[dict] = []
+        dropped: list[str] = []
+        for card in cards:
+            adv = card.get("advertiser") or ""
+            if _advertiser_accepted(adv, self._accepted_adv):
+                kept.append(card)
+            else:
+                dropped.append(adv or "(no advertiser)")
+
+        if dropped:
+            summary = ", ".join(
+                f"{n}× {name}" for name, n in Counter(dropped).most_common()
+            )
+            logger.info(
+                "%s page %d: allowlist dropped %d/%d cross-advertiser cards [%s]",
+                self.company, page_num, len(dropped), len(cards), summary,
+            )
+        return kept
 
     def _card_to_job(self, card: dict) -> Job:
         loc = card.get("location", "")
