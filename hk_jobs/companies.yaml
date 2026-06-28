@@ -305,6 +305,15 @@ companies:
   #  page — disable individually if the scraped data proves low-quality.
   ##############################################################################
 
+  # ── Market infrastructure ─────────────────────────────────────────────────
+  - name: Hong Kong Exchanges and Clearing
+    slug: hkex
+    adapter: jobsdb              # clean /at-this-company profile confirmed 2026-06
+    enabled: true
+    config:
+      jobsdb_slug: Hong-Kong-Exchanges-and-Clearing
+      use_company_profile: true
+
   # ── Expansion: Mainland China / Asian banks ───────────────────────────────
   - name: Agricultural Bank of China
     slug: agricultural-bank-china
