@@ -65,8 +65,10 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
         role="dialog"
         aria-modal="true"
         aria-label={job.title}
-        className="fixed right-0 top-0 bottom-0 z-50 flex flex-col overflow-hidden"
+        className="fixed right-0 bottom-0 z-50 flex flex-col overflow-hidden"
         style={{
+          top: 'var(--nav-height)',                       // start below the sticky nav
+          height: 'calc(100dvh - var(--nav-height))',     // fill the rest of the viewport
           width: 'min(680px, 100vw)',
           backgroundColor: 'var(--color-surface)',
           boxShadow: 'var(--shadow-float)',

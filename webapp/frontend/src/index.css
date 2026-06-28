@@ -3,6 +3,10 @@
 @import "tailwindcss";
 
 @theme {
+  /* ── Layout ───────────────────────────────────────────────── */
+  --nav-height: 64px;   /* must match the sticky Nav height (h-16); the job
+                           detail panel offsets by this so it clears the nav */
+
   /* ── Color Tokens ─────────────────────────────────────────── */
   --color-bg:            #FFFDF9;
   --color-surface:       #FFFFFF;
