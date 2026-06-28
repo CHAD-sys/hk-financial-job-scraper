@@ -62,7 +62,7 @@ export default function LandingPage() {
                   borderOpacity: '0.3',
                 }}
               >
-                Hong Kong · 2025
+                Hong Kong · 2026
               </span>
             </div>
 
@@ -94,7 +94,7 @@ export default function LandingPage() {
                 className="max-w-2xl mb-10 text-lg leading-relaxed"
                 style={{ color: 'var(--color-ink-muted)' }}
               >
-                A curated, AI-enriched index of 2,742 open roles across 62 institutions —
+                A curated, AI-supported index of 1,900+ open roles across leading institutions —
                 investment banks, asset managers, fintechs and insurers. Built for investors,
                 operators, and talent navigating the city's capital markets.
               </p>
@@ -228,7 +228,7 @@ export default function LandingPage() {
             className="text-xs"
             style={{ color: 'var(--color-ink-faint)' }}
           >
-            © 2025 FinEx Careers. For informational use only.
+            © 2026 FinEx Careers. For informational use only.
           </p>
         </div>
       </footer>
