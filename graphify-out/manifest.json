@@ -25,8 +25,8 @@
     "semantic_hash": ""
   },
   "hk_jobs/adapters/jobsdb.py": {
-    "mtime": 1782152036.7146893,
-    "ast_hash": "c30d758871fd8678ed0028e48991e5a7",
+    "mtime": 1782495882.3120847,
+    "ast_hash": "65f89c770e73ac42f32e480805a55185",
     "semantic_hash": ""
   },
   "hk_jobs/adapters/workday.py": {
@@ -50,8 +50,8 @@
     "semantic_hash": ""
   },
   "hk_jobs/description_fetcher.py": {
-    "mtime": 1782002974.7326868,
-    "ast_hash": "1fb17685af677c9d451b20ab506249a2",
+    "mtime": 1782365463.1699905,
+    "ast_hash": "49b946a9adc066dcf5541aa4fe82bba8",
     "semantic_hash": ""
   },
   "hk_jobs/enrich.py": {
@@ -80,8 +80,8 @@
     "semantic_hash": ""
   },
   "hk_jobs/migrations.py": {
-    "mtime": 1780306842.0443811,
-    "ast_hash": "52ef674b5a2aed04ef84568f7714a5bd",
+    "mtime": 1782365258.2164097,
+    "ast_hash": "c745edb424ffe8657462a002b9c26947",
     "semantic_hash": ""
   },
   "hk_jobs/notifications.py": {
@@ -90,8 +90,8 @@
     "semantic_hash": ""
   },
   "hk_jobs/pipeline.py": {
-    "mtime": 1782152146.1184707,
-    "ast_hash": "53ba0835d5b591912fe3b101ce180a35",
+    "mtime": 1782365511.341826,
+    "ast_hash": "cb717b9b16834c6b292312715f9d23d0",
     "semantic_hash": ""
   },
   "hk_jobs/reports/__init__.py": {
@@ -105,13 +105,13 @@
     "semantic_hash": ""
   },
   "hk_jobs/schema.py": {
-    "mtime": 1780045385.2991385,
-    "ast_hash": "41c9b9e0ce51b1cb0668768d7c05aea2",
+    "mtime": 1782365272.1728742,
+    "ast_hash": "c1b56e8ac34ae7ba6f2c17a39f786f7b",
     "semantic_hash": ""
   },
   "hk_jobs/storage.py": {
-    "mtime": 1782002466.7223504,
-    "ast_hash": "d47c4303cfa29b3c00b1960283c32af3",
+    "mtime": 1782365724.5630856,
+    "ast_hash": "775cad76af22740e27f4390072da015b",
     "semantic_hash": ""
   },
   "pyproject.toml": {
@@ -140,8 +140,8 @@
     "semantic_hash": ""
   },
   "scripts/generate_report.py": {
-    "mtime": 1780333333.3515756,
-    "ast_hash": "fb0ad41e56ae9228a74eb14324938630",
+    "mtime": 1782212214.0284176,
+    "ast_hash": "5ff8cb23b6d82fb289ff4b6b2d886c13",
     "semantic_hash": ""
   },
   "scripts/run_daily.sh": {
@@ -205,8 +205,8 @@
     "semantic_hash": ""
   },
   "tests/test_config.py": {
-    "mtime": 1780048613.9320178,
-    "ast_hash": "7586f68bc5dd7e6326ce52539a656093",
+    "mtime": 1782384914.3679047,
+    "ast_hash": "2a843dedd23e04f1fe2cc13eae388abe",
     "semantic_hash": ""
   },
   "tests/test_eightfold.py": {
@@ -225,8 +225,8 @@
     "semantic_hash": ""
   },
   "tests/test_jobsdb.py": {
-    "mtime": 1781837234.5863056,
-    "ast_hash": "3f196dbd75a4b84fd00f8de67f4b42a3",
+    "mtime": 1782495949.8580413,
+    "ast_hash": "990c5deda3134ca432265b9a4131335c",
     "semantic_hash": ""
   },
   "tests/test_pipeline.py": {
@@ -265,8 +265,8 @@
     "semantic_hash": ""
   },
   "hk_jobs/companies.yaml": {
-    "mtime": 1781976428.8754272,
-    "ast_hash": "a12dd1dc066fb9e0cc3fb7835dfe3ae6",
+    "mtime": 1782644324.2843914,
+    "ast_hash": "274c0d9b632f3da6de0509b81d21e0c5",
     "semantic_hash": ""
   },
   "requirements.txt": {
@@ -280,13 +280,18 @@
     "semantic_hash": ""
   },
   "tests/fixtures/jobsdb/listing.html": {
-    "mtime": 1780056131.8158777,
-    "ast_hash": "33a2a14ba4142360626c760319f87627",
+    "mtime": 1782365528.8845973,
+    "ast_hash": "2d00ed46768eceb8d55fe6389cde134b",
     "semantic_hash": ""
   },
   "docs/DATA_MODEL.md": {
     "mtime": 1782210479.0236926,
     "ast_hash": "f4b6332c1a14d169d5042a2487e72841",
+    "semantic_hash": ""
+  },
+  "scripts/generate_trend_report.py": {
+    "mtime": 1782214715.5870545,
+    "ast_hash": "a5f68578369c4561cc45fea21d965bef",
     "semantic_hash": ""
   }
 }

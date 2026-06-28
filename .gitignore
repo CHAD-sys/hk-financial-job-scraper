@@ -41,3 +41,22 @@ build/
 .vscode/
 .idea/
 data/backups/
+
+# Webapp (Node / Vite)
+node_modules/
+**/node_modules/
+.vite/
+**/.vite/
+webapp/frontend/dist/
+webapp/backend/.venv/
+
+# Explicit secret/data guards (belt-and-suspenders)
+config/api_keys.env
+**/.env
+data/jobs.db
+data/jobs.db-shm
+data/jobs.db-wal
+
+# graphify local cache (keep graph artifacts, drop cache)
+graphify-out/cache/
+graphify-out/.graphify_*
