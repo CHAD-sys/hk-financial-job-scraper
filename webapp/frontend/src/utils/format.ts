@@ -53,6 +53,12 @@ export const SECTOR_COLOR: Record<string, { bg: string; text: string; border: st
     border: '#E2E8F0',
     accent: '#475569',
   },
+  'Professional Services': {
+    bg: '#F5F3FF',
+    text: '#6D28D9',
+    border: '#DDD6FE',
+    accent: '#6D28D9',
+  },
 }
 
 export const SENIORITY_COLOR: Record<string, { bg: string; text: string }> = {

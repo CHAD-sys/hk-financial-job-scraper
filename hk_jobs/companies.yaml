@@ -305,13 +305,56 @@ companies:
   #  page — disable individually if the scraped data proves low-quality.
   ##############################################################################
 
-  # ── Market infrastructure ─────────────────────────────────────────────────
+  # ── Market infrastructure / regulator ────────────────────────────────────
   - name: Hong Kong Exchanges and Clearing
     slug: hkex
     adapter: jobsdb              # clean /at-this-company profile confirmed 2026-06
     enabled: true
     config:
       jobsdb_slug: Hong-Kong-Exchanges-and-Clearing
+      use_company_profile: true
+
+  - name: Hong Kong Monetary Authority (HKMA)
+    slug: hkma
+    adapter: jobsdb              # clean /at-this-company profile confirmed 2026-06 (regulator)
+    enabled: true
+    config:
+      jobsdb_slug: Hong-Kong-Monetary-Authority
+      use_company_profile: true
+
+  # ── Virtual banks ─────────────────────────────────────────────────────────
+  - name: ZA Bank
+    slug: za-bank
+    adapter: jobsdb              # clean /at-this-company profile confirmed 2026-06
+    enabled: true
+    config:
+      jobsdb_slug: ZA-Bank
+      use_company_profile: true
+
+  # ── Professional services (Big 4) ─────────────────────────────────────────
+  # Sector derived as "Professional Services" in the API (see webapp SECTOR_SQL).
+  - name: KPMG
+    slug: kpmg
+    adapter: jobsdb              # clean /at-this-company profile confirmed 2026-06
+    enabled: true
+    config:
+      jobsdb_slug: KPMG
+      use_company_profile: true
+
+  - name: PwC
+    slug: pwc
+    adapter: jobsdb              # clean /at-this-company profile confirmed 2026-06
+    enabled: true
+    config:
+      jobsdb_slug: PwC
+      use_company_profile: true
+
+  - name: Deloitte
+    slug: deloitte
+    adapter: jobsdb              # clean /at-this-company profile confirmed 2026-06
+    enabled: true
+    config:
+      jobsdb_slug: Deloitte
       use_company_profile: true
 
   # ── Expansion: Mainland China / Asian banks ───────────────────────────────

@@ -46,21 +46,30 @@ _AM_TERMS = [
     "schroders", "northern trust", "jpm am", "pimco", "kkr",
     "franklin", "amundi",
 ]
+# Professional services (Big 4). NOTE: deliberately no bare "ey" term — it would
+# match substrings like "money"/"survey"; add EY under its real advertiser string
+# ("ernst" / the exact eFC/JobsDB brand) when EY is onboarded.
+_PS_TERMS = [
+    "kpmg", "pwc", "pricewaterhouse", "deloitte",
+]
 
 SECTOR_SQL = """
   CASE
+    WHEN {ps}  THEN 'Professional Services'
     WHEN {ib}  THEN 'Investment Banking'
     WHEN {ins} THEN 'Insurance'
     WHEN {am}  THEN 'Asset Management'
     ELSE 'Banking'
   END
 """.format(
+    ps=" OR ".join(f"LOWER(j.company) LIKE '%{t}%'" for t in _PS_TERMS),
     ib=" OR ".join(f"LOWER(j.company) LIKE '%{t}%'" for t in _IB_TERMS),
     ins=" OR ".join(f"LOWER(j.company) LIKE '%{t}%'" for t in _INS_TERMS),
     am=" OR ".join(f"LOWER(j.company) LIKE '%{t}%'" for t in _AM_TERMS),
 ).strip()
 
 # WHERE-clause form of each sector (no alias, reusable in filters)
+_PS_COND  = "(" + " OR ".join(f"LOWER(j.company) LIKE '%{t}%'" for t in _PS_TERMS)  + ")"
 _IB_COND  = "(" + " OR ".join(f"LOWER(j.company) LIKE '%{t}%'" for t in _IB_TERMS)  + ")"
 _INS_COND = "(" + " OR ".join(f"LOWER(j.company) LIKE '%{t}%'" for t in _INS_TERMS) + ")"
 _AM_COND  = "(" + " OR ".join(f"LOWER(j.company) LIKE '%{t}%'" for t in _AM_TERMS)  + ")"
@@ -232,15 +241,17 @@ def _build_where(
     if sectors:
         sector_parts: list[str] = []
         for sec in sectors:
-            if sec == "Investment Banking":
+            if sec == "Professional Services":
+                sector_parts.append(_PS_COND)
+            elif sec == "Investment Banking":
                 sector_parts.append(_IB_COND)
             elif sec == "Insurance":
                 sector_parts.append(_INS_COND)
             elif sec == "Asset Management":
                 sector_parts.append(_AM_COND)
-            else:  # Banking
+            else:  # Banking (everything not matched by a specific sector)
                 sector_parts.append(
-                    f"(NOT {_IB_COND} AND NOT {_INS_COND} AND NOT {_AM_COND})"
+                    f"(NOT {_PS_COND} AND NOT {_IB_COND} AND NOT {_INS_COND} AND NOT {_AM_COND})"
                 )
         conditions.append("(" + " OR ".join(sector_parts) + ")")
 
