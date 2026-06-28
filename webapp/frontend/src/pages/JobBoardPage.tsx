@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import type { Job, FiltersResponse, JobListResponse } from '../api/client'
 import {
-  DEFAULT_FILTERS, fetchJobs, fetchFilters,
+  DEFAULT_FILTERS, fetchJobs, fetchFilters, fetchStats,
   filtersToSearchParams, searchParamsToFilters,
   countActiveFilters,
 } from '../api/client'
@@ -40,14 +40,16 @@ export default function JobBoardPage() {
 
   const [filterData, setFilterData] = useState<FiltersResponse | null>(null)
   const [result, setResult] = useState<JobListResponse | null>(null)
+  const [boardTotal, setBoardTotal] = useState<number | null>(null) // unfiltered active total
   const [loading, setLoading] = useState(true)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
 
   const { savedList, toggle: toggleSave, isSaved, count: savedCount } = useSavedJobs()
 
-  // Load filter options once
+  // Load filter options + unfiltered board total once
   useEffect(() => {
     fetchFilters().then(setFilterData).catch(console.error)
+    fetchStats().then(s => setBoardTotal(s.total_active_jobs)).catch(console.error)
   }, [])
 
   // Build the active filters object substituting debounced search
@@ -132,7 +134,7 @@ export default function JobBoardPage() {
                 style={{ color: 'rgba(248,250,252,0.5)', fontFamily: 'var(--font-mono)' }}
               >
                 {total.toLocaleString()} of{' '}
-                {(filterData ? undefined : 2742)?.toLocaleString() ?? total.toLocaleString()} roles
+                {(boardTotal ?? total).toLocaleString()} roles
               </p>
             )}
           </div>
@@ -162,8 +164,8 @@ export default function JobBoardPage() {
                 <span className="font-semibold tabular-nums" style={{ color: 'var(--color-ink)', fontFamily: 'var(--font-mono)' }}>
                   {total.toLocaleString()}
                 </span>
-                {activeCount > 0 && (
-                  <> of <span className="tabular-nums" style={{ fontFamily: 'var(--font-mono)' }}>2,742</span></>
+                {activeCount > 0 && boardTotal != null && (
+                  <> of <span className="tabular-nums" style={{ fontFamily: 'var(--font-mono)' }}>{boardTotal.toLocaleString()}</span></>
                 )}{' '}
                 role{total !== 1 ? 's' : ''}
               </>

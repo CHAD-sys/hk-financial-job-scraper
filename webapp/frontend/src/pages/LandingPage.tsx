@@ -1,23 +1,38 @@
 import { ArrowRight, ChevronRight, TrendingUp, Shield, Cpu } from 'lucide-react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Nav from '../components/Nav'
 import StatCard from '../components/StatCard'
-
-const STATS = [
-  { value: '2,742', label: 'Active Roles', sub: 'Updated daily' },
-  { value: '62',    label: 'Institutions', sub: 'Banks, asset mgrs, brokerages' },
-  { value: '4',     label: 'Sectors',      sub: 'IB · AM · Fintech · Insurance' },
-  { value: '100%',  label: 'AI-Enriched',  sub: 'Skills, seniority, benefits' },
-]
+import { fetchStats } from '../api/client'
 
 const TRUST_BADGES = [
   { icon: TrendingUp, text: 'Live market data' },
   { icon: Shield,     text: 'Verified institutions only' },
-  { icon: Cpu,        text: 'AI-enriched job data' },
+  { icon: Cpu,        text: 'AI-supported job data' },
 ]
 
 export default function LandingPage() {
   const navigate = useNavigate()
+
+  // Live figures from the API so the hero stats never go stale.
+  const [roles, setRoles] = useState('1,900+')
+  const [sectors, setSectors] = useState('5')
+  useEffect(() => {
+    fetchStats()
+      .then(s => {
+        setRoles(s.total_active_jobs.toLocaleString())
+        setSectors(String(Object.keys(s.by_sector).length))
+      })
+      .catch(() => {}) // keep the conservative fallbacks on error
+  }, [])
+
+  const STATS = [
+    { value: roles,   label: 'Active Roles', sub: 'Updated daily' },
+    { value: '60+',   label: 'Institutions', sub: 'Banks, insurers, asset managers & more' },
+    { value: sectors, label: 'Sectors',      sub: 'Banking · IB · Insurance · AM · Prof. Services' },
+    { value: '100%',  label: 'AI-Supported', sub: 'Skills, seniority & salary signals' },
+  ]
+
   return (
     <div style={{ backgroundColor: 'var(--color-bg)', minHeight: '100dvh' }}>
       <Nav />
