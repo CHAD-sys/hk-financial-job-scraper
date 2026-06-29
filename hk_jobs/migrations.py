@@ -132,3 +132,35 @@ def migrate_to_phase_13(db_path: str) -> None:
             logger.debug("Phase 13 migration: scraped_under_slug already exists")
     finally:
         conn.close()
+
+
+def migrate_to_phase_14(db_path: str) -> None:
+    """
+    Add AI salary-estimate columns to job_enrichments.
+
+    These hold DeepSeek's *estimated* HK market salary (HKD per month), distinct
+    from salary_hkd_min / salary_hkd_max which hold *disclosed* salaries (almost
+    always NULL — <5% of postings publish pay). The estimate is produced in the
+    same enrichment call (no extra API cost) from role, seniority, company tier
+    and sector. Confidence is one of low / medium / high.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(job_enrichments)").fetchall()}
+        added = []
+        with conn:
+            if "salary_estimated_min" not in cols:
+                conn.execute("ALTER TABLE job_enrichments ADD COLUMN salary_estimated_min INTEGER")
+                added.append("salary_estimated_min")
+            if "salary_estimated_max" not in cols:
+                conn.execute("ALTER TABLE job_enrichments ADD COLUMN salary_estimated_max INTEGER")
+                added.append("salary_estimated_max")
+            if "salary_estimated_confidence" not in cols:
+                conn.execute("ALTER TABLE job_enrichments ADD COLUMN salary_estimated_confidence TEXT")
+                added.append("salary_estimated_confidence")
+        if added:
+            logger.info("Phase 14 migration: added columns to job_enrichments: %s", ", ".join(added))
+        else:
+            logger.debug("Phase 14 migration: salary_estimated columns already exist")
+    finally:
+        conn.close()
