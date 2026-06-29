@@ -15,6 +15,9 @@ export interface Job {
   required_skills: string[]
   salary_hkd_min: number | null
   salary_hkd_max: number | null
+  salary_estimated_min: number | null
+  salary_estimated_max: number | null
+  salary_estimated_confidence: string | null
   years_experience_required: number | null
   posted_at: string | null
   url: string

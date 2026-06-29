@@ -1,7 +1,7 @@
 import { Bookmark, MapPin, Clock } from 'lucide-react'
 import type { Job } from '../api/client'
 import {
-  formatSalary, timeAgo, monogram,
+  formatSalary, formatEstimatedSalary, timeAgo, monogram,
   getSectorColor, getSeniorityColor,
   formatRemoteType, shortLocation,
 } from '../utils/format'
@@ -19,6 +19,10 @@ export default function JobCard({ job, saved, onToggleSave, onClick }: Props) {
   const sectorColor = getSectorColor(job.sector)
   const senColor = getSeniorityColor(job.seniority)
   const salary = formatSalary(job.salary_hkd_min, job.salary_hkd_max)
+  // Fall back to the AI estimate only when no salary is disclosed.
+  const estimatedSalary = salary
+    ? null
+    : formatEstimatedSalary(job.salary_estimated_min, job.salary_estimated_max)
   const visibleSkills = job.required_skills.slice(0, SKILL_LIMIT)
   const overflowCount = job.required_skills.length - SKILL_LIMIT
 
@@ -213,6 +217,28 @@ export default function JobCard({ job, saved, onToggleSave, onClick }: Props) {
             style={{ color: 'var(--color-ink)', fontFamily: 'var(--font-mono)' }}
           >
             {salary}
+          </span>
+        ) : estimatedSalary ? (
+          // AI estimate — muted + "AI est." tag so it never reads as disclosed pay
+          <span
+            className="flex items-center gap-1 text-xs tabular-nums"
+            style={{ color: 'var(--color-ink-faint)', fontFamily: 'var(--font-mono)' }}
+            title="AI-estimated base salary (not disclosed by employer)"
+          >
+            {estimatedSalary}
+            <span
+              className="rounded px-1 py-px"
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: '9px',
+                letterSpacing: '0.04em',
+                backgroundColor: 'var(--color-surface-2)',
+                color: 'var(--color-ink-faint)',
+                border: '1px solid var(--color-border)',
+              }}
+            >
+              AI est.
+            </span>
           </span>
         ) : (
           <span />

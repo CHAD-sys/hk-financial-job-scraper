@@ -10,6 +10,19 @@ export function formatSalary(min: number | null, max: number | null): string | n
   return null
 }
 
+/**
+ * Format an AI-estimated MONTHLY base salary, e.g. "~HK$80k–120k/mo".
+ * Visually marked with the leading "~" so it never reads as a disclosed figure.
+ */
+export function formatEstimatedSalary(min: number | null, max: number | null): string | null {
+  const fmt = (n: number): string =>
+    n >= 1_000 ? `HK$${Math.round(n / 1_000)}k` : `HK$${n}`
+  if (min && max) return `~${fmt(min)}–${fmt(max)}/mo`
+  if (min) return `~${fmt(min)}+/mo`
+  if (max) return `~up to ${fmt(max)}/mo`
+  return null
+}
+
 export function timeAgo(iso: string | null): string {
   if (!iso) return 'Unknown date'
   const diff = Date.now() - new Date(iso).getTime()

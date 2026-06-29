@@ -6,7 +6,7 @@ import {
 import type { Job, JobDetail } from '../api/client'
 import { fetchJobDetail } from '../api/client'
 import {
-  formatSalary, timeAgo, getSectorColor,
+  formatSalary, formatEstimatedSalary, timeAgo, getSectorColor,
   getSeniorityColor, formatRemoteType, shortLocation,
 } from '../utils/format'
 
@@ -43,12 +43,13 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
 
   const sectorColor = getSectorColor(job.sector)
   const senColor = getSeniorityColor(job.seniority)
-  const salary = formatSalary(
-    detail?.salary_hkd_min ?? job.salary_hkd_min,
-    detail?.salary_hkd_max ?? job.salary_hkd_max,
-  )
-
   const d = detail ?? job
+  const salary = formatSalary(d.salary_hkd_min, d.salary_hkd_max)
+  // AI estimate only when no disclosed salary.
+  const estimatedSalary = salary
+    ? null
+    : formatEstimatedSalary(d.salary_estimated_min, d.salary_estimated_max)
+  const estConfidence = d.salary_estimated_confidence
 
   return (
     <>
@@ -173,7 +174,7 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
               ))}
             </div>
 
-            {/* Salary */}
+            {/* Salary — disclosed (gold, authoritative) */}
             {salary && (
               <div
                 className="flex items-center gap-3 rounded-lg p-4"
@@ -193,6 +194,46 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
                     style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink)' }}
                   >
                     {salary} / year
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Salary — AI estimate (muted/neutral, clearly not disclosed) */}
+            {estimatedSalary && (
+              <div
+                className="flex items-center gap-3 rounded-lg p-4"
+                style={{
+                  backgroundColor: 'var(--color-surface-2)',
+                  border: '1px dashed var(--color-border-strong)',
+                }}
+              >
+                <DollarSign size={18} style={{ color: 'var(--color-ink-faint)' }} strokeWidth={1.8} />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-ink-faint)' }}>
+                      Estimated base salary
+                    </p>
+                    <span
+                      className="rounded px-1.5 py-px text-xs"
+                      style={{
+                        backgroundColor: 'var(--color-surface)',
+                        color: 'var(--color-ink-muted)',
+                        border: '1px solid var(--color-border)',
+                        fontSize: '10px',
+                      }}
+                    >
+                      AI estimate{estConfidence ? ` · ${estConfidence} confidence` : ''}
+                    </span>
+                  </div>
+                  <p
+                    className="text-base font-semibold tabular-nums"
+                    style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-muted)' }}
+                  >
+                    {estimatedSalary}
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>
+                    Estimated from role, seniority &amp; market — not disclosed by the employer.
                   </p>
                 </div>
               </div>
