@@ -25,9 +25,40 @@ _API_URL = "https://api.deepseek.com/chat/completions"
 _MODEL = "deepseek-chat"
 _DESC_MAX_CHARS = 2_000   # cap to keep prompt tight; descriptions are typically 1–4 KB
 
+# Salary-estimation instructions, shared by both prompts. Produced in the same
+# call (no extra cost). Estimates HK market monthly pay from role/seniority/
+# company tier/sector — distinct from disclosed salary_hkd_min/max.
+_SALARY_INSTRUCTIONS = """\
+For the salary_estimated_* fields: estimate a realistic Hong Kong monthly BASE salary
+(HKD) for this role from title, seniority, company tier and sector. Reference benchmarks
+(monthly HKD base, banking/investment-banking baseline, 2026 market):
+- Junior analyst / associate: 25,000-45,000
+- Mid-level / AVP: 60,000-100,000
+- Senior / VP: 150,000-300,000
+- Director / ED: 300,000-600,000
+- MD / C-suite: 400,000-900,000
+Sector adjustments vs that IB baseline (same level):
+- Insurance / asset management: ~25% lower
+- Big 4 / professional services: ~35% lower
+- Virtual banks / fintech: ~10-20% lower
+- Digital assets / crypto: wide, 30,000-200,000 by seniority
+Company-tier scaling within a band:
+- Tier 1 (Goldman, JPMorgan, HSBC, BlackRock, Morgan Stanley): upper 30% of band
+- Tier 2 (Standard Chartered, DBS, Macquarie, Citi): mid band
+- Tier 3 (smaller / regional / virtual banks): lower 30% of band
+If the description signals strong pay ("competitive package", "top-tier compensation"),
+adjust upward. salary_estimated_max should be 20-40% above salary_estimated_min.
+These are estimated BASE SALARY ranges only. In HK finance, total compensation
+(base + bonus + benefits) is typically 1.5-3x the base for senior roles. Do NOT attempt
+to estimate total comp — only base.
+Confidence: "high" = clear seniority + known company + standard role; "medium" = some
+ambiguity; "low" = vague title / unusual role / thin context. If you genuinely cannot
+estimate (no title, no seniority signal), return null for all three salary_estimated_* fields."""
+
 _PROMPT_WITH_DESC = """\
 Extract structured data from this Hong Kong job posting. Return ONLY valid JSON, no markdown.
 
+Company: {company}
 Title: {title}
 Description:
 {description}
@@ -40,7 +71,10 @@ Return exactly this JSON:
   "remote_type": "on-site|hybrid|remote",
   "salary_hkd_min": <integer or null>,
   "salary_hkd_max": <integer or null>,
-  "job_category": "Engineering|Finance|Operations|Sales|HR|Other"
+  "job_category": "Engineering|Finance|Operations|Sales|HR|Other",
+  "salary_estimated_min": <integer or null>,
+  "salary_estimated_max": <integer or null>,
+  "salary_estimated_confidence": "low|medium|high" or null
 }}
 
 For "skills": extract 7-10 specific skills from the description. Cover all categories present:
@@ -49,11 +83,14 @@ For "skills": extract 7-10 specific skills from the description. Cover all categ
 - Certifications: CFA, CPA, ACCA, FRM, HKSI, SFC licence, MPF
 - Methodologies: Agile, SWIFT, Basel III, FATCA, MiFID, Solvency II
 - Management: team leadership, stakeholder management, project management
-List each as a short phrase. Do NOT pad with vague generics (e.g. "strong communication") unless explicitly required by the job."""
+List each as a short phrase. Do NOT pad with vague generics (e.g. "strong communication") unless explicitly required by the job.
+
+{salary_instructions}"""
 
 _PROMPT_TITLE_ONLY = """\
 Extract structured data from this Hong Kong job posting. Return ONLY valid JSON, no markdown.
 
+Company: {company}
 Title: {title}
 
 Return exactly this JSON:
@@ -64,10 +101,15 @@ Return exactly this JSON:
   "remote_type": "on-site|hybrid|remote",
   "salary_hkd_min": <integer or null>,
   "salary_hkd_max": <integer or null>,
-  "job_category": "Engineering|Finance|Operations|Sales|HR|Other"
+  "job_category": "Engineering|Finance|Operations|Sales|HR|Other",
+  "salary_estimated_min": <integer or null>,
+  "salary_estimated_max": <integer or null>,
+  "salary_estimated_confidence": "low|medium|high" or null
 }}
 
-For "skills": infer 3-5 skills from the title — domain expertise, likely tools or certifications."""
+For "skills": infer 3-5 skills from the title — domain expertise, likely tools or certifications.
+
+{salary_instructions}"""
 
 
 class DeepSeekEnricher:
@@ -100,7 +142,7 @@ class DeepSeekEnricher:
         results: dict[tuple[str, str], dict[str, Any] | None] = {}
         for source, source_id, title, description in jobs:
             key = (source, source_id)
-            result = self._enrich_with_retry(title, description or "")
+            result = self._enrich_with_retry(title, description=description or "")
             results[key] = result
             if result:
                 logger.info(
@@ -113,15 +155,21 @@ class DeepSeekEnricher:
                 logger.error("✗ %s/%s: all retries failed", source, source_id)
         return results
 
-    def enrich_single(self, title: str, description: str = "") -> dict[str, Any]:
+    def enrich_single(self, title: str, company: str = "", description: str = "") -> dict[str, Any]:
         """Single API call. Raises on error."""
+        company = company or "(unknown)"
         if description.strip():
             desc_text = description.strip()[:_DESC_MAX_CHARS]
-            prompt = _PROMPT_WITH_DESC.format(title=title, description=desc_text)
-            max_tokens = 350   # ~200 tokens actual output; 350 gives safe headroom
+            prompt = _PROMPT_WITH_DESC.format(
+                company=company, title=title, description=desc_text,
+                salary_instructions=_SALARY_INSTRUCTIONS,
+            )
+            max_tokens = 450   # +salary fields; headroom over ~300 actual output
         else:
-            prompt = _PROMPT_TITLE_ONLY.format(title=title)
-            max_tokens = 250
+            prompt = _PROMPT_TITLE_ONLY.format(
+                company=company, title=title, salary_instructions=_SALARY_INSTRUCTIONS,
+            )
+            max_tokens = 350
 
         with httpx.Client(timeout=60.0) as client:
             resp = client.post(
@@ -149,11 +197,11 @@ class DeepSeekEnricher:
     # ── helpers ───────────────────────────────────────────────────────────────
 
     def _enrich_with_retry(
-        self, title: str, description: str = "", max_retries: int = 3
+        self, title: str, company: str = "", description: str = "", max_retries: int = 3
     ) -> dict[str, Any] | None:
         for attempt in range(max_retries):
             try:
-                return self.enrich_single(title, description)
+                return self.enrich_single(title, company, description)
             except Exception as exc:
                 if attempt < max_retries - 1:
                     wait = 2 ** attempt

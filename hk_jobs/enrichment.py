@@ -29,19 +29,41 @@ logger = logging.getLogger(__name__)
 _MAX_WORKERS = 20   # concurrent DeepSeek API calls; bump carefully — rate limits apply
 _BATCH_SIZE = 50    # jobs fetched from DB per write cycle
 
+_VALID_CONFIDENCE = {"low", "medium", "high"}
+
+
+def _coerce_int(value: Any) -> int | None:
+    """Salary estimates may come back as int, float, str, or null — coerce to int|None."""
+    if value is None:
+        return None
+    try:
+        return int(float(str(value).replace(",", "").strip()))
+    except (ValueError, TypeError):
+        return None
+
+
+def _norm_confidence(value: Any) -> str | None:
+    """Normalise the model's confidence to low|medium|high, else None."""
+    if not value:
+        return None
+    v = str(value).strip().lower()
+    return v if v in _VALID_CONFIDENCE else None
+
 
 class EnrichmentPipeline:
     def __init__(self, db_path: str = "data/jobs.db", api_key: str | None = None) -> None:
         self.db_path = db_path
         self._api_key = api_key
 
-    def run(self, batch_size: int = _BATCH_SIZE, limit: int | None = None, incremental: bool = False) -> None:
-        logger.info("Phase 12 enrichment — starting (workers=%d)", _MAX_WORKERS)
+    def run(self, batch_size: int = _BATCH_SIZE, limit: int | None = None,
+            incremental: bool = False, re_enrich: bool = False) -> None:
+        logger.info("Phase 12 enrichment — starting (workers=%d%s)",
+                    _MAX_WORKERS, ", RE-ENRICH ALL" if re_enrich else "")
 
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         try:
-            jobs = self._fetch_unenriched(conn, limit, incremental=incremental)
+            jobs = self._fetch_unenriched(conn, limit, incremental=incremental, re_enrich=re_enrich)
             if not jobs:
                 logger.info("No unenriched jobs — nothing to do")
                 return
@@ -63,7 +85,10 @@ class EnrichmentPipeline:
                 results: dict[tuple[str, str], dict[str, Any] | None] = {}
                 with ThreadPoolExecutor(max_workers=_MAX_WORKERS) as pool:
                     futures = {
-                        pool.submit(enricher._enrich_with_retry, row["title"]): row
+                        pool.submit(
+                            enricher._enrich_with_retry,
+                            row["title"], row["company"], row["description_clean"] or "",
+                        ): row
                         for row in batch
                     }
                     for future in as_completed(futures):
@@ -90,8 +115,10 @@ class EnrichmentPipeline:
                                     (source, source_id, seniority,
                                      years_experience_required, required_skills,
                                      remote_type, salary_hkd_min, salary_hkd_max,
-                                     job_category, enriched_at, model_used)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                     job_category, enriched_at, model_used,
+                                     salary_estimated_min, salary_estimated_max,
+                                     salary_estimated_confidence)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                                 ON CONFLICT (source, source_id) DO UPDATE SET
                                     seniority                 = excluded.seniority,
                                     years_experience_required = excluded.years_experience_required,
@@ -101,7 +128,10 @@ class EnrichmentPipeline:
                                     salary_hkd_max            = excluded.salary_hkd_max,
                                     job_category              = excluded.job_category,
                                     enriched_at               = excluded.enriched_at,
-                                    model_used                = excluded.model_used
+                                    model_used                = excluded.model_used,
+                                    salary_estimated_min        = excluded.salary_estimated_min,
+                                    salary_estimated_max        = excluded.salary_estimated_max,
+                                    salary_estimated_confidence = excluded.salary_estimated_confidence
                                 """,
                                 (
                                     row["source"], row["source_id"],
@@ -114,6 +144,9 @@ class EnrichmentPipeline:
                                     data.get("job_category"),
                                     datetime.now(UTC).isoformat(),
                                     "deepseek-chat",
+                                    _coerce_int(data.get("salary_estimated_min")),
+                                    _coerce_int(data.get("salary_estimated_max")),
+                                    _norm_confidence(data.get("salary_estimated_confidence")),
                                 ),
                             )
                             enriched += 1
@@ -131,16 +164,20 @@ class EnrichmentPipeline:
             conn.close()
 
     def _fetch_unenriched(
-        self, conn: sqlite3.Connection, limit: int | None, incremental: bool = False
+        self, conn: sqlite3.Connection, limit: int | None,
+        incremental: bool = False, re_enrich: bool = False,
     ) -> list[sqlite3.Row]:
         today_filter = "AND DATE(j.fetched_at) = DATE('now')" if incremental else ""
+        # Default: only jobs with no enrichment row. re_enrich: every active job
+        # (the ON CONFLICT DO UPDATE upserts), so a prompt change reaches all rows.
+        enriched_filter = "" if re_enrich else "AND e.source_id IS NULL"
         sql = f"""
-            SELECT j.source, j.source_id, j.title, j.description_clean
+            SELECT j.source, j.source_id, j.title, j.company, j.description_clean
               FROM jobs j
               LEFT JOIN job_enrichments e
                 ON j.source = e.source AND j.source_id = e.source_id
-             WHERE e.source_id IS NULL
-               AND j.is_active = 1
+             WHERE j.is_active = 1
+               {enriched_filter}
                {today_filter}
              ORDER BY j.fetched_at DESC
         """

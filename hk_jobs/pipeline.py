@@ -495,6 +495,16 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Max number of jobs to enrich in this run (useful for testing).",
     )
     p.add_argument(
+        "--re-enrich",
+        dest="re_enrich",
+        action="store_true",
+        help=(
+            "Re-enrich ALL active jobs, not just those missing an enrichment row. "
+            "Use after changing the enrichment prompt (e.g. new salary-estimate fields) "
+            "so every existing job is reprocessed. Upserts via ON CONFLICT."
+        ),
+    )
+    p.add_argument(
         "--repair-companies",
         dest="repair_companies",
         action="store_true",
@@ -543,11 +553,14 @@ def main(argv: list[str] | None = None) -> None:
 
     # Ensure phase 11–13 tables/columns exist on every real-DB run (idempotent).
     if not getattr(args, "dry_run", False):
-        from hk_jobs.migrations import migrate_to_phase_11, migrate_to_phase_12, migrate_to_phase_13
+        from hk_jobs.migrations import (
+            migrate_to_phase_11, migrate_to_phase_12, migrate_to_phase_13, migrate_to_phase_14,
+        )
         Path(args.db).parent.mkdir(parents=True, exist_ok=True)
         migrate_to_phase_11(args.db)
         migrate_to_phase_12(args.db)
         migrate_to_phase_13(args.db)
+        migrate_to_phase_14(args.db)
 
     # --weekly-report: send Monday trend report email (no scraping).
     if getattr(args, "weekly_report", False):
@@ -585,6 +598,7 @@ def main(argv: list[str] | None = None) -> None:
         EnrichmentPipeline(db_path=args.db).run(
             limit=getattr(args, "enrich_limit", None),
             incremental=getattr(args, "incremental", False),
+            re_enrich=getattr(args, "re_enrich", False),
         )
         return
 
