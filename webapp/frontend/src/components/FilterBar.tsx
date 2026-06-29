@@ -11,7 +11,7 @@ interface Props {
   onClear: () => void
 }
 
-const SECTORS = ['Banking', 'Insurance', 'Asset Management', 'Investment Banking', 'Professional Services']
+const SECTORS = ['Banking', 'Insurance', 'Asset Management', 'Investment Banking', 'Professional Services', 'Digital Assets']
 
 export default function FilterBar({ filters, filterData, activeCount, onUpdate, onClear }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)

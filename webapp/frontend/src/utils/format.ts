@@ -59,6 +59,12 @@ export const SECTOR_COLOR: Record<string, { bg: string; text: string; border: st
     border: '#DDD6FE',
     accent: '#6D28D9',
   },
+  'Digital Assets': {
+    bg: '#ECFEFF',
+    text: '#0E7490',
+    border: '#A5F3FC',
+    accent: '#0E7490',
+  },
 }
 
 export const SENIORITY_COLOR: Record<string, { bg: string; text: string }> = {

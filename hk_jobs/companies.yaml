@@ -357,6 +357,81 @@ companies:
       jobsdb_slug: Deloitte
       use_company_profile: true
 
+  # ── 2026-06 additions: virtual banks, brokerages, digital assets, Big 4 ───
+  - name: WeLab Bank
+    slug: welab-bank
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: WeLab
+      use_company_profile: true
+
+  - name: Futu Securities
+    slug: futu-securities
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Futu-Securities
+      use_company_profile: true
+
+  - name: CMB Wing Lung Bank
+    slug: cmb-wing-lung
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: CMB-Wing-Lung-Bank
+      use_company_profile: true
+
+  - name: CITIC Futures International
+    slug: citic-futures
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: CITIC-Futures-International-Company-Limited
+      use_company_profile: true
+
+  - name: HashKey
+    slug: hashkey
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Hashkey-Digital-Asset-Group-Limited
+      use_company_profile: true
+
+  - name: EY
+    slug: ey
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: EY
+      use_company_profile: true
+
+  # plain-listing (no /at-this-company) — allowlist filter drops cross-advertisers
+  - name: Mox Bank
+    slug: mox-bank
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: Mox-Bank
+      use_company_profile: false
+      accepted_advertisers:
+        - Mox Bank
+        - Mox
+        - MOX Bank Limited
+
+  - name: CICC
+    slug: cicc
+    adapter: jobsdb
+    enabled: true
+    config:
+      jobsdb_slug: CICC
+      use_company_profile: false
+      accepted_advertisers:
+        - CICC
+        - China International Capital Corporation
+        - CICC Hong Kong
+        - China International Capital Corporation (Hong Kong)
+
   # ── Expansion: Mainland China / Asian banks ───────────────────────────────
   - name: Agricultural Bank of China
     slug: agricultural-bank-china
