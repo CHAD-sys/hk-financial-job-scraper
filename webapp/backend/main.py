@@ -105,6 +105,9 @@ class JobSummary(BaseModel):
     required_skills: list[str]
     salary_hkd_min: Optional[int]
     salary_hkd_max: Optional[int]
+    salary_estimated_min: Optional[int]
+    salary_estimated_max: Optional[int]
+    salary_estimated_confidence: Optional[str]
     years_experience_required: Optional[int]
     posted_at: Optional[str]
     url: str
@@ -187,6 +190,9 @@ def _row_to_summary(row: sqlite3.Row) -> JobSummary:
         required_skills=_parse_json_list(row["required_skills"]),
         salary_hkd_min=row["salary_hkd_min"],
         salary_hkd_max=row["salary_hkd_max"],
+        salary_estimated_min=row["salary_estimated_min"],
+        salary_estimated_max=row["salary_estimated_max"],
+        salary_estimated_confidence=row["salary_estimated_confidence"],
         years_experience_required=row["years_experience_required"],
         posted_at=row["posted_at"],
         url=row["url"],
@@ -213,6 +219,9 @@ BASE_SELECT = f"""
     e.required_skills,
     e.salary_hkd_min,
     e.salary_hkd_max,
+    e.salary_estimated_min,
+    e.salary_estimated_max,
+    e.salary_estimated_confidence,
     e.years_experience_required,
     ({SECTOR_SQL}) AS sector,
     ({INTERNSHIP_SQL}) AS is_internship
@@ -295,11 +304,13 @@ def _build_where(
             params.append(sk)
         conditions.append("(" + " OR ".join(skill_parts2) + ")")
 
+    # Salary filter matches the disclosed figure when present, else the AI estimate
+    # (disclosed salaries are rare, so without this the filter returns almost nothing).
     if salary_min is not None:
-        conditions.append("e.salary_hkd_min >= ?")
+        conditions.append("COALESCE(e.salary_hkd_min, e.salary_estimated_min) >= ?")
         params.append(salary_min)
     if salary_max is not None:
-        conditions.append("e.salary_hkd_max <= ?")
+        conditions.append("COALESCE(e.salary_hkd_max, e.salary_estimated_max) <= ?")
         params.append(salary_max)
 
     if exp_min is not None:
