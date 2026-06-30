@@ -29,31 +29,48 @@ _DESC_MAX_CHARS = 2_000   # cap to keep prompt tight; descriptions are typically
 # call (no extra cost). Estimates HK market monthly pay from role/seniority/
 # company tier/sector — distinct from disclosed salary_hkd_min/max.
 _SALARY_INSTRUCTIONS = """\
-For the salary_estimated_* fields: estimate a realistic Hong Kong monthly BASE salary
-(HKD) for this role from title, seniority, company tier and sector. Reference benchmarks
-(monthly HKD base, banking/investment-banking baseline, 2026 market):
+For the salary_estimated_* fields, estimate a Hong Kong monthly BASE salary (HKD) using
+this THREE-STEP procedure, in order:
+
+STEP 1 — Detect ROLE TYPE from BOTH the title AND description, and set caps:
+- INTERNSHIP (keywords: intern, internship, trainee, summer analyst, graduate programme/
+  program, 兼職實習, 實習): cap at HK$3,000-12,000/month regardless of company tier.
+  Bulge-bracket internships (Goldman, JPMorgan, HSBC) may reach HK$10,000-15,000/month —
+  never exceed that for an internship.
+- PART-TIME (keywords: part-time, part time, 兼職): cap at HK$8,000-20,000/month.
+- CONTRACT / TEMP (keywords: contract, temporary, temp, fixed-term): apply a 10-20%
+  discount vs the equivalent permanent role.
+- FULL-TIME PERMANENT: no cap — use the full market benchmarks in Step 3.
+
+STEP 2 — Scan the FULL description for an explicitly stated salary. Look for patterns like
+"HK$X-Y/month", "base pay HK$X", "salary range ...", "monthly salary", "底薪", "月薪".
+If found, use those EXACT figures as the estimate — they OVERRIDE the Step 1 caps and the
+Step 3 benchmarks. (e.g. description says "HK$3,000-5,000/month" → min 3000, max 5000.)
+
+STEP 3 — Only if NO salary is stated in the description, estimate from market. Apply the
+Step 1 role-type cap FIRST, then these full-time monthly BASE benchmarks (2026,
+banking/investment-banking baseline):
 - Junior analyst / associate: 25,000-45,000
 - Mid-level / AVP: 60,000-100,000
 - Senior / VP: 150,000-300,000
 - Director / ED: 300,000-600,000
 - MD / C-suite: 400,000-900,000
-Sector adjustments vs that IB baseline (same level):
-- Insurance / asset management: ~25% lower
-- Big 4 / professional services: ~35% lower
-- Virtual banks / fintech: ~10-20% lower
-- Digital assets / crypto: wide, 30,000-200,000 by seniority
-Company-tier scaling within a band:
-- Tier 1 (Goldman, JPMorgan, HSBC, BlackRock, Morgan Stanley): upper 30% of band
-- Tier 2 (Standard Chartered, DBS, Macquarie, Citi): mid band
-- Tier 3 (smaller / regional / virtual banks): lower 30% of band
-If the description signals strong pay ("competitive package", "top-tier compensation"),
-adjust upward. salary_estimated_max should be 20-40% above salary_estimated_min.
-These are estimated BASE SALARY ranges only. In HK finance, total compensation
-(base + bonus + benefits) is typically 1.5-3x the base for senior roles. Do NOT attempt
-to estimate total comp — only base.
-Confidence: "high" = clear seniority + known company + standard role; "medium" = some
-ambiguity; "low" = vague title / unusual role / thin context. If you genuinely cannot
-estimate (no title, no seniority signal), return null for all three salary_estimated_* fields."""
+Sector adjustments vs that IB baseline (same level): insurance / asset management ~25% lower;
+Big 4 / professional services ~35% lower; virtual banks / fintech ~10-20% lower;
+digital assets / crypto wide, 30,000-200,000 by seniority.
+Company-tier scaling within a band: Tier 1 (Goldman, JPMorgan, HSBC, BlackRock, Morgan
+Stanley) upper 30%; Tier 2 (Standard Chartered, DBS, Macquarie, Citi) mid; Tier 3
+(smaller / regional / virtual banks) lower 30%.
+
+salary_estimated_max: same three-step logic — upper bound of a stated range if found,
+else 20-40% above salary_estimated_min; respect the same role-type caps.
+These are BASE SALARY only (in HK finance total comp is ~1.5-3x base for senior roles) —
+do NOT estimate total comp. Return null for all three fields if truly unable to estimate.
+
+salary_estimated_confidence:
+- "high"   = salary explicitly stated in the description (exact figures found in Step 2)
+- "medium" = not stated, but role type + seniority + company are clear
+- "low"    = not stated, and role type is ambiguous or context is thin"""
 
 _PROMPT_WITH_DESC = """\
 Extract structured data from this Hong Kong job posting. Return ONLY valid JSON, no markdown.
