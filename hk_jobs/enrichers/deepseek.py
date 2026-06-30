@@ -33,10 +33,18 @@ For the salary_estimated_* fields, estimate a Hong Kong monthly BASE salary (HKD
 this THREE-STEP procedure, in order:
 
 STEP 1 — Detect ROLE TYPE from BOTH the title AND description, and set caps:
-- INTERNSHIP (keywords: intern, internship, trainee, summer analyst, graduate programme/
-  program, 兼職實習, 實習): cap at HK$3,000-12,000/month regardless of company tier.
-  Bulge-bracket internships (Goldman, JPMorgan, HSBC) may reach HK$10,000-15,000/month —
-  never exceed that for an internship.
+- INTERNSHIP — flag ONLY when the role is genuinely an internship / student / fresh-grad
+  programme. Match WHOLE WORDS only: "intern", "interns", "internship", "summer intern",
+  "summer analyst", "summer associate", "graduate intern", "graduate programme/program",
+  "graduate trainee", "trainee programme/program", "industrial placement", "暑期實習",
+  "實習生", "實習".
+  CRITICAL: do NOT treat a role as an internship just because a word CONTAINS the letters
+  "intern" — words like "Internal" (e.g. "Internal Audit"), "International", "Internet" are
+  NOT internships. A "Director, Internal Audit" or "International Wealth Manager" is a
+  full-time senior role, NOT an internship.
+  When it IS an internship: cap at HK$3,000-12,000/month regardless of company tier;
+  bulge-bracket (Goldman, JPMorgan, HSBC) may reach HK$10,000-15,000/month — never exceed
+  HK$15,000/month for an internship/graduate programme.
 - PART-TIME (keywords: part-time, part time, 兼職): cap at HK$8,000-20,000/month.
 - CONTRACT / TEMP (keywords: contract, temporary, temp, fixed-term): apply a 10-20%
   discount vs the equivalent permanent role.

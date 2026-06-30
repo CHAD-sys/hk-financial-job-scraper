@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import sqlite3
 from pathlib import Path
 from typing import Optional
@@ -20,9 +21,17 @@ from pydantic import BaseModel
 DB_PATH = (Path(__file__).parent.parent.parent / "data" / "jobs.db").resolve()
 
 
+def _regexp(pattern: str, value: str | None) -> int:
+    """SQLite REGEXP impl (case-insensitive) so we can match whole words, not substrings."""
+    if value is None:
+        return 0
+    return 1 if re.search(pattern, value, re.IGNORECASE) else 0
+
+
 def get_db() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    conn.create_function("REGEXP", 2, _regexp)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA query_only=ON")
     return conn
@@ -80,12 +89,21 @@ SECTOR_SQL = f"""
   END
 """.strip()
 
-INTERNSHIP_COND = """(
-  LOWER(j.title) LIKE '%intern%'
-  OR LOWER(j.title) LIKE '%graduate trainee%'
-  OR LOWER(j.title) LIKE '%summer analyst%'
-  OR LOWER(j.title) LIKE '%summer associate%'
-)"""
+# Whole-word internship match. Uses REGEXP (registered in get_db) so we match
+# "intern"/"internship" as words and NEVER as a substring of "internal",
+# "international", "internet", etc. \b word boundaries do this: "intern(ship)?s?"
+# matches intern/interns/internship/internships but not "internal" (no boundary
+# after "intern"). Covers summer/graduate intern, graduate/trainee programmes,
+# industrial placement, and the Chinese 實習.
+_INTERNSHIP_REGEX = (
+    r"\bintern(ship)?s?\b"
+    r"|\bsummer (analyst|associate|intern)\b"
+    r"|\bgraduate (intern|trainee|programme|program)\b"
+    r"|\btrainee programme?\b"
+    r"|\bindustrial placement\b"
+    r"|實習"
+)
+INTERNSHIP_COND = f"(j.title REGEXP '{_INTERNSHIP_REGEX}')"
 
 INTERNSHIP_SQL = f"CASE WHEN {INTERNSHIP_COND} THEN 1 ELSE 0 END"
 
