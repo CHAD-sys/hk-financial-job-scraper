@@ -370,10 +370,17 @@ def list_jobs(
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(24, ge=1, le=100, description="Results per page"),
 ):
+    # Salary sorts treat an AI estimate as the job's salary when nothing is
+    # disclosed (COALESCE), so disclosed- and estimate-only jobs rank in one
+    # unified list. The leading CASE forces rows with NO salary at all (both
+    # disclosed and estimated NULL) to sink to the bottom in BOTH directions —
+    # not relying on SQLite NULL ordering, which would float them to the top on DESC.
+    _sal_high = "COALESCE(e.salary_hkd_max, e.salary_estimated_max)"
+    _sal_low  = "COALESCE(e.salary_hkd_min, e.salary_estimated_min)"
     sort_clause = {
         "newest":      "j.posted_at DESC NULLS LAST",
-        "salary_high": "e.salary_hkd_max DESC NULLS LAST",
-        "salary_low":  "e.salary_hkd_min ASC NULLS LAST",
+        "salary_high": f"CASE WHEN {_sal_high} IS NULL THEN 1 ELSE 0 END, {_sal_high} DESC",
+        "salary_low":  f"CASE WHEN {_sal_low} IS NULL THEN 1 ELSE 0 END, {_sal_low} ASC",
         "company":     "j.company ASC",
     }.get(sort, "j.posted_at DESC NULLS LAST")
 
