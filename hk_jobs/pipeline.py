@@ -555,12 +555,14 @@ def main(argv: list[str] | None = None) -> None:
     if not getattr(args, "dry_run", False):
         from hk_jobs.migrations import (
             migrate_to_phase_11, migrate_to_phase_12, migrate_to_phase_13, migrate_to_phase_14,
+            migrate_to_phase_15,
         )
         Path(args.db).parent.mkdir(parents=True, exist_ok=True)
         migrate_to_phase_11(args.db)
         migrate_to_phase_12(args.db)
         migrate_to_phase_13(args.db)
         migrate_to_phase_14(args.db)
+        migrate_to_phase_15(args.db)
 
     # --weekly-report: send Monday trend report email (no scraping).
     if getattr(args, "weekly_report", False):

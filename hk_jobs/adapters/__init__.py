@@ -7,6 +7,7 @@ handles that source. Add new adapters here as they are implemented.
 
 from hk_jobs.adapters.base import BaseAdapter
 from hk_jobs.adapters.eightfold import EightfoldAdapter
+from hk_jobs.adapters.indeed import IndeedAdapter
 from hk_jobs.adapters.jobsdb import JobsDBAdapter
 from hk_jobs.adapters.workday import WorkdayAdapter
 
@@ -15,4 +16,5 @@ ADAPTERS: dict[str, type[BaseAdapter]] = {
     "workday": WorkdayAdapter,
     "eightfold": EightfoldAdapter,
     "jobsdb": JobsDBAdapter,
+    "indeed": IndeedAdapter,
 }

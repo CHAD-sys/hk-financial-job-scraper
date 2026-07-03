@@ -90,10 +90,11 @@ companies:
 
   - name: DBS Bank (Hong Kong)
     slug: dbs-hk
-    adapter: jobsdb
-    enabled: false               # TODO: source via eFinancialCareers
+    adapter: indeed              # Phase-2: near-zero clean JobsDB data → employer-scoped Indeed page
+    enabled: true
     config:
-      jobsdb_slug: DBS-Bank
+      indeed_slug: Dbs-Bank        # hk.indeed.com/cmp/Dbs-Bank/jobs (~300 jobs)
+      max_pages: 16
 
   - name: Bank of East Asia
     slug: bank-of-east-asia
@@ -559,18 +560,19 @@ companies:
 
   - name: Goldman Sachs
     slug: goldman-sachs
-    adapter: jobsdb
-    enabled: false               # TODO: source via eFinancialCareers
+    adapter: indeed              # Phase-2: near-zero clean JobsDB data → employer-scoped Indeed page
+    enabled: true
     config:
-      jobsdb_slug: Goldman-Sachs
+      indeed_slug: Goldman-Sachs   # hk.indeed.com/cmp/Goldman-Sachs/jobs (~86 jobs)
+      max_pages: 6
 
   - name: JPMorgan
     slug: jpmorgan
-    adapter: jobsdb              # covers both bank and asset management (merged)
+    adapter: indeed             # Phase-2: near-zero clean JobsDB data → Indeed employer page
     enabled: true
     config:
-      jobsdb_slug: JPMorganChase
-      use_company_profile: true
+      indeed_slug: Jpmorganchase-2   # the -2 entity holds the HK roles (~114 jobs)
+      max_pages: 7
 
   - name: Morgan Stanley
     slug: morgan-stanley

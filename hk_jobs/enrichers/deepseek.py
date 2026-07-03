@@ -80,6 +80,17 @@ salary_estimated_confidence:
 - "medium" = not stated, but role type + seniority + company are clear
 - "low"    = not stated, and role type is ambiguous or context is thin"""
 
+# Description-summary instructions. Produced in the SAME call as everything else
+# (no extra API pass). Kept deliberately short so it fits ~3 lines on a job card.
+_SUMMARY_INSTRUCTIONS = """\
+For "description_summary": write a condensed summary of the job description in plain prose.
+STRICT rules:
+- Maximum 3 sentences AND no more than about 50 words total. Keep it short enough for ~3 card lines.
+- Plain prose only: no bullet points, no markdown, no line breaks, no headings.
+- Factual and neutral: summarise the actual role and key responsibilities. Do NOT add hype,
+  adjectives of praise, opinions, or any detail not present in the description.
+- If the description is empty or missing, return an empty string "" — never invent a summary."""
+
 _PROMPT_WITH_DESC = """\
 Extract structured data from this Hong Kong job posting. Return ONLY valid JSON, no markdown.
 
@@ -99,7 +110,8 @@ Return exactly this JSON:
   "job_category": "Engineering|Finance|Operations|Sales|HR|Other",
   "salary_estimated_min": <integer or null>,
   "salary_estimated_max": <integer or null>,
-  "salary_estimated_confidence": "low|medium|high" or null
+  "salary_estimated_confidence": "low|medium|high" or null,
+  "description_summary": "<short neutral summary, see rules below>"
 }}
 
 For "skills": extract 7-10 specific skills from the description. Cover all categories present:
@@ -110,7 +122,9 @@ For "skills": extract 7-10 specific skills from the description. Cover all categ
 - Management: team leadership, stakeholder management, project management
 List each as a short phrase. Do NOT pad with vague generics (e.g. "strong communication") unless explicitly required by the job.
 
-{salary_instructions}"""
+{salary_instructions}
+
+{summary_instructions}"""
 
 _PROMPT_TITLE_ONLY = """\
 Extract structured data from this Hong Kong job posting. Return ONLY valid JSON, no markdown.
@@ -129,10 +143,14 @@ Return exactly this JSON:
   "job_category": "Engineering|Finance|Operations|Sales|HR|Other",
   "salary_estimated_min": <integer or null>,
   "salary_estimated_max": <integer or null>,
-  "salary_estimated_confidence": "low|medium|high" or null
+  "salary_estimated_confidence": "low|medium|high" or null,
+  "description_summary": ""
 }}
 
 For "skills": infer 3-5 skills from the title — domain expertise, likely tools or certifications.
+
+Set "description_summary" to an empty string "" — no job description was provided, so do not
+write or invent one.
 
 {salary_instructions}"""
 
@@ -188,8 +206,9 @@ class DeepSeekEnricher:
             prompt = _PROMPT_WITH_DESC.format(
                 company=company, title=title, description=desc_text,
                 salary_instructions=_SALARY_INSTRUCTIONS,
+                summary_instructions=_SUMMARY_INSTRUCTIONS,
             )
-            max_tokens = 450   # +salary fields; headroom over ~300 actual output
+            max_tokens = 550   # +salary +~50-word summary; headroom over ~380 actual output
         else:
             prompt = _PROMPT_TITLE_ONLY.format(
                 company=company, title=title, salary_instructions=_SALARY_INSTRUCTIONS,

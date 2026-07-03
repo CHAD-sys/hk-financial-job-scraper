@@ -17,9 +17,10 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Any
 
 from hk_jobs.enrichers.deepseek import DeepSeekEnricher
@@ -48,6 +49,39 @@ def _norm_confidence(value: Any) -> str | None:
         return None
     v = str(value).strip().lower()
     return v if v in _VALID_CONFIDENCE else None
+
+
+_MAX_SUMMARY_SENTENCES = 3
+_MAX_SUMMARY_WORDS = 55  # ~50 with a little slack; hard safety net if the model overshoots
+
+
+def _clean_summary(value: Any) -> str:
+    """
+    Normalise the model's description_summary for card display.
+
+    The prompt already asks for <=3 sentences / ~50 words of plain prose, but we
+    defensively enforce it so a card can never overflow: strip markdown/bullets,
+    collapse all whitespace and line breaks to single spaces, keep at most the
+    first 3 sentences, then cap word count. Empty/absent → "" (never hallucinated).
+    """
+    if not value:
+        return ""
+    text = str(value).strip()
+    if not text:
+        return ""
+    # Drop markdown markers and bullet glyphs; collapse newlines/whitespace to spaces.
+    text = re.sub(r"[*_`#>]+", "", text)
+    text = re.sub(r"^\s*[-•]\s*", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    # Keep at most the first N sentences.
+    sentences = re.findall(r"[^.!?]+[.!?]+|[^.!?]+$", text)
+    if len(sentences) > _MAX_SUMMARY_SENTENCES:
+        text = "".join(sentences[:_MAX_SUMMARY_SENTENCES]).strip()
+    # Hard word cap as a final safety net.
+    words = text.split()
+    if len(words) > _MAX_SUMMARY_WORDS:
+        text = " ".join(words[:_MAX_SUMMARY_WORDS]).rstrip(",;:") + "…"
+    return text
 
 
 class EnrichmentPipeline:
@@ -117,8 +151,8 @@ class EnrichmentPipeline:
                                      remote_type, salary_hkd_min, salary_hkd_max,
                                      job_category, enriched_at, model_used,
                                      salary_estimated_min, salary_estimated_max,
-                                     salary_estimated_confidence)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                     salary_estimated_confidence, description_summary)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                                 ON CONFLICT (source, source_id) DO UPDATE SET
                                     seniority                 = excluded.seniority,
                                     years_experience_required = excluded.years_experience_required,
@@ -131,7 +165,8 @@ class EnrichmentPipeline:
                                     model_used                = excluded.model_used,
                                     salary_estimated_min        = excluded.salary_estimated_min,
                                     salary_estimated_max        = excluded.salary_estimated_max,
-                                    salary_estimated_confidence = excluded.salary_estimated_confidence
+                                    salary_estimated_confidence = excluded.salary_estimated_confidence,
+                                    description_summary         = excluded.description_summary
                                 """,
                                 (
                                     row["source"], row["source_id"],
@@ -147,6 +182,7 @@ class EnrichmentPipeline:
                                     _coerce_int(data.get("salary_estimated_min")),
                                     _coerce_int(data.get("salary_estimated_max")),
                                     _norm_confidence(data.get("salary_estimated_confidence")),
+                                    _clean_summary(data.get("description_summary")),
                                 ),
                             )
                             enriched += 1

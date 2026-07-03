@@ -164,3 +164,29 @@ def migrate_to_phase_14(db_path: str) -> None:
             logger.debug("Phase 14 migration: salary_estimated columns already exist")
     finally:
         conn.close()
+
+
+def migrate_to_phase_15(db_path: str) -> None:
+    """
+    Add description_summary column to job_enrichments.
+
+    Holds a short (<= 3 sentence, ~50 word) neutral prose summary of the job
+    description, produced by the SAME DeepSeek enrichment call (no extra API
+    pass) for display on job cards. It is an empty string when the posting has
+    no description (e.g. Indeed listing-only rows) — never hallucinated.
+
+    Deliberately a NEW column: the full description on the jobs table
+    (description_raw / description_clean) is left untouched, because the salary /
+    skills / seniority enrichment still depends on it.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(job_enrichments)").fetchall()}
+        if "description_summary" not in cols:
+            with conn:
+                conn.execute("ALTER TABLE job_enrichments ADD COLUMN description_summary TEXT")
+            logger.info("Phase 15 migration: added description_summary column to job_enrichments")
+        else:
+            logger.debug("Phase 15 migration: description_summary already exists")
+    finally:
+        conn.close()

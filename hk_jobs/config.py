@@ -29,6 +29,7 @@ _REQUIRED_CONFIG_KEYS: dict[str, list[str]] = {
     "workday": ["tenant", "site"],
     "eightfold": ["tenant", "domain"],
     "jobsdb": ["jobsdb_slug"],
+    "indeed": ["indeed_slug"],
 }
 
 

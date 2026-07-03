@@ -135,6 +135,7 @@ class JobSummary(BaseModel):
 
 class JobDetail(JobSummary):
     description_clean: str
+    description_summary: str
 
 
 class JobListResponse(BaseModel):
@@ -241,6 +242,7 @@ BASE_SELECT = f"""
     e.salary_estimated_max,
     e.salary_estimated_confidence,
     e.years_experience_required,
+    e.description_summary,
     ({SECTOR_SQL}) AS sector,
     ({INTERNSHIP_SQL}) AS is_internship
   FROM jobs j
@@ -449,6 +451,7 @@ def get_job(source: str, source_id: str):
     return JobDetail(
         **summary.model_dump(),
         description_clean=row["description_clean"] or "",
+        description_summary=row["description_summary"] or "",
     )
 
 

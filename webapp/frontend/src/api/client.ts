@@ -27,6 +27,7 @@ export interface Job {
 
 export interface JobDetail extends Job {
   description_clean: string
+  description_summary: string
 }
 
 export interface JobListResponse {

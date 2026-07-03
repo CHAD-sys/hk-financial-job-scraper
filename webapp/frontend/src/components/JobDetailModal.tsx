@@ -303,7 +303,14 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
                   className="text-sm leading-relaxed whitespace-pre-wrap"
                   style={{ color: 'var(--color-ink-muted)' }}
                 >
-                  {detail?.description_clean || job.description_excerpt}
+                  {/* Show the condensed AI summary. Fall back to the full
+                      description (still stored in the backend) when a job has no
+                      summary, then to the list excerpt, then a neutral placeholder
+                      so the panel is never blank. */}
+                  {detail?.description_summary ||
+                    detail?.description_clean ||
+                    job.description_excerpt ||
+                    'No description available.'}
                 </div>
               )}
             </section>
