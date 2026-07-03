@@ -2,7 +2,7 @@
 
 **Automated job intelligence for Hong Kong's financial sector**
 
-![Python](https://img.shields.io/badge/Python-3.11-blue) ![SQLite](https://img.shields.io/badge/Database-SQLite-green) ![DeepSeek](https://img.shields.io/badge/AI-DeepSeek-purple) ![Jobs](https://img.shields.io/badge/Jobs-2%2C000%2B-orange) ![Sources](https://img.shields.io/badge/Sources-4-blue) ![Enriched](https://img.shields.io/badge/AI%20Enriched-100%25-brightgreen) ![Public](https://img.shields.io/badge/Visibility-Public-brightgreen)
+![Python](https://img.shields.io/badge/Python-3.11-blue) ![SQLite](https://img.shields.io/badge/Database-SQLite-green) ![DeepSeek](https://img.shields.io/badge/AI-DeepSeek-purple) ![Jobs](https://img.shields.io/badge/Jobs-2%2C000%2B-orange) ![Sources](https://img.shields.io/badge/Sources-4-blue) ![Enriched](https://img.shields.io/badge/AI%20Enriched-100%25-brightgreen) ![Private](https://img.shields.io/badge/Visibility-Private-lightgrey)
 
 ---
 
@@ -255,4 +255,4 @@ hk-job-scraper/
 
 ---
 
-> **Public repository — Finex Club**
+> **Private repository — Finex Club members only**
