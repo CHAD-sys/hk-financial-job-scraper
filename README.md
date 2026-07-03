@@ -2,15 +2,15 @@
 
 **Automated job intelligence for Hong Kong's financial sector**
 
-![Python](https://img.shields.io/badge/Python-3.11-blue) ![SQLite](https://img.shields.io/badge/Database-SQLite-green) ![DeepSeek](https://img.shields.io/badge/AI-DeepSeek-purple) ![Jobs](https://img.shields.io/badge/Jobs-2%2C000%2B-orange) ![Coverage](https://img.shields.io/badge/Descriptions-99.9%25-brightgreen) ![Public](https://img.shields.io/badge/Visibility-Public-brightgreen)
+![Python](https://img.shields.io/badge/Python-3.11-blue) ![SQLite](https://img.shields.io/badge/Database-SQLite-green) ![DeepSeek](https://img.shields.io/badge/AI-DeepSeek-purple) ![Jobs](https://img.shields.io/badge/Jobs-2%2C000%2B-orange) ![Sources](https://img.shields.io/badge/Sources-4-blue) ![Enriched](https://img.shields.io/badge/AI%20Enriched-100%25-brightgreen) ![Public](https://img.shields.io/badge/Visibility-Public-brightgreen)
 
 ---
 
 ## Overview
 
-A fully automated pipeline that scrapes job listings from 27 of Hong Kong's largest financial institutions, fetches full job descriptions, and enriches every listing with AI-extracted structured data (seniority, skills, job category, remote type). Runs daily and tracks hiring trends over time.
+A fully automated pipeline that scrapes job listings from Hong Kong's largest financial institutions across **four sources** (JobsDB, Workday, Eightfold, and Indeed), fetches full job descriptions where available, and enriches every listing with AI-extracted structured data — seniority, skills, job category, remote type, an estimated HK salary range, and a short plain-language **description summary** for the job cards. Runs daily and tracks hiring trends over time.
 
-> **27 companies → 2,000+ active jobs → 99.9% descriptions → 100% AI-enriched**
+> **72 companies → 2,200+ active jobs → 100% AI-enriched → AI salary estimates + card summaries**
 
 ---
 
@@ -18,9 +18,9 @@ A fully automated pipeline that scrapes job listings from 27 of Hong Kong's larg
 
 | Step | Description | Time |
 |------|-------------|------|
-| **Scrape** | Collects listings from 27 companies (up to 5 pages each) | ~9 min |
-| **Describe** | Fetches full descriptions via GraphQL & REST APIs | ~2 min |
-| **Enrich** | Extracts seniority, skills, category via DeepSeek AI | ~4 min |
+| **Scrape** | Collects listings from the enabled companies (up to N pages each) | ~9 min |
+| **Describe** | Fetches full descriptions via GraphQL & REST APIs (direct-ATS + JobsDB) | ~2 min |
+| **Enrich** | DeepSeek AI: seniority, skills, category, salary estimate + card summary | ~4 min |
 | **Track** | Records daily snapshots for trend analysis | ~1 min |
 | **Total** | Full daily pipeline | **~15 min** |
 
@@ -28,46 +28,54 @@ A fully automated pipeline that scrapes job listings from 27 of Hong Kong's larg
 
 ## Companies Covered
 
-**Banking (9)**
-HSBC HK, Standard Chartered, DBS, Bank of China HK, Bank of East Asia, Citibank HK, ICBC Asia, CCB Asia, OCBC Wing Hang
+**72 enabled companies** across banking, insurance, and asset management. Representative names:
 
-**Insurance (9)**
-AIA HK, Prudential HK, FWD Insurance, Sun Life HK, AXA HK, Manulife HK, Zurich HK, Generali HK, China Taiping
+**Banking** — HSBC HK, Standard Chartered, DBS, Bank of China HK, Bank of East Asia, Citibank HK, ICBC Asia, CCB Asia, OCBC Wing Hang
 
-**Asset Management (9)**
-BlackRock HK, UBS Asset Management, Fidelity International, Man Group, BNP Paribas AM, PIMCO HK, JPMorgan AM, Schroders HK, Value Partners
+**Insurance** — AIA HK, Prudential HK, FWD Insurance, Sun Life HK, AXA HK, Manulife HK, Zurich HK, Generali HK, China Taiping
+
+**Asset Management** — BlackRock HK, UBS Asset Management, Fidelity International, Man Group, BNP Paribas AM, PIMCO HK, JPMorgan AM, Schroders HK, Value Partners
+
+**Bulge-bracket via Indeed employer pages** — Goldman Sachs, JPMorgan, DBS *(these firms have near-zero clean JobsDB presence, so they are sourced from their employer-scoped `hk.indeed.com/cmp/…` pages instead).*
 
 ---
 
 ## Architecture
 
 ```
-3 Data Sources
-─────────────────────────────────────────────────────
-JobsDB (22 companies)  │  Workday (4 companies)  │  Eightfold (1 — HSBC)
-         │                        │                        │
-         ▼                        ▼                        ▼
+4 Data Sources
+─────────────────────────────────────────────────────────────────────
+JobsDB (64 companies) │ Workday (4) │ Eightfold (1 — HSBC) │ Indeed (3)
+        │                    │              │                    │
+        ▼                    ▼              ▼                    ▼
 
 Stage 1 — Listings
-Scrapling headless browser (Cloudflare bypass) + Direct REST APIs
-10 parallel company workers · 5 pages per company · stop-when-empty
-         │
-         ▼
+Scrapling headless browser (Cloudflare bypass) + direct REST APIs
+10 parallel company workers · paginate · stop-when-empty
+        │
+        ▼
 
 Stage 2 — Descriptions
 JobsDB GraphQL API + Workday REST + Eightfold REST
-99.9% coverage · ~100 ms per job · no browser needed
-         │
-         ▼
+(Indeed is employer-scoped listing-only — no full descriptions fetched)
+        │
+        ▼
 
-Stage 3 — AI Enrichment (DeepSeek deepseek-chat)
-Seniority (junior/mid/senior/lead) · Required skills · Job category · Remote type
-100% coverage · avg 5.0 skills per job · 20 concurrent workers
-         │
-         ▼
+Stage 3 — AI Enrichment (DeepSeek deepseek-chat) — one call per job
+Seniority · Skills · Job category · Remote type
+Estimated HK salary range (min/max/confidence)
+Condensed description_summary (≤3 sentences / ~50 words) for job cards
+100% coverage · 20 concurrent workers
+        │
+        ▼
 
 SQLite Database (data/jobs.db)
-4 tables · 1,592 active jobs · daily trend snapshots
+4 tables · ~2,262 active jobs · daily trend snapshots
+        │
+        ▼
+
+Web App (webapp/) — FastAPI backend + React/Vite frontend
+Job board UI · filters · detail modal showing the AI card summary
 ```
 
 ---
@@ -84,6 +92,7 @@ SQLite Database (data/jobs.db)
 | Database | SQLite (WAL mode, Postgres-compatible SQL) |
 | AI enrichment | DeepSeek API (`deepseek-chat`) |
 | Parallelism | `ThreadPoolExecutor` (10 company workers, 20 API workers) |
+| Web app | FastAPI (backend) · React + TypeScript + Vite + Tailwind (frontend) |
 | Scheduling | Cron / systemd |
 
 ---
@@ -92,10 +101,12 @@ SQLite Database (data/jobs.db)
 
 | Table | Rows | Purpose |
 |-------|------|---------|
-| `jobs` | 1,592 active | Listings — title, company, URL, locations, posted_at |
-| `job_enrichments` | 1,592 | AI fields — seniority, skills, category, remote_type, salary |
-| `job_history` | 28+ | Daily snapshots per company for trend tracking |
-| `company_metrics` | 28 | 7-day and 30-day rolling averages + growth rates |
+| `jobs` | ~2,262 active | Listings — title, company, URL, locations, posted_at, full description |
+| `job_enrichments` | ~2,262 | AI fields — seniority, skills, category, remote_type, salary (disclosed + estimated), `description_summary` |
+| `job_history` | growing | Daily snapshots per company for trend tracking |
+| `company_metrics` | 72 | 7-day and 30-day rolling averages + growth rates |
+
+The full job description is kept on `jobs` (`description_raw` / `description_clean`) and never overwritten — the AI enrichment still reads it. `job_enrichments.description_summary` holds a separate condensed summary for display only.
 
 ---
 
@@ -123,14 +134,18 @@ export DEEPSEEK_API_KEY=your-key-here
 ## Usage
 
 ```bash
-# Full scrape — collect all listings from 27 companies
+# Full scrape — collect all listings from the enabled companies
 python -m hk_jobs.pipeline
 
 # Fetch full descriptions (GraphQL + REST, ~2 min)
 python -m hk_jobs.pipeline --fetch-descriptions
 
-# AI enrichment — seniority, skills, category (requires DEEPSEEK_API_KEY)
+# AI enrichment — seniority, skills, category, salary estimate + card summary
+# (requires DEEPSEEK_API_KEY; produced in a single call per job)
 python -m hk_jobs.pipeline --enrich
+
+# Re-run enrichment across every active job (e.g. after a prompt change)
+python -m hk_jobs.pipeline --enrich --re-enrich
 
 # View hiring trends report
 python -m hk_jobs.pipeline --report trends
@@ -149,6 +164,19 @@ python -m hk_jobs.pipeline --parallel-workers 15
 
 # Single company test
 python -m hk_jobs.pipeline --only hsbc-hk --dry-run -v
+
+# Probe Indeed scrapeability for the employer pages (throwaway diagnostic)
+python scripts/probe_indeed.py
+```
+
+### Web app
+
+```bash
+# Backend (FastAPI) — serves /api/jobs, /api/jobs/{source}/{source_id}, /api/filters, /api/stats
+cd webapp/backend && uvicorn main:app --reload
+
+# Frontend (React + Vite)
+cd webapp/frontend && npm install && npm run dev
 ```
 
 ---
@@ -172,11 +200,12 @@ bash scripts/daily_run.sh
 
 | Metric | Value |
 |--------|-------|
-| Active jobs | **1,592** |
-| Companies tracked | **27** |
-| Description coverage | **99.9%** |
+| Active jobs | **~2,262** |
+| Companies tracked | **72 enabled** |
+| Data sources | **4** (JobsDB · Workday · Eightfold · Indeed) |
+| Active jobs by source | JobsDB 1,643 · Eightfold 253 · Indeed 206 · Workday 160 |
 | Enrichment coverage | **100%** |
-| Avg skills per job | **5.0** |
+| Jobs with a card summary | **2,056** (all description-bearing jobs; Indeed is listing-only) |
 | Daily run time | **~15 minutes** |
 | Monthly AI cost | **~$0.55 USD** |
 
@@ -188,20 +217,25 @@ bash scripts/daily_run.sh
 hk-job-scraper/
 ├── hk_jobs/
 │   ├── adapters/
-│   │   ├── jobsdb.py            # Scrapling + GraphQL pagination (5 pages/company)
+│   │   ├── jobsdb.py            # Scrapling + GraphQL pagination
 │   │   ├── workday.py           # Workday REST API adapter
-│   │   └── eightfold.py         # Eightfold REST API adapter
+│   │   ├── eightfold.py         # Eightfold REST API adapter
+│   │   └── indeed.py            # Indeed employer pages (mosaic JSON, ?start=20)
 │   ├── enrichers/
-│   │   └── deepseek.py          # DeepSeek AI (title + description, v5 prompt)
-│   ├── companies.yaml           # Config for all 30 companies
+│   │   └── deepseek.py          # DeepSeek AI (seniority/skills/salary + summary)
+│   ├── companies.yaml           # Config for all companies + ATS assignments
 │   ├── pipeline.py              # Main orchestration + CLI (argparse)
 │   ├── description_fetcher.py   # Description pipeline (GraphQL + REST)
 │   ├── enrichment.py            # AI enrichment pipeline (20 concurrent workers)
 │   ├── analytics.py             # Trend reporting and JSONL export
 │   ├── migrations.py            # SQLite schema migrations
 │   └── schema.py                # Pydantic Job model
+├── webapp/
+│   ├── backend/                 # FastAPI — job board API
+│   └── frontend/                # React + TypeScript + Vite job board UI
 ├── scripts/
 │   ├── daily_run.sh             # Production cron wrapper
+│   ├── probe_indeed.py          # Indeed scrapeability probe (diagnostic)
 │   └── generate_intelligence_report.py  # PDF report generator
 ├── tests/
 ├── data/                        # gitignored — SQLite DB files
@@ -221,4 +255,4 @@ hk-job-scraper/
 
 ---
 
-> **Private repository — Finex Members Only**
+> **Public repository — Finex Club**

@@ -29,11 +29,21 @@ Machine-generated description of the project's data artifacts (SQLite DB, discov
 - `years_experience_required` INTEGER
 - `required_skills` TEXT
 - `remote_type` TEXT
-- `salary_hkd_min` INTEGER
-- `salary_hkd_max` INTEGER
+- `salary_hkd_min` INTEGER — disclosed salary (rare; <5% of postings publish pay)
+- `salary_hkd_max` INTEGER — disclosed salary
 - `job_category` TEXT
 - `enriched_at` TIMESTAMP
 - `model_used` TEXT
+- `salary_estimated_min` INTEGER — AI-estimated HK monthly base salary (Phase 14)
+- `salary_estimated_max` INTEGER — AI-estimated HK monthly base salary (Phase 14)
+- `salary_estimated_confidence` TEXT — low | medium | high (Phase 14)
+- `description_summary` TEXT — condensed ≤3-sentence / ~50-word neutral summary of the
+  job description, produced by the same DeepSeek call, shown on the web app job cards
+  (Phase 15). Empty string when the job has no description (e.g. Indeed listing-only rows).
+
+All enrichment fields above are produced in a **single** DeepSeek call per job.
+The full description stays on the `jobs` table and is never overwritten — enrichment
+still reads it; `description_summary` is a separate display-only column.
 
 ### Table: job_history
 
@@ -95,11 +105,12 @@ Machine-generated description of the project's data artifacts (SQLite DB, discov
 
 ## Companies config (hk_jobs/companies.yaml)
 
-78 companies total (65 enabled, 13 disabled). By adapter:
+88 companies total (72 enabled). By adapter (enabled):
 
-- **eightfold**: 3 companies
-- **jobsdb**: 71 companies
+- **jobsdb**: 64 companies
 - **workday**: 4 companies
+- **indeed**: 3 companies (Goldman Sachs, JPMorgan, DBS — near-zero clean JobsDB presence)
+- **eightfold**: 1 company (HSBC)
 
 ### Company list (name → adapter → slug → enabled)
 
@@ -107,7 +118,7 @@ Machine-generated description of the project's data artifacts (SQLite DB, discov
 - Bank of China (Hong Kong) → jobsdb → `bochk` → enabled
 - Standard Chartered Bank (HK) → jobsdb → `standard-chartered-hk` → enabled
 - Hang Seng Bank → eightfold → `hang-seng-bank` → disabled
-- DBS Bank (Hong Kong) → jobsdb → `dbs-hk` → enabled
+- DBS Bank (Hong Kong) → indeed → `dbs-hk` (Indeed slug `Dbs-Bank`) → enabled
 - Bank of East Asia → jobsdb → `bank-of-east-asia` → enabled
 - Citibank Hong Kong → jobsdb → `citibank-hk` → enabled
 - ICBC (Asia) → jobsdb → `icbc-asia` → enabled
@@ -150,8 +161,8 @@ Machine-generated description of the project's data artifacts (SQLite DB, discov
 - State Bank of India → jobsdb → `sbi` → enabled
 - Bank of America → jobsdb → `bank-of-america` → enabled
 - Deutsche Bank → jobsdb → `deutsche-bank` → enabled
-- Goldman Sachs → jobsdb → `goldman-sachs` → enabled
-- JPMorgan Chase → jobsdb → `jpmorgan-chase` → enabled
+- Goldman Sachs → indeed → `goldman-sachs` (Indeed slug `Goldman-Sachs`) → enabled
+- JPMorgan → indeed → `jpmorgan` (Indeed slug `Jpmorganchase-2`) → enabled
 - Morgan Stanley → jobsdb → `morgan-stanley` → enabled
 - Barclays → jobsdb → `barclays` → enabled
 - China Life Insurance → jobsdb → `china-life` → enabled

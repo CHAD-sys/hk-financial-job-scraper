@@ -56,12 +56,28 @@ JobsDB's HTML instead. **Legal note: this violates JobsDB's ToS. Acceptable
 for a prototype; for production we need permission or a paid data feed.
 Flag this clearly in code and docs; do not bury it.**
 
+A few large firms (Goldman Sachs, JPMorgan, DBS) have near-zero *clean* JobsDB
+presence, so we source them from their employer-scoped Indeed pages instead
+(`hk.indeed.com/cmp/{Slug}/jobs`). The Indeed adapter reads the embedded
+`mosaic-provider-jobcards` JSON (not the DOM), paginates `?start=20` with
+`jobkey` dedup, and is **listing-only** (no per-job detail fetch, so these rows
+have no full description). **Same legal posture as JobsDB — scraping Indeed
+violates its ToS; flagged identically in the adapter.**
+
+### AI enrichment output
+A single DeepSeek call per job produces: seniority, skills, job category,
+remote type, an estimated HK salary range (min/max/confidence), and a condensed
+`description_summary` (≤3 sentences / ~50 words, plain prose) used on the web
+app's job cards. The full description on `jobs` is never overwritten — enrichment
+still reads it. When a job has no description (e.g. Indeed rows), the summary is
+an empty string, never hallucinated.
+
 ## Architecture (the shape of the solution)
 
 ```
 companies.yaml  →  pipeline.py  →  [adapter per company]  →  enrich.py  →  storage.py  →  jobs.db
    (config)        (orchestrator)   (Workday/Eightfold/        (extract     (SQLite)
-                                      JobsDB/SuccessFactors)     features)
+                                      JobsDB/Indeed)             features)
 ```
 
 The central abstraction is the **adapter**. Every source type has one
