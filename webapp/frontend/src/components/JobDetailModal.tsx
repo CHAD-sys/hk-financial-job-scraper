@@ -181,7 +181,6 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
                 style={{
                   backgroundColor: 'var(--color-gold-light)',
                   border: '1px solid var(--color-gold)',
-                  borderOpacity: '0.3',
                 }}
               >
                 <DollarSign size={18} style={{ color: 'var(--color-gold)' }} strokeWidth={1.8} />

@@ -60,3 +60,6 @@ data/jobs.db-wal
 # graphify local cache (keep graph artifacts, drop cache)
 graphify-out/cache/
 graphify-out/.graphify_*
+
+# Local screenshot captures (demo artifacts, not source)
+screenshots/

@@ -74,7 +74,6 @@ export default function LandingPage() {
                   backgroundColor: 'var(--color-gold-light)',
                   color: 'var(--color-gold)',
                   border: '1px solid var(--color-gold)',
-                  borderOpacity: '0.3',
                 }}
               >
                 Hong Kong · 2026

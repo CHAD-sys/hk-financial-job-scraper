@@ -44,7 +44,7 @@ export default function JobBoardPage() {
   const [loading, setLoading] = useState(true)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
 
-  const { savedList, toggle: toggleSave, isSaved, count: savedCount } = useSavedJobs()
+  const { toggle: toggleSave, isSaved, count: savedCount } = useSavedJobs()
 
   // Load filter options + unfiltered board total once
   useEffect(() => {

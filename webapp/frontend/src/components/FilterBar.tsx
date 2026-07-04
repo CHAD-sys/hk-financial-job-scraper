@@ -283,7 +283,6 @@ export default function FilterBar({ filters, filterData, activeCount, onUpdate, 
                   backgroundColor: 'var(--color-gold-light)',
                   color: 'var(--color-gold)',
                   border: '1px solid var(--color-gold)',
-                  borderOpacity: '0.4',
                 }}
               >
                 {chip.label}
