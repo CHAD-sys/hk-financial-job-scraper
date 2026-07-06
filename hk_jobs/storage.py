@@ -76,6 +76,10 @@ CREATE TABLE IF NOT EXISTS jobs (
     -- may differ when a company's page surfaces third-party listings.
     scraped_under_slug TEXT,
 
+    -- Extraction track (Phase 16 — Longtail LLM extraction)
+    source_tier      TEXT NOT NULL DEFAULT 'mainstream',  -- 'mainstream' | 'boutique'
+    extraction_confidence REAL,                            -- 0.0-1.0 (LLM), NULL otherwise
+
     PRIMARY KEY (source, source_id)
 );
 """
@@ -102,7 +106,8 @@ INSERT INTO jobs (
     salary_min, salary_max, salary_currency,
     skills_required, skills_preferred, years_experience_min,
     posted_at, fetched_at, is_active,
-    scraped_under_slug
+    scraped_under_slug,
+    source_tier, extraction_confidence
 ) VALUES (
     :source, :source_id, :company, :company_slug, :url, :dedup_hash,
     :title, :description_raw, :description_clean,
@@ -111,7 +116,8 @@ INSERT INTO jobs (
     :salary_min, :salary_max, :salary_currency,
     :skills_required, :skills_preferred, :years_experience_min,
     :posted_at, :fetched_at, 1,
-    :scraped_under_slug
+    :scraped_under_slug,
+    :source_tier, :extraction_confidence
 )
 ON CONFLICT (source, source_id) DO UPDATE SET
     title              = excluded.title,
@@ -140,7 +146,9 @@ ON CONFLICT (source, source_id) DO UPDATE SET
     is_active          = 1,
     -- Backfill provenance for rows that pre-date Phase 13 (NULL → new value).
     -- Never overwrite a previously-set scraped_under_slug.
-    scraped_under_slug = COALESCE(jobs.scraped_under_slug, excluded.scraped_under_slug)
+    scraped_under_slug = COALESCE(jobs.scraped_under_slug, excluded.scraped_under_slug),
+    source_tier        = excluded.source_tier,
+    extraction_confidence = excluded.extraction_confidence
     -- NOTE: company is intentionally NOT updated here. The correct advertiser
     -- name is set on INSERT from the card HTML (Fix A), and repaired for
     -- existing rows by --repair-companies (GraphQL advertiser.name).
@@ -366,6 +374,8 @@ def _job_to_row(job: Job) -> dict[str, Any]:
         "posted_at": job.posted_at.isoformat() if job.posted_at else None,
         "fetched_at": job.fetched_at.isoformat(),
         "scraped_under_slug": job.scraped_under_slug,
+        "source_tier": job.source_tier,
+        "extraction_confidence": job.extraction_confidence,
     }
 
 
@@ -376,6 +386,15 @@ def _row_to_job(row: sqlite3.Row) -> Job:
         scraped_under_slug = row["scraped_under_slug"]
     except IndexError:
         scraped_under_slug = None
+    # source_tier / extraction_confidence added in Phase 16 — guard likewise.
+    try:
+        source_tier = row["source_tier"] or "mainstream"
+    except IndexError:
+        source_tier = "mainstream"
+    try:
+        extraction_confidence = row["extraction_confidence"]
+    except IndexError:
+        extraction_confidence = None
 
     return Job(
         source=row["source"],
@@ -401,4 +420,6 @@ def _row_to_job(row: sqlite3.Row) -> Job:
         fetched_at=datetime.fromisoformat(row["fetched_at"]),
         is_active=bool(row["is_active"]),
         scraped_under_slug=scraped_under_slug,
+        source_tier=source_tier,
+        extraction_confidence=extraction_confidence,
     )

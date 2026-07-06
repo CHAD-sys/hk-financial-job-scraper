@@ -70,6 +70,15 @@ def run(args: argparse.Namespace) -> list[CompanyResult]:
 
     companies = load_companies(args.config)
 
+    # Merge the Longtail track (LLM-extraction boutique companies) from
+    # companies_longtail.yaml so its entries route to LongtailAdapter in the same
+    # run. --longtail-only isolates just this track for testing.
+    _longtail_yaml = Path(__file__).parent / "companies_longtail.yaml"
+    if _longtail_yaml.exists():
+        companies += load_companies(_longtail_yaml)
+    if getattr(args, "longtail_only", False):
+        companies = [c for c in companies if c.adapter == "longtail"]
+
     raw_filter = getattr(args, "company", None)
     if raw_filter:
         # Accept either a single slug (str) or a list of slugs (from action='append')
@@ -384,6 +393,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     p.add_argument(
+        "--longtail-only",
+        dest="longtail_only",
+        action="store_true",
+        help="Run only the Longtail (LLM-extraction) boutique companies for isolated testing.",
+    )
+    p.add_argument(
         "--dry-run",
         action="store_true",
         help=(
@@ -555,7 +570,7 @@ def main(argv: list[str] | None = None) -> None:
     if not getattr(args, "dry_run", False):
         from hk_jobs.migrations import (
             migrate_to_phase_11, migrate_to_phase_12, migrate_to_phase_13, migrate_to_phase_14,
-            migrate_to_phase_15,
+            migrate_to_phase_15, migrate_to_phase_16,
         )
         Path(args.db).parent.mkdir(parents=True, exist_ok=True)
         migrate_to_phase_11(args.db)
@@ -563,6 +578,7 @@ def main(argv: list[str] | None = None) -> None:
         migrate_to_phase_13(args.db)
         migrate_to_phase_14(args.db)
         migrate_to_phase_15(args.db)
+        migrate_to_phase_16(args.db)
 
     # --weekly-report: send Monday trend report email (no scraping).
     if getattr(args, "weekly_report", False):

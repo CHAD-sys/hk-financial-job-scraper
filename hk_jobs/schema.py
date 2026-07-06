@@ -93,6 +93,23 @@ class Job(BaseModel):
         ),
     )
 
+    # ── Extraction track ──────────────────────────────────────────────────
+    source_tier: str = Field(
+        default="mainstream",
+        description=(
+            "'mainstream' for structured sources (Workday/Eightfold/JobsDB/Indeed) "
+            "or 'boutique' for longtail companies scraped via LLM extraction. "
+            "Lets downstream queries filter, e.g. WHERE source_tier='boutique'."
+        ),
+    )
+    extraction_confidence: float | None = Field(
+        default=None,
+        description=(
+            "0.0-1.0 confidence from LLM-based extraction (longtail sources). "
+            "None for deterministic, non-LLM sources."
+        ),
+    )
+
     def dedup_hash(self) -> str:
         """
         Return a 12-character fingerprint that identifies this job posting.

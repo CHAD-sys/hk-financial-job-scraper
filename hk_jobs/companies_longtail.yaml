@@ -1,0 +1,25 @@
+# Longtail track — medium/boutique HK companies not on mainstream job boards.
+# Scraped via LLM extraction (adapter: longtail) since each site is bespoke.
+# Flat format: careers_url at the top level (folded into adapter config by
+# load_companies). Merged into the normal run; test in isolation with
+# --longtail-only or per-company --only <slug>.
+
+- name: "Hung Sing Financial Group"
+  slug: hung-sing
+  careers_url: "https://www.hungsing.org/tc/join_us.php"
+  adapter: longtail
+
+- name: "BOSC Hong Kong"
+  slug: bosc-hk
+  careers_url: "https://www.bosc-hk.com/About/careers.html"
+  adapter: longtail
+
+- name: "Heyavo"
+  slug: heyavo
+  careers_url: "https://www.heyavo.com/zh-hk/join"
+  adapter: longtail
+
+- name: "Blue Hong Kong"
+  slug: blue-hk
+  careers_url: "https://www.blue.com.hk/careers/hk/#position"
+  adapter: longtail

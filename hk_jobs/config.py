@@ -30,7 +30,14 @@ _REQUIRED_CONFIG_KEYS: dict[str, list[str]] = {
     "eightfold": ["tenant", "domain"],
     "jobsdb": ["jobsdb_slug"],
     "indeed": ["indeed_slug"],
+    "longtail": ["careers_url"],
 }
+
+# Top-level entry keys that are NOT adapter config. Everything else at the top
+# level of an entry (e.g. careers_url in companies_longtail.yaml) is folded into
+# the adapter config so both the nested `config:` style and the flat longtail
+# style work.
+_RESERVED_ENTRY_KEYS = frozenset({"name", "slug", "adapter", "enabled", "config"})
 
 
 @dataclass
@@ -75,14 +82,22 @@ def load_companies(
     yaml_path = Path(path) if path else _DEFAULT_YAML
     raw = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
 
+    # Accept both the main format ({companies: [...]}) and a bare top-level list
+    # (companies_longtail.yaml).
+    entries = raw if isinstance(raw, list) else raw.get("companies", [])
+
     configs: list[CompanyConfig] = []
-    for entry in raw.get("companies", []):
+    for entry in entries:
+        # Fold any non-reserved top-level keys (e.g. careers_url) into config, so
+        # the flat longtail style and the nested `config:` style both work.
+        config = {k: v for k, v in entry.items() if k not in _RESERVED_ENTRY_KEYS}
+        config.update(dict(entry.get("config", {})))
         cfg = CompanyConfig(
             name=entry["name"],
             slug=entry["slug"],
             adapter=entry["adapter"],
             enabled=bool(entry.get("enabled", True)),
-            config=dict(entry.get("config", {})),
+            config=config,
         )
         _validate(cfg)  # raises on any problem, enabled or not
         configs.append(cfg)

@@ -190,3 +190,35 @@ def migrate_to_phase_15(db_path: str) -> None:
             logger.debug("Phase 15 migration: description_summary already exists")
     finally:
         conn.close()
+
+
+def migrate_to_phase_16(db_path: str) -> None:
+    """
+    Add source_tier and extraction_confidence columns to the jobs table.
+
+    - source_tier: 'mainstream' (Workday/Eightfold/JobsDB/Indeed) or 'boutique'
+      (longtail companies scraped via LLM extraction). Existing rows default to
+      'mainstream'.
+    - extraction_confidence: 0.0-1.0 LLM extraction score; NULL for non-LLM sources.
+
+    Same jobs table, same upsert/dedup logic — no other schema change.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+        added = []
+        with conn:
+            if "source_tier" not in cols:
+                conn.execute(
+                    "ALTER TABLE jobs ADD COLUMN source_tier TEXT NOT NULL DEFAULT 'mainstream'"
+                )
+                added.append("source_tier")
+            if "extraction_confidence" not in cols:
+                conn.execute("ALTER TABLE jobs ADD COLUMN extraction_confidence REAL")
+                added.append("extraction_confidence")
+        if added:
+            logger.info("Phase 16 migration: added columns to jobs: %s", ", ".join(added))
+        else:
+            logger.debug("Phase 16 migration: source_tier / extraction_confidence already exist")
+    finally:
+        conn.close()
