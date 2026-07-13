@@ -45,8 +45,9 @@ export default function Nav({ savedCount = 0 }: Props) {
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-6" aria-label="Primary navigation">
             {[
+              { label: 'Home', path: '/' },
               { label: 'Browse Roles', path: '/jobs' },
-              { label: 'About', path: '/' },
+              { label: 'About', path: '/about' },
             ].map(({ label, path }) => (
               <button
                 key={label}
@@ -124,9 +125,10 @@ export default function Nav({ savedCount = 0 }: Props) {
           aria-label="Mobile navigation"
         >
           {[
+            { label: 'Home', path: '/' },
             { label: 'Browse Roles', path: '/jobs' },
             { label: 'Saved Roles', path: '/saved' },
-            { label: 'About', path: '/' },
+            { label: 'About', path: '/about' },
           ].map(({ label, path }) => (
             <button
               key={label}

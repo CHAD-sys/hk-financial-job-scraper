@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Nav from '../components/Nav'
 import StatCard from '../components/StatCard'
+import { SkylineTrend } from '../components/Illustrations'
 import { fetchStats } from '../api/client'
 
 const TRUST_BADGES = [
@@ -15,12 +16,14 @@ export default function LandingPage() {
   const navigate = useNavigate()
 
   // Live figures from the API so the hero stats never go stale.
-  const [roles, setRoles] = useState('2,500+')
+  const [roles, setRoles] = useState('2,400+')
   const [sectors, setSectors] = useState('5')
   useEffect(() => {
     fetchStats()
       .then(s => {
-        setRoles(s.total_active_jobs.toLocaleString())
+        // Round DOWN to the nearest 100 and add "+", so the figure never over-claims
+        // and stays stable as the daily count drifts (e.g. 2,935 → "2,900+", 2,451 → "2,400+").
+        setRoles((Math.floor(s.total_active_jobs / 100) * 100).toLocaleString() + '+')
         setSectors(String(Object.keys(s.by_sector).length))
       })
       .catch(() => {}) // keep the conservative fallbacks on error
@@ -64,7 +67,9 @@ export default function LandingPage() {
             style={{ backgroundColor: 'var(--color-gold)' }}
           />
 
-          <div className="relative mx-auto max-w-7xl px-6 lg:px-8 pt-24 pb-20 lg:pt-32 lg:pb-28">
+          <div className="relative mx-auto max-w-7xl px-6 lg:px-8 pt-20 pb-16 lg:pt-28 lg:pb-24">
+            <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-10 lg:gap-8 items-center">
+            <div>
 
             {/* Eyebrow */}
             <div className="flex items-center gap-2 mb-8">
@@ -108,7 +113,7 @@ export default function LandingPage() {
                 className="max-w-2xl mb-10 text-lg leading-relaxed"
                 style={{ color: 'var(--color-ink-muted)' }}
               >
-                A curated, AI-supported index of 2,500+ open roles across leading institutions —
+                A curated, AI-supported index of {roles} open roles across leading institutions —
                 investment banks, asset managers, fintechs and insurers. Built for investors,
                 operators, and talent navigating the city's capital markets.
               </p>
@@ -127,13 +132,14 @@ export default function LandingPage() {
                 </button>
 
                 <button
-                  onClick={() => navigate('/jobs?sector=Investment+Banking')}
-                  className="inline-flex items-center gap-1.5 text-sm font-medium transition-colors duration-150 cursor-pointer"
-                  style={{ color: 'var(--color-ink-muted)' }}
-                  onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-ink)')}
-                  onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-ink-muted)')}
+                  onClick={() => navigate('/jobs?tier=boutique')}
+                  className="inline-flex items-center gap-1.5 rounded px-5 py-3 text-sm font-semibold transition-all duration-200 cursor-pointer"
+                  style={{ color: 'var(--color-gold)', border: '1px solid var(--color-gold)', backgroundColor: 'var(--color-gold-light)' }}
+                  onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#F6E7BE')}
+                  onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-gold-light)')}
                 >
-                  Browse Investment Banking
+                  <Star size={14} strokeWidth={2} fill="currentColor" />
+                  See Exclusive roles
                   <ChevronRight size={14} strokeWidth={2} />
                 </button>
               </div>
@@ -152,6 +158,13 @@ export default function LandingPage() {
                 ))}
               </div>
             </div>
+            </div>{/* text column */}
+
+            {/* Hero illustration — crafted SVG, decorative */}
+            <div className="hidden lg:flex justify-end" aria-hidden="true">
+              <SkylineTrend className="w-full h-auto" style={{ maxWidth: 520 }} />
+            </div>
+            </div>{/* hero grid */}
           </div>
         </section>
 
