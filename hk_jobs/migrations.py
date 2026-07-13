@@ -222,3 +222,26 @@ def migrate_to_phase_16(db_path: str) -> None:
             logger.debug("Phase 16 migration: source_tier / extraction_confidence already exist")
     finally:
         conn.close()
+
+
+def migrate_to_phase_17(db_path: str) -> None:
+    """
+    Add the category column to the jobs table.
+
+    Holds a boutique company's business category taken from the company config
+    (NOT LLM-extracted) — e.g. 'Asset Management', 'Audit firm', 'Insurance
+    Company', 'Investment Banking', 'Securities Brokerage', 'Fintech-*'. NULL for
+    mainstream sources. Lets the frontend filter the boutique/"Exclusive" section
+    by category.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+        if "category" not in cols:
+            with conn:
+                conn.execute("ALTER TABLE jobs ADD COLUMN category TEXT")
+            logger.info("Phase 17 migration: added category column to jobs")
+        else:
+            logger.debug("Phase 17 migration: category already exists")
+    finally:
+        conn.close()

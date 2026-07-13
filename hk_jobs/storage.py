@@ -80,6 +80,9 @@ CREATE TABLE IF NOT EXISTS jobs (
     source_tier      TEXT NOT NULL DEFAULT 'mainstream',  -- 'mainstream' | 'boutique'
     extraction_confidence REAL,                            -- 0.0-1.0 (LLM), NULL otherwise
 
+    -- Boutique business category from company config (Phase 17), NOT LLM-extracted
+    category         TEXT,
+
     PRIMARY KEY (source, source_id)
 );
 """
@@ -107,7 +110,7 @@ INSERT INTO jobs (
     skills_required, skills_preferred, years_experience_min,
     posted_at, fetched_at, is_active,
     scraped_under_slug,
-    source_tier, extraction_confidence
+    source_tier, extraction_confidence, category
 ) VALUES (
     :source, :source_id, :company, :company_slug, :url, :dedup_hash,
     :title, :description_raw, :description_clean,
@@ -117,7 +120,7 @@ INSERT INTO jobs (
     :skills_required, :skills_preferred, :years_experience_min,
     :posted_at, :fetched_at, 1,
     :scraped_under_slug,
-    :source_tier, :extraction_confidence
+    :source_tier, :extraction_confidence, :category
 )
 ON CONFLICT (source, source_id) DO UPDATE SET
     title              = excluded.title,
@@ -148,7 +151,8 @@ ON CONFLICT (source, source_id) DO UPDATE SET
     -- Never overwrite a previously-set scraped_under_slug.
     scraped_under_slug = COALESCE(jobs.scraped_under_slug, excluded.scraped_under_slug),
     source_tier        = excluded.source_tier,
-    extraction_confidence = excluded.extraction_confidence
+    extraction_confidence = excluded.extraction_confidence,
+    category           = excluded.category
     -- NOTE: company is intentionally NOT updated here. The correct advertiser
     -- name is set on INSERT from the card HTML (Fix A), and repaired for
     -- existing rows by --repair-companies (GraphQL advertiser.name).
@@ -376,6 +380,7 @@ def _job_to_row(job: Job) -> dict[str, Any]:
         "scraped_under_slug": job.scraped_under_slug,
         "source_tier": job.source_tier,
         "extraction_confidence": job.extraction_confidence,
+        "category": job.category,
     }
 
 
@@ -395,6 +400,11 @@ def _row_to_job(row: sqlite3.Row) -> Job:
         extraction_confidence = row["extraction_confidence"]
     except IndexError:
         extraction_confidence = None
+    # category added in Phase 17 — guard likewise.
+    try:
+        category = row["category"]
+    except IndexError:
+        category = None
 
     return Job(
         source=row["source"],
@@ -422,4 +432,5 @@ def _row_to_job(row: sqlite3.Row) -> Job:
         scraped_under_slug=scraped_under_slug,
         source_tier=source_tier,
         extraction_confidence=extraction_confidence,
+        category=category,
     )

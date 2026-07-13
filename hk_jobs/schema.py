@@ -109,6 +109,15 @@ class Job(BaseModel):
             "None for deterministic, non-LLM sources."
         ),
     )
+    category: str | None = Field(
+        default=None,
+        description=(
+            "Business category for longtail/boutique companies, taken from the "
+            "company config (NOT LLM-extracted): e.g. 'Asset Management', 'Audit "
+            "firm', 'Insurance Company', 'Investment Banking', 'Securities "
+            "Brokerage', 'Fintech-*'. None for mainstream sources."
+        ),
+    )
 
     def dedup_hash(self) -> str:
         """

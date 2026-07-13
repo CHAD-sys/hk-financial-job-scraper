@@ -23,3 +23,337 @@
   slug: blue-hk
   careers_url: "https://www.blue.com.hk/careers/hk/#position"
   adapter: longtail
+
+# ── Batch 2: 51 medium-sized HK finance companies (deduped vs the 4 pilots) ──
+
+- name: "Prudence Investment Management (HK) Ltd"
+  slug: prudence-investment-management-hk-ltd
+  category: "Asset Management"
+  careers_url: "https://prudenceinv.com/career/"
+  adapter: longtail
+
+- name: "SPDB International Investment Management Limited"
+  slug: spdb-international-investment-management-limited
+  category: "Asset Management"
+  careers_url: "https://www.spdbi.com/career.html"
+  adapter: longtail
+  # verified: no current openings (manual ground-truth 2026-07)
+
+- name: "Guosen Securities (Hong Kong) Asset Management Co., Ltd"
+  slug: guosen-securities-hong-kong-asset-management-co-ltd
+  category: "Asset Management"
+  careers_url: "https://www.guosen.com.hk/fanti_main/jobs/index.shtml"
+  adapter: longtail
+  # verified: no current openings (manual ground-truth 2026-07)
+
+- name: "China Orient Asset Management (International) Holding Limited"
+  slug: china-orient-asset-management-international-holding-lim
+  category: "Asset Management"
+  careers_url: "https://www.dfzq.com.hk/main/aboutus/joinus/index.shtml?sc=f"
+  adapter: longtail
+
+- name: "China Re Asset Management (Hong Kong) Company Limited"
+  slug: china-re-asset-management-hong-kong-company-limited
+  category: "Asset Management"
+  careers_url: "https://www.chinare.com.cn/hk/jrwm58/index.html"
+  adapter: longtail
+  # verified: no current openings (manual ground-truth 2026-07)
+
+- name: "Taikang Asset Management (Hong Kong) Company Limited"
+  slug: taikang-asset-management-hong-kong-company-limited
+  category: "Asset Management"
+  careers_url: "https://hk.taikangasset.cn/en/join/joinUs.html"
+  adapter: longtail
+  # TODO investigate: user confirms ~5 openings but this URL returns 0 — likely a
+  # click-to-reveal (like Pioneer) or a parsing gap. No corrected URL yet; do not guess.
+
+- name: "China Life Franklin Asset Management Co., Limited"
+  slug: china-life-franklin-asset-management-co-limited
+  category: "Asset Management"
+  careers_url: "https://www.clamc.com.hk/index.php?a=Home&f=job"
+  adapter: longtail
+
+- name: "Y2 Capital Partners Limited"
+  slug: y2-capital-partners-limited
+  category: "Asset Management"
+  careers_url: "https://y2cap.com/"
+  adapter: longtail
+  # verified: no current openings (manual ground-truth 2026-07)
+
+- name: "Zhong Ou Asset Management International Limited"
+  slug: zhong-ou-asset-management-international-limited
+  category: "Asset Management"
+  careers_url: "https://zofundintl.com/careers/?lang=zh-CN"
+  adapter: longtail
+
+- name: "Bosera Asset Management (International) Co., Limited"
+  slug: bosera-asset-management-international-co-limited
+  category: "Asset Management"
+  careers_url: "https://www.bosera.com.hk/en-US/careers"
+  adapter: longtail
+
+- name: "Central China International Financial Holdings Company Limited"
+  slug: central-china-international-financial-holdings-company-
+  category: "Asset Management"
+  careers_url: "https://www.ccnew.com.hk/tc/contact/career"
+  adapter: longtail
+
+- name: "Alpha Nova Capital Management Limited"
+  slug: alpha-nova-capital-management-limited
+  category: "Asset Management"
+  careers_url: "https://www.alphanovacap.com/careers"
+  adapter: longtail
+  # verified: no current openings (manual ground-truth 2026-07)
+
+- name: "Anuenue Advisors Limited"
+  slug: anuenue-advisors-limited
+  category: "Asset Management"
+  careers_url: "https://www.anuesec.com/zh-HK/Page/work-for-us/"
+  adapter: longtail
+
+- name: "Absolute Investment Management (HK) Limited"
+  slug: absolute-investment-management-hk-limited
+  category: "Asset Management"
+  careers_url: "https://www.bqpartners.com.hk/en-us/4"
+  adapter: longtail
+  # verified: no current openings (URL reconfirmed correct; manual ground-truth 2026-07)
+
+- name: "Avenue Investment Management Limited"
+  slug: avenue-investment-management-limited
+  category: "Asset Management"
+  careers_url: "https://www.avenue.limited/job.html"
+  adapter: longtail
+
+- name: "Aurelius Financial Group Limited"
+  slug: aurelius-financial-group-limited
+  category: "Asset Management"
+  # Switched longtail→workday: standard Workday tenant (aureliusinvest.wd3.myworkdayjobs.com),
+  # more reliable + free (no DeepSeek). monitoring: 0 HK-specific jobs currently — all
+  # postings are outside HK. Keep enabled to catch future HK openings; expect 0 for now.
+  adapter: workday
+  tenant: aureliusinvest
+  site: AURELIUS
+
+- name: "Admiralty Harbour Capital Limited"
+  slug: admiralty-harbour-capital-limited
+  category: "Asset Management"
+  careers_url: "https://www.ahfghk.com/recruitment.php"
+  adapter: longtail
+  # verified: no current openings (manual ground-truth 2026-07)
+
+- name: "ADV Partners Limited"
+  slug: adv-partners-limited
+  category: "Asset Management"
+  careers_url: "https://advpartners.com/careers/"
+  adapter: longtail
+
+- name: "Asset Management One Hong Kong Limited"
+  slug: asset-management-one-hong-kong-limited
+  category: "Asset Management"
+  careers_url: "https://www.am-one.co.jp/company/recruit/"
+  adapter: longtail
+
+- name: "AP Capital Management (Hong Kong) Limited"
+  slug: ap-capital-management-hong-kong-limited
+  category: "Asset Management"
+  careers_url: "https://careers.apcapitalinvestment.com/"
+  adapter: longtail
+
+- name: "Altruist Financial Group Limited"
+  slug: altruist-financial-group-limited
+  category: "Asset Management"
+  # URL fixed: dedicated job-vacancies page (manual ground-truth: 2 jobs)
+  careers_url: "https://altruist.com.hk/en/%E3%80%8E%E6%82%A8%E3%80%8F%E6%83%B3%E4%BA%8B%E6%A5%AD/%E8%81%B7%E4%BD%8D%E7%A9%BA%E7%BC%BA/"
+  adapter: longtail
+
+- name: "AL Capital Limited"
+  slug: al-capital-limited
+  category: "Asset Management"
+  careers_url: "https://alcapital.com.au/about/careers/"
+  adapter: longtail
+  # verified: no current openings (manual ground-truth 2026-07)
+
+- name: "Aspenwood Capital Limited"
+  slug: aspenwood-capital-limited
+  category: "Asset Management"
+  careers_url: "https://www.aspenwd.com/zh/career"
+  adapter: longtail
+
+- name: "Conpak CPA Limited"
+  slug: conpak-cpa-limited
+  category: "Audit firm"
+  careers_url: "https://www.conpak.com/Careers/"
+  adapter: longtail
+
+- name: "ZHONGHUI ANDA CPA Limited"
+  slug: zhonghui-anda-cpa-limited
+  category: "Audit firm"
+  careers_url: "https://www.zhcpa.hk/eng/join_us.html"
+  adapter: longtail
+
+- name: "Gary Cheng CPA Limited"
+  slug: gary-cheng-cpa-limited
+  category: "Audit firm"
+  # URL fixed: scrape the Experienced-Opportunities listing (manual ground-truth: 2 jobs)
+  careers_url: "https://www.garycheng.com/join-us/?cat=Experienced-Opportunities"
+  adapter: longtail
+
+- name: "Richful Deyong"
+  slug: richful-deyong
+  category: "Audit firm"
+  careers_url: "https://www.rfdy.hk/Job/"
+  adapter: longtail
+
+- name: "Kaizen Corporate Services Limited"
+  slug: kaizen-corporate-services-limited
+  category: "Audit firm"
+  # URL fixed: correct domain kaizencpa.com job page (was bycpa.com; manual ground-truth: 4 jobs)
+  careers_url: "https://www.kaizencpa.com/Contact/job.html"
+  adapter: longtail
+
+- name: "D & PARTNERS CPA LIMITED"
+  slug: d-partners-cpa-limited
+  category: "Audit firm"
+  careers_url: "https://www.dnpcpa.com/join-us/"
+  adapter: longtail
+  # verified: no current openings (manual ground-truth 2026-07)
+
+- name: "Fung, Yu & Co. CPA Limited"
+  slug: fung-yu-co-cpa-limited
+  category: "Audit firm"
+  careers_url: "https://www.fungyuco.com/careers/"
+  adapter: longtail
+  # verified: no current openings (manual ground-truth 2026-07)
+
+- name: "LION CPA LIMITED"
+  slug: lion-cpa-limited
+  category: "Audit firm"
+  careers_url: "https://www.lioncpa.hk/zh/join-us"
+  adapter: longtail
+
+- name: "Grand Concept Certified Public Accountants (Practising)"
+  slug: grand-concept-certified-public-accountants-practising
+  category: "Audit firm"
+  # URL fixed: correct hiring page (manual ground-truth: 1 job)
+  careers_url: "https://hkcpa.net/carrers/"
+  adapter: longtail
+
+- name: "Holly International Financial Holdings"
+  slug: holly-international-financial-holdings
+  category: "Brokerage"
+  careers_url: "https://www.ftol.com.hk/about/joinus"
+  adapter: longtail
+
+- name: "Alvarez & Marsal Corporate Finance Limited"
+  slug: alvarez-marsal-corporate-finance-limited
+  category: "Corporate Financial Advisory"
+  # URL fixed: HK-filtered job search (manual ground-truth: 6 jobs)
+  careers_url: "https://careers.alvarezandmarsal.com/search/jobs?location_country=Hong%20Kong&ns_location=Hong%20Kong"
+  adapter: longtail
+
+- name: "Hundsun Ayers Technologies Limited"
+  slug: hundsun-ayers-technologies-limited
+  category: "Fintech-Brokerage"
+  careers_url: "https://www.hundsun.com.hk/en/career"
+  adapter: longtail
+
+- name: "FCC ANALYTICS LIMITED"
+  slug: fcc-analytics-limited
+  category: "Fintech-Compliance"
+  careers_url: "https://www.fcc-analytics.com/"
+  adapter: longtail
+
+- name: "MULANA INVESTMENT MANAGEMENT LIMITED"
+  slug: mulana-investment-management-limited
+  category: "Fintech-DigitalAssets"
+  careers_url: "https://www.mulana-im.com/career"
+  adapter: longtail
+  # verified: no current openings (manual ground-truth 2026-07)
+
+- name: "ixFintech"
+  slug: ixfintech
+  category: "Fintech-Indexing"
+  careers_url: "https://www.ixfintech.com/career/"
+  adapter: longtail
+
+- name: "Well Link Insurance Company Limited"
+  slug: well-link-insurance-company-limited
+  category: "Insurance Company"
+  careers_url: "https://www.wli.com.hk/career.jhtml"
+  adapter: longtail
+
+- name: "Falcon Insurance (Hong Kong) Company Limited"
+  slug: falcon-insurance-hong-kong-company-limited
+  category: "Insurance Company"
+  careers_url: "https://www.falconinsurance.com.hk/company/zh/join-us/"
+  adapter: longtail
+
+- name: "Tugu Insurance (Hong Kong) Company Limited"
+  slug: tugu-insurance-hong-kong-company-limited
+  category: "Insurance Company"
+  careers_url: "https://www.tuguhk.com/career"
+  adapter: longtail
+
+- name: "Pioneer Insurance Company Limited"
+  slug: pioneer-insurance-company-limited
+  category: "Insurance Company"
+  # Jobs are hidden behind interactive toggles — static/rendered HTML shows nothing.
+  # click_to_reveal drives the browser to click toggle/accordion buttons before extraction.
+  careers_url: "https://pioneer.com.ph/join/#careers"
+  click_to_reveal: true
+  adapter: longtail
+
+- name: "Min Xin Insurance Company Limited"
+  slug: min-xin-insurance-company-limited
+  category: "Insurance Company"
+  careers_url: "https://www.mxic.com.hk/hk-tc/join-us"
+  adapter: longtail
+
+- name: "Hong Kong Life Insurance Limited"
+  slug: hong-kong-life-insurance-limited
+  category: "Insurance Company"
+  careers_url: "https://www.hklife.com.hk/tc/join-us/index.html"
+  adapter: longtail
+
+- name: "ABCI CAPITAL LIMITED"
+  slug: abci-capital-limited
+  category: "Investment Banking"
+  careers_url: "https://www.abci.com.hk/#/hire"
+  adapter: longtail
+
+- name: "Asian Capital Limited"
+  slug: asian-capital-limited
+  category: "Investment Banking"
+  careers_url: "https://www.asiancapital.com.hk/en/careers.php"
+  adapter: longtail
+
+- name: "WRISE Capital Limited"
+  slug: wrise-capital-limited
+  category: "Investment Banking"
+  careers_url: "https://wrise.com/career"
+  adapter: longtail
+
+- name: "Apricot Capital (Hong Kong) Limited"
+  slug: apricot-capital-hong-kong-limited
+  category: "Securities Brokerage"
+  careers_url: "https://www.apricotcapital.hk/en/join-us/"
+  adapter: longtail
+
+- name: "Anda Capital Hong Kong Limited"
+  slug: anda-capital-hong-kong-limited
+  category: "Securities Brokerage"
+  careers_url: "https://www.hk.daiwacm.com/career.html"
+  adapter: longtail
+  # verified: no current openings (manual ground-truth 2026-07)
+
+- name: "ASA Securities Limited"
+  slug: asa-securities-limited
+  category: "Securities Brokerage"
+  careers_url: "https://www.asasec.com/tc/job.php"
+  adapter: longtail
+
+- name: "AJ Futures Limited"
+  slug: aj-futures-limited
+  category: "Securities Brokerage"
+  careers_url: "https://www.ajsecurities.com.hk/cms?id=3"
+  adapter: longtail

@@ -74,7 +74,7 @@ def run(args: argparse.Namespace) -> list[CompanyResult]:
     # companies_longtail.yaml so its entries route to LongtailAdapter in the same
     # run. --longtail-only isolates just this track for testing.
     _longtail_yaml = Path(__file__).parent / "companies_longtail.yaml"
-    if _longtail_yaml.exists():
+    if _longtail_yaml.exists() and not getattr(args, "no_longtail", False):
         companies += load_companies(_longtail_yaml)
     if getattr(args, "longtail_only", False):
         companies = [c for c in companies if c.adapter == "longtail"]
@@ -399,6 +399,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Run only the Longtail (LLM-extraction) boutique companies for isolated testing.",
     )
     p.add_argument(
+        "--no-longtail",
+        dest="no_longtail",
+        action="store_true",
+        help="Skip the Longtail track — run only the mainstream companies.yaml companies.",
+    )
+    p.add_argument(
         "--dry-run",
         action="store_true",
         help=(
@@ -570,7 +576,7 @@ def main(argv: list[str] | None = None) -> None:
     if not getattr(args, "dry_run", False):
         from hk_jobs.migrations import (
             migrate_to_phase_11, migrate_to_phase_12, migrate_to_phase_13, migrate_to_phase_14,
-            migrate_to_phase_15, migrate_to_phase_16,
+            migrate_to_phase_15, migrate_to_phase_16, migrate_to_phase_17,
         )
         Path(args.db).parent.mkdir(parents=True, exist_ok=True)
         migrate_to_phase_11(args.db)
@@ -579,6 +585,7 @@ def main(argv: list[str] | None = None) -> None:
         migrate_to_phase_14(args.db)
         migrate_to_phase_15(args.db)
         migrate_to_phase_16(args.db)
+        migrate_to_phase_17(args.db)
 
     # --weekly-report: send Monday trend report email (no scraping).
     if getattr(args, "weekly_report", False):
