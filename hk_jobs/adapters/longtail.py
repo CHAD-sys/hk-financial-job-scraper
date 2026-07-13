@@ -24,7 +24,7 @@ import logging
 import random
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from selectolax.parser import HTMLParser
 
@@ -91,20 +91,40 @@ def _stable_source_id(slug: str, title: str, location: str) -> str:
     return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
 
 
+# A posting date on an ACTIVE listing must be plausible: not in the future and not
+# absurdly old. The LLM often grabs an unrelated date off a boutique careers page — a
+# copyright year ("© 2018"), an "established" date, or an application deadline — so any
+# value outside this window is treated as UNKNOWN (None) rather than stored as a
+# misleading posting date that would corrupt "newest first" sorting.
+_MAX_POST_AGE = timedelta(days=400)   # ~13 months
+
+
 def _parse_posted_date(value) -> datetime | None:
-    """Best-effort parse of the LLM's posted_date string. None if absent/unparseable."""
+    """
+    Best-effort parse of the LLM's posted_date string, with sanity bounds.
+    Returns None if absent, unparseable, or implausible (in the future / too old).
+    """
     if not value or not isinstance(value, str):
         return None
     v = value.strip()
+    dt: datetime | None = None
     for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%d/%m/%Y", "%d-%m-%Y"):
         try:
-            return datetime.strptime(v, fmt)
+            dt = datetime.strptime(v, fmt)
+            break
         except ValueError:
             continue
-    try:
-        return datetime.fromisoformat(v)
-    except ValueError:
+    if dt is None:
+        try:
+            dt = datetime.fromisoformat(v)
+        except ValueError:
+            return None
+    # Reject implausible dates (LLM grabbed an unrelated date) — treat as unknown.
+    today = datetime.now(timezone.utc).date()
+    if dt.date() > today + timedelta(days=1) or dt.date() < today - _MAX_POST_AGE:
+        logger.debug("Discarding implausible LLM posted_date %r", v)
         return None
+    return dt
 
 
 def _reveal_click_action(page) -> None:

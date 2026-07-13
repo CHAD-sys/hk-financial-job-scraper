@@ -412,12 +412,19 @@ def list_jobs(
     # not relying on SQLite NULL ordering, which would float them to the top on DESC.
     _sal_high = "COALESCE(e.salary_hkd_max, e.salary_estimated_max)"
     _sal_low  = "COALESCE(e.salary_hkd_min, e.salary_estimated_min)"
+    # "Newest" = most recent POSTING date. But some sources mis-parse dates and yield
+    # posted_at values in the FUTURE (e.g. JobsDB relative-date bugs). A future date is
+    # invalid data, not "newest", so we treat anything dated beyond tomorrow — and NULLs —
+    # as unknown and sink them, rather than letting them dominate the top. (+1 day of
+    # slack absorbs UTC/HKT timezone skew for genuinely today's postings.)
+    _valid_posted = "CASE WHEN date(j.posted_at) <= date('now','+1 day') THEN j.posted_at END"
+    _newest = f"{_valid_posted} DESC NULLS LAST"
     sort_clause = {
-        "newest":      "j.posted_at DESC NULLS LAST",
+        "newest":      _newest,
         "salary_high": f"CASE WHEN {_sal_high} IS NULL THEN 1 ELSE 0 END, {_sal_high} DESC",
         "salary_low":  f"CASE WHEN {_sal_low} IS NULL THEN 1 ELSE 0 END, {_sal_low} ASC",
         "company":     "j.company ASC",
-    }.get(sort, "j.posted_at DESC NULLS LAST")
+    }.get(sort, _newest)
 
     where_sql, params = _build_where(
         search, sectors, companies, seniority, remote_type, skills,
