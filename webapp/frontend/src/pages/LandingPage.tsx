@@ -1,4 +1,4 @@
-import { ArrowRight, ChevronRight, TrendingUp, Shield, Cpu } from 'lucide-react'
+import { ArrowRight, ChevronRight, TrendingUp, Shield, Cpu, Star } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Nav from '../components/Nav'
@@ -15,7 +15,7 @@ export default function LandingPage() {
   const navigate = useNavigate()
 
   // Live figures from the API so the hero stats never go stale.
-  const [roles, setRoles] = useState('1,900+')
+  const [roles, setRoles] = useState('2,500+')
   const [sectors, setSectors] = useState('5')
   useEffect(() => {
     fetchStats()
@@ -28,7 +28,7 @@ export default function LandingPage() {
 
   const STATS = [
     { value: roles,   label: 'Active Roles', sub: 'Updated daily' },
-    { value: '60+',   label: 'Institutions', sub: 'Banks, insurers, asset managers & more' },
+    { value: '100+',  label: 'Institutions', sub: 'Banks, insurers, asset managers & more' },
     { value: sectors, label: 'Sectors',      sub: 'Banking · IB · Insurance · AM · Prof. Services' },
     { value: '100%',  label: 'AI-Supported', sub: 'Skills, seniority & salary signals' },
   ]
@@ -74,7 +74,6 @@ export default function LandingPage() {
                   backgroundColor: 'var(--color-gold-light)',
                   color: 'var(--color-gold)',
                   border: '1px solid var(--color-gold)',
-                  borderOpacity: '0.3',
                 }}
               >
                 Hong Kong · 2026
@@ -109,7 +108,7 @@ export default function LandingPage() {
                 className="max-w-2xl mb-10 text-lg leading-relaxed"
                 style={{ color: 'var(--color-ink-muted)' }}
               >
-                A curated, AI-supported index of 1,900+ open roles across leading institutions —
+                A curated, AI-supported index of 2,500+ open roles across leading institutions —
                 investment banks, asset managers, fintechs and insurers. Built for investors,
                 operators, and talent navigating the city's capital markets.
               </p>
@@ -166,6 +165,69 @@ export default function LandingPage() {
               {STATS.map(s => (
                 <StatCard key={s.label} value={s.value} label={s.label} sub={s.sub} />
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Exclusive listings callout ────────────────────── */}
+        <section
+          aria-labelledby="exclusive-heading"
+          style={{ borderBottom: '1px solid var(--color-border)' }}
+        >
+          <div className="mx-auto max-w-7xl px-6 lg:px-8 py-14">
+            <div
+              className="rounded-xl p-8 lg:p-10 flex flex-col lg:flex-row lg:items-center gap-8"
+              style={{
+                backgroundColor: 'var(--color-surface)',
+                border: '1px solid var(--color-gold)',
+                boxShadow: 'var(--shadow-card)',
+              }}
+            >
+              <div className="min-w-0 flex-1">
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-widest mb-4"
+                  style={{
+                    backgroundColor: 'var(--color-gold-light)',
+                    color: 'var(--color-gold)',
+                    border: '1px solid var(--color-gold)',
+                  }}
+                >
+                  <Star size={13} strokeWidth={2} fill="currentColor" aria-hidden="true" />
+                  Exclusive
+                </span>
+                <h2
+                  id="exclusive-heading"
+                  className="text-2xl lg:text-3xl font-bold tracking-tight mb-3"
+                  style={{ fontFamily: 'var(--font-display)', color: 'var(--color-ink)', letterSpacing: '-0.02em' }}
+                >
+                  Roles you won't find on the major job boards
+                </h2>
+                <p
+                  className="max-w-2xl text-base leading-relaxed"
+                  style={{ color: 'var(--color-ink-muted)' }}
+                >
+                  Alongside mainstream listings, we index openings published directly on the
+                  official careers pages of boutique and specialist financial firms — many of
+                  which never reach the large aggregators. Every exclusive role is compiled from
+                  information the employer has made <span style={{ color: 'var(--color-ink)', fontWeight: 600 }}>publicly available on its own website</span>,
+                  then structured and translated with AI. No logins, no scraping behind
+                  paywalls — just public postings, organised in one place.
+                </p>
+              </div>
+
+              <div className="flex-shrink-0">
+                <button
+                  onClick={() => navigate('/jobs?tier=boutique')}
+                  className="inline-flex items-center gap-2 rounded px-6 py-3 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap"
+                  style={{ backgroundColor: 'var(--color-gold)', color: 'var(--color-ink-inverse)' }}
+                  onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.opacity = '0.9')}
+                  onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.opacity = '1')}
+                >
+                  <Star size={15} strokeWidth={2} fill="currentColor" aria-hidden="true" />
+                  View Exclusive roles
+                  <ArrowRight size={16} strokeWidth={2} />
+                </button>
+              </div>
             </div>
           </div>
         </section>

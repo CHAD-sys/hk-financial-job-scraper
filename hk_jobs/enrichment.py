@@ -51,6 +51,20 @@ def _norm_confidence(value: Any) -> str | None:
     return v if v in _VALID_CONFIDENCE else None
 
 
+def _clean_title_en(value: Any) -> str | None:
+    """
+    Normalise the model's English title.
+
+    Collapse whitespace and drop any stray markdown/quote noise. Returns None
+    (not "") when empty so the frontend's `title_en || title` fallback shows the
+    original title rather than a blank line.
+    """
+    if not value:
+        return None
+    text = re.sub(r"\s+", " ", str(value)).strip().strip('"').strip()
+    return text or None
+
+
 _MAX_SUMMARY_SENTENCES = 3
 _MAX_SUMMARY_WORDS = 55  # ~50 with a little slack; hard safety net if the model overshoots
 
@@ -90,14 +104,22 @@ class EnrichmentPipeline:
         self._api_key = api_key
 
     def run(self, batch_size: int = _BATCH_SIZE, limit: int | None = None,
-            incremental: bool = False, re_enrich: bool = False) -> None:
-        logger.info("Phase 12 enrichment — starting (workers=%d%s)",
-                    _MAX_WORKERS, ", RE-ENRICH ALL" if re_enrich else "")
+            incremental: bool = False, re_enrich: bool = False,
+            boutique_only: bool = False) -> None:
+        logger.info(
+            "Phase 12 enrichment — starting (workers=%d%s%s)",
+            _MAX_WORKERS,
+            ", RE-ENRICH ALL" if re_enrich else "",
+            ", BOUTIQUE ONLY" if boutique_only else "",
+        )
 
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         try:
-            jobs = self._fetch_unenriched(conn, limit, incremental=incremental, re_enrich=re_enrich)
+            jobs = self._fetch_unenriched(
+                conn, limit, incremental=incremental,
+                re_enrich=re_enrich, boutique_only=boutique_only,
+            )
             if not jobs:
                 logger.info("No unenriched jobs — nothing to do")
                 return
@@ -151,8 +173,9 @@ class EnrichmentPipeline:
                                      remote_type, salary_hkd_min, salary_hkd_max,
                                      job_category, enriched_at, model_used,
                                      salary_estimated_min, salary_estimated_max,
-                                     salary_estimated_confidence, description_summary)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                     salary_estimated_confidence, description_summary,
+                                     title_en)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                                 ON CONFLICT (source, source_id) DO UPDATE SET
                                     seniority                 = excluded.seniority,
                                     years_experience_required = excluded.years_experience_required,
@@ -166,7 +189,8 @@ class EnrichmentPipeline:
                                     salary_estimated_min        = excluded.salary_estimated_min,
                                     salary_estimated_max        = excluded.salary_estimated_max,
                                     salary_estimated_confidence = excluded.salary_estimated_confidence,
-                                    description_summary         = excluded.description_summary
+                                    description_summary         = excluded.description_summary,
+                                    title_en                    = excluded.title_en
                                 """,
                                 (
                                     row["source"], row["source_id"],
@@ -183,6 +207,7 @@ class EnrichmentPipeline:
                                     _coerce_int(data.get("salary_estimated_max")),
                                     _norm_confidence(data.get("salary_estimated_confidence")),
                                     _clean_summary(data.get("description_summary")),
+                                    _clean_title_en(data.get("title_en")),
                                 ),
                             )
                             enriched += 1
@@ -202,11 +227,17 @@ class EnrichmentPipeline:
     def _fetch_unenriched(
         self, conn: sqlite3.Connection, limit: int | None,
         incremental: bool = False, re_enrich: bool = False,
+        boutique_only: bool = False,
     ) -> list[sqlite3.Row]:
         today_filter = "AND DATE(j.fetched_at) = DATE('now')" if incremental else ""
-        # Default: only jobs with no enrichment row. re_enrich: every active job
-        # (the ON CONFLICT DO UPDATE upserts), so a prompt change reaches all rows.
-        enriched_filter = "" if re_enrich else "AND e.source_id IS NULL"
+        # boutique_only restricts to the "Exclusive" section (jobs whose category
+        # was set from the company config) and always reprocesses them — those
+        # rows already have enrichment, so we must upsert, not skip them.
+        boutique_filter = "AND j.category IS NOT NULL" if boutique_only else ""
+        # Default: only jobs with no enrichment row. re_enrich (or boutique_only):
+        # every matching active job (the ON CONFLICT DO UPDATE upserts), so a
+        # prompt change reaches existing rows too.
+        enriched_filter = "" if (re_enrich or boutique_only) else "AND e.source_id IS NULL"
         sql = f"""
             SELECT j.source, j.source_id, j.title, j.company, j.description_clean
               FROM jobs j
@@ -214,6 +245,7 @@ class EnrichmentPipeline:
                 ON j.source = e.source AND j.source_id = e.source_id
              WHERE j.is_active = 1
                {enriched_filter}
+               {boutique_filter}
                {today_filter}
              ORDER BY j.fetched_at DESC
         """

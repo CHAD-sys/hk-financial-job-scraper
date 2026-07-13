@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ChevronDown } from 'lucide-react'
-import type { Job, FiltersResponse, JobListResponse } from '../api/client'
+import { ChevronDown, Star } from 'lucide-react'
+import type { Job, FiltersResponse, JobListResponse, TierTab } from '../api/client'
 import {
   DEFAULT_FILTERS, fetchJobs, fetchFilters, fetchStats,
   filtersToSearchParams, searchParamsToFilters,
@@ -26,6 +26,12 @@ const SORT_OPTIONS = [
   { value: 'company', label: 'Company A–Z' },
 ]
 
+const TIER_TABS: { value: TierTab; label: string; star?: boolean }[] = [
+  { value: 'all', label: 'All jobs' },
+  { value: 'boutique', label: 'Exclusive', star: true },
+  { value: 'mainstream', label: 'Mainstream' },
+]
+
 export default function JobBoardPage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -41,15 +47,19 @@ export default function JobBoardPage() {
   const [filterData, setFilterData] = useState<FiltersResponse | null>(null)
   const [result, setResult] = useState<JobListResponse | null>(null)
   const [boardTotal, setBoardTotal] = useState<number | null>(null) // unfiltered active total
+  const [tierCounts, setTierCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
 
-  const { savedList, toggle: toggleSave, isSaved, count: savedCount } = useSavedJobs()
+  const { toggle: toggleSave, isSaved, count: savedCount } = useSavedJobs()
 
   // Load filter options + unfiltered board total once
   useEffect(() => {
     fetchFilters().then(setFilterData).catch(console.error)
-    fetchStats().then(s => setBoardTotal(s.total_active_jobs)).catch(console.error)
+    fetchStats().then(s => {
+      setBoardTotal(s.total_active_jobs)
+      setTierCounts(s.by_source_tier ?? {})
+    }).catch(console.error)
   }, [])
 
   // Build the active filters object substituting debounced search
@@ -60,7 +70,7 @@ export default function JobBoardPage() {
   useEffect(() => {
     const p = filtersToSearchParams(activeFilters, sort, page)
     setSearchParams(p, { replace: true })
-  }, [debouncedSearch, filters.sectors, filters.companies, filters.seniority,
+  }, [debouncedSearch, filters.tier, filters.sectors, filters.companies, filters.seniority,
       filters.remote_type, filters.skills, filters.salary_min, filters.salary_max,
       filters.salary_disclosed_only, filters.exp_min, filters.exp_max,
       filters.is_internship, sort, page])
@@ -72,7 +82,7 @@ export default function JobBoardPage() {
       .then(setResult)
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [debouncedSearch, filters.sectors, filters.companies, filters.seniority,
+  }, [debouncedSearch, filters.tier, filters.sectors, filters.companies, filters.seniority,
       filters.remote_type, filters.skills, filters.salary_min, filters.salary_max,
       filters.salary_disclosed_only, filters.exp_min, filters.exp_max,
       filters.is_internship, sort, page])
@@ -128,15 +138,6 @@ export default function JobBoardPage() {
                 Financial Careers Index
               </h1>
             </div>
-            {result && !loading && (
-              <p
-                className="text-sm tabular-nums"
-                style={{ color: 'rgba(248,250,252,0.5)', fontFamily: 'var(--font-mono)' }}
-              >
-                {total.toLocaleString()} of{' '}
-                {(boardTotal ?? total).toLocaleString()} roles
-              </p>
-            )}
           </div>
         </div>
       </section>
@@ -152,6 +153,64 @@ export default function JobBoardPage() {
 
       {/* ── Main content ────────────────────────────────────── */}
       <main id="main-content" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+
+        {/* Tier tabs: All / Exclusive / Mainstream — segmented control */}
+        <div
+          role="tablist"
+          aria-label="Job tier"
+          className="inline-flex flex-wrap items-stretch gap-1.5 mb-6 p-1.5 rounded-xl"
+          style={{
+            backgroundColor: 'var(--color-surface-2)',
+            border: '1px solid var(--color-border-strong)',
+            boxShadow: 'var(--shadow-card)',
+          }}
+        >
+          {TIER_TABS.map(tab => {
+            const selected = filters.tier === tab.value
+            const count = tab.value === 'all'
+              ? (boardTotal ?? undefined)
+              : tierCounts[tab.value]
+            return (
+              <button
+                key={tab.value}
+                role="tab"
+                aria-selected={selected}
+                onClick={() => updateFilters({ tier: tab.value })}
+                className="tier-tab inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer outline-none"
+                style={{
+                  backgroundColor: selected ? 'var(--color-ink)' : 'transparent',
+                  color: selected ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
+                  boxShadow: selected ? 'var(--shadow-raised)' : 'none',
+                  border: `1px solid ${selected ? 'var(--color-ink)' : 'transparent'}`,
+                }}
+              >
+                {tab.star && (
+                  <Star
+                    size={15}
+                    strokeWidth={2.25}
+                    style={{ color: 'var(--color-gold-star, #E0A106)' }}
+                    fill="var(--color-gold-star, #E0A106)"
+                    aria-hidden="true"
+                  />
+                )}
+                {tab.label}
+                {count != null && (
+                  <span
+                    className="tabular-nums text-xs font-bold rounded-full px-2 py-0.5 min-w-[1.5rem] text-center"
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      backgroundColor: selected ? 'rgba(255,255,255,0.16)' : 'var(--color-surface)',
+                      color: selected ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
+                      border: selected ? '1px solid rgba(255,255,255,0.12)' : '1px solid var(--color-border)',
+                    }}
+                  >
+                    {count.toLocaleString()}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
 
         {/* Results header */}
         <div className="flex items-center justify-between mb-5">

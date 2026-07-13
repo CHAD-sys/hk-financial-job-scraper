@@ -44,6 +44,8 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
   const sectorColor = getSectorColor(job.sector)
   const senColor = getSeniorityColor(job.seniority)
   const d = detail ?? job
+  // Prefer the AI English title (Chinese postings); fall back to the original.
+  const displayTitle = d.title_en || d.title
   const salary = formatSalary(d.salary_hkd_min, d.salary_hkd_max)
   // AI estimate only when no disclosed salary.
   const estimatedSalary = salary
@@ -65,7 +67,7 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={job.title}
+        aria-label={displayTitle}
         className="fixed right-0 bottom-0 z-50 flex flex-col overflow-hidden"
         style={{
           top: 'var(--nav-height)',                       // start below the sticky nav
@@ -113,7 +115,7 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
                 letterSpacing: '-0.01em',
               }}
             >
-              {job.title}
+              {displayTitle}
             </h2>
             <p className="text-sm font-medium" style={{ color: 'var(--color-ink-muted)' }}>
               {job.company}
@@ -181,7 +183,6 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
                 style={{
                   backgroundColor: 'var(--color-gold-light)',
                   border: '1px solid var(--color-gold)',
-                  borderOpacity: '0.3',
                 }}
               >
                 <DollarSign size={18} style={{ color: 'var(--color-gold)' }} strokeWidth={1.8} />

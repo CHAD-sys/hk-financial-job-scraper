@@ -116,6 +116,8 @@ class JobSummary(BaseModel):
     company: str
     sector: str
     title: str
+    title_en: Optional[str]
+    source_tier: str
     locations: list[str]
     seniority: Optional[str]
     job_category: Optional[str]
@@ -176,6 +178,7 @@ class StatsResponse(BaseModel):
     by_sector: dict[str, int]
     by_seniority: dict[str, int]
     by_remote_type: dict[str, int]
+    by_source_tier: dict[str, int]
     top_skills: list[NameCount]
     top_companies: list[NameCount]
     internship_count: int
@@ -202,6 +205,8 @@ def _row_to_summary(row: sqlite3.Row) -> JobSummary:
         company=row["company"],
         sector=row["sector"],
         title=row["title"],
+        title_en=row["title_en"],
+        source_tier=row["source_tier"] or "mainstream",
         locations=_parse_json_list(row["locations"]),
         seniority=row["seniority"],
         job_category=row["job_category"],
@@ -229,6 +234,7 @@ BASE_SELECT = f"""
     j.company,
     j.url,
     j.title,
+    j.source_tier,
     j.locations,
     j.description_clean,
     j.posted_at,
@@ -243,6 +249,7 @@ BASE_SELECT = f"""
     e.salary_estimated_confidence,
     e.years_experience_required,
     e.description_summary,
+    e.title_en,
     ({SECTOR_SQL}) AS sector,
     ({INTERNSHIP_SQL}) AS is_internship
   FROM jobs j
@@ -264,9 +271,16 @@ def _build_where(
     exp_max: Optional[int],
     posted_within_days: Optional[int],
     is_internship: Optional[bool],
+    tier: Optional[str] = None,
 ) -> tuple[str, list]:
     conditions: list[str] = ["j.is_active = 1"]
     params: list = []
+
+    # Tier tabs: 'boutique' = the Exclusive section (longtail companies scraped via
+    # LLM extraction), 'mainstream' = structured job-board sources. 'all'/None = both.
+    if tier in ("boutique", "mainstream"):
+        conditions.append("j.source_tier = ?")
+        params.append(tier)
 
     if search:
         conditions.append("(LOWER(j.title) LIKE ? OR LOWER(j.company) LIKE ?)")
@@ -386,6 +400,7 @@ def list_jobs(
     exp_max: Optional[int] = Query(None, description="Maximum years experience"),
     posted_within_days: Optional[int] = Query(None, description="Posted within N days"),
     is_internship: Optional[bool] = Query(None, description="Filter internships only"),
+    tier: Optional[str] = Query(None, description="Tier tab: boutique (Exclusive) | mainstream | all"),
     sort: str = Query("newest", description="Sort: newest | salary_high | salary_low | company"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(24, ge=1, le=100, description="Results per page"),
@@ -407,6 +422,7 @@ def list_jobs(
     where_sql, params = _build_where(
         search, sectors, companies, seniority, remote_type, skills,
         salary_min, salary_max, exp_min, exp_max, posted_within_days, is_internship,
+        tier,
     )
 
     offset = (page - 1) * page_size
@@ -582,6 +598,13 @@ def get_stats():
         ).fetchall()
         by_remote_type = {r["remote_type"]: r["cnt"] for r in rem_raw}
 
+        # By source tier (powers the All / Exclusive / Mainstream tabs)
+        tier_raw = conn.execute(
+            "SELECT COALESCE(source_tier, 'mainstream') AS tier, COUNT(*) AS cnt"
+            " FROM jobs WHERE is_active=1 GROUP BY tier"
+        ).fetchall()
+        by_source_tier = {r["tier"]: r["cnt"] for r in tier_raw}
+
         # Top 15 skills
         skills_raw = conn.execute(
             """
@@ -616,6 +639,7 @@ def get_stats():
         by_sector=by_sector,
         by_seniority=by_seniority,
         by_remote_type=by_remote_type,
+        by_source_tier=by_source_tier,
         top_skills=top_skills,
         top_companies=top_companies,
         internship_count=intern_count,

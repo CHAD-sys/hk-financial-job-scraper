@@ -245,3 +245,29 @@ def migrate_to_phase_17(db_path: str) -> None:
             logger.debug("Phase 17 migration: category already exists")
     finally:
         conn.close()
+
+
+def migrate_to_phase_18(db_path: str) -> None:
+    """
+    Add title_en column to job_enrichments.
+
+    Holds an English version of the job title, produced by the SAME DeepSeek
+    enrichment call (no extra API pass). Many boutique/"Exclusive" postings have
+    Traditional/Simplified Chinese titles; title_en carries a faithful English
+    translation, or the original title verbatim when it is already English.
+
+    Deliberately a NEW column: the original title on the jobs table is left
+    untouched so the source-language title is always preserved. The frontend
+    displays title_en when present and falls back to the original title.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(job_enrichments)").fetchall()}
+        if "title_en" not in cols:
+            with conn:
+                conn.execute("ALTER TABLE job_enrichments ADD COLUMN title_en TEXT")
+            logger.info("Phase 18 migration: added title_en column to job_enrichments")
+        else:
+            logger.debug("Phase 18 migration: title_en already exists")
+    finally:
+        conn.close()

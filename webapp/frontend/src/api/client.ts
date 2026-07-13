@@ -8,6 +8,8 @@ export interface Job {
   company: string
   sector: string
   title: string
+  title_en: string | null
+  source_tier: string
   locations: string[]
   seniority: string | null
   job_category: string | null
@@ -58,12 +60,16 @@ export interface StatsResponse {
   by_sector: Record<string, number>
   by_seniority: Record<string, number>
   by_remote_type: Record<string, number>
+  by_source_tier: Record<string, number>
   top_skills: NameCount[]
   top_companies: NameCount[]
   internship_count: number
 }
 
+export type TierTab = 'all' | 'boutique' | 'mainstream'
+
 export interface JobFilters {
+  tier: TierTab
   search: string
   sectors: string[]
   companies: string[]
@@ -79,6 +85,7 @@ export interface JobFilters {
 }
 
 export const DEFAULT_FILTERS: JobFilters = {
+  tier: 'all',
   search: '',
   sectors: [],
   companies: [],
@@ -103,6 +110,7 @@ export async function fetchJobs(
 ): Promise<JobListResponse> {
   const p = new URLSearchParams()
 
+  if (filters.tier !== 'all') p.set('tier', filters.tier)
   if (filters.search) p.set('search', filters.search)
   filters.sectors.forEach(s => p.append('sectors', s))
   filters.companies.forEach(c => p.append('companies', c))
@@ -161,6 +169,7 @@ export function filtersToSearchParams(
   page: number,
 ): URLSearchParams {
   const p = new URLSearchParams()
+  if (filters.tier !== 'all') p.set('tier', filters.tier)
   if (filters.search) p.set('q', filters.search)
   filters.sectors.forEach(s => p.append('sector', s))
   filters.companies.forEach(c => p.append('company', c))
@@ -181,8 +190,10 @@ export function filtersToSearchParams(
 export function searchParamsToFilters(
   p: URLSearchParams,
 ): { filters: JobFilters; sort: string; page: number } {
+  const tierParam = p.get('tier')
   return {
     filters: {
+      tier: (tierParam === 'boutique' || tierParam === 'mainstream') ? tierParam : 'all',
       search: p.get('q') ?? '',
       sectors: p.getAll('sector'),
       companies: p.getAll('company'),

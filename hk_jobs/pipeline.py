@@ -526,6 +526,16 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     p.add_argument(
+        "--enrich-boutique",
+        dest="enrich_boutique",
+        action="store_true",
+        help=(
+            "Re-enrich only the boutique/\"Exclusive\" jobs (those with a category set). "
+            "Reprocesses existing rows so the v4 translation prompt reaches the many "
+            "Chinese-language boutique postings. Implies --enrich; upserts via ON CONFLICT."
+        ),
+    )
+    p.add_argument(
         "--repair-companies",
         dest="repair_companies",
         action="store_true",
@@ -576,7 +586,7 @@ def main(argv: list[str] | None = None) -> None:
     if not getattr(args, "dry_run", False):
         from hk_jobs.migrations import (
             migrate_to_phase_11, migrate_to_phase_12, migrate_to_phase_13, migrate_to_phase_14,
-            migrate_to_phase_15, migrate_to_phase_16, migrate_to_phase_17,
+            migrate_to_phase_15, migrate_to_phase_16, migrate_to_phase_17, migrate_to_phase_18,
         )
         Path(args.db).parent.mkdir(parents=True, exist_ok=True)
         migrate_to_phase_11(args.db)
@@ -586,6 +596,7 @@ def main(argv: list[str] | None = None) -> None:
         migrate_to_phase_15(args.db)
         migrate_to_phase_16(args.db)
         migrate_to_phase_17(args.db)
+        migrate_to_phase_18(args.db)
 
     # --weekly-report: send Monday trend report email (no scraping).
     if getattr(args, "weekly_report", False):
@@ -617,13 +628,14 @@ def main(argv: list[str] | None = None) -> None:
             logger.info("Exported %d trend records → %s", count, args.export_trends)
         return
 
-    # --enrich: LLM enrichment pass, no scraping.
-    if getattr(args, "enrich", False):
+    # --enrich / --enrich-boutique: LLM enrichment pass, no scraping.
+    if getattr(args, "enrich", False) or getattr(args, "enrich_boutique", False):
         from hk_jobs.enrichment import EnrichmentPipeline
         EnrichmentPipeline(db_path=args.db).run(
             limit=getattr(args, "enrich_limit", None),
             incremental=getattr(args, "incremental", False),
             re_enrich=getattr(args, "re_enrich", False),
+            boutique_only=getattr(args, "enrich_boutique", False),
         )
         return
 

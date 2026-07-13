@@ -60,3 +60,10 @@ data/jobs.db-wal
 # graphify local cache (keep graph artifacts, drop cache)
 graphify-out/cache/
 graphify-out/.graphify_*
+
+# PocketBase (verification mirror) — binary + local data, not source
+pocketbase/
+pb_data_export_*.tar.gz
+
+# Third-party salary guide PDF (copyrighted, large) — keep the derived .md doc only
+salary_guidlines/*.pdf

@@ -11,8 +11,6 @@ export default function Nav({ savedCount = 0 }: Props) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
 
-  const isBoard = pathname.startsWith('/jobs')
-
   return (
     <header
       style={{ backgroundColor: 'var(--color-nav)', zIndex: 200 }}

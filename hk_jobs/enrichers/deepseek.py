@@ -1,10 +1,21 @@
 """
-DeepSeek LLM enricher — v3: includes job description for richer skill extraction.
+DeepSeek LLM enricher — v4: adds English translation of Chinese postings.
 
 v1: title-only, 500 max_tokens
 v2: title-only, 250 max_tokens, 20 concurrent workers
 v3: title + description (capped 2 000 chars clean text), 350 max_tokens
     — skills coverage expected to jump from 75% → 90%+
+v4: many boutique/"Exclusive" postings arrive with Mandarin/Cantonese titles
+    and descriptions. The model now (a) returns an English `title_en` for every
+    job (translating faithfully when the source is Chinese, verbatim when it is
+    already English) and (b) always writes `description_summary` in clean English
+    regardless of the source language, reviewing garbled/mixed-language text
+    rather than parroting it. `title` and `description_clean` in the DB are left
+    untouched — the original is always preserved.
+v5: salary estimator recalibrated to the 2026 Hays Asia Salary Guide (HK). Adds a
+    function-tier step (front / commercial / middle / back office) and much lower,
+    Hays-anchored monthly bands — the old benchmarks over-estimated by 2-3x at
+    senior levels. See salary_guidlines/HK_FINANCE_SALARY_GUIDELINES.md.
 
 API key: set DEEPSEEK_API_KEY env var.
 """
@@ -56,19 +67,48 @@ If found, use those EXACT figures as the estimate — they OVERRIDE the Step 1 c
 Step 3 benchmarks. (e.g. description says "HK$3,000-5,000/month" → min 3000, max 5000.)
 
 STEP 3 — Only if NO salary is stated in the description, estimate from market. Apply the
-Step 1 role-type cap FIRST, then these full-time monthly BASE benchmarks (2026,
-banking/investment-banking baseline):
-- Junior analyst / associate: 25,000-45,000
-- Mid-level / AVP: 60,000-100,000
-- Senior / VP: 150,000-300,000
-- Director / ED: 300,000-600,000
-- MD / C-suite: 400,000-900,000
-Sector adjustments vs that IB baseline (same level): insurance / asset management ~25% lower;
-Big 4 / professional services ~35% lower; virtual banks / fintech ~10-20% lower;
-digital assets / crypto wide, 30,000-200,000 by seniority.
-Company-tier scaling within a band: Tier 1 (Goldman, JPMorgan, HSBC, BlackRock, Morgan
-Stanley) upper 30%; Tier 2 (Standard Chartered, DBS, Macquarie, Citi) mid; Tier 3
-(smaller / regional / virtual banks) lower 30%.
+Step 1 role-type cap FIRST. These are full-time monthly BASE benchmarks for Hong Kong,
+calibrated to the 2026 Hays Asia Salary Guide (HK). Do NOT overshoot them — historically
+this estimator ran too high, especially at senior levels.
+
+STEP 3a — Detect the FUNCTION TIER (this matters as much as the level; the same title
+pays very differently by desk):
+- FRONT OFFICE — investment banking / M&A / corporate finance, private equity, hedge
+  funds, asset management (fund manager / portfolio / research / buy-side sales), global
+  markets / trading, private banking relationship managers. Highest pay.
+- COMMERCIAL / RETAIL BANKING — corporate / commercial / SME / FI relationship managers,
+  wealth managers, branch roles. Mid pay.
+- MIDDLE OFFICE — risk (credit / market / operational / enterprise), compliance, internal
+  audit. Below front office at the same title.
+- BACK OFFICE / OPERATIONS — treasury / trade / payment / fund / securities operations,
+  KYC / documentation, loan admin, settlements. Lowest of the professional bands.
+- CORPORATE FINANCE & ACCOUNTING (in-house FP&A, controller, finance manager) and BIG 4 /
+  PROFESSIONAL SERVICES / INSURANCE — use the middle-office ladder.
+CRITICAL: most postings are NOT front-office IB. When the tier is unclear, DEFAULT to the
+DEFAULT ladder below (middle/back-office & commercial), never the front-office one.
+
+STEP 3b — DEFAULT ladder (monthly BASE HK$) — middle/back office, commercial/retail
+banking, in-house finance, insurance, professional services (the majority of jobs):
+- Entry / Analyst / Officer (0-2 yrs, seniority "junior"):     18,000-35,000
+- Associate / Senior Analyst (2-5 yrs, "mid"):                 30,000-55,000
+- AVP / Manager (5-8 yrs, "mid"-"senior"):                     45,000-80,000
+- VP / Senior Manager (8-12 yrs, "senior"):                    65,000-110,000
+- SVP / Director / Department Head (12-18 yrs, "lead"):        100,000-160,000
+- MD / Head / C-suite (18+ yrs, "lead"):                       150,000-300,000
+Pure operational / branch / teller / admin / insurance-agent floor: 16,000-30,000 entry.
+
+STEP 3c — FRONT-OFFICE ladder (use ONLY when Step 3a says front office). Higher:
+- Analyst (seniority "junior"):        40,000-85,000
+- Associate ("mid"):                   75,000-130,000
+- VP ("senior"):                       120,000-170,000
+- Director / ED ("lead"):              165,000-250,000
+- MD / Head ("lead"):                  250,000-500,000
+(Fund managers, senior traders, senior private bankers sit at the top of these bands.)
+
+STEP 3d — Employer adjustment within the chosen band: Tier-1 / bulge-bracket (Goldman,
+JPMorgan, Morgan Stanley, HSBC, BlackRock) upper third; Tier-2 (Standard Chartered, DBS,
+Macquarie, Citi) middle; Tier-3 / regional / virtual banks / fintech lower third.
+Digital assets / crypto are wide and volatile: 30,000-200,000 by seniority.
 
 salary_estimated_max: same three-step logic — upper bound of a stated range if found,
 else 20-40% above salary_estimated_min; respect the same role-type caps.
@@ -80,16 +120,41 @@ salary_estimated_confidence:
 - "medium" = not stated, but role type + seniority + company are clear
 - "low"    = not stated, and role type is ambiguous or context is thin"""
 
+# Translation instructions. Many boutique/"Exclusive" HK postings are written in
+# Traditional Chinese (Cantonese) or Mandarin, sometimes mixed with English. Every
+# text field the model RETURNS must be in English; the ORIGINAL title/description
+# stored in the DB are never touched.
+_TRANSLATION_INSTRUCTIONS = """\
+LANGUAGE — read carefully. The title and description may be in Traditional Chinese
+(Cantonese), Simplified Chinese (Mandarin), or a mix of Chinese and English.
+- "title_en": an accurate, natural English version of the job TITLE.
+  * If the title is already entirely in English, copy it VERBATIM — do not paraphrase,
+    reword, expand, or "improve" it.
+  * If it contains ANY Chinese, translate the whole title faithfully into idiomatic
+    English (e.g. "財富管理客戶經理" → "Wealth Management Relationship Manager",
+    "高級核數師" → "Senior Auditor"). Translate the meaning, do not transliterate.
+  * Keep well-known company names, product names, and industry acronyms (AML, CFA, VP,
+    HKMA, SFC) as-is. Do not add a location or seniority that is not in the original.
+- Every OTHER text value you return (skills, description_summary) must ALSO be in
+  English, translated from the Chinese where necessary."""
+
 # Description-summary instructions. Produced in the SAME call as everything else
 # (no extra API pass). Kept deliberately short so it fits ~3 lines on a job card.
+# v4: also acts as a light "review" pass — the summary must be clean English even
+# when the source description is Chinese, mixed-language, or garbled.
 _SUMMARY_INSTRUCTIONS = """\
-For "description_summary": write a condensed summary of the job description in plain prose.
+For "description_summary": write a condensed summary of the job description in plain,
+natural ENGLISH prose — translating from Chinese where the description is not in English.
 STRICT rules:
 - Maximum 3 sentences AND no more than about 50 words total. Keep it short enough for ~3 card lines.
 - Plain prose only: no bullet points, no markdown, no line breaks, no headings.
 - Factual and neutral: summarise the actual role and key responsibilities. Do NOT add hype,
   adjectives of praise, opinions, or any detail not present in the description.
-- If the description is empty or missing, return an empty string "" — never invent a summary."""
+- REVIEW the source text: if it is partly garbled, has broken encoding, or mixes languages,
+  summarise only the parts you can read clearly and confidently — never copy garbled fragments,
+  raw HTML, or untranslated Chinese into the summary.
+- If the description is empty, missing, or nothing in it is legible, return an empty string ""
+  — never invent, guess, or hallucinate a summary."""
 
 _PROMPT_WITH_DESC = """\
 Extract structured data from this Hong Kong job posting. Return ONLY valid JSON, no markdown.
@@ -101,6 +166,7 @@ Description:
 
 Return exactly this JSON:
 {{
+  "title_en": "<English job title, see LANGUAGE rules below>",
   "seniority": "junior|mid|senior|lead",
   "years_experience": <integer or null>,
   "skills": ["skill1", "skill2", ...],
@@ -111,8 +177,10 @@ Return exactly this JSON:
   "salary_estimated_min": <integer or null>,
   "salary_estimated_max": <integer or null>,
   "salary_estimated_confidence": "low|medium|high" or null,
-  "description_summary": "<short neutral summary, see rules below>"
+  "description_summary": "<short neutral English summary, see rules below>"
 }}
+
+{translation_instructions}
 
 For "skills": extract 7-10 specific skills from the description. Cover all categories present:
 - Technical/domain: AML, derivatives, IFRS, credit analysis, actuarial, treasury, FX, fixed income
@@ -134,6 +202,7 @@ Title: {title}
 
 Return exactly this JSON:
 {{
+  "title_en": "<English job title, see LANGUAGE rules below>",
   "seniority": "junior|mid|senior|lead",
   "years_experience": <integer or null>,
   "skills": ["skill1", "skill2", ...],
@@ -146,6 +215,8 @@ Return exactly this JSON:
   "salary_estimated_confidence": "low|medium|high" or null,
   "description_summary": ""
 }}
+
+{translation_instructions}
 
 For "skills": infer 3-5 skills from the title — domain expertise, likely tools or certifications.
 
@@ -205,15 +276,18 @@ class DeepSeekEnricher:
             desc_text = description.strip()[:_DESC_MAX_CHARS]
             prompt = _PROMPT_WITH_DESC.format(
                 company=company, title=title, description=desc_text,
+                translation_instructions=_TRANSLATION_INSTRUCTIONS,
                 salary_instructions=_SALARY_INSTRUCTIONS,
                 summary_instructions=_SUMMARY_INSTRUCTIONS,
             )
-            max_tokens = 550   # +salary +~50-word summary; headroom over ~380 actual output
+            max_tokens = 620   # +title_en +salary +~50-word summary; headroom over actual output
         else:
             prompt = _PROMPT_TITLE_ONLY.format(
-                company=company, title=title, salary_instructions=_SALARY_INSTRUCTIONS,
+                company=company, title=title,
+                translation_instructions=_TRANSLATION_INSTRUCTIONS,
+                salary_instructions=_SALARY_INSTRUCTIONS,
             )
-            max_tokens = 350
+            max_tokens = 400
 
         with httpx.Client(timeout=60.0) as client:
             resp = client.post(

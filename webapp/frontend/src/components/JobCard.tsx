@@ -1,4 +1,4 @@
-import { Bookmark, MapPin, Clock } from 'lucide-react'
+import { Bookmark, MapPin, Clock, Star } from 'lucide-react'
 import type { Job } from '../api/client'
 import {
   formatSalary, formatEstimatedSalary, timeAgo, monogram,
@@ -18,6 +18,8 @@ const SKILL_LIMIT = 4
 export default function JobCard({ job, saved, onToggleSave, onClick }: Props) {
   const sectorColor = getSectorColor(job.sector)
   const senColor = getSeniorityColor(job.seniority)
+  // Prefer the AI English title (Chinese postings); fall back to the original.
+  const displayTitle = job.title_en || job.title
   const salary = formatSalary(job.salary_hkd_min, job.salary_hkd_max)
   // Fall back to the AI estimate only when no salary is disclosed.
   const estimatedSalary = salary
@@ -47,7 +49,7 @@ export default function JobCard({ job, saved, onToggleSave, onClick }: Props) {
         el.style.borderColor = 'var(--color-border)'
         el.style.transform = 'translateY(0)'
       }}
-      aria-label={`${job.title} at ${job.company}`}
+      aria-label={`${displayTitle} at ${job.company}`}
     >
       {/* Sector accent bar */}
       <div
@@ -81,18 +83,35 @@ export default function JobCard({ job, saved, onToggleSave, onClick }: Props) {
             >
               {job.company}
             </p>
-            {/* Sector label */}
-            <span
-              className="inline-block mt-0.5 text-xs font-medium rounded-sm px-1.5 py-0.5"
-              style={{
-                backgroundColor: sectorColor.bg,
-                color: sectorColor.text,
-                fontSize: '10px',
-                letterSpacing: '0.04em',
-              }}
-            >
-              {job.sector}
-            </span>
+            {/* Sector label + Exclusive badge */}
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span
+                className="inline-block text-xs font-medium rounded-sm px-1.5 py-0.5"
+                style={{
+                  backgroundColor: sectorColor.bg,
+                  color: sectorColor.text,
+                  fontSize: '10px',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                {job.sector}
+              </span>
+              {job.source_tier === 'boutique' && (
+                <span
+                  className="inline-flex items-center gap-0.5 rounded-sm px-1.5 py-0.5 font-semibold"
+                  style={{
+                    backgroundColor: 'var(--color-gold-light, rgba(201,162,74,0.12))',
+                    color: 'var(--color-gold)',
+                    fontSize: '10px',
+                    letterSpacing: '0.04em',
+                  }}
+                  title="Exclusive listing — sourced directly from a boutique firm's careers page"
+                >
+                  <Star size={10} strokeWidth={2} fill="currentColor" aria-hidden="true" />
+                  Exclusive
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -128,7 +147,7 @@ export default function JobCard({ job, saved, onToggleSave, onClick }: Props) {
           letterSpacing: '-0.01em',
         }}
       >
-        {job.title}
+        {displayTitle}
       </h3>
 
       {/* Meta row */}

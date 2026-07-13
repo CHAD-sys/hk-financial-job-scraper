@@ -50,11 +50,13 @@ export default function MultiSelect({
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-all duration-150 cursor-pointer whitespace-nowrap"
+        data-active={isActive}
+        className="filter-pill flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer whitespace-nowrap outline-none"
         style={{
-          backgroundColor: isActive ? 'var(--color-ink)' : 'var(--color-surface)',
+          backgroundColor: isActive ? 'var(--color-ink)' : 'var(--color-surface-2)',
           color: isActive ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
-          border: `1px solid ${isActive ? 'var(--color-ink)' : 'var(--color-border)'}`,
+          border: `1px solid ${isActive ? 'var(--color-ink)' : 'var(--color-border-strong)'}`,
+          boxShadow: isActive ? 'var(--shadow-card)' : 'none',
         }}
         aria-haspopup="listbox"
         aria-expanded={open}

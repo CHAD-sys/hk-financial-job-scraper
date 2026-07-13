@@ -20,6 +20,7 @@
 
   --color-gold:          #9A6F00;
   --color-gold-light:    #FBF0D3;
+  --color-gold-star:     #E0A106;  /* brighter gold for the Exclusive star, legible on navy */
   --color-blue:          #1E3A8A;
   --color-blue-light:    #DBEAFE;
 
@@ -72,3 +73,27 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── Segmented tier tabs (All / Exclusive / Mainstream …) ─────── */
+.tier-tab {
+  transition: background-color 160ms var(--ease-out-expo), color 160ms,
+              box-shadow 160ms, transform 120ms, border-color 160ms;
+}
+.tier-tab[aria-selected="false"]:hover {
+  background-color: var(--color-surface) !important;
+  color: var(--color-ink) !important;
+  box-shadow: var(--shadow-card) !important;
+  border-color: var(--color-border) !important;
+}
+.tier-tab:active { transform: scale(0.97); }
+
+/* ── Filter pills (sector / level / work-type / internships) ──── */
+.filter-pill {
+  transition: background-color 150ms, color 150ms, border-color 150ms, transform 120ms;
+}
+.filter-pill[data-active="false"]:hover {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border-strong) !important;
+  color: var(--color-ink) !important;
+}
+.filter-pill:active { transform: scale(0.96); }

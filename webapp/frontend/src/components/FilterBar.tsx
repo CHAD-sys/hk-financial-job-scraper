@@ -1,5 +1,6 @@
-import { Search, X, SlidersHorizontal } from 'lucide-react'
+import { Search, X, SlidersHorizontal, ChevronDown } from 'lucide-react'
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import type { JobFilters, FiltersResponse } from '../api/client'
 import MultiSelect from './MultiSelect'
 
@@ -14,7 +15,7 @@ interface Props {
 const SECTORS = ['Banking', 'Insurance', 'Asset Management', 'Investment Banking', 'Professional Services', 'Digital Assets']
 
 export default function FilterBar({ filters, filterData, activeCount, onUpdate, onClear }: Props) {
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const [showAllFilters, setShowAllFilters] = useState(false)
 
   const toggleSector = (s: string) => {
     const next = filters.sectors.includes(s)
@@ -79,10 +80,10 @@ export default function FilterBar({ filters, filterData, activeCount, onUpdate, 
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 
-        {/* Row 1: Search + mobile toggle */}
-        <div className="flex items-center gap-3 py-3">
+        {/* Row 1: Search + More-filters toggle + clear */}
+        <div className="flex items-center gap-3 py-3.5">
           {/* Search */}
-          <div className="relative flex-1 max-w-sm">
+          <div className="relative flex-1 max-w-md">
             <Search
               size={15}
               className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -93,45 +94,60 @@ export default function FilterBar({ filters, filterData, activeCount, onUpdate, 
               value={filters.search}
               onChange={e => onUpdate({ search: e.target.value })}
               placeholder="Search roles, companies…"
-              className="w-full rounded pl-9 pr-3 py-2 text-sm outline-none transition-all duration-150"
+              className="w-full rounded-md pl-9 pr-3 py-2 text-sm outline-none transition-all duration-150"
               style={{
                 backgroundColor: 'var(--color-surface-2)',
-                border: '1px solid var(--color-border)',
+                border: '1px solid var(--color-border-strong)',
                 color: 'var(--color-ink)',
               }}
-              onFocus={e => (e.currentTarget.style.borderColor = 'var(--color-ring)')}
-              onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
+              onFocus={e => {
+                e.currentTarget.style.borderColor = 'var(--color-ring)'
+                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(30,58,138,0.12)'
+                e.currentTarget.style.backgroundColor = 'var(--color-surface)'
+              }}
+              onBlur={e => {
+                e.currentTarget.style.borderColor = 'var(--color-border-strong)'
+                e.currentTarget.style.boxShadow = 'none'
+                e.currentTarget.style.backgroundColor = 'var(--color-surface-2)'
+              }}
             />
           </div>
 
-          {/* Mobile: filter toggle button */}
+          {/* More-filters toggle (all viewports) */}
           <button
-            className="md:hidden flex items-center gap-1.5 rounded px-3 py-2 text-sm font-medium transition-colors duration-150 cursor-pointer"
+            onClick={() => setShowAllFilters(o => !o)}
+            data-active={showAllFilters || activeCount > 0}
+            aria-expanded={showAllFilters}
+            className="filter-pill flex items-center gap-1.5 rounded-md px-3.5 py-2 text-xs font-semibold cursor-pointer outline-none whitespace-nowrap"
             style={{
-              border: '1px solid var(--color-border)',
-              backgroundColor: activeCount > 0 ? 'var(--color-ink)' : 'var(--color-surface)',
-              color: activeCount > 0 ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
+              border: `1px solid ${showAllFilters || activeCount > 0 ? 'var(--color-ink)' : 'var(--color-border-strong)'}`,
+              backgroundColor: showAllFilters || activeCount > 0 ? 'var(--color-ink)' : 'var(--color-surface-2)',
+              color: showAllFilters || activeCount > 0 ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
+              boxShadow: showAllFilters || activeCount > 0 ? 'var(--shadow-card)' : 'none',
             }}
-            onClick={() => setMobileOpen(o => !o)}
-            aria-expanded={mobileOpen}
           >
             <SlidersHorizontal size={14} />
-            Filters
+            <span className="hidden sm:inline">{showAllFilters ? 'Hide filters' : 'More filters'}</span>
+            <span className="sm:hidden">Filters</span>
             {activeCount > 0 && (
               <span
-                className="flex h-4 w-4 items-center justify-center rounded-full text-xs font-bold"
-                style={{ backgroundColor: 'var(--color-gold)', color: '#fff' }}
+                className="flex h-4 min-w-4 px-1 items-center justify-center rounded-full text-[10px] font-bold"
+                style={{ backgroundColor: 'var(--color-gold-star)', color: 'var(--color-nav)' }}
               >
                 {activeCount}
               </span>
             )}
+            <ChevronDown
+              size={14}
+              style={{ transform: showAllFilters ? 'rotate(180deg)' : 'none', transition: 'transform 150ms' }}
+            />
           </button>
 
-          {/* Desktop: right-side clear */}
+          {/* Right-side clear */}
           {activeCount > 0 && (
             <button
               onClick={onClear}
-              className="hidden md:flex items-center gap-1.5 text-xs font-medium transition-colors duration-150 cursor-pointer ml-auto"
+              className="hidden md:flex items-center gap-1.5 text-xs font-medium transition-colors duration-150 cursor-pointer"
               style={{ color: 'var(--color-ink-muted)' }}
               onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-ink)')}
               onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-ink-muted)')}
@@ -142,135 +158,139 @@ export default function FilterBar({ filters, filterData, activeCount, onUpdate, 
           )}
         </div>
 
-        {/* Row 2: Filter controls (hidden on mobile until toggle) */}
-        <div className={`${mobileOpen ? 'flex' : 'hidden md:flex'} flex-wrap items-center gap-2 pb-3`}>
-
-          {/* Sector pills */}
-          <div className="flex flex-wrap gap-1.5">
+        {/* Row 2: Primary sector filter — always visible */}
+        <div className="pb-3.5">
+          <FilterRow label="Sector">
             {SECTORS.map(s => {
               const active = filters.sectors.includes(s)
               return (
                 <button
                   key={s}
                   onClick={() => toggleSector(s)}
-                  className="rounded px-3 py-1 text-xs font-medium transition-all duration-150 cursor-pointer"
+                  data-active={active}
+                  aria-pressed={active}
+                  className="filter-pill rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer outline-none"
                   style={{
                     backgroundColor: active ? 'var(--color-ink)' : 'var(--color-surface-2)',
                     color: active ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
-                    border: `1px solid ${active ? 'var(--color-ink)' : 'var(--color-border)'}`,
+                    border: `1px solid ${active ? 'var(--color-ink)' : 'var(--color-border-strong)'}`,
+                    boxShadow: active ? 'var(--shadow-card)' : 'none',
                   }}
                 >
                   {s}
                 </button>
               )
             })}
-          </div>
-
-          {/* Divider */}
-          <div className="hidden md:block h-5 w-px" style={{ backgroundColor: 'var(--color-border)' }} />
-
-          {/* Seniority pills — dynamic from API */}
-          {seniority_levels.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {seniority_levels.map(s => {
-                const active = filters.seniority.includes(s)
-                return (
-                  <button
-                    key={s}
-                    onClick={() => togglePill('seniority', s)}
-                    className="rounded px-3 py-1 text-xs font-medium capitalize transition-all duration-150 cursor-pointer"
-                    style={{
-                      backgroundColor: active ? 'var(--color-blue)' : 'var(--color-surface-2)',
-                      color: active ? '#fff' : 'var(--color-ink-muted)',
-                      border: `1px solid ${active ? 'var(--color-blue)' : 'var(--color-border)'}`,
-                    }}
-                  >
-                    {s}
-                  </button>
-                )
-              })}
-            </div>
-          )}
-
-          {/* Divider */}
-          <div className="hidden md:block h-5 w-px" style={{ backgroundColor: 'var(--color-border)' }} />
-
-          {/* Work type — only show if options exist */}
-          {remote_types.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {remote_types.map(r => {
-                const active = filters.remote_type.includes(r)
-                const label = r === 'on-site' ? 'On-site' : r.charAt(0).toUpperCase() + r.slice(1)
-                return (
-                  <button
-                    key={r}
-                    onClick={() => togglePill('remote_type', r)}
-                    className="rounded px-3 py-1 text-xs font-medium transition-all duration-150 cursor-pointer"
-                    style={{
-                      backgroundColor: active ? 'var(--color-blue)' : 'var(--color-surface-2)',
-                      color: active ? '#fff' : 'var(--color-ink-muted)',
-                      border: `1px solid ${active ? 'var(--color-blue)' : 'var(--color-border)'}`,
-                    }}
-                  >
-                    {label}
-                  </button>
-                )
-              })}
-            </div>
-          )}
-
-          {/* Divider */}
-          <div className="hidden md:block h-5 w-px" style={{ backgroundColor: 'var(--color-border)' }} />
-
-          {/* Internship toggle */}
-          <button
-            onClick={() => onUpdate({ is_internship: filters.is_internship ? null : true })}
-            className="rounded px-3 py-1 text-xs font-medium transition-all duration-150 cursor-pointer"
-            style={{
-              backgroundColor: filters.is_internship ? '#FEF9C3' : 'var(--color-surface-2)',
-              color: filters.is_internship ? '#854D0E' : 'var(--color-ink-muted)',
-              border: `1px solid ${filters.is_internship ? '#FDE68A' : 'var(--color-border)'}`,
-            }}
-          >
-            Internships
-          </button>
-
-          {/* Divider */}
-          <div className="hidden md:block h-5 w-px" style={{ backgroundColor: 'var(--color-border)' }} />
-
-          {/* Company multi-select */}
-          <MultiSelect
-            label="Company"
-            options={companyOptions}
-            selected={filters.companies}
-            onChange={v => onUpdate({ companies: v })}
-          />
-
-          {/* Skills multi-select */}
-          <MultiSelect
-            label="Skills"
-            options={skillOptions}
-            selected={filters.skills}
-            onChange={v => onUpdate({ skills: v })}
-          />
-
-          {/* Salary */}
-          <SalaryToggle filters={filters} onUpdate={onUpdate} />
-
-          {/* Experience */}
-          <ExpFilter filters={filters} onUpdate={onUpdate} />
-
-          {/* Mobile clear */}
-          {activeCount > 0 && (
-            <button
-              onClick={() => { onClear(); setMobileOpen(false) }}
-              className="md:hidden flex items-center gap-1 text-xs font-medium cursor-pointer"
-              style={{ color: 'var(--color-gold)' }}
-            >
-              <X size={12} /> Clear all
-            </button>
-          )}
+          </FilterRow>
         </div>
+
+        {/* Advanced filters — collapsed by default so the bar stays calm */}
+        {showAllFilters && (
+          <div
+            className="flex flex-col gap-4 pt-4 pb-4"
+            style={{ borderTop: '1px dashed var(--color-border-strong)' }}
+          >
+            {/* Level */}
+            {seniority_levels.length > 0 && (
+              <FilterRow label="Level">
+                {seniority_levels.map(s => {
+                  const active = filters.seniority.includes(s)
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => togglePill('seniority', s)}
+                      data-active={active}
+                      aria-pressed={active}
+                      className="filter-pill rounded-md px-3 py-1.5 text-xs font-semibold capitalize cursor-pointer outline-none"
+                      style={{
+                        backgroundColor: active ? 'var(--color-blue)' : 'var(--color-surface-2)',
+                        color: active ? '#fff' : 'var(--color-ink-muted)',
+                        border: `1px solid ${active ? 'var(--color-blue)' : 'var(--color-border-strong)'}`,
+                        boxShadow: active ? 'var(--shadow-card)' : 'none',
+                      }}
+                    >
+                      {s}
+                    </button>
+                  )
+                })}
+              </FilterRow>
+            )}
+
+            {/* Work type */}
+            {remote_types.length > 0 && (
+              <FilterRow label="Work">
+                {remote_types.map(r => {
+                  const active = filters.remote_type.includes(r)
+                  const label = r === 'on-site' ? 'On-site' : r.charAt(0).toUpperCase() + r.slice(1)
+                  return (
+                    <button
+                      key={r}
+                      onClick={() => togglePill('remote_type', r)}
+                      data-active={active}
+                      aria-pressed={active}
+                      className="filter-pill rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer outline-none"
+                      style={{
+                        backgroundColor: active ? 'var(--color-blue)' : 'var(--color-surface-2)',
+                        color: active ? '#fff' : 'var(--color-ink-muted)',
+                        border: `1px solid ${active ? 'var(--color-blue)' : 'var(--color-border-strong)'}`,
+                        boxShadow: active ? 'var(--shadow-card)' : 'none',
+                      }}
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
+              </FilterRow>
+            )}
+
+            {/* Type */}
+            <FilterRow label="Type">
+              <button
+                onClick={() => onUpdate({ is_internship: filters.is_internship ? null : true })}
+                data-active={!!filters.is_internship}
+                aria-pressed={!!filters.is_internship}
+                className="filter-pill rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer outline-none"
+                style={{
+                  backgroundColor: filters.is_internship ? '#FEF3C7' : 'var(--color-surface-2)',
+                  color: filters.is_internship ? '#854D0E' : 'var(--color-ink-muted)',
+                  border: `1px solid ${filters.is_internship ? '#F5C451' : 'var(--color-border-strong)'}`,
+                  boxShadow: filters.is_internship ? 'var(--shadow-card)' : 'none',
+                }}
+              >
+                Internships
+              </button>
+            </FilterRow>
+
+            {/* Refine — company / skills / salary / experience */}
+            <FilterRow label="Refine">
+              <MultiSelect
+                label="Company"
+                options={companyOptions}
+                selected={filters.companies}
+                onChange={v => onUpdate({ companies: v })}
+              />
+              <MultiSelect
+                label="Skills"
+                options={skillOptions}
+                selected={filters.skills}
+                onChange={v => onUpdate({ skills: v })}
+              />
+              <SalaryToggle filters={filters} onUpdate={onUpdate} />
+              <ExpFilter filters={filters} onUpdate={onUpdate} />
+            </FilterRow>
+
+            {/* Mobile clear */}
+            {activeCount > 0 && (
+              <button
+                onClick={() => { onClear(); setShowAllFilters(false) }}
+                className="md:hidden flex items-center gap-1 text-xs font-semibold cursor-pointer self-start"
+                style={{ color: 'var(--color-gold)' }}
+              >
+                <X size={12} /> Clear all filters
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Row 3: Active filter chips */}
         {activeChips.length > 0 && (
@@ -283,7 +303,6 @@ export default function FilterBar({ filters, filterData, activeCount, onUpdate, 
                   backgroundColor: 'var(--color-gold-light)',
                   color: 'var(--color-gold)',
                   border: '1px solid var(--color-gold)',
-                  borderOpacity: '0.4',
                 }}
               >
                 {chip.label}
@@ -312,6 +331,22 @@ export default function FilterBar({ filters, filterData, activeCount, onUpdate, 
   )
 }
 
+// ── Labeled filter row ────────────────────────────────────────────────────────
+
+function FilterRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-start gap-1.5 sm:gap-3">
+      <span
+        className="flex-shrink-0 sm:w-16 sm:pt-1.5 text-[10px] font-bold uppercase tracking-wider select-none"
+        style={{ color: 'var(--color-ink-faint)', letterSpacing: '0.08em' }}
+      >
+        {label}
+      </span>
+      <div className="flex flex-wrap items-center gap-2">{children}</div>
+    </div>
+  )
+}
+
 // ── Salary sub-component ──────────────────────────────────────────────────────
 
 function SalaryToggle({
@@ -328,16 +363,18 @@ function SalaryToggle({
     <div className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className="rounded px-3 py-1.5 text-xs font-medium transition-all duration-150 cursor-pointer flex items-center gap-1.5"
+        data-active={isActive}
+        className="filter-pill rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1.5 outline-none"
         style={{
           backgroundColor: isActive ? 'var(--color-ink)' : 'var(--color-surface-2)',
           color: isActive ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
-          border: `1px solid ${isActive ? 'var(--color-ink)' : 'var(--color-border)'}`,
+          border: `1px solid ${isActive ? 'var(--color-ink)' : 'var(--color-border-strong)'}`,
+          boxShadow: isActive ? 'var(--shadow-card)' : 'none',
         }}
         aria-expanded={open}
       >
         Salary
-        {isActive && <span style={{ color: 'var(--color-gold)' }}>·</span>}
+        {isActive && <span style={{ color: 'var(--color-gold-star)' }}>·</span>}
       </button>
 
       {open && (
@@ -441,16 +478,18 @@ function ExpFilter({
     <div className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className="rounded px-3 py-1.5 text-xs font-medium transition-all duration-150 cursor-pointer flex items-center gap-1.5"
+        data-active={isActive}
+        className="filter-pill rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1.5 outline-none"
         style={{
           backgroundColor: isActive ? 'var(--color-ink)' : 'var(--color-surface-2)',
           color: isActive ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
-          border: `1px solid ${isActive ? 'var(--color-ink)' : 'var(--color-border)'}`,
+          border: `1px solid ${isActive ? 'var(--color-ink)' : 'var(--color-border-strong)'}`,
+          boxShadow: isActive ? 'var(--shadow-card)' : 'none',
         }}
         aria-expanded={open}
       >
         Experience
-        {isActive && <span style={{ color: 'var(--color-gold)' }}>·</span>}
+        {isActive && <span style={{ color: 'var(--color-gold-star)' }}>·</span>}
       </button>
 
       {open && (
