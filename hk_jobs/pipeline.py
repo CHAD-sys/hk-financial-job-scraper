@@ -108,7 +108,17 @@ def run(args: argparse.Namespace) -> list[CompanyResult]:
     n_workers = _requested
     logger.info("Pipeline running with %d parallel company workers", n_workers)
 
-    with JobStore(db_path) as store:
+    # Storage backend: SQLite (default) or PocketBase (--storage=pocketbase). Both
+    # expose the same interface (upsert_many / mark_inactive_for_run / stats / …).
+    storage_backend = getattr(args, "storage", "sqlite")
+    if storage_backend == "pocketbase":
+        from hk_jobs.storage_pocketbase import PocketBaseStorage
+        logger.info("Storage backend: PocketBase")
+        store_ctx = PocketBaseStorage()
+    else:
+        store_ctx = JobStore(db_path)
+
+    with store_ctx as store:
         run_time = datetime.now(UTC)
         db_lock  = Lock()  # SQLite doesn't allow concurrent writes
 
@@ -144,7 +154,9 @@ def run(args: argparse.Namespace) -> list[CompanyResult]:
     # Record a daily snapshot into job_history / company_metrics.
     # Skipped in dry-run mode because dry-run uses an in-memory DB and
     # intentionally writes nothing to disk.
-    if not dry_run:
+    # Analytics snapshots (job_history / company_metrics) live in the SQLite DB, so
+    # they only apply to the SQLite backend. Skip for PocketBase and in dry-run.
+    if not dry_run and storage_backend != "pocketbase":
         from hk_jobs.analytics import record_scrape_snapshot
         record_scrape_snapshot(args.db, results, date.today())
         _log_trend_changes(results, args.db)
@@ -384,6 +396,13 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     p.add_argument(
+        "--storage",
+        choices=["sqlite", "pocketbase"],
+        default="sqlite",
+        help="Storage backend: sqlite (default) or pocketbase (REST API; needs a running "
+             "PocketBase + POCKETBASE_URL/ADMIN_EMAIL/ADMIN_PASSWORD env vars).",
+    )
+    p.add_argument(
         "--dry-run",
         action="store_true",
         help=(
@@ -552,7 +571,8 @@ def main(argv: list[str] | None = None) -> None:
             logging.getLogger(noisy).setLevel(logging.WARNING)
 
     # Ensure phase 11–13 tables/columns exist on every real-DB run (idempotent).
-    if not getattr(args, "dry_run", False):
+    # SQLite-only — the PocketBase backend manages its own schema.
+    if not getattr(args, "dry_run", False) and getattr(args, "storage", "sqlite") != "pocketbase":
         from hk_jobs.migrations import (
             migrate_to_phase_11, migrate_to_phase_12, migrate_to_phase_13, migrate_to_phase_14,
             migrate_to_phase_15,

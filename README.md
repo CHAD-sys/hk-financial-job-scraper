@@ -110,6 +110,76 @@ The full job description is kept on `jobs` (`description_raw` / `description_cle
 
 ---
 
+## PocketBase storage backend (optional)
+
+The pipeline can write to **PocketBase** instead of the raw SQLite file — same
+data, exposed over a REST API. Intended split:
+
+- **PocketBase** (on Railway) serves the public job board over HTTP.
+- **The scraper** runs offline on a **VPS** (scheduled), and **pushes** data into
+  the deployed PocketBase via its API — no public DB access needed.
+
+PocketBase keeps *all* its state in one `pb_data/` folder (a SQLite `data.db` +
+settings), so deployment is a single-file handoff.
+
+### Local setup
+```bash
+# 1. Install PocketBase (pick the build for YOUR platform — see releases page)
+#    macOS arm64 example:
+mkdir -p pocketbase && cd pocketbase
+curl -sL https://github.com/pocketbase/pocketbase/releases/download/v0.39.6/pocketbase_0.39.6_darwin_arm64.zip -o pb.zip
+unzip -o pb.zip && chmod +x pocketbase && cd ..
+
+# 2. Create an admin (superuser) and start it
+./pocketbase/pocketbase superuser upsert admin@finex.local <password> --dir ./pocketbase/pb_data
+./pocketbase/pocketbase serve --http 127.0.0.1:8090 --dir ./pocketbase/pb_data   # admin UI at /_/
+
+# 3. Create the `jobs` collection (idempotent; matches the Job schema)
+export POCKETBASE_URL=http://127.0.0.1:8090
+export POCKETBASE_ADMIN_EMAIL=admin@finex.local
+export POCKETBASE_ADMIN_PASSWORD=<password>
+python scripts/setup_pocketbase.py
+```
+
+### Run the pipeline against PocketBase
+```bash
+# --storage=sqlite is the default; --storage=pocketbase writes via the REST API
+python -m hk_jobs.pipeline --storage pocketbase --only aia-hk --only hung-sing
+```
+`hk_jobs/storage_pocketbase.py` mirrors the SQLite `JobStore` interface
+(`upsert_many`, `mark_inactive_for_run`, `stats`, …) and upserts on `dedup_hash`.
+
+### Deployment handoff (for your manager)
+1. **Export** the local data as one portable file:
+   ```bash
+   scripts/export_pocketbase.sh          # -> pb_data_export_YYYYMMDD.tar.gz
+   ```
+   *(stop `pocketbase serve` first for a clean snapshot.)*
+2. **Deploy PocketBase on Railway** (or any host):
+   - New Railway project → deploy the official `pocketbase/pocketbase` image (or a
+     tiny Dockerfile running `pocketbase serve --http 0.0.0.0:$PORT`).
+   - Add a **Volume** mounted at the app's `pb_data` path so data persists.
+   - **Restore the snapshot:** upload/extract `pb_data_export_*.tar.gz` into that
+     volume with `scripts/import_pocketbase.sh <tarball> <pb_data_path>` (or unpack
+     it there directly). The admin account + `jobs` collection travel inside it.
+   - Railway gives you a public URL, e.g. `https://finex-pb.up.railway.app`.
+3. **Point the VPS scraper at it** — on the VPS, set env and run the scraper on a
+   schedule (cron):
+   ```bash
+   export POCKETBASE_URL=https://finex-pb.up.railway.app
+   export POCKETBASE_ADMIN_EMAIL=admin@finex.local
+   export POCKETBASE_ADMIN_PASSWORD=<prod-password>   # change from the local dev one!
+   python -m hk_jobs.pipeline --storage pocketbase        # + --fetch-descriptions / --enrich
+   ```
+   The scraper authenticates as the superuser and pushes jobs into the deployed
+   collection. Public users read the board from the same PocketBase over HTTP.
+
+> ⚠️ Use a strong production admin password (not the local dev default), and keep
+> it only in the VPS/Railway env — never commit it. `pocketbase/` and
+> `pb_data_export_*.tar.gz` are gitignored.
+
+---
+
 ## Setup
 
 **Requirements:** Python 3.11+, DeepSeek API key

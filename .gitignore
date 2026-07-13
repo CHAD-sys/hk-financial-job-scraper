@@ -60,3 +60,8 @@ data/jobs.db-wal
 # graphify local cache (keep graph artifacts, drop cache)
 graphify-out/cache/
 graphify-out/.graphify_*
+
+# PocketBase — binary + local data (never commit); exports are generated artifacts
+/pocketbase/
+pb_data_export_*.tar.gz
+pb_data_restored/
