@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import re
 import sqlite3
 from pathlib import Path
@@ -17,8 +18,28 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 # ── DB path ───────────────────────────────────────────────────────────────────
+# Configurable for deployment (e.g. a Railway volume mounted at /data). Defaults to
+# the repo's local data/jobs.db for development. If the DB isn't present and
+# DB_SEED_URL is set, download it once on first boot — lets a temporary demo seed a
+# volume with no manual upload step. The DB itself is never committed to git.
 
-DB_PATH = (Path(__file__).parent.parent.parent / "data" / "jobs.db").resolve()
+DB_PATH = Path(
+    os.environ.get("JOBS_DB_PATH", str(Path(__file__).parent.parent.parent / "data" / "jobs.db"))
+).resolve()
+
+
+def _seed_db_if_missing() -> None:
+    seed_url = os.environ.get("DB_SEED_URL", "").strip()
+    if DB_PATH.exists() or not seed_url:
+        return
+    import urllib.request
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    tmp = DB_PATH.with_name(DB_PATH.name + ".downloading")
+    urllib.request.urlretrieve(seed_url, tmp)  # noqa: S310 — operator-provided URL
+    tmp.replace(DB_PATH)
+
+
+_seed_db_if_missing()
 
 
 def _regexp(pattern: str, value: str | None) -> int:
@@ -417,9 +438,13 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# CORS origins are configurable for deployment via CORS_ORIGINS (comma-separated,
+# or "*" for a public demo with no logins). Defaults to the local Vite dev server.
+_cors = os.environ.get("CORS_ORIGINS", "http://localhost:5173").strip()
+_allow_origins = ["*"] if _cors == "*" else [o.strip() for o in _cors.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=_allow_origins,
     allow_methods=["GET"],
     allow_headers=["*"],
 )

@@ -1,4 +1,6 @@
-export const API = 'http://localhost:8000'
+// API base URL. Configurable at build time via VITE_API_URL (set it to the deployed
+// backend URL in Railway). Falls back to the local dev server. No hardcoded prod URL.
+export const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
