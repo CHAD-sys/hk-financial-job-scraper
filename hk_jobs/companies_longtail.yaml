@@ -357,3 +357,89 @@
   category: "Securities Brokerage"
   careers_url: "https://www.ajsecurities.com.hk/cms?id=3"
   adapter: longtail
+
+# ── Batch 3: 18 firms from master-list cross-ref (2026-07-15) ──
+
+- name: "Averest Capital"
+  slug: averest-capital
+  category: "Asset Management"
+  careers_url: "https://www.averest.com/Career.html"
+  adapter: longtail
+
+- name: "Moores Rowland (HK) CPA Limited"
+  slug: moores-rowland-hk-cpa-limited
+  category: "Audit firm"
+  careers_url: "https://mrhkcpa.com/zh/zh-careers/"
+  adapter: longtail
+
+- name: "HLB Hodgson Impey Cheng Limited"
+  slug: hlb-hodgson-impey-cheng-limited
+  category: "Audit firm"
+  careers_url: "http://www.hic.com.hk/html/careers_hlb.php"
+  adapter: longtail
+
+- name: "East Asia Sentinel Services Limited"
+  slug: east-asia-sentinel-services-limited
+  category: "Business Analysis"
+  careers_url: "https://www.eastasiasentinel.com/index.php/en/career"
+  adapter: longtail
+
+- name: "Xeptagon"
+  slug: xeptagon
+  category: "Climate FinTech"
+  careers_url: "https://www.xeptagon.com/careers/"
+  adapter: longtail
+
+- name: "Digital Climate Group"
+  slug: digital-climate-group
+  category: "Climate FinTech"
+  careers_url: "https://www.dcg.earth/join-us"
+  adapter: longtail
+
+- name: "The Swedish Club"
+  slug: the-swedish-club
+  category: "Insurance Company"
+  careers_url: "https://career.swedishclub.com/"
+  adapter: longtail
+
+- name: "Transatlantic Reinsurance Company"
+  slug: transatlantic-reinsurance-company
+  category: "Insurance Company"
+  careers_url: "https://www.transre.com/careers/"
+  adapter: longtail
+
+- name: "Partner Reinsurance Europe SE"
+  slug: partner-reinsurance-europe-se
+  category: "Insurance Company"
+  careers_url: "https://careers.partnerre.com/"
+  adapter: longtail
+
+- name: "St. James's Place International (Hong Kong) Limited"
+  slug: st-james-s-place-international-hong-kong-limited
+  category: "Insurance Company"
+  careers_url: "https://www.sjp.asia/hk/careers"
+  adapter: longtail
+
+- name: "FuSure Reinsurance Company Limited"
+  slug: fusure-reinsurance-company-limited
+  category: "Insurance Company"
+  careers_url: "https://fusure.com/en/join-us/"
+  adapter: longtail
+
+- name: "Concord Insurance"
+  slug: concord-insurance
+  category: "Insurance Company"
+  careers_url: "https://www.concordinsurance.com.hk/"
+  adapter: longtail
+
+- name: "HKMC Annuity Limited"
+  slug: hkmc-annuity-limited
+  category: "Insurance Company"
+  careers_url: "https://www.hkmca.hk/eng/about_us/careers.html"
+  adapter: longtail
+
+- name: "Wizpresso"
+  slug: wizpresso
+  category: "RegTech"
+  careers_url: "https://wizpresso.com/Careers"
+  adapter: longtail

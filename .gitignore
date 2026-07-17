@@ -67,3 +67,14 @@ pb_data_export_*.tar.gz
 
 # Third-party salary guide PDF (copyrighted, large) — keep the derived .md doc only
 salary_guidlines/*.pdf
+
+# Editor / agent config
+**/.claude/
+.claude/
+
+# Backup files (editor / manual snapshots — never source)
+*.bak
+
+# Large generated artifacts (regenerated on demand; not source of truth)
+jobs_export.csv
+pb_boss_bundle.zip

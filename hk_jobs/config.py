@@ -30,7 +30,9 @@ _REQUIRED_CONFIG_KEYS: dict[str, list[str]] = {
     "eightfold": ["tenant", "domain"],
     "jobsdb": ["jobsdb_slug"],
     "indeed": ["indeed_slug"],
+    "linkedin": ["linkedin_company_id"],
     "longtail": ["careers_url"],
+    "efinancialcareers": ["efc_employer"],
 }
 
 # Top-level entry keys that are NOT adapter config. Everything else at the top

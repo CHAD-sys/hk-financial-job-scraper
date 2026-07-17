@@ -38,6 +38,26 @@ _PAGE_CAP = 100  # hard ceiling: 100 × 10 = 1 000 jobs
 _PAGE_SLEEP = 0.3  # seconds between page requests — be polite to source servers
 
 
+def _ef_signals(pos: dict) -> dict:
+    """P2/P3 market signals from one Eightfold position (only non-empty ones)."""
+    sig: dict = {}
+    if str(pos.get("hot") or "0") not in ("0", "None", ""):
+        sig["urgently_hiring"] = True                  # employer-set priority flag
+    t_upd = pos.get("t_update")
+    if t_upd:
+        try:
+            sig["updated_at"] = datetime.fromtimestamp(int(t_upd), tz=UTC).isoformat()
+        except (ValueError, OSError, TypeError):
+            pass
+    bu = pos.get("business_unit")
+    if bu and str(bu) not in ("None", ""):
+        sig["business_unit"] = bu                       # which desk/division is hiring
+    ll = pos.get("latlongs")
+    if ll and str(ll) not in ("None", ""):
+        sig["geo"] = ll                                 # office coordinates
+    return sig
+
+
 class EightfoldAdapter(BaseAdapter):
     """
     Fetches jobs from Eightfold AI's public JSON API.
@@ -126,4 +146,5 @@ class EightfoldAdapter(BaseAdapter):
             description_raw=raw_html,
             description_clean=_strip_html(raw_html),
             posted_at=posted_at,
+            board_signals=_ef_signals(pos),
         )

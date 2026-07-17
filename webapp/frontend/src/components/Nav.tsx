@@ -20,7 +20,7 @@ export default function Nav({ savedCount = 0 }: Props) {
         <div className="flex h-16 items-center justify-between">
 
           {/* Wordmark */}
-          <button
+          <button type="button"
             onClick={() => navigate('/')}
             className="flex items-center gap-2.5 cursor-pointer"
             aria-label="FinEx Careers home"
@@ -49,7 +49,7 @@ export default function Nav({ savedCount = 0 }: Props) {
               { label: 'Browse Roles', path: '/jobs' },
               { label: 'About', path: '/about' },
             ].map(({ label, path }) => (
-              <button
+              <button type="button"
                 key={label}
                 onClick={() => navigate(path)}
                 className="text-sm font-medium transition-colors duration-150 cursor-pointer"
@@ -69,7 +69,7 @@ export default function Nav({ savedCount = 0 }: Props) {
 
           <div className="flex items-center gap-3">
             {/* Saved jobs */}
-            <button
+            <button type="button"
               onClick={() => navigate('/saved')}
               className="flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-all duration-150 cursor-pointer"
               style={{
@@ -104,7 +104,7 @@ export default function Nav({ savedCount = 0 }: Props) {
             </button>
 
             {/* Mobile toggle */}
-            <button
+            <button type="button"
               className="md:hidden p-2 rounded cursor-pointer"
               style={{ color: 'var(--color-ink-inverse)' }}
               onClick={() => setOpen(o => !o)}
@@ -130,7 +130,7 @@ export default function Nav({ savedCount = 0 }: Props) {
             { label: 'Saved Roles', path: '/saved' },
             { label: 'About', path: '/about' },
           ].map(({ label, path }) => (
-            <button
+            <button type="button"
               key={label}
               onClick={() => { navigate(path); setOpen(false) }}
               className="text-sm font-medium text-left cursor-pointer"

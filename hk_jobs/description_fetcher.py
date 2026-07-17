@@ -94,15 +94,21 @@ class DescriptionFetcher:
 
     # ── public API ────────────────────────────────────────────────────────────
 
-    def run(self, limit: int | None = None, incremental: bool = False, repair_companies: bool = False) -> None:
+    def run(self, limit: int | None = None, incremental: bool = False,
+            repair_companies: bool = False, sources: set[str] | None = None,
+            max_workers: int | None = None) -> None:
         if repair_companies:
             self._run_company_repair(limit)
             return
 
-        conn = sqlite3.connect(self.db_path)
+        # timeout=60 + busy_timeout so two description runs (e.g. linkedin via httpx
+        # and indeed via headless browser) can write to the same DB concurrently
+        # without hitting "database is locked".
+        conn = sqlite3.connect(self.db_path, timeout=60)
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA busy_timeout=60000")
         try:
-            jobs = self._fetch_unenriched(conn, limit, incremental=incremental)
+            jobs = self._fetch_unenriched(conn, limit, incremental=incremental, sources=sources)
             if not jobs:
                 logger.info("No jobs with empty descriptions — nothing to do")
                 return
@@ -111,10 +117,11 @@ class DescriptionFetcher:
             for j in jobs:
                 by_source.setdefault(j["source"], 0)
                 by_source[j["source"]] += 1
+            workers = max_workers or _MAX_WORKERS
             mode = "incremental (today's new jobs only)" if incremental else "full"
             logger.info(
-                "Fetching descriptions for %d jobs [%s] via JSON APIs (%d workers) — %s",
-                len(jobs), mode, _MAX_WORKERS,
+                "Fetching descriptions for %d jobs [%s] (%d workers) — %s",
+                len(jobs), mode, workers,
                 ", ".join(f"{s}:{n}" for s, n in sorted(by_source.items())),
             )
 
@@ -125,7 +132,7 @@ class DescriptionFetcher:
             written = skipped = failed = 0
             for start in range(0, total, _WRITE_BATCH):
                 batch = jobs[start:start + _WRITE_BATCH]
-                results = self._fetch_parallel(batch)
+                results = self._fetch_parallel(batch, max_workers=workers)
                 s, sk, f = self._write_results(conn, results)
                 written += s
                 skipped += sk
@@ -145,20 +152,27 @@ class DescriptionFetcher:
     # ── helpers ───────────────────────────────────────────────────────────────
 
     def _fetch_unenriched(
-        self, conn: sqlite3.Connection, limit: int | None, incremental: bool = False
+        self, conn: sqlite3.Connection, limit: int | None, incremental: bool = False,
+        sources: set[str] | None = None,
     ) -> list[sqlite3.Row]:
         today_filter = "AND DATE(fetched_at) = DATE('now')" if incremental else ""
+        params: list = []
+        source_filter = ""
+        if sources:
+            source_filter = "AND source IN (%s)" % ",".join("?" * len(sources))
+            params = list(sources)
         sql = f"""
             SELECT source, source_id, company_slug, url
               FROM jobs
              WHERE is_active = 1
                AND (description_raw IS NULL OR description_raw = '')
+               {source_filter}
                {today_filter}
              ORDER BY fetched_at DESC
         """
         if limit:
             sql += f" LIMIT {limit}"
-        rows = conn.execute(sql).fetchall()
+        rows = conn.execute(sql, params).fetchall()
         if incremental:
             total = conn.execute(
                 "SELECT COUNT(*) FROM jobs WHERE is_active=1 "
@@ -170,9 +184,10 @@ class DescriptionFetcher:
             )
         return rows
 
-    def _fetch_parallel(self, jobs: list[sqlite3.Row]) -> list[FetchResult]:
+    def _fetch_parallel(self, jobs: list[sqlite3.Row],
+                        max_workers: int | None = None) -> list[FetchResult]:
         results: list[FetchResult] = []
-        with ThreadPoolExecutor(max_workers=_MAX_WORKERS) as pool:
+        with ThreadPoolExecutor(max_workers=max_workers or _MAX_WORKERS) as pool:
             futures = {
                 pool.submit(
                     self._fetch_single,
@@ -209,6 +224,14 @@ class DescriptionFetcher:
                     source, source_id, len(raw_html), len(clean), advertiser_name,
                 )
                 return FetchResult(source, source_id, raw_html, clean, advertiser_name=advertiser_name)
+            elif source in ("linkedin", "indeed"):
+                fetch = (_fetch_linkedin_description if source == "linkedin"
+                         else _fetch_indeed_description)
+                raw_html = fetch(source_id)
+                if raw_html:
+                    logger.info("✓ %s/%s: %d chars", source, source_id, len(raw_html))
+                clean = _strip_html(raw_html) if raw_html else None
+                return FetchResult(source, source_id, raw_html, clean)
             else:
                 logger.warning("Unknown source '%s' — skipping %s", source, source_id)
                 return FetchResult(source, source_id, None, None, skipped=True)
@@ -321,6 +344,61 @@ class DescriptionFetcher:
 
 
 # ── ATS-specific fetchers ─────────────────────────────────────────────────────
+
+# LinkedIn public guest job-detail endpoint. Returns an HTML fragment whose
+# description lives in .show-more-less-html__markup (fallback .description__text).
+# Plain httpx — no browser needed. Rate-limited (429), so we back off and retry.
+_LINKEDIN_DETAIL_URL = "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{id}"
+
+
+def _fetch_linkedin_description(source_id: str, max_retries: int = 4) -> str | None:
+    """Fetch one LinkedIn job's description HTML via the guest jobPosting endpoint."""
+    from selectolax.parser import HTMLParser
+
+    url = _LINKEDIN_DETAIL_URL.format(id=source_id)
+    for attempt in range(max_retries):
+        wait = 2 ** (attempt + 1)   # 2, 4, 8, 16 s
+        try:
+            with httpx.Client(timeout=_HTTP_TIMEOUT, headers=_HEADERS,
+                              follow_redirects=True) as client:
+                resp = client.get(url)
+        except httpx.HTTPError:
+            time.sleep(wait)
+            continue
+        if resp.status_code in (429, 999, 503):   # rate-limited/blocked — back off
+            time.sleep(wait)
+            continue
+        if resp.status_code != 200:
+            return None
+        tree = HTMLParser(resp.text)
+        node = (tree.css_first("div.show-more-less-html__markup")
+                or tree.css_first(".description__text"))
+        return node.html if node else None
+    return None
+
+
+def _fetch_indeed_description(source_id: str) -> str | None:
+    """
+    Fetch one Indeed job's description HTML from its viewjob detail page.
+
+    Indeed's detail page is Cloudflare-protected, so — like the Indeed listing
+    adapter — this uses Scrapling's StealthyFetcher (a headless browser). Run with
+    several workers to drive multiple browsers concurrently. Description lives in
+    #jobDescriptionText (fallback .jobsearch-JobComponent-description).
+    """
+    from scrapling.fetchers import StealthyFetcher
+    from selectolax.parser import HTMLParser
+
+    url = f"https://hk.indeed.com/viewjob?jk={source_id}"
+    page = StealthyFetcher.fetch(url, headless=True, solve_cloudflare=True, network_idle=False)
+    if getattr(page, "status", 0) != 200:
+        return None
+    html = str(page.html_content)
+    tree = HTMLParser(html)
+    node = (tree.css_first("#jobDescriptionText")
+            or tree.css_first(".jobsearch-JobComponent-description"))
+    return node.html if node else None
+
 
 def _fetch_workday_description(human_url: str) -> str | None:
     """

@@ -22,7 +22,7 @@ export default function EmptyState({ onClear }: Props) {
       <p className="text-sm mb-6 max-w-sm" style={{ color: 'var(--color-ink-muted)' }}>
         Try broadening your search — remove a filter or two to see more results.
       </p>
-      <button
+      <button type="button"
         onClick={onClear}
         className="inline-flex items-center gap-2 rounded px-5 py-2.5 text-sm font-medium transition-colors duration-150 cursor-pointer"
         style={{ backgroundColor: 'var(--color-ink)', color: 'var(--color-ink-inverse)' }}

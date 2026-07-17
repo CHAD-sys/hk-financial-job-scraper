@@ -81,6 +81,43 @@ class Job(BaseModel):
     fetched_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     is_active: bool = True
 
+    # ── Cross-source apply routing (Phase 19) ─────────────────────────────
+    # Adapters never set these — they are filled by JobStore.reconcile_cross_posted()
+    # after a run, once every source's jobs are in the DB.
+    apply_url: str = Field(
+        default="",
+        description=(
+            "Preferred URL for a candidate to apply. Empty means 'use `url`'. "
+            "When the same vacancy (same dedup_hash) is found on more than one "
+            "source — e.g. eFinancialCareers AND JobsDB — every copy's apply_url "
+            "points at the highest-priority source's URL. Priority is the company's "
+            "own ATS (Workday/Eightfold) first, then eFinancialCareers → Indeed → "
+            "JobsDB for roles with no own-ATS copy (see _SOURCE_PRIORITY in "
+            "storage.py). Read it as COALESCE(NULLIF(apply_url, ''), url)."
+        ),
+    )
+    cross_posted: bool = Field(
+        default=False,
+        description=(
+            "True when this exact vacancy was found on more than one source. Lets "
+            "downstream queries surface multi-source roles and explains why "
+            "apply_url may differ from url."
+        ),
+    )
+
+    # ── Board market signals (P2/P3) ──────────────────────────────────────
+    board_signals: dict = Field(
+        default_factory=dict,
+        description=(
+            "Per-board market signals present in the raw payload but outside the core "
+            "Job fields. Heterogeneous by source, e.g. Indeed: applicant_count, sponsored, "
+            "urgently_hiring, company_rating, review_count, employer_responsive; eFC: "
+            "sponsored (paid/highlighted), expires_at, parent_company; LinkedIn: reposted, "
+            "applicant_count; Eightfold: urgent (hot), updated_at, geo. Stored as JSON, "
+            "queryable via json_extract. Adapters fill only what their payload exposes."
+        ),
+    )
+
     # ── Provenance ────────────────────────────────────────────────────────
     scraped_under_slug: str | None = Field(
         default=None,

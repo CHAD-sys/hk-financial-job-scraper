@@ -28,7 +28,7 @@ export default function Pagination({ page, totalPages, onChange }: Props) {
     disabled: boolean,
     isActive = false,
   ) => (
-    <button
+    <button type="button"
       key={String(target) + String(isActive)}
       onClick={() => !disabled && onChange(target)}
       disabled={disabled}

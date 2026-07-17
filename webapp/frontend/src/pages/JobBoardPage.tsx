@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ChevronDown, Star } from 'lucide-react'
 import type { Job, FiltersResponse, JobListResponse, TierTab } from '../api/client'
@@ -35,14 +35,17 @@ const TIER_TABS: { value: TierTab; label: string; star?: boolean }[] = [
 export default function JobBoardPage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
-  // Initialise state from URL
-  const initial = searchParamsToFilters(searchParams)
-  const [filters, setFilters] = useState<JobFilters>(initial.filters)
+  // Initialise state from URL (parsed once on mount)
+  const [initial] = useState(() => searchParamsToFilters(searchParams))
+
+  // The raw search text lives in its own state so the effects below can depend
+  // on the debounced value without re-firing on every keystroke.
+  const [searchInput, setSearchInput] = useState(initial.filters.search)
+  const [baseFilters, setBaseFilters] = useState<JobFilters>(initial.filters)
   const [sort, setSort] = useState(initial.sort)
   const [page, setPage] = useState(initial.page)
 
-  // Debounce search input only
-  const debouncedSearch = useDebounce(filters.search, 300)
+  const debouncedSearch = useDebounce(searchInput, 300)
 
   const [filterData, setFilterData] = useState<FiltersResponse | null>(null)
   const [result, setResult] = useState<JobListResponse | null>(null)
@@ -62,38 +65,40 @@ export default function JobBoardPage() {
     }).catch(console.error)
   }, [])
 
-  // Build the active filters object substituting debounced search
-  const activeFilters: JobFilters = { ...filters, search: debouncedSearch }
+  // The filters actually applied to the data: debounced search substituted in.
+  // Memoized so the effects below get a stable dependency.
+  const activeFilters = useMemo<JobFilters>(
+    () => ({ ...baseFilters, search: debouncedSearch }),
+    [baseFilters, debouncedSearch],
+  )
   const activeCount = countActiveFilters(activeFilters)
 
-  // Sync URL whenever filters / sort / page change
+  // Sync URL whenever the applied filters / sort / page change
   useEffect(() => {
-    const p = filtersToSearchParams(activeFilters, sort, page)
-    setSearchParams(p, { replace: true })
-  }, [debouncedSearch, filters.tier, filters.sectors, filters.companies, filters.seniority,
-      filters.remote_type, filters.skills, filters.salary_min, filters.salary_max,
-      filters.salary_disclosed_only, filters.exp_min, filters.exp_max,
-      filters.is_internship, sort, page])
+    setSearchParams(filtersToSearchParams(activeFilters, sort, page), { replace: true })
+  }, [activeFilters, sort, page, setSearchParams])
 
-  // Fetch jobs
+  // Fetch jobs; the cancelled flag drops out-of-order responses from stale requests
   useEffect(() => {
+    let cancelled = false
     setLoading(true)
     fetchJobs(activeFilters, sort, page, PAGE_SIZE)
-      .then(setResult)
+      .then(r => { if (!cancelled) setResult(r) })
       .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [debouncedSearch, filters.tier, filters.sectors, filters.companies, filters.seniority,
-      filters.remote_type, filters.skills, filters.salary_min, filters.salary_max,
-      filters.salary_disclosed_only, filters.exp_min, filters.exp_max,
-      filters.is_internship, sort, page])
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [activeFilters, sort, page])
 
   const updateFilters = useCallback((patch: Partial<JobFilters>) => {
-    setFilters(prev => ({ ...prev, ...patch }))
+    const { search, ...rest } = patch
+    if (search !== undefined) setSearchInput(search)
+    if (Object.keys(rest).length > 0) setBaseFilters(prev => ({ ...prev, ...rest }))
     setPage(1) // reset page on filter change
   }, [])
 
   const clearFilters = useCallback(() => {
-    setFilters(DEFAULT_FILTERS)
+    setBaseFilters(DEFAULT_FILTERS)
+    setSearchInput(DEFAULT_FILTERS.search)
     setPage(1)
   }, [])
 
@@ -144,7 +149,7 @@ export default function JobBoardPage() {
 
       {/* ── Sticky filter bar ───────────────────────────────── */}
       <FilterBar
-        filters={filters}
+        filters={{ ...activeFilters, search: searchInput }}
         filterData={filterData}
         activeCount={activeCount}
         onUpdate={updateFilters}
@@ -166,12 +171,12 @@ export default function JobBoardPage() {
           }}
         >
           {TIER_TABS.map(tab => {
-            const selected = filters.tier === tab.value
+            const selected = activeFilters.tier === tab.value
             const count = tab.value === 'all'
               ? (boardTotal ?? undefined)
               : tierCounts[tab.value]
             return (
-              <button
+              <button type="button"
                 key={tab.value}
                 role="tab"
                 aria-selected={selected}

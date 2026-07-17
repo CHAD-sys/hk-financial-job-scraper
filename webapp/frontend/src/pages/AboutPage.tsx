@@ -83,8 +83,8 @@ export default function AboutPage() {
                 'A large share of postings are in Cantonese or Mandarin, invisible to English-only search.',
                 'Boutiques and specialist funds rarely appear on the big aggregators at all.',
                 'And no one keeps the history — so the market’s direction is impossible to see.',
-              ].map((t, i) => (
-                <li key={i} className="flex gap-3 text-base leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
+              ].map(t => (
+                <li key={t} className="flex gap-3 text-base leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
                   <span className="flex-shrink-0 mt-2 h-1.5 w-1.5 rounded-full" style={{ backgroundColor: 'var(--color-gold)' }} />
                   {t}
                 </li>
@@ -200,14 +200,14 @@ export default function AboutPage() {
             See it in action.
           </p>
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/jobs')}
+            <button type="button" onClick={() => navigate('/jobs')}
                     className="inline-flex items-center gap-2 rounded-md px-5 py-2.5 text-sm font-semibold cursor-pointer transition-colors duration-200"
                     style={{ backgroundColor: 'var(--color-ink)', color: 'var(--color-ink-inverse)' }}
                     onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-blue)')}
                     onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--color-ink)')}>
               Browse all roles <ArrowRight size={15} />
             </button>
-            <button onClick={() => navigate('/jobs?tier=boutique')}
+            <button type="button" onClick={() => navigate('/jobs?tier=boutique')}
                     className="inline-flex items-center gap-1.5 text-sm font-semibold cursor-pointer"
                     style={{ color: 'var(--color-gold)' }}>
               <Star size={14} strokeWidth={2} fill="currentColor" /> Exclusive
@@ -216,7 +216,7 @@ export default function AboutPage() {
         </section>
       </main>
 
-      <footer style={{ borderTop: '1px solid var(--color-border)' }} role="contentinfo">
+      <footer style={{ borderTop: '1px solid var(--color-border)' }}>
         <div className="mx-auto max-w-7xl px-6 lg:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-3">
           <span className="text-sm font-semibold tracking-tight" style={{ fontFamily: 'var(--font-display)', color: 'var(--color-ink)' }}>
             FinEx <em className="not-italic" style={{ color: 'var(--color-gold)' }}>Careers</em>

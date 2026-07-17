@@ -97,3 +97,28 @@ body {
   color: var(--color-ink) !important;
 }
 .filter-pill:active { transform: scale(0.96); }
+
+/* ── Job detail modal (native <dialog>) ───────────────────────── */
+/* Side panel anchored below the sticky nav, filling the right edge. */
+.job-detail-dialog {
+  position: fixed;
+  top: var(--nav-height);
+  right: 0;
+  bottom: 0;
+  left: auto;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-left: 1px solid var(--color-border);
+  max-width: none;
+  max-height: none;
+  height: calc(100dvh - var(--nav-height));
+  width: min(680px, 100vw);
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-float);
+}
+.job-detail-dialog::backdrop {
+  background-color: rgba(11, 22, 40, 0.55);
+  backdrop-filter: blur(2px);
+}

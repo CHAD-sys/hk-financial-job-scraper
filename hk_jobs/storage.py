@@ -20,6 +20,7 @@ Design principles:
 
 import json
 import logging
+import re
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -83,6 +84,19 @@ CREATE TABLE IF NOT EXISTS jobs (
     -- Boutique business category from company config (Phase 17), NOT LLM-extracted
     category         TEXT,
 
+    -- Cross-source apply routing (Phase 19).  apply_url is '' unless this vacancy
+    -- was also found on another source, in which case reconcile_cross_posted()
+    -- sets it to the highest-priority source's URL (eFinancialCareers first).
+    apply_url        TEXT NOT NULL DEFAULT '',
+    cross_posted     INTEGER NOT NULL DEFAULT 0,   -- SQLite: 1/0 for boolean
+    -- Phase 20: the row to display for a cross-posted vacancy (richest source);
+    -- 0 hides the duplicate copy. Managed by reconcile_cross_posted().
+    is_primary       INTEGER NOT NULL DEFAULT 1,
+
+    -- Per-board market signals (Phase 21): JSON blob of demand / promotion /
+    -- urgency / reposts / expiry / employer-reputation fields, board-specific.
+    board_signals    TEXT NOT NULL DEFAULT '{}',
+
     PRIMARY KEY (source, source_id)
 );
 """
@@ -92,7 +106,144 @@ _CREATE_INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_jobs_dedup_hash   ON jobs (dedup_hash);",
     "CREATE INDEX IF NOT EXISTS idx_jobs_is_active    ON jobs (is_active);",
     "CREATE INDEX IF NOT EXISTS idx_jobs_seniority    ON jobs (seniority);",
+    # Phase 19: reconcile_cross_posted() groups active rows by dedup_hash and
+    # mark_inactive_for_run() now filters by source as well as company_slug.
+    "CREATE INDEX IF NOT EXISTS idx_jobs_source       ON jobs (source);",
 ]
+
+# ── Cross-source apply priority (Phase 19) ─────────────────────────────────────
+# When one vacancy is found on several sources, its apply_url points at the
+# URL of the FIRST source in this list that is present in the group. Sources not
+# listed rank last (in the order they were seen). Edit this list to change
+# apply-link preference globally.
+#
+# Ordering rationale (per the product directive):
+#     1. longtail — boutique roles (source_tier="boutique") take top apply priority.
+#   2-3. workday / eightfold — the company's OWN ATS (its real careers page), the
+#        best apply target after boutique.
+#   4-7. efinancialcareers → linkedin → indeed → jobsdb — the aggregator fallback
+#        order for roles with no boutique/own-ATS copy.
+_SOURCE_PRIORITY: tuple[str, ...] = (
+    "longtail",
+    "workday",
+    "eightfold",
+    "efinancialcareers",
+    "linkedin",
+    "indeed",
+    "jobsdb",
+)
+
+
+def _preferred_apply_url(members: list[sqlite3.Row]) -> str:
+    """Return the URL of the highest-priority source among cross-posted copies."""
+    def rank(row: sqlite3.Row) -> int:
+        src = row["source"]
+        return _SOURCE_PRIORITY.index(src) if src in _SOURCE_PRIORITY else len(_SOURCE_PRIORITY)
+
+    return min(members, key=rank)["url"]
+
+
+# ── Cross-source DISPLAY priority (Phase 20) ───────────────────────────────────
+# Which copy of a cross-posted vacancy the web app shows. Distinct from the apply
+# priority above: we apply on eFinancialCareers, but we DISPLAY the richest record.
+# JobsDB first — per the product decision, and because JobsDB rows carry both a
+# full description AND the DeepSeek enrichment (skills/summary). LinkedIn ranks
+# above indeed because LinkedIn rows now carry a fetched description + summary,
+# whereas indeed is listing-only (no description). The suppressed copies get
+# is_primary=0.
+_DISPLAY_PRIORITY: tuple[str, ...] = (
+    "jobsdb",
+    "eightfold",
+    "workday",
+    "efinancialcareers",
+    "longtail",
+    "linkedin",
+    "indeed",
+)
+
+
+def _primary_rowid(members: list[sqlite3.Row]) -> int:
+    """rowid of the copy to display (highest display priority) among a group."""
+    def rank(row: sqlite3.Row) -> int:
+        src = row["source"]
+        return _DISPLAY_PRIORITY.index(src) if src in _DISPLAY_PRIORITY else len(_DISPLAY_PRIORITY)
+
+    return min(members, key=rank)["rowid"]
+
+
+_TITLE_NOISE_RE = re.compile(r"[^a-z0-9]+")
+
+# How much title-word overlap counts as "the same vacancy on two boards". Fuzzy
+# (not exact string) so different phrasings of the SAME role match — reordering
+# ("Product Manager, Banking" vs "Banking Product Manager") and tiny wording
+# differences. Set high (0.8) on purpose: a single distinguishing word usually
+# means a DIFFERENT role — "App Development Manager (Cloud)" vs "(E-Banking)",
+# "System Admin (Linux)" vs "(Windows)" — and a lower bar collapsed those. At
+# 0.85 a one-word specialization keeps roles apart while reordering still matches.
+# (0.8 was too low: a spec-less "System Admin Manager" (4 words) still reached a
+# "...Manager (Cloud)" (5 words) at 4/5=0.8 and chained distinct specializations
+# together through transitivity; 0.85 breaks that bridge.)
+_FUZZY_TITLE_THRESHOLD = 0.85
+
+# Seniority/rank words that MUST agree before two titles are treated as the same
+# role. This stops the fuzzy match from collapsing different levels of the same
+# job — "Analyst" vs "Senior Analyst", "Manager" vs "Assistant Manager" — which
+# a raw word-overlap score would otherwise merge.
+_LEVEL_TOKENS = frozenset({
+    "senior", "junior", "assistant", "deputy", "vice", "president", "vp", "avp",
+    "svp", "evp", "head", "chief", "lead", "principal", "director", "executive",
+    "intern", "internship", "graduate", "trainee",
+})
+
+
+def _title_tokens(title: str) -> frozenset[str]:
+    """Word set of a title (lowercased, punctuation folded) for overlap scoring."""
+    return frozenset(t for t in _TITLE_NOISE_RE.sub(" ", title.lower()).split() if t)
+
+
+def _titles_match(a: frozenset[str], b: frozenset[str], a_lvl: frozenset[str],
+                  b_lvl: frozenset[str]) -> bool:
+    """True if two token sets are the same vacancy: same seniority + enough overlap."""
+    if not a or not b:
+        return a == b
+    if a_lvl != b_lvl:               # different seniority → different role
+        return False
+    return len(a & b) / len(a | b) >= _FUZZY_TITLE_THRESHOLD
+
+
+def _cluster_by_title(members: list[sqlite3.Row]) -> list[list[sqlite3.Row]]:
+    """
+    Group a company's rows into vacancies by fuzzy title match (union-find).
+
+    Two rows join a cluster when _titles_match. Only called for companies whose
+    rows span more than one source, so the O(n^2) comparison stays cheap.
+    """
+    from collections import defaultdict
+
+    n = len(members)
+    toks = [_title_tokens(m["title"]) for m in members]
+    lvls = [t & _LEVEL_TOKENS for t in toks]
+    parent = list(range(n))
+
+    def find(x: int) -> int:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for i in range(n):
+        if not toks[i]:
+            continue
+        for j in range(i + 1, n):
+            if _titles_match(toks[i], toks[j], lvls[i], lvls[j]):
+                ri, rj = find(i), find(j)
+                if ri != rj:
+                    parent[ri] = rj
+
+    clusters: dict[int, list[sqlite3.Row]] = defaultdict(list)
+    for i, m in enumerate(members):
+        clusters[find(i)].append(m)
+    return list(clusters.values())
 
 # ── Upsert SQL ────────────────────────────────────────────────────────────────
 # INSERT ... ON CONFLICT is standard SQL:2003 and supported by both SQLite
@@ -110,7 +261,8 @@ INSERT INTO jobs (
     skills_required, skills_preferred, years_experience_min,
     posted_at, fetched_at, is_active,
     scraped_under_slug,
-    source_tier, extraction_confidence, category
+    source_tier, extraction_confidence, category,
+    apply_url, cross_posted, board_signals
 ) VALUES (
     :source, :source_id, :company, :company_slug, :url, :dedup_hash,
     :title, :description_raw, :description_clean,
@@ -120,7 +272,8 @@ INSERT INTO jobs (
     :skills_required, :skills_preferred, :years_experience_min,
     :posted_at, :fetched_at, 1,
     :scraped_under_slug,
-    :source_tier, :extraction_confidence, :category
+    :source_tier, :extraction_confidence, :category,
+    :apply_url, :cross_posted, :board_signals
 )
 ON CONFLICT (source, source_id) DO UPDATE SET
     title              = excluded.title,
@@ -152,7 +305,15 @@ ON CONFLICT (source, source_id) DO UPDATE SET
     scraped_under_slug = COALESCE(jobs.scraped_under_slug, excluded.scraped_under_slug),
     source_tier        = excluded.source_tier,
     extraction_confidence = excluded.extraction_confidence,
-    category           = excluded.category
+    category           = excluded.category,
+    -- Refresh board signals on every scrape, but never let an empty '{}' from a
+    -- lighter re-scrape wipe previously-captured signals.
+    board_signals      = CASE WHEN excluded.board_signals IN ('', '{}')
+                              THEN jobs.board_signals ELSE excluded.board_signals END
+    -- NOTE: apply_url and cross_posted are intentionally NOT updated here. A
+    -- daily scrape re-inserts each job with the default ('' / 0); the correct
+    -- values are (re)computed by reconcile_cross_posted() at the end of the run,
+    -- so leaving them stable on upsert avoids a scrape wiping a set apply_url.
     -- NOTE: company is intentionally NOT updated here. The correct advertiser
     -- name is set on INSERT from the card HTML (Fix A), and repaired for
     -- existing rows by --repair-companies (GraphQL advertiser.name).
@@ -224,7 +385,13 @@ class JobStore:
 
         return inserted, updated
 
-    def mark_inactive_for_run(self, company_slug: str, fetched_at: datetime, new_job_count: int = None) -> int:
+    def mark_inactive_for_run(
+        self,
+        company_slug: str,
+        fetched_at: datetime,
+        new_job_count: int = None,
+        source: str | None = None,
+    ) -> int:
         """
         Soft-delete jobs for a company that were NOT seen in this run.
 
@@ -234,6 +401,13 @@ class JobStore:
         — it was active before but wasn't returned by the ATS this time.
         We mark it inactive rather than deleting it (see module docstring
         for why).
+
+        source: when given, only rows from THIS source are considered. This
+        matters once a company is scraped from more than one source under the
+        same company_slug (e.g. a JobsDB entry AND an eFinancialCareers entry
+        both using slug 'aia-hk'): without the source filter, finishing the
+        JobsDB scrape would wrongly deactivate the company's eFC rows (and vice
+        versa). Left as None for single-source companies → old behaviour.
 
         Safety check: if new_job_count is 0 or suspiciously low (< 30% of
         historical average), skip deactivation — likely a transient scrape
@@ -250,22 +424,27 @@ class JobStore:
             )
             return 0
 
-        # Check historical average for this company
+        # Check historical average for this company (scoped to this source when given)
         if new_job_count is not None:
+            src_clause = "AND source = ?" if source is not None else ""
+            params = (company_slug, fetched_at.isoformat())
+            if source is not None:
+                params = (company_slug, source, fetched_at.isoformat())
             row = self._conn.execute(
-                """
+                f"""
                 SELECT AVG(CAST(active_count AS FLOAT)) as avg_count
                 FROM (
                     SELECT SUM(is_active) as active_count
                     FROM jobs
                     WHERE company_slug = ?
+                    {src_clause}
                     AND fetched_at < ?
                     GROUP BY DATE(fetched_at)
                     ORDER BY DATE(fetched_at) DESC
                     LIMIT 7
                 )
                 """,
-                (company_slug, fetched_at.isoformat()),
+                params,
             ).fetchone()
 
             if row and row["avg_count"]:
@@ -281,18 +460,145 @@ class JobStore:
                     return 0
 
         fetched_iso = fetched_at.isoformat()
+        src_clause = "AND source = ?" if source is not None else ""
+        params = (
+            (company_slug, source, fetched_iso)
+            if source is not None
+            else (company_slug, fetched_iso)
+        )
         cursor = self._conn.execute(
-            """
+            f"""
             UPDATE jobs
                SET is_active = 0
              WHERE company_slug = ?
+               {src_clause}
                AND is_active    = 1
                AND fetched_at   < ?
             """,
-            (company_slug, fetched_iso),
+            params,
         )
         self._conn.commit()
         return cursor.rowcount
+
+    def reconcile_cross_posted(self) -> tuple[int, int]:
+        """
+        Detect vacancies that appear on more than one source and set apply_url.
+
+        The same role is often posted on several sites (e.g. eFinancialCareers
+        AND JobsDB). This pass groups a company's ACTIVE jobs into vacancies by
+        FUZZY title match (_cluster_by_title — word-overlap with a seniority guard,
+        location-independent) and, for any cluster spanning more than one distinct
+        source:
+
+          - sets cross_posted = 1 on every copy, and
+          - sets apply_url on every copy to the highest-priority source's URL
+            (see _SOURCE_PRIORITY — eFinancialCareers first), so the frontend can
+            always send an applicant to the preferred site while still showing
+            that the role was found on multiple boards.
+
+        It also sets is_primary for display de-duplication: within a cross-posted
+        group exactly one copy — the richest source (see _DISPLAY_PRIORITY, JobsDB
+        first: it carries the description AND the DeepSeek enrichment) — keeps
+        is_primary=1 and the other copies get 0, so the web app shows one card per
+        vacancy (with apply_url still pointing at eFinancialCareers). De-dup only
+        applies across DIFFERENT sources; two rows from the SAME source that happen
+        to share a normalised title are both left visible (they are usually
+        distinct roles, not a cross-post).
+
+        Groups on a single source are reset to (apply_url='', cross_posted=0,
+        is_primary=1) so the pass is fully idempotent: if a role stops being
+        cross-posted (its eFC copy disappears), the leftover routing is cleared on
+        the next run. Only rows whose value actually changes are written.
+
+        Returns (cross_posted_groups, rows_updated).
+        """
+        from collections import defaultdict
+
+        rows = self._conn.execute(
+            "SELECT rowid, company_slug, title, source, url, apply_url, cross_posted, is_primary "
+            "FROM jobs WHERE is_active = 1"
+        ).fetchall()
+
+        by_company: dict[str, list[sqlite3.Row]] = defaultdict(list)
+        for r in rows:
+            by_company[r["company_slug"]].append(r)
+
+        # (apply_url, cross_posted, is_primary, rowid)
+        updates: list[tuple[str, int, int, int]] = []
+        cross_groups = 0
+        for company_rows in by_company.values():
+            # Fast path: a company scraped from a single source can't cross-post;
+            # skip the O(n^2) title clustering and just reset routing to defaults.
+            if len({m["source"] for m in company_rows}) <= 1:
+                clusters: list[list[sqlite3.Row]] = [company_rows]
+            else:
+                clusters = _cluster_by_title(company_rows)
+
+            for members in clusters:
+                if len({m["source"] for m in members}) > 1:
+                    cross_groups += 1
+                    preferred = _preferred_apply_url(members)
+                    primary = _primary_rowid(members)
+                    for m in members:
+                        is_primary = 1 if m["rowid"] == primary else 0
+                        if (m["apply_url"] != preferred or m["cross_posted"] != 1
+                                or m["is_primary"] != is_primary):
+                            updates.append((preferred, 1, is_primary, m["rowid"]))
+                else:
+                    for m in members:
+                        if m["apply_url"] != "" or m["cross_posted"] != 0 or m["is_primary"] != 1:
+                            updates.append(("", 0, 1, m["rowid"]))
+
+        if updates:
+            with self._conn:
+                self._conn.executemany(
+                    "UPDATE jobs SET apply_url = ?, cross_posted = ?, is_primary = ? "
+                    "WHERE rowid = ?",
+                    updates,
+                )
+        self.refresh_signal_flags()
+        return cross_groups, len(updates)
+
+    def refresh_signal_flags(self) -> None:
+        """
+        Recompute the indexed grp_new / grp_urgent / grp_applicants columns from
+        board_signals, aggregated across each vacancy's cross-post group.
+
+        Run once here (after reconciliation) rather than per web request: filtering
+        the JSON with a correlated group subquery was ~15-45 s per page; this makes
+        the web filters plain indexed lookups (<1 ms). A vacancy is flagged if ANY
+        board copy carries the signal; grp_applicants is the highest known count
+        across boards (NULL when no board reports one). Guards missing columns so it
+        is a no-op on a pre-Phase-22 DB.
+        """
+        cols = {r[1] for r in self._conn.execute("PRAGMA table_info(jobs)")}
+        if not {"grp_new", "grp_urgent", "grp_applicants"} <= cols:
+            return
+        # A copy "g" is in row j's group when it is j itself or a cross-post sharing
+        # the apply_url group key. The IN-subqueries below are materialised once and
+        # hit the apply_url index, so the whole refresh is a handful of set updates.
+        with self._conn:
+            self._conn.execute(
+                "UPDATE jobs SET grp_new = 0, grp_urgent = 0, grp_applicants = NULL "
+                "WHERE is_active = 1"
+            )
+            for col, path in (("grp_new", "$.new_job"), ("grp_urgent", "$.urgently_hiring")):
+                self._conn.execute(
+                    f"UPDATE jobs SET {col} = 1 WHERE is_active = 1 AND is_primary = 1 AND ("
+                    f"  json_extract(board_signals, '{path}') = 1"
+                    f"  OR (cross_posted = 1 AND apply_url IN ("
+                    f"       SELECT apply_url FROM jobs WHERE is_active = 1 AND cross_posted = 1"
+                    f"       AND json_extract(board_signals, '{path}') = 1)))"
+                )
+            self._conn.execute(
+                "UPDATE jobs SET grp_applicants = ("
+                "  SELECT MAX(CAST(json_extract(g.board_signals, '$.applicant_count') AS INTEGER))"
+                "    FROM jobs g WHERE g.is_active = 1"
+                "    AND ((g.source = jobs.source AND g.source_id = jobs.source_id)"
+                "         OR (jobs.cross_posted = 1 AND g.cross_posted = 1 AND g.apply_url = jobs.apply_url))"
+                "    AND json_extract(g.board_signals, '$.applicant_count') IS NOT NULL) "
+                "WHERE is_active = 1 AND is_primary = 1"
+            )
 
     def stats(self) -> dict[str, Any]:
         """
@@ -381,6 +687,9 @@ def _job_to_row(job: Job) -> dict[str, Any]:
         "source_tier": job.source_tier,
         "extraction_confidence": job.extraction_confidence,
         "category": job.category,
+        "apply_url": job.apply_url,
+        "cross_posted": int(job.cross_posted),
+        "board_signals": json.dumps(job.board_signals or {}),
     }
 
 
@@ -405,6 +714,20 @@ def _row_to_job(row: sqlite3.Row) -> Job:
         category = row["category"]
     except IndexError:
         category = None
+    # apply_url / cross_posted added in Phase 19 — guard likewise.
+    try:
+        apply_url = row["apply_url"] or ""
+    except IndexError:
+        apply_url = ""
+    try:
+        cross_posted = bool(row["cross_posted"])
+    except IndexError:
+        cross_posted = False
+    # board_signals added in Phase 21 — guard against pre-migration rows.
+    try:
+        board_signals = json.loads(row["board_signals"] or "{}")
+    except (IndexError, TypeError, json.JSONDecodeError):
+        board_signals = {}
 
     return Job(
         source=row["source"],
@@ -433,4 +756,7 @@ def _row_to_job(row: sqlite3.Row) -> Job:
         source_tier=source_tier,
         extraction_confidence=extraction_confidence,
         category=category,
+        apply_url=apply_url,
+        cross_posted=cross_posted,
+        board_signals=board_signals,
     )

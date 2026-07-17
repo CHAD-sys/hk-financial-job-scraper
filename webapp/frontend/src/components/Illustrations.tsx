@@ -68,29 +68,17 @@ export function SkylineTrend({ className, style }: SvgProps) {
   )
 }
 
-/** A subtle dotted grid field for section backgrounds (decorative). */
-export function DotField({ className, style }: SvgProps) {
-  return (
-    <svg className={className} style={style} aria-hidden="true"
-         xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <pattern id="fx-dots" width="22" height="22" patternUnits="userSpaceOnUse">
-          <circle cx="1.5" cy="1.5" r="1.5" fill="var(--color-gold)" opacity="0.14" />
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#fx-dots)" />
-    </svg>
-  )
-}
-
 /**
  * Data-pipeline graphic: sources on the left flow into an AI hub, then fan out
  * into a structured index on the right. Used as the About-page hero (distinct
  * from the skyline). Navy structure, one gold "live" path.
  */
+const DATAFLOW_SOURCES = [64, 116, 168, 220]
+const DATAFLOW_OUTS = [96, 158, 220]
+
 export function DataFlow({ className, style }: SvgProps) {
-  const sources = [64, 116, 168, 220]
-  const outs = [96, 158, 220]
+  const sources = DATAFLOW_SOURCES
+  const outs = DATAFLOW_OUTS
   return (
     <svg viewBox="0 0 480 300" className={className} style={style}
          role="img" aria-label="Data pipeline: sources flow into AI enrichment, then into a structured index"
@@ -155,8 +143,10 @@ export function CoverageRadar({ className, style }: SvgProps) {
 }
 
 /** Ascending growth bars with a gold cap — trend/section accent. */
+const GROWTH_BAR_HEIGHTS = [22, 34, 30, 46, 58, 52, 74]
+
 export function GrowthBars({ className, style }: SvgProps) {
-  const hs = [22, 34, 30, 46, 58, 52, 74]
+  const hs = GROWTH_BAR_HEIGHTS
   return (
     <svg viewBox="0 0 200 90" className={className} style={style} aria-hidden="true"
          fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -171,22 +161,3 @@ export function GrowthBars({ className, style }: SvgProps) {
   )
 }
 
-/** Compact candlestick motif — used as a section accent. */
-export function Candles({ className, style }: SvgProps) {
-  const bars = [
-    [6, 20, 10, false], [22, 12, 8, true], [38, 26, 14, false],
-    [54, 8, 6, true], [70, 18, 12, false], [86, 4, 4, true],
-  ] as const
-  return (
-    <svg viewBox="0 0 100 52" className={className} style={style} aria-hidden="true"
-         fill="none" xmlns="http://www.w3.org/2000/svg">
-      {bars.map(([x, top, bh, up], i) => (
-        <g key={i} stroke={up ? 'var(--color-gold)' : 'var(--color-blue)'}>
-          <line x1={x + 5} y1={top - 5} x2={x + 5} y2={top + bh + 5} strokeWidth="1.5" />
-          <rect x={x} y={top} width="10" height={bh} rx="1.5"
-                fill={up ? 'var(--color-gold)' : 'var(--color-blue)'} opacity="0.9" stroke="none" />
-        </g>
-      ))}
-    </svg>
-  )
-}

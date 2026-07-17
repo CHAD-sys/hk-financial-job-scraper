@@ -49,10 +49,19 @@ def test_required_config_keys_present_for_every_entry():
     assert not errors, "Config key errors:\n" + "\n".join(errors)
 
 
-def test_all_slugs_are_unique():
+def test_slug_adapter_pairs_are_unique():
+    """
+    A company may be scraped from more than one source under the SAME slug (e.g.
+    a JobsDB entry AND an eFinancialCareers entry both slug 'man-group-hk') so
+    that a role found on both boards is matched by dedup_hash and its apply_url
+    routed to the preferred source. The slug therefore need not be globally
+    unique — but each (slug, adapter) pair must be, so we never define the same
+    source twice for one company.
+    """
     raw = yaml.safe_load(_YAML_PATH.read_text())
-    slugs = [e["slug"] for e in raw["companies"]]
-    assert len(slugs) == len(set(slugs)), "Duplicate slug detected"
+    pairs = [(e["slug"], e["adapter"]) for e in raw["companies"]]
+    dupes = {p for p in pairs if pairs.count(p) > 1}
+    assert not dupes, f"Duplicate (slug, adapter) pair(s): {sorted(dupes)}"
 
 
 def test_every_entry_has_enabled_field():

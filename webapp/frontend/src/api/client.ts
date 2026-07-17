@@ -25,11 +25,14 @@ export interface Job {
   url: string
   is_internship: boolean
   description_excerpt: string
+  // Market signals by board, e.g. { indeed: { urgently_hiring, applicant_count, new_job }, linkedin: { reposted } }
+  board_signals: Record<string, Record<string, unknown>>
 }
 
 export interface JobDetail extends Job {
   description_clean: string
   description_summary: string
+  sources: string[]
 }
 
 export interface JobListResponse {
@@ -82,6 +85,9 @@ export interface JobFilters {
   exp_min: number | null
   exp_max: number | null
   is_internship: boolean | null
+  is_new: boolean
+  urgently_hiring: boolean
+  max_applicants: number | null
 }
 
 export const DEFAULT_FILTERS: JobFilters = {
@@ -98,6 +104,9 @@ export const DEFAULT_FILTERS: JobFilters = {
   exp_min: null,
   exp_max: null,
   is_internship: null,
+  is_new: false,
+  urgently_hiring: false,
+  max_applicants: null,
 }
 
 // ── Fetch helpers ─────────────────────────────────────────────────────────────
@@ -133,6 +142,9 @@ export async function fetchJobs(
   if (filters.exp_min !== null) p.set('exp_min', String(filters.exp_min))
   if (filters.exp_max !== null) p.set('exp_max', String(filters.exp_max))
   if (filters.is_internship !== null) p.set('is_internship', String(filters.is_internship))
+  if (filters.is_new) p.set('is_new', 'true')
+  if (filters.urgently_hiring) p.set('urgently_hiring', 'true')
+  if (filters.max_applicants !== null) p.set('max_applicants', String(filters.max_applicants))
 
   p.set('sort', sort)
   p.set('page', String(page))
@@ -182,6 +194,9 @@ export function filtersToSearchParams(
   if (filters.exp_min !== null) p.set('exp_min', String(filters.exp_min))
   if (filters.exp_max !== null) p.set('exp_max', String(filters.exp_max))
   if (filters.is_internship) p.set('intern', '1')
+  if (filters.is_new) p.set('new', '1')
+  if (filters.urgently_hiring) p.set('urgent', '1')
+  if (filters.max_applicants !== null) p.set('max_appl', String(filters.max_applicants))
   if (sort !== 'newest') p.set('sort', sort)
   if (page > 1) p.set('page', String(page))
   return p
@@ -206,6 +221,9 @@ export function searchParamsToFilters(
       exp_min: p.has('exp_min') ? Number(p.get('exp_min')) : null,
       exp_max: p.has('exp_max') ? Number(p.get('exp_max')) : null,
       is_internship: p.get('intern') === '1' ? true : null,
+      is_new: p.get('new') === '1',
+      urgently_hiring: p.get('urgent') === '1',
+      max_applicants: p.has('max_appl') ? Number(p.get('max_appl')) : null,
     },
     sort: p.get('sort') ?? 'newest',
     page: Number(p.get('page') ?? '1'),
@@ -223,5 +241,8 @@ export function countActiveFilters(filters: JobFilters): number {
   if (filters.salary_disclosed_only || filters.salary_min !== null || filters.salary_max !== null) n++
   if (filters.exp_min !== null || filters.exp_max !== null) n++
   if (filters.is_internship) n++
+  if (filters.is_new) n++
+  if (filters.urgently_hiring) n++
+  if (filters.max_applicants !== null) n++
   return n
 }

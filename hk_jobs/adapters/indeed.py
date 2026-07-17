@@ -297,6 +297,7 @@ class IndeedAdapter(BaseAdapter):
             description_clean="",
             posted_at=card.get("posted_at"),
             scraped_under_slug=self.company_slug,
+            board_signals=card.get("signals") or {},
         )
 
 
@@ -396,5 +397,42 @@ def _parse_listing_json(html: str) -> list[dict]:
             "company": (r.get("company") or "").strip(),  # blank on employer pages
             "location": (r.get("formattedLocation") or "").strip(),
             "posted_at": posted_at,
+            "signals": _extract_signals(r),
         })
     return cards
+
+
+def _extract_signals(r: dict) -> dict:
+    """Pull P2/P3 market signals out of one Indeed mosaic card (only non-empty ones)."""
+    def _int(v):
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return None
+
+    sig: dict = {}
+    started = _int(r.get("organicApplyStartCount"))
+    if started and started > 0:
+        sig["applicant_count"] = started              # demand: candidates who started applying
+    if r.get("sponsored") or r.get("showSponsoredLabel"):
+        sig["sponsored"] = True                        # paid placement
+    if r.get("urgentlyHiring"):
+        sig["urgently_hiring"] = True
+    rating = r.get("companyRating")
+    if rating and float(rating) > 0:
+        sig["company_rating"] = float(rating)          # employer reputation
+    reviews = _int(r.get("companyReviewCount"))
+    if reviews and reviews > 0:
+        sig["review_count"] = reviews
+    if r.get("featuredEmployer") or r.get("isTopRatedEmployer"):
+        sig["featured_employer"] = True
+    if r.get("employerResponsive"):
+        sig["employer_responsive"] = True
+    if r.get("jobTypes"):
+        sig["job_types"] = r.get("jobTypes")           # Full-time / Contract / Internship
+    if r.get("newJob"):
+        sig["new_job"] = True
+    if r.get("expired"):
+        sig["expired"] = True
+    sig["apply_on_indeed"] = bool(r.get("indeedApplyable"))
+    return sig

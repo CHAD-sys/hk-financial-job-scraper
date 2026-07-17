@@ -1,4 +1,4 @@
-import { Search, X, SlidersHorizontal, ChevronDown } from 'lucide-react'
+import { Search, X, SlidersHorizontal, ChevronDown, Flame, Sparkles, Users } from 'lucide-react'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import type { JobFilters, FiltersResponse } from '../api/client'
@@ -17,56 +17,14 @@ const SECTORS = ['Banking', 'Insurance', 'Asset Management', 'Investment Banking
 export default function FilterBar({ filters, filterData, activeCount, onUpdate, onClear }: Props) {
   const [showAllFilters, setShowAllFilters] = useState(false)
 
+  const sectorSet = new Set(filters.sectors)
+
   const toggleSector = (s: string) => {
-    const next = filters.sectors.includes(s)
+    const next = sectorSet.has(s)
       ? filters.sectors.filter(x => x !== s)
       : [...filters.sectors, s]
     onUpdate({ sectors: next })
   }
-
-  const togglePill = (key: 'seniority' | 'remote_type', val: string) => {
-    const cur = filters[key] as string[]
-    const next = cur.includes(val) ? cur.filter(x => x !== val) : [...cur, val]
-    onUpdate({ [key]: next })
-  }
-
-  const seniority_levels = filterData?.seniority_levels ?? []
-  const remote_types = filterData?.remote_types ?? []
-
-  // Build NameCount arrays for MultiSelect
-  const companyOptions = filterData?.companies ?? []
-  const skillOptions = filterData?.skills ?? []
-
-  const activeChips: { label: string; remove: () => void }[] = [
-    ...filters.sectors.map(s => ({
-      label: s,
-      remove: () => onUpdate({ sectors: filters.sectors.filter(x => x !== s) }),
-    })),
-    ...filters.companies.map(c => ({
-      label: c,
-      remove: () => onUpdate({ companies: filters.companies.filter(x => x !== c) }),
-    })),
-    ...filters.seniority.map(s => ({
-      label: s,
-      remove: () => onUpdate({ seniority: filters.seniority.filter(x => x !== s) }),
-    })),
-    ...filters.remote_type.map(r => ({
-      label: r === 'on-site' ? 'On-site' : r.charAt(0).toUpperCase() + r.slice(1),
-      remove: () => onUpdate({ remote_type: filters.remote_type.filter(x => x !== r) }),
-    })),
-    ...filters.skills.map(s => ({
-      label: s,
-      remove: () => onUpdate({ skills: filters.skills.filter(x => x !== s) }),
-    })),
-    ...(filters.is_internship ? [{ label: 'Internships', remove: () => onUpdate({ is_internship: null }) }] : []),
-    ...(filters.salary_disclosed_only ? [{ label: 'Salary disclosed', remove: () => onUpdate({ salary_disclosed_only: false, salary_min: null, salary_max: null }) }] : []),
-    ...(filters.exp_min !== null || filters.exp_max !== null
-      ? [{
-          label: `Exp: ${filters.exp_min ?? 0}–${filters.exp_max ?? '∞'} yrs`,
-          remove: () => onUpdate({ exp_min: null, exp_max: null }),
-        }]
-      : []),
-  ]
 
   return (
     <div
@@ -82,39 +40,11 @@ export default function FilterBar({ filters, filterData, activeCount, onUpdate, 
 
         {/* Row 1: Search + More-filters toggle + clear */}
         <div className="flex items-center gap-3 py-3.5">
-          {/* Search */}
-          <div className="relative flex-1 max-w-md">
-            <Search
-              size={15}
-              className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-              style={{ color: 'var(--color-ink-faint)' }}
-            />
-            <input
-              type="search"
-              value={filters.search}
-              onChange={e => onUpdate({ search: e.target.value })}
-              placeholder="Search roles, companies…"
-              className="w-full rounded-md pl-9 pr-3 py-2 text-sm outline-none transition-all duration-150"
-              style={{
-                backgroundColor: 'var(--color-surface-2)',
-                border: '1px solid var(--color-border-strong)',
-                color: 'var(--color-ink)',
-              }}
-              onFocus={e => {
-                e.currentTarget.style.borderColor = 'var(--color-ring)'
-                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(30,58,138,0.12)'
-                e.currentTarget.style.backgroundColor = 'var(--color-surface)'
-              }}
-              onBlur={e => {
-                e.currentTarget.style.borderColor = 'var(--color-border-strong)'
-                e.currentTarget.style.boxShadow = 'none'
-                e.currentTarget.style.backgroundColor = 'var(--color-surface-2)'
-              }}
-            />
-          </div>
+          <SearchInput value={filters.search} onChange={v => onUpdate({ search: v })} />
 
           {/* More-filters toggle (all viewports) */}
           <button
+            type="button"
             onClick={() => setShowAllFilters(o => !o)}
             data-active={showAllFilters || activeCount > 0}
             aria-expanded={showAllFilters}
@@ -146,6 +76,7 @@ export default function FilterBar({ filters, filterData, activeCount, onUpdate, 
           {/* Right-side clear */}
           {activeCount > 0 && (
             <button
+              type="button"
               onClick={onClear}
               className="hidden md:flex items-center gap-1.5 text-xs font-medium transition-colors duration-150 cursor-pointer"
               style={{ color: 'var(--color-ink-muted)' }}
@@ -161,172 +92,333 @@ export default function FilterBar({ filters, filterData, activeCount, onUpdate, 
         {/* Row 2: Primary sector filter — always visible */}
         <div className="pb-3.5">
           <FilterRow label="Sector">
-            {SECTORS.map(s => {
-              const active = filters.sectors.includes(s)
-              return (
-                <button
-                  key={s}
-                  onClick={() => toggleSector(s)}
-                  data-active={active}
-                  aria-pressed={active}
-                  className="filter-pill rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer outline-none"
-                  style={{
-                    backgroundColor: active ? 'var(--color-ink)' : 'var(--color-surface-2)',
-                    color: active ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
-                    border: `1px solid ${active ? 'var(--color-ink)' : 'var(--color-border-strong)'}`,
-                    boxShadow: active ? 'var(--shadow-card)' : 'none',
-                  }}
-                >
-                  {s}
-                </button>
-              )
-            })}
+            {SECTORS.map(s => (
+              <PillButton
+                key={s}
+                active={sectorSet.has(s)}
+                onClick={() => toggleSector(s)}
+                palette="ink"
+              >
+                {s}
+              </PillButton>
+            ))}
           </FilterRow>
         </div>
 
         {/* Advanced filters — collapsed by default so the bar stays calm */}
         {showAllFilters && (
-          <div
-            className="flex flex-col gap-4 pt-4 pb-4"
-            style={{ borderTop: '1px dashed var(--color-border-strong)' }}
-          >
-            {/* Level */}
-            {seniority_levels.length > 0 && (
-              <FilterRow label="Level">
-                {seniority_levels.map(s => {
-                  const active = filters.seniority.includes(s)
-                  return (
-                    <button
-                      key={s}
-                      onClick={() => togglePill('seniority', s)}
-                      data-active={active}
-                      aria-pressed={active}
-                      className="filter-pill rounded-md px-3 py-1.5 text-xs font-semibold capitalize cursor-pointer outline-none"
-                      style={{
-                        backgroundColor: active ? 'var(--color-blue)' : 'var(--color-surface-2)',
-                        color: active ? '#fff' : 'var(--color-ink-muted)',
-                        border: `1px solid ${active ? 'var(--color-blue)' : 'var(--color-border-strong)'}`,
-                        boxShadow: active ? 'var(--shadow-card)' : 'none',
-                      }}
-                    >
-                      {s}
-                    </button>
-                  )
-                })}
-              </FilterRow>
-            )}
-
-            {/* Work type */}
-            {remote_types.length > 0 && (
-              <FilterRow label="Work">
-                {remote_types.map(r => {
-                  const active = filters.remote_type.includes(r)
-                  const label = r === 'on-site' ? 'On-site' : r.charAt(0).toUpperCase() + r.slice(1)
-                  return (
-                    <button
-                      key={r}
-                      onClick={() => togglePill('remote_type', r)}
-                      data-active={active}
-                      aria-pressed={active}
-                      className="filter-pill rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer outline-none"
-                      style={{
-                        backgroundColor: active ? 'var(--color-blue)' : 'var(--color-surface-2)',
-                        color: active ? '#fff' : 'var(--color-ink-muted)',
-                        border: `1px solid ${active ? 'var(--color-blue)' : 'var(--color-border-strong)'}`,
-                        boxShadow: active ? 'var(--shadow-card)' : 'none',
-                      }}
-                    >
-                      {label}
-                    </button>
-                  )
-                })}
-              </FilterRow>
-            )}
-
-            {/* Type */}
-            <FilterRow label="Type">
-              <button
-                onClick={() => onUpdate({ is_internship: filters.is_internship ? null : true })}
-                data-active={!!filters.is_internship}
-                aria-pressed={!!filters.is_internship}
-                className="filter-pill rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer outline-none"
-                style={{
-                  backgroundColor: filters.is_internship ? '#FEF3C7' : 'var(--color-surface-2)',
-                  color: filters.is_internship ? '#854D0E' : 'var(--color-ink-muted)',
-                  border: `1px solid ${filters.is_internship ? '#F5C451' : 'var(--color-border-strong)'}`,
-                  boxShadow: filters.is_internship ? 'var(--shadow-card)' : 'none',
-                }}
-              >
-                Internships
-              </button>
-            </FilterRow>
-
-            {/* Refine — company / skills / salary / experience */}
-            <FilterRow label="Refine">
-              <MultiSelect
-                label="Company"
-                options={companyOptions}
-                selected={filters.companies}
-                onChange={v => onUpdate({ companies: v })}
-              />
-              <MultiSelect
-                label="Skills"
-                options={skillOptions}
-                selected={filters.skills}
-                onChange={v => onUpdate({ skills: v })}
-              />
-              <SalaryToggle filters={filters} onUpdate={onUpdate} />
-              <ExpFilter filters={filters} onUpdate={onUpdate} />
-            </FilterRow>
-
-            {/* Mobile clear */}
-            {activeCount > 0 && (
-              <button
-                onClick={() => { onClear(); setShowAllFilters(false) }}
-                className="md:hidden flex items-center gap-1 text-xs font-semibold cursor-pointer self-start"
-                style={{ color: 'var(--color-gold)' }}
-              >
-                <X size={12} /> Clear all filters
-              </button>
-            )}
-          </div>
+          <AdvancedFilters
+            filters={filters}
+            filterData={filterData}
+            activeCount={activeCount}
+            onUpdate={onUpdate}
+            onClearMobile={() => { onClear(); setShowAllFilters(false) }}
+          />
         )}
 
         {/* Row 3: Active filter chips */}
-        {activeChips.length > 0 && (
-          <div className="flex flex-wrap gap-2 pb-3">
-            {activeChips.map(chip => (
-              <span
-                key={chip.label}
-                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
-                style={{
-                  backgroundColor: 'var(--color-gold-light)',
-                  color: 'var(--color-gold)',
-                  border: '1px solid var(--color-gold)',
-                }}
-              >
-                {chip.label}
-                <button
-                  onClick={chip.remove}
-                  className="cursor-pointer flex-shrink-0"
-                  aria-label={`Remove ${chip.label} filter`}
-                >
-                  <X size={11} strokeWidth={2.5} />
-                </button>
-              </span>
-            ))}
-            <button
-              onClick={onClear}
-              className="text-xs font-medium cursor-pointer transition-colors duration-150"
-              style={{ color: 'var(--color-ink-faint)' }}
-              onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-ink-muted)')}
-              onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-ink-faint)')}
-            >
-              Clear all
-            </button>
-          </div>
-        )}
+        <ActiveChips filters={filters} onUpdate={onUpdate} onClear={onClear} />
       </div>
+    </div>
+  )
+}
+
+// ── Search input ──────────────────────────────────────────────────────────────
+
+function SearchInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="relative flex-1 max-w-md">
+      <Search
+        size={15}
+        className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+        style={{ color: 'var(--color-ink-faint)' }}
+      />
+      <input
+        type="search"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder="Search roles, companies…"
+        className="w-full rounded-md pl-9 pr-3 py-2 text-sm outline-none transition-all duration-150"
+        style={{
+          backgroundColor: 'var(--color-surface-2)',
+          border: '1px solid var(--color-border-strong)',
+          color: 'var(--color-ink)',
+        }}
+        onFocus={e => {
+          e.currentTarget.style.borderColor = 'var(--color-ring)'
+          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(30,58,138,0.12)'
+          e.currentTarget.style.backgroundColor = 'var(--color-surface)'
+        }}
+        onBlur={e => {
+          e.currentTarget.style.borderColor = 'var(--color-border-strong)'
+          e.currentTarget.style.boxShadow = 'none'
+          e.currentTarget.style.backgroundColor = 'var(--color-surface-2)'
+        }}
+      />
+    </div>
+  )
+}
+
+// ── Toggle pill button (sector / level / work / type rows) ───────────────────
+
+const PILL_PALETTES = {
+  ink: { bg: 'var(--color-ink)', fg: 'var(--color-ink-inverse)', border: 'var(--color-ink)' },
+  blue: { bg: 'var(--color-blue)', fg: '#fff', border: 'var(--color-blue)' },
+  amber: { bg: '#FEF3C7', fg: '#854D0E', border: '#F5C451' },
+  green: { bg: '#DCFCE7', fg: '#15803D', border: '#BBF7D0' },
+  red: { bg: '#FEE2E2', fg: '#B91C1C', border: '#FECACA' },
+} as const
+
+function PillButton({
+  active,
+  onClick,
+  palette,
+  capitalize = false,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  palette: keyof typeof PILL_PALETTES
+  capitalize?: boolean
+  children: ReactNode
+}) {
+  const colors = PILL_PALETTES[palette]
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      data-active={active}
+      aria-pressed={active}
+      className={`filter-pill rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer outline-none${capitalize ? ' capitalize' : ''}`}
+      style={{
+        backgroundColor: active ? colors.bg : 'var(--color-surface-2)',
+        color: active ? colors.fg : 'var(--color-ink-muted)',
+        border: `1px solid ${active ? colors.border : 'var(--color-border-strong)'}`,
+        boxShadow: active ? 'var(--shadow-card)' : 'none',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+// ── Advanced (collapsed) filter rows ──────────────────────────────────────────
+
+function AdvancedFilters({
+  filters,
+  filterData,
+  activeCount,
+  onUpdate,
+  onClearMobile,
+}: {
+  filters: JobFilters
+  filterData: FiltersResponse | null
+  activeCount: number
+  onUpdate: (p: Partial<JobFilters>) => void
+  onClearMobile: () => void
+}) {
+  const seniority_levels = filterData?.seniority_levels ?? []
+  const remote_types = filterData?.remote_types ?? []
+  const companyOptions = filterData?.companies ?? []
+  const skillOptions = filterData?.skills ?? []
+
+  // Sets give constant-time membership checks inside the render loops below.
+  const senSet = new Set(filters.seniority)
+  const remoteSet = new Set(filters.remote_type)
+
+  const togglePill = (key: 'seniority' | 'remote_type', val: string) => {
+    const cur = filters[key] as string[]
+    const next = cur.includes(val) ? cur.filter(x => x !== val) : [...cur, val]
+    onUpdate({ [key]: next })
+  }
+
+  return (
+    <div
+      className="flex flex-col gap-4 pt-4 pb-4"
+      style={{ borderTop: '1px dashed var(--color-border-strong)' }}
+    >
+      {/* Level */}
+      {seniority_levels.length > 0 && (
+        <FilterRow label="Level">
+          {seniority_levels.map(s => (
+            <PillButton
+              key={s}
+              active={senSet.has(s)}
+              onClick={() => togglePill('seniority', s)}
+              palette="blue"
+              capitalize
+            >
+              {s}
+            </PillButton>
+          ))}
+        </FilterRow>
+      )}
+
+      {/* Work type */}
+      {remote_types.length > 0 && (
+        <FilterRow label="Work">
+          {remote_types.map(r => (
+            <PillButton
+              key={r}
+              active={remoteSet.has(r)}
+              onClick={() => togglePill('remote_type', r)}
+              palette="blue"
+            >
+              {r === 'on-site' ? 'On-site' : r.charAt(0).toUpperCase() + r.slice(1)}
+            </PillButton>
+          ))}
+        </FilterRow>
+      )}
+
+      {/* Type */}
+      <FilterRow label="Type">
+        <PillButton
+          active={!!filters.is_internship}
+          onClick={() => onUpdate({ is_internship: filters.is_internship ? null : true })}
+          palette="amber"
+        >
+          Internships
+        </PillButton>
+      </FilterRow>
+
+      {/* Signals — board-derived market signals */}
+      <FilterRow label="Signals">
+        <PillButton
+          active={filters.is_new}
+          onClick={() => onUpdate({ is_new: !filters.is_new })}
+          palette="green"
+        >
+          <span className="inline-flex items-center gap-1">
+            <Sparkles size={12} strokeWidth={2} aria-hidden="true" />New
+          </span>
+        </PillButton>
+        <PillButton
+          active={filters.urgently_hiring}
+          onClick={() => onUpdate({ urgently_hiring: !filters.urgently_hiring })}
+          palette="red"
+        >
+          <span className="inline-flex items-center gap-1">
+            <Flame size={12} strokeWidth={2} aria-hidden="true" />Urgently hiring
+          </span>
+        </PillButton>
+        <ApplicantsFilter filters={filters} onUpdate={onUpdate} />
+      </FilterRow>
+
+      {/* Refine — company / skills / salary / experience */}
+      <FilterRow label="Refine">
+        <MultiSelect
+          label="Company"
+          options={companyOptions}
+          selected={filters.companies}
+          onChange={v => onUpdate({ companies: v })}
+        />
+        <MultiSelect
+          label="Skills"
+          options={skillOptions}
+          selected={filters.skills}
+          onChange={v => onUpdate({ skills: v })}
+        />
+        <SalaryToggle filters={filters} onUpdate={onUpdate} />
+        <ExpFilter filters={filters} onUpdate={onUpdate} />
+      </FilterRow>
+
+      {/* Mobile clear */}
+      {activeCount > 0 && (
+        <button
+          type="button"
+          onClick={onClearMobile}
+          className="md:hidden flex items-center gap-1 text-xs font-semibold cursor-pointer self-start"
+          style={{ color: 'var(--color-gold)' }}
+        >
+          <X size={12} /> Clear all filters
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ── Active filter chips row ───────────────────────────────────────────────────
+
+function ActiveChips({
+  filters,
+  onUpdate,
+  onClear,
+}: {
+  filters: JobFilters
+  onUpdate: (p: Partial<JobFilters>) => void
+  onClear: () => void
+}) {
+  const chips: { label: string; remove: () => void }[] = [
+    ...filters.sectors.map(s => ({
+      label: s,
+      remove: () => onUpdate({ sectors: filters.sectors.filter(x => x !== s) }),
+    })),
+    ...filters.companies.map(c => ({
+      label: c,
+      remove: () => onUpdate({ companies: filters.companies.filter(x => x !== c) }),
+    })),
+    ...filters.seniority.map(s => ({
+      label: s,
+      remove: () => onUpdate({ seniority: filters.seniority.filter(x => x !== s) }),
+    })),
+    ...filters.remote_type.map(r => ({
+      label: r === 'on-site' ? 'On-site' : r.charAt(0).toUpperCase() + r.slice(1),
+      remove: () => onUpdate({ remote_type: filters.remote_type.filter(x => x !== r) }),
+    })),
+    ...filters.skills.map(s => ({
+      label: s,
+      remove: () => onUpdate({ skills: filters.skills.filter(x => x !== s) }),
+    })),
+    ...(filters.is_internship ? [{ label: 'Internships', remove: () => onUpdate({ is_internship: null }) }] : []),
+    ...(filters.salary_disclosed_only ? [{ label: 'Salary disclosed', remove: () => onUpdate({ salary_disclosed_only: false, salary_min: null, salary_max: null }) }] : []),
+    ...(filters.exp_min !== null || filters.exp_max !== null
+      ? [{
+          label: `Exp: ${filters.exp_min ?? 0}–${filters.exp_max ?? '∞'} yrs`,
+          remove: () => onUpdate({ exp_min: null, exp_max: null }),
+        }]
+      : []),
+    ...(filters.is_new ? [{ label: 'New', remove: () => onUpdate({ is_new: false }) }] : []),
+    ...(filters.urgently_hiring ? [{ label: 'Urgently hiring', remove: () => onUpdate({ urgently_hiring: false }) }] : []),
+    ...(filters.max_applicants !== null
+      ? [{ label: `Under ${filters.max_applicants} applicants`, remove: () => onUpdate({ max_applicants: null }) }]
+      : []),
+  ]
+
+  if (chips.length === 0) return null
+
+  return (
+    <div className="flex flex-wrap gap-2 pb-3">
+      {chips.map(chip => (
+        <span
+          key={chip.label}
+          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
+          style={{
+            backgroundColor: 'var(--color-gold-light)',
+            color: 'var(--color-gold)',
+            border: '1px solid var(--color-gold)',
+          }}
+        >
+          {chip.label}
+          <button
+            type="button"
+            onClick={chip.remove}
+            className="cursor-pointer flex-shrink-0"
+            aria-label={`Remove ${chip.label} filter`}
+          >
+            <X size={11} strokeWidth={2.5} />
+          </button>
+        </span>
+      ))}
+      <button
+        type="button"
+        onClick={onClear}
+        className="text-xs font-medium cursor-pointer transition-colors duration-150"
+        style={{ color: 'var(--color-ink-faint)' }}
+        onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-ink-muted)')}
+        onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-ink-faint)')}
+      >
+        Clear all
+      </button>
     </div>
   )
 }
@@ -362,6 +454,7 @@ function SalaryToggle({
   return (
     <div className="relative">
       <button
+        type="button"
         onClick={() => setOpen(o => !o)}
         data-active={isActive}
         className="filter-pill rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1.5 outline-none"
@@ -412,44 +505,23 @@ function SalaryToggle({
                 Annual HKD range (optional)
               </p>
               <div className="flex items-center gap-2">
-                <input
-                  type="number"
+                <RangeInput
                   placeholder="Min"
-                  value={filters.salary_min ?? ''}
-                  onChange={e =>
-                    onUpdate({ salary_min: e.target.value ? Number(e.target.value) : null })
-                  }
-                  className="w-full rounded px-2 py-1.5 text-sm outline-none"
-                  style={{
-                    border: '1px solid var(--color-border)',
-                    color: 'var(--color-ink)',
-                    backgroundColor: 'var(--color-surface-2)',
-                  }}
-                  onFocus={e => (e.currentTarget.style.borderColor = 'var(--color-ring)')}
-                  onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
+                  value={filters.salary_min}
+                  onChange={v => onUpdate({ salary_min: v })}
                 />
                 <span style={{ color: 'var(--color-ink-faint)' }}>–</span>
-                <input
-                  type="number"
+                <RangeInput
                   placeholder="Max"
-                  value={filters.salary_max ?? ''}
-                  onChange={e =>
-                    onUpdate({ salary_max: e.target.value ? Number(e.target.value) : null })
-                  }
-                  className="w-full rounded px-2 py-1.5 text-sm outline-none"
-                  style={{
-                    border: '1px solid var(--color-border)',
-                    color: 'var(--color-ink)',
-                    backgroundColor: 'var(--color-surface-2)',
-                  }}
-                  onFocus={e => (e.currentTarget.style.borderColor = 'var(--color-ring)')}
-                  onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
+                  value={filters.salary_max}
+                  onChange={v => onUpdate({ salary_max: v })}
                 />
               </div>
             </div>
           )}
 
           <button
+            type="button"
             onClick={() => setOpen(false)}
             className="text-xs font-medium text-right cursor-pointer"
             style={{ color: 'var(--color-gold)' }}
@@ -477,6 +549,7 @@ function ExpFilter({
   return (
     <div className="relative">
       <button
+        type="button"
         onClick={() => setOpen(o => !o)}
         data-active={isActive}
         className="filter-pill rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1.5 outline-none"
@@ -506,41 +579,24 @@ function ExpFilter({
             Years of experience
           </p>
           <div className="flex items-center gap-2">
-            <input
-              type="number"
+            <RangeInput
+              placeholder="Min"
               min={0}
               max={20}
-              placeholder="Min"
-              value={filters.exp_min ?? ''}
-              onChange={e => onUpdate({ exp_min: e.target.value ? Number(e.target.value) : null })}
-              className="w-full rounded px-2 py-1.5 text-sm outline-none"
-              style={{
-                border: '1px solid var(--color-border)',
-                color: 'var(--color-ink)',
-                backgroundColor: 'var(--color-surface-2)',
-              }}
-              onFocus={e => (e.currentTarget.style.borderColor = 'var(--color-ring)')}
-              onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
+              value={filters.exp_min}
+              onChange={v => onUpdate({ exp_min: v })}
             />
             <span style={{ color: 'var(--color-ink-faint)' }}>–</span>
-            <input
-              type="number"
+            <RangeInput
+              placeholder="Max"
               min={0}
               max={20}
-              placeholder="Max"
-              value={filters.exp_max ?? ''}
-              onChange={e => onUpdate({ exp_max: e.target.value ? Number(e.target.value) : null })}
-              className="w-full rounded px-2 py-1.5 text-sm outline-none"
-              style={{
-                border: '1px solid var(--color-border)',
-                color: 'var(--color-ink)',
-                backgroundColor: 'var(--color-surface-2)',
-              }}
-              onFocus={e => (e.currentTarget.style.borderColor = 'var(--color-ring)')}
-              onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
+              value={filters.exp_max}
+              onChange={v => onUpdate({ exp_max: v })}
             />
           </div>
           <button
+            type="button"
             onClick={() => setOpen(false)}
             className="text-xs font-medium text-right cursor-pointer"
             style={{ color: 'var(--color-gold)' }}
@@ -550,5 +606,125 @@ function ExpFilter({
         </div>
       )}
     </div>
+  )
+}
+
+// ── Applicants filter (low-competition) ───────────────────────────────────────
+
+function ApplicantsFilter({
+  filters,
+  onUpdate,
+}: {
+  filters: JobFilters
+  onUpdate: (p: Partial<JobFilters>) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const isActive = filters.max_applicants !== null
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        data-active={isActive}
+        className="filter-pill rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1.5 outline-none"
+        style={{
+          backgroundColor: isActive ? 'var(--color-ink)' : 'var(--color-surface-2)',
+          color: isActive ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
+          border: `1px solid ${isActive ? 'var(--color-ink)' : 'var(--color-border-strong)'}`,
+          boxShadow: isActive ? 'var(--shadow-card)' : 'none',
+        }}
+        aria-expanded={open}
+      >
+        <Users size={12} strokeWidth={2} aria-hidden="true" />
+        {isActive ? `Under ${filters.max_applicants} applicants` : 'Few applicants'}
+      </button>
+
+      {open && (
+        <div
+          className="absolute left-0 top-full mt-1 z-40 rounded-lg p-4 flex flex-col gap-3"
+          style={{
+            minWidth: '240px',
+            backgroundColor: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            boxShadow: 'var(--shadow-float)',
+          }}
+        >
+          <p className="text-xs" style={{ color: 'var(--color-ink-faint)' }}>
+            Show jobs with fewer than…
+          </p>
+          <div className="flex items-center gap-2">
+            <RangeInput
+              placeholder="e.g. 25"
+              min={1}
+              max={500}
+              value={filters.max_applicants}
+              onChange={v => onUpdate({ max_applicants: v })}
+            />
+            <span className="text-xs" style={{ color: 'var(--color-ink-muted)' }}>applicants</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {[10, 25, 50].map(n => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => onUpdate({ max_applicants: n })}
+                className="filter-pill rounded px-2 py-1 text-xs font-semibold cursor-pointer outline-none"
+                style={{
+                  backgroundColor: filters.max_applicants === n ? 'var(--color-ink)' : 'var(--color-surface-2)',
+                  color: filters.max_applicants === n ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
+                  border: '1px solid var(--color-border-strong)',
+                }}
+              >
+                &lt;{n}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="text-xs font-medium text-right cursor-pointer"
+            style={{ color: 'var(--color-gold)' }}
+          >
+            Done
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Shared numeric range input ────────────────────────────────────────────────
+
+function RangeInput({
+  placeholder,
+  value,
+  onChange,
+  min,
+  max,
+}: {
+  placeholder: string
+  value: number | null
+  onChange: (v: number | null) => void
+  min?: number
+  max?: number
+}) {
+  return (
+    <input
+      type="number"
+      min={min}
+      max={max}
+      placeholder={placeholder}
+      value={value ?? ''}
+      onChange={e => onChange(e.target.value ? Number(e.target.value) : null)}
+      className="w-full rounded px-2 py-1.5 text-sm outline-none"
+      style={{
+        border: '1px solid var(--color-border)',
+        color: 'var(--color-ink)',
+        backgroundColor: 'var(--color-surface-2)',
+      }}
+      onFocus={e => (e.currentTarget.style.borderColor = 'var(--color-ring)')}
+      onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
+    />
   )
 }

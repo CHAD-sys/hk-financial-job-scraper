@@ -133,11 +133,20 @@ class JobSummary(BaseModel):
     url: str
     is_internship: bool
     description_excerpt: str
+    # Market signals from the boards this vacancy appears on, keyed by source
+    # (e.g. {"indeed": {"urgently_hiring": true, "applicant_count": 25, "new_job": true},
+    # "linkedin": {"reposted": true}}). Aggregated across the cross-post group.
+    board_signals: dict[str, dict] = {}
 
 
 class JobDetail(JobSummary):
     description_clean: str
     description_summary: str
+    # Every job board / source this exact vacancy was found on. For a cross-posted
+    # role this lists all copies (e.g. ["jobsdb", "indeed", "efinancialcareers"]);
+    # for a single-source role it is just that one source. Used by the UI to show
+    # "Listed on" board tags on the detail view.
+    sources: list[str]
 
 
 class JobListResponse(BaseModel):
@@ -196,6 +205,15 @@ def _parse_json_list(value: Optional[str]) -> list[str]:
         return []
 
 
+def _own_signals(row: sqlite3.Row) -> dict[str, dict]:
+    """This row's own board_signals, namespaced by its source ({source: {...}})."""
+    try:
+        sig = json.loads(row["board_signals"] or "{}")
+    except (TypeError, ValueError, IndexError):
+        sig = {}
+    return {row["source"]: sig} if sig else {}
+
+
 def _row_to_summary(row: sqlite3.Row) -> JobSummary:
     desc = row["description_clean"] or ""
     excerpt = desc[:200].rstrip() + ("…" if len(desc) > 200 else "")
@@ -222,6 +240,7 @@ def _row_to_summary(row: sqlite3.Row) -> JobSummary:
         url=row["url"],
         is_internship=bool(row["is_internship"]),
         description_excerpt=excerpt,
+        board_signals=_own_signals(row),
     )
 
 
@@ -232,8 +251,14 @@ BASE_SELECT = f"""
     j.source,
     j.source_id,
     j.company,
-    j.url,
+    -- Route "apply" to the preferred board. For a cross-posted role the displayed
+    -- card is the richest copy (JobsDB: description + skills) but apply_url points
+    -- at eFinancialCareers (set by reconcile_cross_posted); '' falls back to own url.
+    COALESCE(NULLIF(j.apply_url, ''), j.url) AS url,
     j.title,
+    j.board_signals,
+    j.cross_posted,
+    j.apply_url AS raw_apply_url,
     j.source_tier,
     j.locations,
     j.description_clean,
@@ -272,9 +297,25 @@ def _build_where(
     posted_within_days: Optional[int],
     is_internship: Optional[bool],
     tier: Optional[str] = None,
+    is_new: Optional[bool] = None,
+    urgently_hiring: Optional[bool] = None,
+    max_applicants: Optional[int] = None,
 ) -> tuple[str, list]:
-    conditions: list[str] = ["j.is_active = 1"]
+    conditions: list[str] = ["j.is_active = 1 AND j.is_primary = 1"]
     params: list = []
+
+    # ── Market-signal filters. These read the pre-computed, indexed grp_* columns
+    # (populated by JobStore.refresh_signal_flags at reconcile time), which already
+    # aggregate each vacancy's cross-post group — so filtering is instant. ──
+    if is_new:
+        conditions.append("j.grp_new = 1")
+    if urgently_hiring:
+        conditions.append("j.grp_urgent = 1")
+    if max_applicants is not None:
+        # Low-competition: highest known applicant count across boards is below the
+        # threshold. Jobs with no known count are excluded (grp_applicants IS NULL).
+        conditions.append("j.grp_applicants IS NOT NULL AND j.grp_applicants < ?")
+        params.append(max_applicants)
 
     # Tier tabs: 'boutique' = the Exclusive section (longtail companies scraped via
     # LLM extraction), 'mainstream' = structured job-board sources. 'all'/None = both.
@@ -401,6 +442,9 @@ def list_jobs(
     posted_within_days: Optional[int] = Query(None, description="Posted within N days"),
     is_internship: Optional[bool] = Query(None, description="Filter internships only"),
     tier: Optional[str] = Query(None, description="Tier tab: boutique (Exclusive) | mainstream | all"),
+    is_new: Optional[bool] = Query(None, description="Only newly-posted jobs (board 'New' flag)"),
+    urgently_hiring: Optional[bool] = Query(None, description="Only 'urgently hiring' jobs"),
+    max_applicants: Optional[int] = Query(None, ge=1, description="Only jobs with fewer than N applicants"),
     sort: str = Query("newest", description="Sort: newest | salary_high | salary_low | company"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(24, ge=1, le=100, description="Results per page"),
@@ -429,7 +473,7 @@ def list_jobs(
     where_sql, params = _build_where(
         search, sectors, companies, seniority, remote_type, skills,
         salary_min, salary_max, exp_min, exp_max, posted_within_days, is_internship,
-        tier,
+        tier, is_new, urgently_hiring, max_applicants,
     )
 
     offset = (page - 1) * page_size
@@ -447,12 +491,38 @@ def list_jobs(
             params + [page_size, offset],
         ).fetchall()
 
+        summaries = [_row_to_summary(r) for r in rows]
+
+        # A displayed card is one copy of a cross-posted vacancy; its signals may
+        # live on a HIDDEN copy from another board. Batch-fetch every copy's
+        # board_signals for the page's cross-posted rows (grouped by the shared
+        # apply_url) so each card shows the signals from all boards it's on.
+        apply_urls = [r["raw_apply_url"] for r in rows if r["cross_posted"] and r["raw_apply_url"]]
+        if apply_urls:
+            ph = ",".join("?" * len(apply_urls))
+            group_rows = conn.execute(
+                f"SELECT apply_url, source, board_signals FROM jobs "
+                f"WHERE is_active = 1 AND cross_posted = 1 AND apply_url IN ({ph})",
+                apply_urls,
+            ).fetchall()
+            by_url: dict[str, dict[str, dict]] = {}
+            for g in group_rows:
+                try:
+                    sig = json.loads(g["board_signals"] or "{}")
+                except (TypeError, ValueError):
+                    sig = {}
+                if sig:
+                    by_url.setdefault(g["apply_url"], {})[g["source"]] = sig
+            for r, s in zip(rows, summaries):
+                if r["cross_posted"] and r["raw_apply_url"] in by_url:
+                    s.board_signals = by_url[r["raw_apply_url"]]
+
     return JobListResponse(
         total=total,
         page=page,
         page_size=page_size,
         total_pages=math.ceil(total / page_size) if total else 0,
-        jobs=[_row_to_summary(r) for r in rows],
+        jobs=summaries,
     )
 
 
@@ -467,14 +537,32 @@ def get_job(source: str, source_id: str):
     with get_db() as conn:
         row = conn.execute(sql, [source, source_id]).fetchone()
 
-    if row is None:
-        raise HTTPException(status_code=404, detail="Job not found")
+        if row is None:
+            raise HTTPException(status_code=404, detail="Job not found")
+
+        # Which job boards this vacancy is on. A cross-posted role's copies all
+        # share the same apply_url (set by reconcile_cross_posted), so that URL is
+        # a reliable group key. Single-source roles have apply_url='' → just self.
+        meta = conn.execute(
+            "SELECT apply_url, cross_posted FROM jobs "
+            "WHERE is_active = 1 AND source = ? AND source_id = ?",
+            [source, source_id],
+        ).fetchone()
+        sources = [source]
+        if meta and meta["cross_posted"] and meta["apply_url"]:
+            group = conn.execute(
+                "SELECT DISTINCT source FROM jobs "
+                "WHERE is_active = 1 AND cross_posted = 1 AND apply_url = ?",
+                [meta["apply_url"]],
+            ).fetchall()
+            sources = sorted({r["source"] for r in group} | {source})
 
     summary = _row_to_summary(row)
     return JobDetail(
         **summary.model_dump(),
         description_clean=row["description_clean"] or "",
         description_summary=row["description_summary"] or "",
+        sources=sources,
     )
 
 
@@ -488,7 +576,7 @@ def get_filters():
             NameCount(name=r["company"], count=r["cnt"])
             for r in conn.execute(
                 "SELECT j.company, COUNT(*) AS cnt FROM jobs j"
-                " WHERE j.is_active=1 GROUP BY j.company ORDER BY cnt DESC",
+                " WHERE j.is_active=1 AND j.is_primary=1 GROUP BY j.company ORDER BY cnt DESC",
             ).fetchall()
         ]
 
@@ -499,7 +587,7 @@ def get_filters():
               SELECT ({SECTOR_SQL}) AS sector
               FROM jobs j
               LEFT JOIN job_enrichments e ON j.source=e.source AND j.source_id=e.source_id
-              WHERE j.is_active=1
+              WHERE j.is_active=1 AND j.is_primary=1
             ) sub GROUP BY sector ORDER BY cnt DESC
             """
         ).fetchall()
@@ -512,7 +600,7 @@ def get_filters():
             FROM jobs j
             JOIN job_enrichments e ON j.source=e.source AND j.source_id=e.source_id
             JOIN json_each(e.required_skills) sk
-            WHERE j.is_active=1
+            WHERE j.is_active=1 AND j.is_primary=1
               AND e.required_skills IS NOT NULL
               AND e.required_skills != '[]'
             GROUP BY LOWER(sk.value)
@@ -527,7 +615,7 @@ def get_filters():
             r[0] for r in conn.execute(
                 "SELECT DISTINCT e.seniority FROM job_enrichments e"
                 " JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-                " WHERE j.is_active=1 AND e.seniority IS NOT NULL ORDER BY e.seniority"
+                " WHERE j.is_active=1 AND j.is_primary=1 AND e.seniority IS NOT NULL ORDER BY e.seniority"
             ).fetchall()
         ]
 
@@ -536,7 +624,7 @@ def get_filters():
             r[0] for r in conn.execute(
                 "SELECT DISTINCT e.remote_type FROM job_enrichments e"
                 " JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-                " WHERE j.is_active=1 AND e.remote_type IS NOT NULL ORDER BY e.remote_type"
+                " WHERE j.is_active=1 AND j.is_primary=1 AND e.remote_type IS NOT NULL ORDER BY e.remote_type"
             ).fetchall()
         ]
 
@@ -544,14 +632,14 @@ def get_filters():
         sal = conn.execute(
             "SELECT MIN(e.salary_hkd_min), MAX(e.salary_hkd_max)"
             " FROM job_enrichments e JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-            " WHERE j.is_active=1"
+            " WHERE j.is_active=1 AND j.is_primary=1"
         ).fetchone()
 
         # Experience range
         exp = conn.execute(
             "SELECT MIN(e.years_experience_required), MAX(e.years_experience_required)"
             " FROM job_enrichments e JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-            " WHERE j.is_active=1"
+            " WHERE j.is_active=1 AND j.is_primary=1"
         ).fetchone()
 
     return FiltersResponse(
@@ -571,7 +659,7 @@ def get_filters():
 def get_stats():
     with get_db() as conn:
         total = conn.execute(
-            "SELECT COUNT(*) FROM jobs WHERE is_active=1"
+            "SELECT COUNT(*) FROM jobs WHERE is_active=1 AND is_primary=1"
         ).fetchone()[0]
 
         # By sector
@@ -581,7 +669,7 @@ def get_stats():
               SELECT ({SECTOR_SQL}) AS sector
               FROM jobs j
               LEFT JOIN job_enrichments e ON j.source=e.source AND j.source_id=e.source_id
-              WHERE j.is_active=1
+              WHERE j.is_active=1 AND j.is_primary=1
             ) sub GROUP BY sector ORDER BY cnt DESC
             """
         ).fetchall()
@@ -591,7 +679,7 @@ def get_stats():
         sen_raw = conn.execute(
             "SELECT e.seniority, COUNT(*) AS cnt"
             " FROM job_enrichments e JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-            " WHERE j.is_active=1 AND e.seniority IS NOT NULL"
+            " WHERE j.is_active=1 AND j.is_primary=1 AND e.seniority IS NOT NULL"
             " GROUP BY e.seniority ORDER BY cnt DESC"
         ).fetchall()
         by_seniority = {r["seniority"]: r["cnt"] for r in sen_raw}
@@ -600,7 +688,7 @@ def get_stats():
         rem_raw = conn.execute(
             "SELECT e.remote_type, COUNT(*) AS cnt"
             " FROM job_enrichments e JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-            " WHERE j.is_active=1 AND e.remote_type IS NOT NULL"
+            " WHERE j.is_active=1 AND j.is_primary=1 AND e.remote_type IS NOT NULL"
             " GROUP BY e.remote_type ORDER BY cnt DESC"
         ).fetchall()
         by_remote_type = {r["remote_type"]: r["cnt"] for r in rem_raw}
@@ -608,7 +696,7 @@ def get_stats():
         # By source tier (powers the All / Exclusive / Mainstream tabs)
         tier_raw = conn.execute(
             "SELECT COALESCE(source_tier, 'mainstream') AS tier, COUNT(*) AS cnt"
-            " FROM jobs WHERE is_active=1 GROUP BY tier"
+            " FROM jobs WHERE is_active=1 AND is_primary=1 GROUP BY tier"
         ).fetchall()
         by_source_tier = {r["tier"]: r["cnt"] for r in tier_raw}
 
@@ -619,7 +707,7 @@ def get_stats():
             FROM jobs j
             JOIN job_enrichments e ON j.source=e.source AND j.source_id=e.source_id
             JOIN json_each(e.required_skills) sk
-            WHERE j.is_active=1
+            WHERE j.is_active=1 AND j.is_primary=1
               AND e.required_skills IS NOT NULL
               AND e.required_skills != '[]'
             GROUP BY LOWER(sk.value)
@@ -632,13 +720,13 @@ def get_stats():
         # Top 15 companies
         comp_raw = conn.execute(
             "SELECT j.company, COUNT(*) AS cnt FROM jobs j"
-            " WHERE j.is_active=1 GROUP BY j.company ORDER BY cnt DESC LIMIT 15"
+            " WHERE j.is_active=1 AND j.is_primary=1 GROUP BY j.company ORDER BY cnt DESC LIMIT 15"
         ).fetchall()
         top_companies = [NameCount(name=r["company"], count=r["cnt"]) for r in comp_raw]
 
         # Internship count
         intern_count = conn.execute(
-            f"SELECT COUNT(*) FROM jobs j WHERE j.is_active=1 AND {INTERNSHIP_COND}"
+            f"SELECT COUNT(*) FROM jobs j WHERE j.is_active=1 AND j.is_primary=1 AND {INTERNSHIP_COND}"
         ).fetchone()[0]
 
     return StatsResponse(

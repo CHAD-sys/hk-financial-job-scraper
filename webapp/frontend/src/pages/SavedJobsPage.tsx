@@ -24,7 +24,7 @@ export default function SavedJobsPage() {
         }}
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-          <button
+          <button type="button"
             onClick={() => navigate('/jobs')}
             className="flex items-center gap-1.5 text-sm mb-4 cursor-pointer transition-colors duration-150"
             style={{ color: 'rgba(248,250,252,0.5)' }}
@@ -77,7 +77,7 @@ export default function SavedJobsPage() {
             <p className="text-sm mb-6 max-w-sm" style={{ color: 'var(--color-ink-muted)' }}>
               Bookmark roles from the job board and they'll appear here for easy comparison.
             </p>
-            <button
+            <button type="button"
               onClick={() => navigate('/jobs')}
               className="inline-flex items-center gap-2 rounded px-5 py-2.5 text-sm font-medium transition-colors duration-150 cursor-pointer"
               style={{ backgroundColor: 'var(--color-ink)', color: 'var(--color-ink-inverse)' }}

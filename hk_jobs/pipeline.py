@@ -144,6 +144,31 @@ def run(args: argparse.Namespace) -> list[CompanyResult]:
         if not dry_run and getattr(args, "retry_failed", False):
             results = _retry_failed_companies(results, companies, store, run_time, args, db_lock)
 
+        # Cross-source reconciliation: now that every source's jobs are stored,
+        # detect vacancies posted on more than one board (same dedup_hash) and
+        # point their apply_url at the preferred source (eFinancialCareers first).
+        if not dry_run:
+            with db_lock:
+                x_groups, x_rows = store.reconcile_cross_posted()
+            if x_groups:
+                logger.info(
+                    "Cross-source: %d vacancies found on multiple boards — "
+                    "apply_url set to preferred source (%d rows updated).",
+                    x_groups, x_rows,
+                )
+
+        # Finance-only guard: soft-delete hard tech/IT roles (software/DevOps/data/
+        # cyber/etc.) so they never pollute the board. Uses a persistent title→verdict
+        # cache, so each run only classifies NEW titles via DeepSeek (cheap), and
+        # cached verdicts are enforced even with no API key. Opt out with --no-tech-filter.
+        if not dry_run and not getattr(args, "no_tech_filter", False):
+            try:
+                from hk_jobs.tech_filter import run_tech_filter
+                with db_lock:
+                    _classified, _removed = run_tech_filter(args.db)
+            except Exception as exc:  # never let the guard break a run
+                logger.warning("tech-filter step failed (%s) — skipping", exc)
+
         if not dry_run and getattr(args, "export", None):
             count = store.export_active_jsonl(args.export)
             logger.info("Exported %d active jobs → %s", count, args.export)
@@ -198,6 +223,18 @@ def _run_company(cfg, store: JobStore, run_time: datetime, args, db_lock=None) -
 
     jobs = [job.model_copy(update={"fetched_at": run_time}) for job in jobs]
 
+    # Per-company tier/category override. Some firms are conceptually BOUTIQUE even
+    # though scraped via a mainstream adapter (e.g. a boutique that only posts on
+    # JobsDB or LinkedIn). If the config sets source_tier/category, stamp them on
+    # every job so those firms stay grouped as boutique regardless of source.
+    _override = {}
+    if cfg.config.get("source_tier"):
+        _override["source_tier"] = cfg.config["source_tier"]
+    if cfg.config.get("category"):
+        _override["category"] = cfg.config["category"]
+    if _override:
+        jobs = [job.model_copy(update=_override) for job in jobs]
+
     if not getattr(args, "no_enrich", False):
         jobs = enrich_all(jobs)
 
@@ -225,7 +262,13 @@ def _run_company(cfg, store: JobStore, run_time: datetime, args, db_lock=None) -
             return CompanyResult(cfg.name, cfg.slug, len(jobs), inserted, 0, 0, elapsed)
 
         inserted, updated = store.upsert_many(jobs)
-        deactivated = store.mark_inactive_for_run(cfg.slug, run_time, new_job_count=len(jobs))
+        # Scope soft-delete to this run's source so a company scraped from two
+        # sources under one slug (e.g. a JobsDB entry AND an eFinancialCareers
+        # entry both slug 'aia-hk') doesn't deactivate the other source's rows.
+        deactivated = store.mark_inactive_for_run(
+            cfg.slug, run_time, new_job_count=len(jobs),
+            source=getattr(adapter, "source_name", None),
+        )
     elapsed = time.monotonic() - t0
 
     if not jobs:
@@ -423,6 +466,11 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Skip the rule-based enrichment step (faster, but seniority/skills won't be set)",
     )
     p.add_argument(
+        "--no-tech-filter",
+        action="store_true",
+        help="Skip the finance-only guard that soft-deletes hard tech/IT roles each run.",
+    )
+    p.add_argument(
         "--config",
         metavar="PATH",
         default=None,
@@ -585,8 +633,18 @@ def main(argv: list[str] | None = None) -> None:
     # Ensure phase 11–13 tables/columns exist on every real-DB run (idempotent).
     if not getattr(args, "dry_run", False):
         from hk_jobs.migrations import (
-            migrate_to_phase_11, migrate_to_phase_12, migrate_to_phase_13, migrate_to_phase_14,
-            migrate_to_phase_15, migrate_to_phase_16, migrate_to_phase_17, migrate_to_phase_18,
+            migrate_to_phase_11,
+            migrate_to_phase_12,
+            migrate_to_phase_13,
+            migrate_to_phase_14,
+            migrate_to_phase_15,
+            migrate_to_phase_16,
+            migrate_to_phase_17,
+            migrate_to_phase_18,
+            migrate_to_phase_19,
+            migrate_to_phase_20,
+            migrate_to_phase_21,
+            migrate_to_phase_22,
         )
         Path(args.db).parent.mkdir(parents=True, exist_ok=True)
         migrate_to_phase_11(args.db)
@@ -597,6 +655,10 @@ def main(argv: list[str] | None = None) -> None:
         migrate_to_phase_16(args.db)
         migrate_to_phase_17(args.db)
         migrate_to_phase_18(args.db)
+        migrate_to_phase_19(args.db)
+        migrate_to_phase_20(args.db)
+        migrate_to_phase_21(args.db)
+        migrate_to_phase_22(args.db)
 
     # --weekly-report: send Monday trend report email (no scraping).
     if getattr(args, "weekly_report", False):

@@ -45,10 +45,12 @@ export default function MultiSelect({
   }
 
   const isActive = selected.length > 0
+  // Set lookup: checked-state is tested once per option while rendering the list.
+  const selectedSet = new Set(selected)
 
   return (
     <div ref={ref} className="relative">
-      <button
+      <button type="button"
         onClick={() => setOpen(o => !o)}
         data-active={isActive}
         className="filter-pill flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer whitespace-nowrap outline-none"
@@ -104,7 +106,7 @@ export default function MultiSelect({
                 style={{ color: 'var(--color-ink)' }}
               />
               {query && (
-                <button onClick={() => setQuery('')} className="cursor-pointer">
+                <button type="button" onClick={() => setQuery('')} className="cursor-pointer" aria-label="Clear search">
                   <X size={13} style={{ color: 'var(--color-ink-faint)' }} />
                 </button>
               )}
@@ -124,9 +126,9 @@ export default function MultiSelect({
               </p>
             ) : (
               filtered.map(opt => {
-                const isChecked = selected.includes(opt.name)
+                const isChecked = selectedSet.has(opt.name)
                 return (
-                  <button
+                  <button type="button"
                     key={opt.name}
                     role="option"
                     aria-selected={isChecked}
@@ -173,7 +175,7 @@ export default function MultiSelect({
           {/* Clear */}
           {selected.length > 0 && (
             <div style={{ borderTop: '1px solid var(--color-border)' }}>
-              <button
+              <button type="button"
                 onClick={() => { onChange([]); setOpen(false) }}
                 className="w-full px-3 py-2 text-xs font-medium text-left transition-colors duration-100 cursor-pointer"
                 style={{ color: 'var(--color-gold)' }}

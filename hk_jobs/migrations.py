@@ -271,3 +271,118 @@ def migrate_to_phase_18(db_path: str) -> None:
             logger.debug("Phase 18 migration: title_en already exists")
     finally:
         conn.close()
+
+
+def migrate_to_phase_19(db_path: str) -> None:
+    """
+    Add cross-source apply-routing columns to the jobs table.
+
+    - apply_url: the preferred URL for a candidate to apply. Empty string means
+      "use the row's own `url`". It is filled by JobStore.reconcile_cross_posted()
+      when the same vacancy (same dedup_hash) is found on more than one source:
+      every copy's apply_url is set to the highest-priority source's URL, with
+      eFinancialCareers ranked first (the "migrate priority to eFC" requirement).
+    - cross_posted: 1 when this exact vacancy was found on more than one source
+      (e.g. both eFinancialCareers AND JobsDB), 0 otherwise.
+
+    Both default so existing rows behave exactly as before (apply_url='' → apply
+    at `url`, cross_posted=0) until the next reconciliation pass runs.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+        added = []
+        with conn:
+            if "apply_url" not in cols:
+                conn.execute("ALTER TABLE jobs ADD COLUMN apply_url TEXT NOT NULL DEFAULT ''")
+                added.append("apply_url")
+            if "cross_posted" not in cols:
+                conn.execute("ALTER TABLE jobs ADD COLUMN cross_posted INTEGER NOT NULL DEFAULT 0")
+                added.append("cross_posted")
+        if added:
+            logger.info("Phase 19 migration: added columns to jobs: %s", ", ".join(added))
+        else:
+            logger.debug("Phase 19 migration: apply_url / cross_posted already exist")
+    finally:
+        conn.close()
+
+
+def migrate_to_phase_20(db_path: str) -> None:
+    """
+    Add the is_primary display flag to the jobs table.
+
+    When one vacancy is cross-posted (e.g. on JobsDB AND eFinancialCareers) there
+    are two rows. The web app must show only ONE card. is_primary marks the row to
+    display (the richest source — JobsDB first: it carries the description AND the
+    DeepSeek enrichment), set by JobStore.reconcile_cross_posted(). The suppressed
+    duplicate keeps is_primary=0. Singletons are 1. The apply_url on the displayed
+    row still points at eFinancialCareers (see reconcile_cross_posted). Defaults to
+    1 so every existing row shows until the next reconciliation pass runs.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+        if "is_primary" not in cols:
+            with conn:
+                conn.execute("ALTER TABLE jobs ADD COLUMN is_primary INTEGER NOT NULL DEFAULT 1")
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_is_primary ON jobs (is_primary)")
+            logger.info("Phase 20 migration: added is_primary column to jobs")
+        else:
+            logger.debug("Phase 20 migration: is_primary already exists")
+    finally:
+        conn.close()
+
+
+def migrate_to_phase_21(db_path: str) -> None:
+    """
+    Add board_signals — a JSON blob of per-board market signals (P2/P3).
+
+    Each adapter fills whatever its payload exposes beyond the core Job fields:
+    demand (applicant/apply counts), promotion (sponsored/paid/featured/highlighted),
+    urgency, reposts, expiry, employer reputation (rating/reviews/responsive),
+    parent company, geo coordinates, last-updated. Stored as JSON so a heterogeneous,
+    board-specific set costs one column and stays fully queryable via json_extract.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+        if "board_signals" not in cols:
+            with conn:
+                conn.execute("ALTER TABLE jobs ADD COLUMN board_signals TEXT NOT NULL DEFAULT '{}'")
+            logger.info("Phase 21 migration: added board_signals column to jobs")
+        else:
+            logger.debug("Phase 21 migration: board_signals already exists")
+    finally:
+        conn.close()
+
+
+def migrate_to_phase_22(db_path: str) -> None:
+    """
+    Add pre-computed, indexed signal-flag columns for fast web filtering.
+
+    Filtering on board_signals JSON directly is O(n²) (a correlated subquery per
+    row over the cross-post group). Instead we precompute per-vacancy aggregates
+    once, at reconcile time (see JobStore.refresh_signal_flags), into indexed
+    columns the web app filters on instantly:
+      grp_new        = any board copy is newly posted
+      grp_urgent     = any board copy is urgently hiring
+      grp_applicants = highest applicant count across boards (NULL if unknown)
+    Plus an index on apply_url (the cross-post group key).
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+        with conn:
+            if "grp_new" not in cols:
+                conn.execute("ALTER TABLE jobs ADD COLUMN grp_new INTEGER NOT NULL DEFAULT 0")
+            if "grp_urgent" not in cols:
+                conn.execute("ALTER TABLE jobs ADD COLUMN grp_urgent INTEGER NOT NULL DEFAULT 0")
+            if "grp_applicants" not in cols:
+                conn.execute("ALTER TABLE jobs ADD COLUMN grp_applicants INTEGER")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_apply_url ON jobs(apply_url)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_grp_new ON jobs(grp_new)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_grp_urgent ON jobs(grp_urgent)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_grp_applicants ON jobs(grp_applicants)")
+        logger.info("Phase 22 migration: added grp_new/grp_urgent/grp_applicants + indexes")
+    finally:
+        conn.close()

@@ -70,6 +70,19 @@ companies:
       max_pages: 12   # ~330 jobs exist; 10 pages (300) truncated. Bumped to 12 for full coverage.
       # proxy: "http://user:pass@residential-proxy.example.com:8080"  # uncomment + fill in
 
+  # eFinancialCareers source for Bank of China (JSON API adapter). Shares slug
+  # 'bochk' with the JobsDB entry so cross-posted roles are matched (by company +
+  # normalised title) and their apply_url is routed to eFC. `efc_brand` is the
+  # exact clientBrandNameFilter value eFC uses. VERIFIED live 2026-07-14: 214 HK
+  # jobs in one request. Reference example — copy this shape for other employers.
+  - name: Bank of China (Hong Kong)
+    slug: bochk
+    adapter: efinancialcareers
+    enabled: true
+    config:
+      efc_employer: Bank of China (Hong Kong) Limited
+      efc_brand: Bank Of China (Hong Kong) Limited
+
   - name: Standard Chartered Bank (HK)
     slug: standard-chartered-hk
     adapter: jobsdb              # switched from workday: 422 on /wday/cxs/standardchartered/External/jobs
@@ -268,12 +281,32 @@ companies:
     config:
       jobsdb_slug: amundi-hong-kong
 
+  # eFinancialCareers source for Amundi. Shares slug 'amundi-hk' with the JobsDB
+  # entry so a role found on both boards is matched (same dedup_hash) and its
+  # apply_url is pointed at eFC. enabled:false until selectors are verified via
+  # scripts/try_efc_live.py (Phase 20).
+  - name: Amundi Hong Kong
+    slug: amundi-hk
+    adapter: efinancialcareers
+    enabled: true                # verified 2026-07-14: 1 HK job on eFC
+    config:
+      efc_employer: Amundi
+      efc_brand: Amundi
+
   - name: Man Group Hong Kong
     slug: man-group-hk
     adapter: jobsdb
     enabled: false               # TODO: source via eFinancialCareers
     config:
       jobsdb_slug: man-group
+
+  - name: Man Group Hong Kong
+    slug: man-group-hk
+    adapter: efinancialcareers
+    enabled: true                # verified 2026-07-14: 1 HK job on eFC
+    config:
+      efc_employer: Man Group
+      efc_brand: Man Group plc
 
   - name: PIMCO Hong Kong
     slug: pimco-hk
@@ -648,6 +681,13 @@ companies:
     config:
       jobsdb_slug: MetLife
 
+  - name: MetLife
+    slug: metlife
+    adapter: efinancialcareers
+    enabled: false               # checked 2026-07-14: no HK jobs on eFC — leave off
+    config:
+      efc_employer: MetLife
+
   - name: Nippon Life Insurance
     slug: nippon-life
     adapter: jobsdb
@@ -779,3 +819,875 @@ companies:
     enabled: false   # no HK JobsDB page under probed slug as of 2026-06
     config:
       jobsdb_slug: Tokio-Marine-Holdings
+
+  # ==========================================================================
+  #  eFinancialCareers cross-post sources (JSON API adapter)
+  #  Auto-resolved + verified 2026-07-14: each has real HK jobs on eFC and an
+  #  exact clientBrandNameFilter (efc_brand). Shares the company slug with the
+  #  primary source entry so cross-posted roles route apply_url -> eFC.
+  #  27 other probed firms (Deloitte, JPMorgan, Goldman, Allianz, HSBC, ...) had
+  #  ZERO HK jobs on eFC and were intentionally NOT added.
+  # ==========================================================================
+  - name: AIA Hong Kong
+    slug: aia-hk
+    adapter: efinancialcareers
+    enabled: true   # eFC HK jobs: 117
+    config:
+      efc_employer: "AIA Hong Kong"
+      efc_brand: "AIA International Limited."
+  - name: Hong Kong Exchanges and Clearing
+    slug: hkex
+    adapter: efinancialcareers
+    enabled: true   # eFC HK jobs: 112
+    config:
+      efc_employer: "Hong Kong Exchanges and Clearing"
+      efc_brand: "Hong Kong Exchanges and Clearing Limited"
+  - name: DBS Bank (Hong Kong)
+    slug: dbs-hk
+    adapter: efinancialcareers
+    enabled: true   # eFC HK jobs: 111
+    config:
+      efc_employer: "DBS Bank (Hong Kong)"
+      efc_brand: "DBS Bank (Hong Kong) Limited"
+  - name: KPMG
+    slug: kpmg
+    adapter: efinancialcareers
+    enabled: true   # eFC HK jobs: 80
+    config:
+      efc_employer: "KPMG"
+      efc_brand: "KPMG"
+  - name: Sun Life Hong Kong
+    slug: sun-life-hk
+    adapter: efinancialcareers
+    enabled: true   # eFC HK jobs: 62
+    config:
+      efc_employer: "Sun Life Hong Kong"
+      efc_brand: "Sun Life Financial, Inc."
+  - name: Morgan Stanley
+    slug: morgan-stanley
+    adapter: efinancialcareers
+    enabled: true   # eFC HK jobs: 32
+    config:
+      efc_employer: "Morgan Stanley"
+      efc_brand: "Morgan Stanley"
+  - name: CMB Wing Lung Bank
+    slug: cmb-wing-lung
+    adapter: efinancialcareers
+    enabled: true   # eFC HK jobs: 21
+    config:
+      efc_employer: "CMB Wing Lung Bank"
+      efc_brand: "CMB Wing Lung Bank"
+  - name: China CITIC Bank
+    slug: citic-bank
+    adapter: efinancialcareers
+    enabled: true   # eFC HK jobs: 17
+    config:
+      efc_employer: "China CITIC Bank"
+      efc_brand: "China CITIC Bank International Limited"
+  - name: Futu Securities
+    slug: futu-securities
+    adapter: efinancialcareers
+    enabled: true   # eFC HK jobs: 16
+    config:
+      efc_employer: "Futu Securities"
+      efc_brand: "Futu Securities International (Hong Kong) Limited"
+  - name: China Merchants Bank
+    slug: china-merchants-bank
+    adapter: efinancialcareers
+    enabled: true   # eFC HK jobs: 15
+    config:
+      efc_employer: "China Merchants Bank"
+      efc_brand: "China Merchants Bank Co., Ltd., Hong Kong Branch"
+  - name: Fidelity International HK
+    slug: fidelity-international-hk
+    adapter: efinancialcareers
+    enabled: true   # eFC HK jobs: 10
+    config:
+      efc_employer: "Fidelity International HK"
+      efc_brand: "Fidelity International"
+  - name: Value Partners
+    slug: value-partners
+    adapter: efinancialcareers
+    enabled: true   # eFC HK jobs: 5
+    config:
+      efc_employer: "Value Partners"
+      efc_brand: "Value Partners Limited"
+  - name: China Everbright Bank
+    slug: everbright-bank
+    adapter: efinancialcareers
+    enabled: true   # eFC HK jobs: 5
+    config:
+      efc_employer: "China Everbright Bank"
+      efc_brand: "China Everbright Bank Hong Kong Branch"
+  - name: CITIC Futures International
+    slug: citic-futures
+    adapter: efinancialcareers
+    enabled: true   # eFC HK jobs: 4
+    config:
+      efc_employer: "CITIC Futures International"
+      efc_brand: "CITIC Futures International Company Limited"
+  - name: Swiss Re
+    slug: swiss-re
+    adapter: efinancialcareers
+    enabled: true   # eFC HK jobs: 2
+    config:
+      efc_employer: "Swiss Re"
+      efc_brand: "Swiss Re"
+  - name: KKR
+    slug: kkr
+    adapter: efinancialcareers
+    enabled: true   # eFC HK jobs: 2
+    config:
+      efc_employer: "KKR"
+      efc_brand: "KKR"
+  - name: PIMCO Hong Kong
+    slug: pimco-hk
+    adapter: efinancialcareers
+    enabled: true   # eFC HK jobs: 1
+    config:
+      efc_employer: "PIMCO Hong Kong"
+      efc_brand: "PIMCO"
+  - name: ANZ Group
+    slug: anz
+    adapter: efinancialcareers
+    enabled: true   # eFC HK jobs: 1
+    config:
+      efc_employer: "ANZ Group"
+      efc_brand: "ANZ"
+
+  # Corrected/added 2026-07-14 after enumerating eFC's HK feed: my first resolver
+  # mis-mapped Citi to "China CITIC Bank" and missed Mizuho's exact brand.
+  - name: Citibank Hong Kong
+    slug: citibank-hk
+    adapter: efinancialcareers
+    enabled: true   # eFC HK jobs: ~100 (brand "Citi")
+    config:
+      efc_employer: "Citibank Hong Kong"
+      efc_brand: "Citi"
+  - name: Mizuho Financial Group
+    slug: mizuho
+    adapter: efinancialcareers
+    enabled: true   # eFC HK jobs: ~11
+    config:
+      efc_employer: "Mizuho Financial Group"
+      efc_brand: "Mizuho Bank, Ltd"
+
+  # ==========================================================================
+  #  Indeed cross-post sources (listing-only HTML adapter — ToS-flagged)
+  #
+  #  Extends the Indeed source from the original 3 primary firms (Goldman/
+  #  JPMorgan/DBS, defined above) to ALL firms, as a cross-post source. Each
+  #  entry shares its firm's slug so a role found on both Indeed AND the firm's
+  #  primary board is matched (same dedup_hash / fuzzy title) and its apply_url
+  #  is routed by _SOURCE_PRIORITY (own-ATS → efc → INDEED → jobsdb). Indeed
+  #  rows are listing-only (no description), so _DISPLAY_PRIORITY still shows the
+  #  richer JobsDB/Workday copy while the apply link goes to Indeed.
+  #
+  #  Slugs are resolved + verified against live Indeed employer pages by
+  #  scripts/resolve_indeed_slugs.py; merge its output here with
+  #  scripts/merge_indeed_entries.py. ⚠ Scraping Indeed violates its ToS
+  #  (see hk_jobs/adapters/indeed.py) — prototype only.
+  # ==========================================================================
+  # INDEED_CROSS_POST_MARKER — merge_indeed_entries.py appends resolved blocks below
+
+  - name: HSBC Hong Kong
+    slug: hsbc-hk
+    adapter: indeed
+    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Hsbc-Hong-Kong/jobs)
+    config:
+      indeed_slug: Hsbc-Hong-Kong
+      max_pages: 8
+
+  - name: Bank of China (Hong Kong)
+    slug: bochk
+    adapter: indeed
+    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Bank-Of-China/jobs)
+    config:
+      indeed_slug: Bank-Of-China
+      max_pages: 8
+
+  - name: Standard Chartered Bank (HK)
+    slug: standard-chartered-hk
+    adapter: indeed
+    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Standard-Chartered-Bank/jobs)
+    config:
+      indeed_slug: Standard-Chartered-Bank
+      max_pages: 8
+
+  - name: Bank of East Asia
+    slug: bank-of-east-asia
+    adapter: indeed
+    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Bank-Of-East-Asia/jobs)
+    config:
+      indeed_slug: Bank-Of-East-Asia
+      max_pages: 8
+
+  - name: Citibank Hong Kong
+    slug: citibank-hk
+    adapter: indeed
+    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Citibank-Hong-Kong/jobs)
+    config:
+      indeed_slug: Citibank-Hong-Kong
+      max_pages: 8
+
+  - name: OCBC Wing Hang Bank
+    slug: ocbc-wing-hang
+    adapter: indeed
+    enabled: true   # resolved 1 HK jobs on page 1 (hk.indeed.com/cmp/Ocbc/jobs)
+    config:
+      indeed_slug: Ocbc
+      max_pages: 8
+
+  - name: AIA Hong Kong
+    slug: aia-hk
+    adapter: indeed
+    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Aia-Hong-Kong/jobs)
+    config:
+      indeed_slug: Aia-Hong-Kong
+      max_pages: 8
+
+  - name: Manulife Hong Kong
+    slug: manulife-hk
+    adapter: indeed
+    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Manulife-Hong-Kong/jobs)
+    config:
+      indeed_slug: Manulife-Hong-Kong
+      max_pages: 8
+
+  - name: AXA Hong Kong
+    slug: axa-hk
+    adapter: indeed
+    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Axa-Hong-Kong/jobs)
+    config:
+      indeed_slug: Axa-Hong-Kong
+      max_pages: 8
+
+  - name: Zurich Hong Kong
+    slug: zurich-hk
+    adapter: indeed
+    enabled: true   # resolved 19 HK jobs on page 1 (hk.indeed.com/cmp/Zurich/jobs)
+    config:
+      indeed_slug: Zurich
+      max_pages: 8
+
+  - name: FWD Insurance
+    slug: fwd-insurance
+    adapter: indeed
+    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Fwd-Insurance/jobs)
+    config:
+      indeed_slug: Fwd-Insurance
+      max_pages: 8
+
+# ── Indeed cross-post sources (resolve_indeed_slugs.py) ──
+# Review each before pasting into companies.yaml. Apply-priority is handled
+# automatically: efc → indeed → jobsdb for roles with no own-ATS copy.
+
+  - name: Schroders Hong Kong
+    slug: schroders-hk
+    adapter: indeed
+    enabled: true   # resolved 3 HK jobs on page 1 (hk.indeed.com/cmp/Schroders/jobs)
+    config:
+      indeed_slug: Schroders
+      max_pages: 8
+
+  - name: PIMCO Hong Kong
+    slug: pimco-hk
+    adapter: indeed
+    enabled: true   # resolved 1 HK jobs on page 1 (hk.indeed.com/cmp/Pimco/jobs)
+    config:
+      indeed_slug: Pimco
+      max_pages: 8
+
+  - name: UBS Asset Management HK
+    slug: ubs-am-hk
+    adapter: indeed
+    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Ubs-Asset-Management/jobs)
+    config:
+      indeed_slug: Ubs-Asset-Management
+      max_pages: 8
+
+  - name: BNP Paribas Asset Management HK
+    slug: bnp-paribas-am-hk
+    adapter: indeed
+    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Bnp-Paribas-Asset-Management/jobs)
+    config:
+      indeed_slug: Bnp-Paribas-Asset-Management
+      max_pages: 8
+
+  - name: Hong Kong Monetary Authority (HKMA)
+    slug: hkma
+    adapter: indeed
+    enabled: true   # resolved 10 HK jobs on page 1 (hk.indeed.com/cmp/Hong-Kong-Monetary-Authority/jobs)
+    config:
+      indeed_slug: Hong-Kong-Monetary-Authority
+      max_pages: 8
+
+  - name: KPMG
+    slug: kpmg
+    adapter: indeed
+    enabled: true   # resolved 2 HK jobs on page 1 (hk.indeed.com/cmp/Kpmg/jobs)
+    config:
+      indeed_slug: Kpmg
+      max_pages: 8
+
+  - name: Deloitte
+    slug: deloitte
+    adapter: indeed
+    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Deloitte/jobs)
+    config:
+      indeed_slug: Deloitte
+      max_pages: 8
+
+  - name: WeLab Bank
+    slug: welab-bank
+    adapter: indeed
+    enabled: true   # resolved 4 HK jobs on page 1 (hk.indeed.com/cmp/Welab/jobs)
+    config:
+      indeed_slug: Welab
+      max_pages: 8
+
+  - name: Futu Securities
+    slug: futu-securities
+    adapter: indeed
+    enabled: true   # resolved 1 HK jobs on page 1 (hk.indeed.com/cmp/Futu-Securities/jobs)
+    config:
+      indeed_slug: Futu-Securities
+      max_pages: 8
+
+  - name: EY
+    slug: ey
+    adapter: indeed
+    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Ey/jobs)
+    config:
+      indeed_slug: Ey
+      max_pages: 8
+
+  - name: Mox Bank
+    slug: mox-bank
+    adapter: indeed
+    enabled: true   # resolved 5 HK jobs on page 1 (hk.indeed.com/cmp/Mox-Bank/jobs)
+    config:
+      indeed_slug: Mox-Bank
+      max_pages: 8
+
+  - name: Agricultural Bank of China
+    slug: agricultural-bank-china
+    adapter: indeed
+    enabled: true   # resolved 3 HK jobs on page 1 (hk.indeed.com/cmp/Agricultural-Bank-Of-China/jobs)
+    config:
+      indeed_slug: Agricultural-Bank-Of-China
+      max_pages: 8
+
+  - name: Mitsubishi UFJ (MUFG)
+    slug: mufg
+    adapter: indeed
+    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Mitsubishi-Ufj/jobs)
+    config:
+      indeed_slug: Mitsubishi-Ufj
+      max_pages: 8
+
+  - name: ANZ Group
+    slug: anz
+    adapter: indeed
+    enabled: true   # resolved 2 HK jobs on page 1 (hk.indeed.com/cmp/Anz/jobs)
+    config:
+      indeed_slug: Anz
+      max_pages: 8
+
+  - name: Bank of America
+    slug: bank-of-america
+    adapter: indeed
+    enabled: true   # resolved 12 HK jobs on page 1 (hk.indeed.com/cmp/Bank-Of-America/jobs)
+    config:
+      indeed_slug: Bank-Of-America
+      max_pages: 8
+
+  - name: Deutsche Bank
+    slug: deutsche-bank
+    adapter: indeed
+    enabled: true   # resolved 17 HK jobs on page 1 (hk.indeed.com/cmp/Deutsche-Bank/jobs)
+    config:
+      indeed_slug: Deutsche-Bank
+      max_pages: 8
+
+  - name: Morgan Stanley
+    slug: morgan-stanley
+    adapter: indeed
+    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Morgan-Stanley/jobs)
+    config:
+      indeed_slug: Morgan-Stanley
+      max_pages: 8
+
+  - name: Barclays
+    slug: barclays
+    adapter: indeed
+    enabled: true   # resolved 15 HK jobs on page 1 (hk.indeed.com/cmp/Barclays/jobs)
+    config:
+      indeed_slug: Barclays
+      max_pages: 8
+
+  - name: Allianz
+    slug: allianz
+    adapter: indeed
+    enabled: true   # resolved 14 HK jobs on page 1 (hk.indeed.com/cmp/Allianz/jobs)
+    config:
+      indeed_slug: Allianz
+      max_pages: 8
+
+  - name: Swiss Re
+    slug: swiss-re
+    adapter: indeed
+    enabled: true   # resolved 1 HK jobs on page 1 (hk.indeed.com/cmp/Swiss-Re/jobs)
+    config:
+      indeed_slug: Swiss-Re
+      max_pages: 8
+
+  - name: Macquarie Group
+    slug: macquarie
+    adapter: indeed
+    enabled: true   # resolved 14 HK jobs on page 1 (hk.indeed.com/cmp/Macquarie-Group/jobs)
+    config:
+      indeed_slug: Macquarie-Group
+      max_pages: 8
+
+  - name: Invesco
+    slug: invesco
+    adapter: indeed
+    enabled: true   # resolved 6 HK jobs on page 1 (hk.indeed.com/cmp/Invesco/jobs)
+    config:
+      indeed_slug: Invesco
+      max_pages: 8
+
+  - name: Northern Trust
+    slug: northern-trust
+    adapter: indeed
+    enabled: true   # resolved 3 HK jobs on page 1 (hk.indeed.com/cmp/Northern-Trust/jobs)
+    config:
+      indeed_slug: Northern-Trust
+      max_pages: 8
+
+
+  # ==========================================================================
+  #  LinkedIn sources (public guest jobs API — ToS-flagged, listing-only)
+  #
+  #  Extends coverage to LinkedIn as a cross-post source. Each entry shares its
+  #  firm's slug so a role found on LinkedIn AND another board is matched (same
+  #  dedup_hash / fuzzy title) and its apply_url is routed by _SOURCE_PRIORITY.
+  #  LinkedIn rows are listing-only (no description). Company ids (f_C) are
+  #  resolved + verified against live LinkedIn pages by
+  #  scripts/resolve_linkedin_ids.py. ⚠ Scraping LinkedIn violates its ToS
+  #  (see hk_jobs/adapters/linkedin.py) — prototype only.
+  # ==========================================================================
+  # LINKEDIN_CROSS_POST_MARKER — merge_indeed_entries.py appends resolved blocks below
+
+  - name: DBS Bank (Hong Kong)
+    slug: dbs-hk
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/dbs-bank, f_C=163379)
+    config:
+      linkedin_company_id: "163379"
+      max_pages: 8
+
+  - name: Bank of East Asia
+    slug: bank-of-east-asia
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/bank-of-east-asia, f_C=38585)
+    config:
+      linkedin_company_id: "38585"
+      max_pages: 8
+
+  - name: Manulife Hong Kong
+    slug: manulife-hk
+    adapter: linkedin
+    enabled: true   # resolved 4 HK jobs (linkedin.com/company/manulife-hong-kong, f_C=16217506)
+    config:
+      linkedin_company_id: "16217506"
+      max_pages: 8
+
+  - name: FWD Insurance
+    slug: fwd-insurance
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/fwd-insurance, f_C=1716223)
+    config:
+      linkedin_company_id: "1716223"
+      max_pages: 8
+
+  - name: Generali Hong Kong
+    slug: generali-hk
+    adapter: linkedin
+    enabled: true   # resolved 5 HK jobs (linkedin.com/company/generali-hong-kong, f_C=31002994)
+    config:
+      linkedin_company_id: "31002994"
+      max_pages: 8
+
+  - name: Fidelity International HK
+    slug: fidelity-international-hk
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/fidelity-international, f_C=1313)
+    config:
+      linkedin_company_id: "1313"
+      max_pages: 8
+
+  - name: BlackRock Hong Kong
+    slug: blackrock-hk
+    adapter: linkedin
+    enabled: true   # resolved 5 HK jobs (linkedin.com/company/blackrock, f_C=4764)
+    config:
+      linkedin_company_id: "4764"
+      max_pages: 8
+
+  - name: Schroders Hong Kong
+    slug: schroders-hk
+    adapter: linkedin
+    enabled: true   # resolved 3 HK jobs (linkedin.com/company/schroders, f_C=5494)
+    config:
+      linkedin_company_id: "5494"
+      max_pages: 8
+
+  - name: PIMCO Hong Kong
+    slug: pimco-hk
+    adapter: linkedin
+    enabled: true   # resolved 1 HK jobs (linkedin.com/company/pimco, f_C=7970)
+    config:
+      linkedin_company_id: "7970"
+      max_pages: 8
+
+  - name: UBS Asset Management HK
+    slug: ubs-am-hk
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/ubs, f_C=1214)
+    config:
+      linkedin_company_id: "1214"
+      max_pages: 8
+
+  - name: BNP Paribas Asset Management HK
+    slug: bnp-paribas-am-hk
+    adapter: linkedin
+    enabled: true   # resolved 6 HK jobs (linkedin.com/company/bnp-paribas-asset-management, f_C=631981)
+    config:
+      linkedin_company_id: "631981"
+      max_pages: 8
+
+  - name: Hong Kong Monetary Authority (HKMA)
+    slug: hkma
+    adapter: linkedin
+    enabled: true   # resolved 5 HK jobs (linkedin.com/company/hong-kong-monetary-authority, f_C=49075)
+    config:
+      linkedin_company_id: "49075"
+      max_pages: 8
+
+  - name: WeLab Bank
+    slug: welab-bank
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/welab-bank, f_C=35951469)
+    config:
+      linkedin_company_id: "35951469"
+      max_pages: 8
+
+  - name: Futu Securities
+    slug: futu-securities
+    adapter: linkedin
+    enabled: true   # resolved 1 HK jobs (linkedin.com/company/futusecurities, f_C=12945966)
+    config:
+      linkedin_company_id: "12945966"
+      max_pages: 8
+
+  - name: CITIC Futures International
+    slug: citic-futures
+    adapter: linkedin
+    enabled: true   # resolved 3 HK jobs (linkedin.com/company/citic-futures-international, f_C=110196127)
+    config:
+      linkedin_company_id: "110196127"
+      max_pages: 8
+
+  - name: Mox Bank
+    slug: mox-bank
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/mox-bank, f_C=31498038)
+    config:
+      linkedin_company_id: "31498038"
+      max_pages: 8
+
+  - name: CICC
+    slug: cicc
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/cicc, f_C=22926)
+    config:
+      linkedin_company_id: "22926"
+      max_pages: 8
+
+  - name: Agricultural Bank of China
+    slug: agricultural-bank-china
+    adapter: linkedin
+    enabled: true   # resolved 5 HK jobs (linkedin.com/company/agricultural-bank-of-china, f_C=269475)
+    config:
+      linkedin_company_id: "269475"
+      max_pages: 8
+
+  - name: ANZ Group
+    slug: anz
+    adapter: linkedin
+    enabled: true   # resolved 2 HK jobs (linkedin.com/company/anz, f_C=2437)
+    config:
+      linkedin_company_id: "2437"
+      max_pages: 8
+
+  - name: UOB
+    slug: uob
+    adapter: linkedin
+    enabled: true   # resolved 3 HK jobs (linkedin.com/company/uob, f_C=6883)
+    config:
+      linkedin_company_id: "6883"
+      max_pages: 8
+
+  - name: Maybank
+    slug: maybank
+    adapter: linkedin
+    enabled: true   # resolved 1 HK jobs (linkedin.com/company/maybank, f_C=42567)
+    config:
+      linkedin_company_id: "42567"
+      max_pages: 8
+
+  - name: Bank of America
+    slug: bank-of-america
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/bank-of-america, f_C=1123)
+    config:
+      linkedin_company_id: "1123"
+      max_pages: 8
+
+  - name: Deutsche Bank
+    slug: deutsche-bank
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/deutsche-bank, f_C=1262)
+    config:
+      linkedin_company_id: "1262"
+      max_pages: 8
+
+  - name: Goldman Sachs
+    slug: goldman-sachs
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/goldman-sachs, f_C=1382)
+    config:
+      linkedin_company_id: "1382"
+      max_pages: 8
+
+  - name: Morgan Stanley
+    slug: morgan-stanley
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/morgan-stanley, f_C=497017)
+    config:
+      linkedin_company_id: "497017"
+      max_pages: 8
+
+  - name: State Street Global Advisors
+    slug: state-street
+    adapter: linkedin
+    enabled: true   # resolved 3 HK jobs (linkedin.com/company/state-street, f_C=1767)
+    config:
+      linkedin_company_id: "1767"
+      max_pages: 8
+
+
+# ── LinkedIn sources (resolved by scripts/resolve_linkedin_ids.py) ──
+# Review each before pasting into companies.yaml.
+
+  - name: HSBC Hong Kong
+    slug: hsbc-hk
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/hsbc, f_C=1241)
+    config:
+      linkedin_company_id: "1241"
+      max_pages: 8
+
+  - name: AIA Hong Kong
+    slug: aia-hk
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/aia, f_C=406952)
+    config:
+      linkedin_company_id: "406952"
+      max_pages: 8
+
+  - name: PwC
+    slug: pwc
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/pwc, f_C=1044)
+    config:
+      linkedin_company_id: "1044"
+      max_pages: 8
+
+  - name: Deloitte
+    slug: deloitte
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/deloitte, f_C=1038)
+    config:
+      linkedin_company_id: "1038"
+      max_pages: 8
+
+  - name: Mizuho Financial Group
+    slug: mizuho
+    adapter: linkedin
+    enabled: true   # resolved 7 HK jobs (linkedin.com/company/mizuho, f_C=7318)
+    config:
+      linkedin_company_id: "7318"
+      max_pages: 8
+
+  - name: Chubb
+    slug: chubb
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/chubb, f_C=1269)
+    config:
+      linkedin_company_id: "1269"
+      max_pages: 8
+
+  - name: Swiss Re
+    slug: swiss-re
+    adapter: linkedin
+    enabled: true   # resolved 2 HK jobs (linkedin.com/company/swiss-re, f_C=3845)
+    config:
+      linkedin_company_id: "3845"
+      max_pages: 8
+
+  - name: Northern Trust
+    slug: northern-trust
+    adapter: linkedin
+    enabled: true   # resolved 2 HK jobs (linkedin.com/company/northern-trust, f_C=3831)
+    config:
+      linkedin_company_id: "3831"
+      max_pages: 8
+
+  - name: KKR
+    slug: kkr
+    adapter: linkedin
+    enabled: true   # resolved 2 HK jobs (linkedin.com/company/kkr, f_C=15787)
+    config:
+      linkedin_company_id: "15787"
+      max_pages: 8
+
+# ── LinkedIn sources (resolved by scripts/resolve_linkedin_ids.py) ──
+# Review each before pasting into companies.yaml.
+
+  - name: Standard Chartered Bank (HK)
+    slug: standard-chartered-hk
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/standardchartered, f_C=2235)
+    config:
+      linkedin_company_id: "2235"
+      max_pages: 8
+
+  - name: Citibank Hong Kong
+    slug: citibank-hk
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/citi, f_C=11448)
+    config:
+      linkedin_company_id: "11448"
+      max_pages: 8
+
+# ── LinkedIn sources (resolved by scripts/resolve_linkedin_ids.py) ──
+# Review each before pasting into companies.yaml.
+
+  - name: KPMG
+    slug: kpmg
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/kpmg-china, f_C=2525297)
+    config:
+      linkedin_company_id: "2525297"
+      max_pages: 8
+
+  - name: HashKey
+    slug: hashkey
+    adapter: linkedin
+    enabled: true   # resolved 2 HK jobs (linkedin.com/company/hashkey-group, f_C=14564065)
+    config:
+      linkedin_company_id: "14564065"
+      max_pages: 8
+
+  - name: EY
+    slug: ey
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/ernstandyoung, f_C=1073)
+    config:
+      linkedin_company_id: "1073"
+      max_pages: 8
+
+  - name: Mitsubishi UFJ (MUFG)
+    slug: mufg
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/mufg, f_C=3795888)
+    config:
+      linkedin_company_id: "3795888"
+      max_pages: 8
+
+  - name: JPMorgan
+    slug: jpmorgan
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/jpmorganchase, f_C=1068)
+    config:
+      linkedin_company_id: "1068"
+      max_pages: 8
+
+# ── LinkedIn sources (hand-resolved from user-supplied slugs) ──
+
+  - name: Macquarie Group
+    slug: macquarie
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/macquariegroup, f_C=3537)
+    config:
+      linkedin_company_id: "3537"
+      max_pages: 8
+
+  - name: Invesco
+    slug: invesco
+    adapter: linkedin
+    enabled: true   # resolved 6 HK jobs (linkedin.com/company/invesco-ltd, f_C=3582438)
+    config:
+      linkedin_company_id: "3582438"
+      max_pages: 8
+
+  - name: Barclays
+    slug: barclays
+    adapter: linkedin
+    enabled: true   # resolved 10 HK jobs (linkedin.com/company/barclays-bank, f_C=1426)
+    config:
+      linkedin_company_id: "1426"
+      max_pages: 8
+
+  - name: Allianz
+    slug: allianz
+    adapter: linkedin
+    enabled: true   # resolved 4 HK jobs (linkedin.com/company/allianz-commercial, f_C=98116883)
+    config:
+      linkedin_company_id: "98116883"
+      max_pages: 8
+
+
+  # ── Master-list additions (2026-07-15): re-routed from longtail to real board ──
+  - name: GUM (Gain Miles Assurance Consultants)
+    slug: gum
+    adapter: jobsdb
+    enabled: true   # posts exclusively on JobsDB /at-this-company (per user 2026-07-15)
+    config:
+      jobsdb_slug: Gain-Miles-Assurance-Consultants-Limited
+      use_company_profile: true
+      source_tier: boutique          # boutique firm, though scraped via JobsDB
+      category: "Boutique Consulting Firm"
+
+  - name: ProMEX
+    slug: promex
+    adapter: linkedin
+    enabled: true   # LinkedIn-only; 0 HK jobs as of 2026-07-15 — will populate when they post
+    config:
+      linkedin_company_id: "72293653"
+      max_pages: 8
+      source_tier: boutique          # boutique firm, though scraped via LinkedIn
+      category: "Climate FinTech"
+
+  - name: QBE (Mortgage Insurance Asia)
+    slug: qbe
+    adapter: linkedin
+    enabled: true   # LinkedIn-only; 0 HK jobs as of 2026-07-15 — populates when they post
+    config:
+      linkedin_company_id: "960758"
+      max_pages: 8
+      source_tier: boutique          # boutique firm, though scraped via LinkedIn
+      category: "Insurance Company"
