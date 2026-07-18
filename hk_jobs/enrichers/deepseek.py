@@ -16,6 +16,17 @@ v5: salary estimator recalibrated to the 2026 Hays Asia Salary Guide (HK). Adds 
     function-tier step (front / commercial / middle / back office) and much lower,
     Hays-anchored monthly bands — the old benchmarks over-estimated by 2-3x at
     senior levels. See salary_guidlines/HK_FINANCE_SALARY_GUIDELINES.md.
+v6: the Hays bands are no longer hand-typed into the prompt. They are extracted per
+    role/tier/level into salary_guidlines/hk_salary_anchors.json (the single source
+    of truth, derived directly from the 2026 Hays HK tables) and rendered into the
+    prompt at import time. The estimator is now told the bands are a HARD ceiling and
+    to bias low / default to the modest tier — targeting the residual over-estimation.
+    Update the JSON when a newer Hays guide lands; the prompt tracks it automatically.
+v7: the model now also returns "salary_tier" — the exact anchor key of the function tier
+    it used. hk_jobs.salary_clamp then clips the estimate DOWN to that (tier, seniority)
+    band's ceiling deterministically in enrichment.py, so an over-band number can no longer
+    reach the DB no matter what the model returns. The prompt still does the detection; the
+    clamp only enforces the ceiling.
 
 API key: set DEEPSEEK_API_KEY env var.
 """
@@ -26,6 +37,7 @@ import json
 import logging
 import os
 import time
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -35,6 +47,70 @@ logger = logging.getLogger(__name__)
 _API_URL = "https://api.deepseek.com/chat/completions"
 _MODEL = "deepseek-chat"
 _DESC_MAX_CHARS = 2_000   # cap to keep prompt tight; descriptions are typically 1–4 KB
+
+# Salary anchor table — the single source of truth, extracted from the 2026 Hays
+# Asia Salary Guide (HK) into a structured JSON. Loaded and rendered into the prompt
+# ONCE at import so every call carries the calibrated bands without re-reading the file.
+_ANCHORS_PATH = Path(__file__).resolve().parents[2] / "salary_guidlines" / "hk_salary_anchors.json"
+
+_TIER_LABELS = {
+    "front_office":
+        "FRONT OFFICE (IB/M&A, PE, hedge fund, asset mgmt, trading, private-banking RM) — "
+        "HIGHEST; use ONLY if the title clearly names one of these desks",
+    "commercial_corporate_banking":
+        "COMMERCIAL/CORPORATE BANKING (corporate/commercial/SME/FI RM, transaction banking, wealth mgmt)",
+    "corporate_finance_accounting":
+        "CORPORATE FINANCE & ACCOUNTING (in-house FP&A, controller, finance mgr, tax, treasury)",
+    "middle_office":
+        "MIDDLE OFFICE (risk, compliance, internal audit, product control)",
+    "insurance":
+        "INSURANCE (actuarial, underwriting, claims, insurance risk/compliance/audit)",
+    "retail_banking":
+        "RETAIL BANKING (branch, retail RM, mortgage, teller)",
+    "back_office_operations":
+        "BACK OFFICE / OPERATIONS (treasury/trade/payment/fund/securities ops, KYC, settlements) — LOWEST",
+}
+
+# Fallback used only if the JSON is missing/corrupt — the previous v5 default ladder,
+# so enrichment never crashes just because the anchor file was moved.
+_SALARY_REFERENCE_FALLBACK = (
+    "- BACK/MIDDLE OFFICE, COMMERCIAL/RETAIL, IN-HOUSE FINANCE, INSURANCE (most jobs):\n"
+    "    junior 18k-35k | mid 30k-60k | senior 60k-110k | lead 100k-160k | MD/Head 150k-300k\n"
+    "- FRONT OFFICE (IB/PE/HF/asset mgmt/trading/private-banking RM only):\n"
+    "    junior 40k-85k | mid 75k-130k | senior 120k-170k | lead 165k-250k | MD/Head 250k-500k"
+)
+
+
+def _fmt_k(x: int | None) -> str:
+    return f"{x // 1000}k" if x is not None else "+"
+
+
+def _fmt_band(band: list) -> str:
+    lo, hi = band
+    return f"{_fmt_k(lo)}-{_fmt_k(hi)}" if hi else f"{_fmt_k(lo)}+"
+
+
+def _load_salary_reference() -> str:
+    """Render the JSON anchor ladders into a compact prompt block (high tier → low)."""
+    try:
+        data = json.loads(_ANCHORS_PATH.read_text(encoding="utf-8"))
+        ladders = data["ladders_monthly_hkd"]
+        order = data["tier_order_low_to_high"][::-1]  # display highest-paid first
+        lines = []
+        for tier in order:
+            lvl = ladders[tier]
+            lines.append(f"- {_TIER_LABELS.get(tier, tier)}:")
+            lines.append(
+                f"    junior {_fmt_band(lvl['junior'])} | mid {_fmt_band(lvl['mid'])} | "
+                f"senior {_fmt_band(lvl['senior'])} | lead {_fmt_band(lvl['lead'])}"
+            )
+        return "\n".join(lines)
+    except Exception as exc:  # missing file, bad JSON, schema drift — degrade gracefully
+        logger.warning("Salary anchor file unavailable (%s); using fallback ladder.", exc)
+        return _SALARY_REFERENCE_FALLBACK
+
+
+_SALARY_REFERENCE = _load_salary_reference()
 
 # Salary-estimation instructions, shared by both prompts. Produced in the same
 # call (no extra cost). Estimates HK market monthly pay from role/seniority/
@@ -59,66 +135,53 @@ STEP 1 — Detect ROLE TYPE from BOTH the title AND description, and set caps:
 - PART-TIME (keywords: part-time, part time, 兼職): cap at HK$8,000-20,000/month.
 - CONTRACT / TEMP (keywords: contract, temporary, temp, fixed-term): apply a 10-20%
   discount vs the equivalent permanent role.
-- FULL-TIME PERMANENT: no cap — use the full market benchmarks in Step 3.
+- FULL-TIME PERMANENT: no cap — use the reference table in Step 3.
 
 STEP 2 — Scan the FULL description for an explicitly stated salary. Look for patterns like
 "HK$X-Y/month", "base pay HK$X", "salary range ...", "monthly salary", "底薪", "月薪".
 If found, use those EXACT figures as the estimate — they OVERRIDE the Step 1 caps and the
-Step 3 benchmarks. (e.g. description says "HK$3,000-5,000/month" → min 3000, max 5000.)
+Step 3 reference table. (e.g. description says "HK$3,000-5,000/month" → min 3000, max 5000.)
 
-STEP 3 — Only if NO salary is stated in the description, estimate from market. Apply the
-Step 1 role-type cap FIRST. These are full-time monthly BASE benchmarks for Hong Kong,
-calibrated to the 2026 Hays Asia Salary Guide (HK). Do NOT overshoot them — historically
-this estimator ran too high, especially at senior levels.
+STEP 3 — Only if NO salary is stated in the description, estimate from the REFERENCE TABLE
+below. It is the 2026 Hays Asia Salary Guide (HK), converted to monthly HK$ BASE. These bands
+are GROUND TRUTH: your estimate MUST fall inside the matching band. This estimator has
+historically run TOO HIGH — so when in doubt, bias LOW, never high.
 
-STEP 3a — Detect the FUNCTION TIER (this matters as much as the level; the same title
-pays very differently by desk):
-- FRONT OFFICE — investment banking / M&A / corporate finance, private equity, hedge
-  funds, asset management (fund manager / portfolio / research / buy-side sales), global
-  markets / trading, private banking relationship managers. Highest pay.
-- COMMERCIAL / RETAIL BANKING — corporate / commercial / SME / FI relationship managers,
-  wealth managers, branch roles. Mid pay.
-- MIDDLE OFFICE — risk (credit / market / operational / enterprise), compliance, internal
-  audit. Below front office at the same title.
-- BACK OFFICE / OPERATIONS — treasury / trade / payment / fund / securities operations,
-  KYC / documentation, loan admin, settlements. Lowest of the professional bands.
-- CORPORATE FINANCE & ACCOUNTING (in-house FP&A, controller, finance manager) and BIG 4 /
-  PROFESSIONAL SERVICES / INSURANCE — use the middle-office ladder.
-CRITICAL: most postings are NOT front-office IB. When the tier is unclear, DEFAULT to the
-DEFAULT ladder below (middle/back-office & commercial), never the front-office one.
+STEP 3a — Map the seniority field to a level:
+  Analyst/Officer → junior ; Associate/AVP/Assistant Manager → mid ;
+  VP/SVP/Senior Manager → senior ; Director/MD/Head/Chief/C-suite → lead.
 
-STEP 3b — DEFAULT ladder (monthly BASE HK$) — middle/back office, commercial/retail
-banking, in-house finance, insurance, professional services (the majority of jobs):
-- Entry / Analyst / Officer (0-2 yrs, seniority "junior"):     18,000-35,000
-- Associate / Senior Analyst (2-5 yrs, "mid"):                 30,000-55,000
-- AVP / Manager (5-8 yrs, "mid"-"senior"):                     45,000-80,000
-- VP / Senior Manager (8-12 yrs, "senior"):                    65,000-110,000
-- SVP / Director / Department Head (12-18 yrs, "lead"):        100,000-160,000
-- MD / Head / C-suite (18+ yrs, "lead"):                       150,000-300,000
-Pure operational / branch / teller / admin / insurance-agent floor: 16,000-30,000 entry.
+STEP 3b — Detect the FUNCTION TIER from the title AND description, then read that tier's band
+for the level from Step 3a. Most postings are NOT front office. When the tier is unclear or the
+role could fit two tiers, DEFAULT to the LOWER-paying tier (back office / operations, retail,
+middle office) — NEVER default to front office. Return the tier you used as "salary_tier",
+using EXACTLY one of these keys: front_office, commercial_corporate_banking, retail_banking,
+corporate_finance_accounting, middle_office, insurance, back_office_operations. A role that is
+not a finance desk at all (e.g. facilities, workplace/interior design, general IT, HR, admin)
+is NOT front office — use back_office_operations or middle_office for it.
 
-STEP 3c — FRONT-OFFICE ladder (use ONLY when Step 3a says front office). Higher:
-- Analyst (seniority "junior"):        40,000-85,000
-- Associate ("mid"):                   75,000-130,000
-- VP ("senior"):                       120,000-170,000
-- Director / ED ("lead"):              165,000-250,000
-- MD / Head ("lead"):                  250,000-500,000
-(Fund managers, senior traders, senior private bankers sit at the top of these bands.)
+REFERENCE — monthly HK$ BASE by function tier and level (higher-paid tiers first):
+{salary_reference}
 
-STEP 3d — Employer adjustment within the chosen band: Tier-1 / bulge-bracket (Goldman,
-JPMorgan, Morgan Stanley, HSBC, BlackRock) upper third; Tier-2 (Standard Chartered, DBS,
-Macquarie, Citi) middle; Tier-3 / regional / virtual banks / fintech lower third.
+STEP 3c — Set salary_estimated_min at the LOWER part of the matched band and
+salary_estimated_max no higher than that band's upper figure. Do NOT exceed the band max, and
+do NOT add a further 20-40% on top. Apply the Step-1 role-type caps FIRST — they override this table.
+
+STEP 3d — Employer nudge WITHIN the band only (never above its max): Tier-1 / bulge-bracket
+(Goldman, JPMorgan, Morgan Stanley, HSBC, BlackRock) → upper part of the band; Tier-2 (Standard
+Chartered, DBS, Macquarie, Citi) → middle; Tier-3 / regional / virtual banks / fintech → lower part.
 Digital assets / crypto are wide and volatile: 30,000-200,000 by seniority.
 
-salary_estimated_max: same three-step logic — upper bound of a stated range if found,
-else 20-40% above salary_estimated_min; respect the same role-type caps.
-These are BASE SALARY only (in HK finance total comp is ~1.5-3x base for senior roles) —
-do NOT estimate total comp. Return null for all three fields if truly unable to estimate.
+salary_estimated_max: the upper bound of a stated range if found in Step 2, otherwise AT MOST the
+matched band's upper figure — never above it. These are BASE SALARY only (in HK finance total comp
+is ~1.5-3x base at senior levels) — do NOT estimate total comp. Return null for all three fields if
+truly unable to estimate.
 
 salary_estimated_confidence:
 - "high"   = salary explicitly stated in the description (exact figures found in Step 2)
-- "medium" = not stated, but role type + seniority + company are clear
-- "low"    = not stated, and role type is ambiguous or context is thin"""
+- "medium" = not stated, but function tier + seniority + company are clear
+- "low"    = not stated, and function tier or seniority is ambiguous (when low, bias to the
+             BOTTOM of the band)""".replace("{salary_reference}", _SALARY_REFERENCE)
 
 # Translation instructions. Many boutique/"Exclusive" HK postings are written in
 # Traditional Chinese (Cantonese) or Mandarin, sometimes mixed with English. Every
@@ -177,6 +240,7 @@ Return exactly this JSON:
   "salary_estimated_min": <integer or null>,
   "salary_estimated_max": <integer or null>,
   "salary_estimated_confidence": "low|medium|high" or null,
+  "salary_tier": "front_office|commercial_corporate_banking|retail_banking|corporate_finance_accounting|middle_office|insurance|back_office_operations",
   "description_summary": "<short neutral English summary, see rules below>"
 }}
 
@@ -213,6 +277,7 @@ Return exactly this JSON:
   "salary_estimated_min": <integer or null>,
   "salary_estimated_max": <integer or null>,
   "salary_estimated_confidence": "low|medium|high" or null,
+  "salary_tier": "front_office|commercial_corporate_banking|retail_banking|corporate_finance_accounting|middle_office|insurance|back_office_operations",
   "description_summary": ""
 }}
 
