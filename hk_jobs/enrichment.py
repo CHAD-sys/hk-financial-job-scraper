@@ -24,6 +24,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from hk_jobs.enrichers.deepseek import DeepSeekEnricher
+from hk_jobs.salary_clamp import clamp_salary
 
 logger = logging.getLogger(__name__)
 
@@ -165,6 +166,13 @@ class EnrichmentPipeline:
                             failed += 1
                             continue
                         try:
+                            # Deterministic clamp: cap the model's estimate to the ceiling
+                            # of its declared (tier, seniority) Hays band. Down-only.
+                            est_salary_min, est_salary_max = clamp_salary(
+                                data.get("salary_tier"), data.get("seniority"),
+                                _coerce_int(data.get("salary_estimated_min")),
+                                _coerce_int(data.get("salary_estimated_max")),
+                            )
                             conn.execute(
                                 """
                                 INSERT INTO job_enrichments
@@ -203,8 +211,8 @@ class EnrichmentPipeline:
                                     data.get("job_category"),
                                     datetime.now(UTC).isoformat(),
                                     "deepseek-chat",
-                                    _coerce_int(data.get("salary_estimated_min")),
-                                    _coerce_int(data.get("salary_estimated_max")),
+                                    est_salary_min,
+                                    est_salary_max,
                                     _norm_confidence(data.get("salary_estimated_confidence")),
                                     _clean_summary(data.get("description_summary")),
                                     _clean_title_en(data.get("title_en")),

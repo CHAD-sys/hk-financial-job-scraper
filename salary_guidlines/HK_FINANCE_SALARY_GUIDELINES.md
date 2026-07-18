@@ -131,6 +131,10 @@ VP/SVP→`senior`, Director/MD/Head→`lead`.
 
 ---
 
-*Generated for the `hk-job-scraper` enrichment pipeline. When a newer Hays guide is
-dropped in this folder, re-derive these anchors and update the prompt's Step 3 bands
-in `hk_jobs/enrichers/deepseek.py` to match.*
+*Generated for the `hk-job-scraper` enrichment pipeline. This markdown is the
+human-readable companion; the **machine source of truth** the enricher actually reads is
+`salary_guidlines/hk_salary_anchors.json` (per-role/tier/level monthly HK$ bands, extracted
+directly from the Hays HK tables). `hk_jobs/enrichers/deepseek.py` loads that JSON at import
+and renders the tier ladders into the prompt automatically. When a newer Hays guide is dropped
+in this folder, re-derive the JSON (annual HK$'000 ÷ 12 → monthly) and both this doc and the
+prompt update from it — no hand-editing of bands inside `deepseek.py`.*
