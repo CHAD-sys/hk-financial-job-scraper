@@ -100,6 +100,24 @@ which ATS they came from. Adding a 31st company = one new entry in
 - NO paid services, NO aggregator APIs, NO headless browser unless a source
   genuinely cannot be reached any other way (and ask first if so).
 
+### Exception: LinkedIn recruiter posts ("Secret Market")
+
+The "NO paid services" rule above is consciously overturned for ONE source
+only, by explicit owner decision (2026-07-19, see `docs/PLAN_LINKEDIN_POSTS.md`):
+LinkedIn posts by recruiters/headhunters are fetched via a paid third-party
+API, **Apify/HarvestAPI** (`hk_jobs/posts/vendor_client.py`), because DIY
+scraping of LinkedIn posts was evaluated and rejected (authwall, legal
+escalation risk, anti-bot arms race — see the plan's §3 for the full posture).
+
+- **Hard cap: $30/month**, self-enforced by `hk_jobs/posts/budget.py` against
+  a running `vendor_costs` ledger — new Apify calls are refused once the
+  month-to-date spend hits the cap, not just logged as a warning.
+- This exception applies ONLY to `hk_jobs/posts/`. Every other source in this
+  repo stays on the no-paid-services line.
+- Same "no login, no credentials, no authwall" posture as the JobsDB/Indeed/
+  LinkedIn-guest adapters otherwise — the vendor performs the LinkedIn access,
+  our code never does.
+
 ## Project conventions
 
 - One responsibility per file. Fetching, enriching, and storing are separate.

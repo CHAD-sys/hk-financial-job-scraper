@@ -1,0 +1,511 @@
+##############################################################################
+#  Secret Market — LinkedIn recruiter-post watchlist  (LP-1, bootstrap)
+#
+#  Every entry below is a REAL, verified-to-exist LinkedIn profile or company
+#  page. Sourcing per entry is noted under `added_by`:
+#    search — surfaced by the LP-0 harvestapi/linkedin-post-search discovery
+#              test (2026-07-19), authoring a genuine job-relevant post
+#    roster — sourced from the recruiting agency's own public "meet the team"
+#              page (Hays / Selby Jennings / Morgan McKinley / Robert Walters /
+#              Pure Search), used as the LP-0 profile-posts test fixture
+#    manual — pending: boss-assigned manual enumeration, not yet supplied
+#
+#  `enabled: true` = active in the LP-4 pilot watchlist. All 28 candidates
+#  found so far are active by explicit instruction (2026-07-19) — the caveats
+#  in each entry's `notes` (stale post history, zero yield in the LP-0 test,
+#  Selby Jennings concentration, unverified individual) are kept as context
+#  for reading the pilot's results, not as a reason anything is switched off.
+#
+#  Nothing here has been polled on a schedule yet — LP-2 builds that. This
+#  file only exists so LP-2's fetcher has real targets on day one.
+##############################################################################
+
+# Schema:
+#   name        : recruiter's display name, or agency name for agency_page tier
+#   slug        : kebab-case identifier. Used to build company_slug for jobs
+#                 sourced from this recruiter when the post names no employer:
+#                 "confidential-{slug}" (see Job.schema decision on confidential
+#                 employers, PLAN_LINKEDIN_POSTS.md decision #7).
+#   tier        : agency_recruiter | independent | agency_page
+#                 (per PLAN_LINKEDIN_POSTS.md decision #3 — no in-house TA)
+#   agency      : agency name, or null for independent headhunters
+#   profile_url : LinkedIn profile or company page URL (public, no login needed)
+#   enabled     : true | false — true polls this profile in the LP-4 pilot
+#   added_by    : search | roster | manual
+#   notes       : evidence from LP-0, or reason for staging if enabled: false
+
+recruiters:
+
+  # ── Selby Jennings (financial-services-only brand) ────────────────────────
+  # Already 6 active here — the single best-represented agency in this list.
+  # Any NEW Selby Jennings names found later should default to enabled: false
+  # unless the pilot data shows the existing 6 under-covering real volume.
+
+  - name: Gillian Lam
+    slug: gillian-lam
+    tier: agency_recruiter
+    agency: Selby Jennings
+    profile_url: https://hk.linkedin.com/in/lamgillian
+    enabled: true
+    added_by: roster
+    notes: >
+      LP-0 highest-value source: 11 posts, 4 concrete Private Banking desk
+      mandates in one post (Taiwan/Greater China/EAM desks), confidential
+      employer throughout. Senior Vice President, Private Wealth Mgmt Asia.
+
+  - name: Jonathan Sugiarto
+    slug: jonathan-sugiarto
+    tier: agency_recruiter
+    agency: Selby Jennings
+    profile_url: https://www.linkedin.com/in/jonathansugiarto
+    enabled: true
+    added_by: search
+    notes: >
+      Single post carried 10 distinct, cleanly-titled M&A/Restructuring
+      mandates (Analyst through SVP). Principal Consultant, Corporate &
+      Investment Banking. Best single-post yield found in LP-0.
+
+  - name: Andreas Heimgartner
+    slug: andreas-heimgartner
+    tier: agency_recruiter
+    agency: Selby Jennings
+    profile_url: https://www.linkedin.com/in/andreas-heimgartner
+    enabled: true
+    added_by: search
+    notes: "Detailed Industrials Equities Analyst mandate, global multi-strategy hedge fund, HK explicit."
+
+  - name: Jimmy Lui
+    slug: jimmy-lui
+    tier: agency_recruiter
+    agency: Selby Jennings
+    profile_url: https://www.linkedin.com/in/junyelui
+    enabled: true
+    added_by: search
+    notes: "Detailed Australian Equities Analyst mandate, same hedge-fund desk pattern as Andreas Heimgartner."
+
+  - name: Phoebe Leung
+    slug: phoebe-leung
+    tier: agency_recruiter
+    agency: Selby Jennings
+    profile_url: https://www.linkedin.com/in/phoebe-leung-0a459873
+    enabled: true
+    added_by: roster
+    notes: "Senior TA Partner mandate for an asset manager; location Asia-regional rather than explicit HK."
+
+  - name: Ning SAN
+    slug: ning-san
+    tier: agency_recruiter
+    agency: Selby Jennings
+    profile_url: https://www.linkedin.com/in/ningsan
+    enabled: true
+    added_by: roster
+    notes: "8 posts in LP-0 test — buyside/PE/crypto opportunities, several non-HK (Shanghai/Beijing) — needs location filtering downstream."
+
+  - name: Christopher Cheung
+    slug: christopher-cheung
+    tier: agency_recruiter
+    agency: Selby Jennings
+    profile_url: https://www.linkedin.com/in/christopher-cheung-middleoffice-operations
+    enabled: true   # 7th Selby Jennings name — agency is now concentrated;
+                      # watch pilot results for over-representation.
+    added_by: roster
+    notes: "12 posts, all template-format. Real content, but title extraction needs attached-document support (LP-3 gap, see BAKEOFF results)."
+
+  - name: Scarlett Sy
+    slug: scarlett-sy
+    tier: agency_recruiter
+    agency: Selby Jennings
+    profile_url: https://www.linkedin.com/in/scarlett-sy-85a703131
+    enabled: true   # zero posts in the LP-0 one-off pull — worth a scheduled retry.
+    added_by: roster
+    notes: "0/10 posts in LP-0 test. Real HK Selby Jennings consultant — plausibly just quiet that week."
+
+  # ── Morgan McKinley ─────────────────────────────────────────────────────
+
+  - name: Grace Su
+    slug: grace-su
+    tier: agency_recruiter
+    agency: Morgan McKinley
+    profile_url: https://www.linkedin.com/in/ida1101
+    enabled: true
+    added_by: roster
+    notes: >
+      Second-highest-value LP-0 source: 10 posts, multiple detailed concrete
+      mandates (Equity Analyst, Macro Research, Quant, Treasury), several
+      explicit Hong Kong. Senior Manager, Financial Services.
+
+  - name: Sean Lai
+    slug: sean-lai
+    tier: agency_recruiter
+    agency: Morgan McKinley
+    profile_url: https://hk.linkedin.com/in/sean-lai-533a46225
+    enabled: true   # all 10 posts in the LP-0 pull dated 2025 or earlier — LP-2's
+                      # rolling schedule + postedLimitDate should pick up anything
+                      # fresh; don't trust this profile's "last 10 posts" as current.
+    added_by: roster
+    notes: "Rich, detailed HK family-office/HNW household-staff and EA mandates — genuinely valuable content, just outdated in this snapshot."
+
+  # ── Hays ────────────────────────────────────────────────────────────────
+
+  - name: Matt Hayes
+    slug: matt-hayes
+    tier: agency_recruiter
+    agency: Hays
+    profile_url: https://www.linkedin.com/in/matthayeshays
+    enabled: true
+    added_by: roster
+    notes: "7 posts, thin one-liners ('chat with Randy') but genuinely HK-based and current. Senior Director, Flexible Recruitment Solutions."
+
+  - name: Lina Rai
+    slug: lina-rai
+    tier: agency_recruiter
+    agency: Hays
+    profile_url: https://www.linkedin.com/in/lina-rai-a812a5267
+    enabled: true
+    added_by: search
+    notes: "AI/Data & Analytics talent post across HK financial institutions, explicit HK, current."
+
+  - name: Janessa Sze
+    slug: janessa-sze
+    tier: agency_recruiter
+    agency: Hays
+    profile_url: https://www.linkedin.com/in/janessasze
+    enabled: true
+    added_by: search
+    notes: "2 concrete FI Sales mandates in one post (Director/SVP + Head of FI Sales), Greater China focus."
+
+  - name: Hailey Tai
+    slug: hailey-tai
+    tier: agency_recruiter
+    agency: Hays
+    profile_url: https://www.linkedin.com/in/haileytaibanking
+    enabled: true   # zero posts in the LP-0 one-off pull, same as Scarlett Sy —
+                      # worth a scheduled retry before drawing conclusions.
+    added_by: roster
+    notes: "0/10 posts in LP-0 test. Senior Consultant, Banking & Financial Services Division."
+
+  - name: Isis Yu
+    slug: isis-yu
+    tier: agency_recruiter
+    agency: Hays
+    profile_url: https://hk.linkedin.com/in/isisyu
+    enabled: true   # 6 posts in the LP-0 pull, but mostly personal/promotion
+                      # content (HYROX race, own promotion, VOC pilot) rather
+                      # than job mandates — weak signal-to-noise so far.
+    added_by: roster
+    notes: "Senior Manager, Hays Banking & Financial Services. One vague 'PB front office hiring' mention, nothing concrete."
+
+  # ── Robert Walters (new — LP-1 diversification research) ──────────────────
+
+  - name: Kinshuk Rekhi
+    slug: kinshuk-rekhi
+    tier: agency_recruiter
+    agency: Robert Walters
+    profile_url: https://www.linkedin.com/in/kinshuk-rekhi-63a360175
+    enabled: true
+    added_by: manual
+    notes: "Not yet post-tested. Sourced from Robert Walters HK's public team listing — buy-side recruitment, Hedge Funds/PE/Asset Management focus."
+
+  - name: Shi Hua Goh
+    slug: shi-hua-goh
+    tier: agency_recruiter
+    agency: Robert Walters
+    profile_url: https://www.linkedin.com/in/shi-hua-goh-224bb62b
+    enabled: true
+    added_by: manual
+    notes: "Not yet post-tested. Senior Consultant, Banking & Financial Services Professionals, Robert Walters HK."
+
+  # ── Pure Search (new — LP-1 diversification research) ──────────────────────
+
+  - name: Benson Ku
+    slug: benson-ku
+    tier: agency_recruiter
+    agency: Pure Search
+    profile_url: https://hk.linkedin.com/in/benson-ku-b851039a
+    enabled: true
+    added_by: manual
+    notes: "Not yet post-tested. Consultant, Finance — Product Control/Financial Control/Regulatory Reporting, Pure Search HK."
+
+  - name: Carrie Ho
+    slug: carrie-ho
+    tier: agency_recruiter
+    agency: Pure Search
+    profile_url: https://www.linkedin.com/in/carrie-ho-67579b182
+    enabled: true   # actuarial/insurance specialism is adjacent to, but
+                      # narrower than, the core finance mandate — watch whether
+                      # her posts are worth the slot.
+    added_by: manual
+    notes: "Associate Director, Pure Search HK — actuarial recruitment specialist."
+
+  # ── Independent headhunters ─────────────────────────────────────────────
+
+  - name: Janice Wong
+    slug: janice-wong
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/janicewongsy
+    enabled: true
+    added_by: search
+    notes: "Detailed Fixed Income Trader mandate, buy-side multi-asset team, HK explicit. Director @ ATALENT."
+
+  - name: Andy Zhi
+    slug: andy-zhi
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/andyzhi
+    enabled: true
+    added_by: search
+    notes: "Detailed Equity Research Analyst (Tech/AI) mandate, USD investment fund. Partner @ Anchor Point Consulting."
+
+  - name: Aadya Kapur
+    slug: aadya-kapur
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/aadyakapur
+    enabled: true
+    added_by: search
+    notes: "2 concrete Risk mandates (Manager + Officer) in one post, award-winning HK hedge fund/asset manager, explicit."
+
+  - name: Billy Lo
+    slug: billy-lo
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/billy-lo-a403a6283
+    enabled: true
+    added_by: search
+    notes: "Detailed KYC Support 3-month contract mandate, HK explicit, banking sector."
+
+  - name: Abby Chu
+    slug: abby-chu
+    tier: independent
+    agency: Gravitas Group
+    profile_url: https://www.linkedin.com/in/abby-chu-4652641a9
+    enabled: true
+    added_by: search
+    notes: "Detailed Head of Private Wealth executive mandate, tier-1 Chinese investment bank, HK explicit."
+
+  - name: Larissa Li
+    slug: larissa-li
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/larissa-li-8a172a108
+    enabled: true   # all 9 posts dated 2022-2025 — same staleness issue as
+                      # Sean Lai. Fintech/buy-side dev roles, real content,
+                      # just not current in this snapshot; rely on LP-2's
+                      # rolling poll to judge whether she's still active.
+    added_by: roster
+    notes: "Fintech Buy-side Recruitment, Billion Reach. Detailed Java/dev mandates with HKD budgets, but all outdated."
+
+  # ── Agency pages (company pages, not individual consultants) ──────────────
+
+  - name: PineSearch Consulting
+    slug: pinesearch-consulting
+    tier: agency_page
+    agency: null
+    profile_url: https://www.linkedin.com/company/pinesearch
+    enabled: true
+    added_by: search
+    notes: "Director, KYC Compliance mandate at an international private bank, HK explicit."
+
+  - name: Lote and Partners
+    slug: lote-and-partners
+    tier: agency_page
+    agency: null
+    profile_url: https://www.linkedin.com/company/lote-and-partners
+    enabled: true
+    added_by: search
+    notes: "Korea Investment Analyst mandate, multi-strategy hedge fund based in HK."
+
+  - name: Cornerstone Global Partners (CGP HK)
+    slug: cgp-hk
+    tier: agency_page
+    agency: null
+    profile_url: https://hk.linkedin.com/company/cgphk
+    enabled: true   # agency confirmed to have 30+ HK consultants covering
+                      # financial services, but no individual name or post
+                      # surfaced yet — this is a page-level poll, unverified.
+    added_by: manual
+    notes: "CGP Group — 30+ consultants in HK across Financial Services. No individual consultant or post evidence yet."
+
+  # ── Boss-supplied list (2026-07-22) ────────────────────────────────────────
+  # 20 profile URLs supplied directly, no name/agency/tier metadata attached.
+  # Names below are inferred from the LinkedIn vanity-URL slug (best-effort
+  # readable guess, not confirmed) — verify against the profile before citing
+  # a name anywhere user-facing. tier defaults to independent/agency=null
+  # rather than guessing an agency affiliation with no evidence (same
+  # never-guess posture as confidential-employer handling, decision #7) —
+  # backfill tier/agency once known. None post-tested yet.
+  #
+  # NOTE: https://www.linkedin.com/in/ida1101/ from the supplied list was
+  # SKIPPED — it's already in this file as Grace Su (Morgan McKinley) above.
+
+  - name: Alvin Tang
+    slug: alvin-tang
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/alvintang1/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-22. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Becky Tsui
+    slug: becky-tsui
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/becky-tsui/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-22. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Max Anderson
+    slug: max-anderson
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/max-anderson-87961a17/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-22. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Tiffany Rogers
+    slug: tiffany-rogers
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/tiffanyrogers1/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-22. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Che Liu
+    slug: che-liu
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/che-liu-251a3810/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-22. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Geneva Ling
+    slug: geneva-ling
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/genevaling/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-22. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Jessica Lau
+    slug: jessica-lau
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/jessica-lau-9640774b/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-22. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Paul Tsoi
+    slug: paul-tsoi
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/paul-tsoi-645bb5112/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-22. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Marco Li
+    slug: marco-li
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/marcoli-/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-22. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Edward Chen
+    slug: edward-chen
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/edwardycchen/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-22. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Andy Chow
+    slug: andy-chow
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/andychow623/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-22. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Sana Abbas
+    slug: sana-abbas
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/sanaabbas/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-22. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Terrence Ling
+    slug: terrence-ling
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/terrence-ling-67131188/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-22. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Vanessa Kwok
+    slug: vanessa-kwok
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/vanessakwok/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-22. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Carly Yau
+    slug: carly-yau
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/carlyyau/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-22. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Fion Yau
+    slug: fion-yau
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/fionyau/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-22. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Kelvin Wong
+    slug: kelvin-wong
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/kelvin-wyk-wong/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-22. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Helen Fong
+    slug: helen-fong
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/fong-helen/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-22. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Barbara Cochrane
+    slug: barbara-cochrane
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/barbara-cochrane-7343b44/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-22. Name inferred from URL slug, unverified. Tier/agency unconfirmed."

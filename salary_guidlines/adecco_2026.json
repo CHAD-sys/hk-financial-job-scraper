@@ -1,0 +1,126 @@
+{
+  "meta": {
+    "source": "Adecco Hong Kong Salary Guide 2026 (044fa74e-de92-456e-b352-a498fecd27fa.pdf)",
+    "basis": "MONTHLY salary in HKD as printed. General-industry / mid-market calibrated.",
+    "extracted": "2026-07-21, sections: Accounting & Finance, Corporate Support, Customer Service, IT (condensed to representative clusters), Legal & Compliance, Marketing",
+    "note": "null upper bound = open-ended ('or Above')"
+  },
+  "accounting_finance_monthly_hkd": {
+    "accounting": {
+      "account_clerk_assistant": [19000, 24000], "accounting_officer": [26000, 28000],
+      "assistant_accountant": [30000, 38000], "accountant": [35000, 42000],
+      "senior_accountant": [38000, 50000], "accounting_manager": [50000, 70000]
+    },
+    "audit": {
+      "auditor": [18000, 25000], "senior_auditor": [28000, 38000],
+      "assistant_audit_manager": [40000, 50000], "audit_manager": [48000, 65000],
+      "head_of_audit": [80000, 120000]
+    },
+    "finance": {
+      "finance_admin_clerk": [22000, 26000], "finance_assistant_officer": [25000, 28000],
+      "financial_analyst": [35000, 48000], "finance_manager": [45000, 65000],
+      "financial_controller": [70000, 120000], "finance_director": [120000, 150000],
+      "cfo": [160000, null]
+    }
+  },
+  "corporate_support_monthly_hkd": {
+    "human_resources": {
+      "hr_assistant": [18000, 22000], "hr_officer": [23000, 27000],
+      "senior_hr_officer_specialist": [30000, 35000], "hris_specialist": [30000, 38000],
+      "assistant_hr_manager": [35000, 45000], "hr_business_partner": [40000, 50000],
+      "hr_manager": [45000, 60000], "hr_director": [70000, 90000],
+      "regional_hr_director": [90000, 130000]
+    },
+    "secretarial": {
+      "team_secretary_assistant": [22000, 25000], "junior_secretary": [25000, 30000],
+      "executive_assistant": [30000, 48000], "personal_assistant": [33000, 50000],
+      "senior_pa_ea": [60000, 80000]
+    },
+    "administrative": {
+      "office_assistant_clerk": [16000, 18000], "receptionist": [18000, 25000],
+      "admin_assistant_officer": [18000, 26000], "admin_office_manager": [40000, 55000],
+      "director_of_administration": [65000, 85000]
+    }
+  },
+  "customer_service_monthly_hkd": {
+    "customer_service": {
+      "cs_assistant": [15000, 18000], "cs_executive": [18000, 23000],
+      "senior_cs_specialist": [23000, 28000], "cs_supervisor": [28000, 35000],
+      "cs_manager": [40000, 60000]
+    }
+  },
+  "information_technology_monthly_hkd": {
+    "it_executive_leadership": {
+      "head_of_it_governance": [100000, 150000], "head_of_technology_transformation": [100000, 200000],
+      "it_director_vp": [85000, 200000], "ciso_head_of_cybersecurity": [100000, 200000],
+      "cto": [150000, 330000], "cio": [160000, 350000]
+    },
+    "it_management": {
+      "application_support_manager": [45000, 70000], "project_manager": [45000, 75000],
+      "business_analyst_manager": [50000, 75000], "service_delivery_manager": [50000, 75000],
+      "infrastructure_manager": [55000, 90000], "pmo": [55000, 90000],
+      "test_lead": [65000, 80000], "it_operations_manager": [60000, 80000],
+      "development_manager": [70000, 95000], "program_manager": [75000, 110000]
+    },
+    "it_governance_risk_compliance": {
+      "it_compliance_manager": [50000, 70000], "it_risk_manager": [50000, 80000],
+      "it_audit_security": [65000, 80000], "it_governance_manager": [80000, 100000],
+      "compliance_officer_it": [45000, 70000]
+    },
+    "cybersecurity": {
+      "cybersecurity_analyst": [40000, 70000], "security_engineer": [35000, 65000],
+      "cybersecurity_specialist": [50000, 90000]
+    },
+    "software_data_engineering": {
+      "programmer": [25000, 30000], "developer_backend_frontend": [27000, 55000],
+      "full_stack_developer": [35000, 55000], "data_analyst": [30000, 55000],
+      "data_engineer": [35000, 70000], "data_scientist": [50000, 90000],
+      "devops_engineer": [40000, 85000], "cloud_engineer": [55000, 90000],
+      "solutions_architect": [70000, 95000], "cloud_architect": [75000, 150000],
+      "ai_architect": [75000, 100000]
+    },
+    "it_infrastructure_support": {
+      "helpdesk_support": [25000, 40000], "it_support_specialist": [35000, 50000],
+      "systems_engineer": [35000, 60000], "network_engineer": [45000, 65000],
+      "it_business_analyst": [35000, 60000], "qa_tester": [30000, 45000],
+      "qa_specialist": [40000, 70000]
+    }
+  },
+  "legal_compliance_monthly_hkd": {
+    "legal_inhouse": {
+      "legal_assistant": [20000, 28000], "legal_officer_paralegal": [28000, 45000],
+      "legal_manager_contracts_manager": [50000, 70000], "associate_legal_counsel": [55000, 65000],
+      "legal_counsel": [70000, 90000], "senior_legal_counsel": [100000, 140000],
+      "head_of_legal_general_counsel": [150000, 180000]
+    },
+    "compliance_inhouse": {
+      "senior_compliance_officer": [25000, 45000], "assistant_compliance_manager": [50000, 80000],
+      "head_of_compliance": [100000, 150000]
+    },
+    "company_secretarial": {
+      "cosec_assistant_officer": [25000, 35000], "senior_cosec_officer_assistant_manager": [35000, 45000],
+      "cosec_manager_listed": [50000, 70000], "senior_cosec_manager_deputy": [60000, 90000],
+      "named_company_secretary_head": [85000, 130000]
+    }
+  },
+  "marketing_monthly_hkd": {
+    "marketing": {
+      "marketing_assistant": [15000, 20000], "marketing_executive": [20000, 30000],
+      "senior_marketing_executive": [25000, 32000], "assistant_marketing_manager": [35000, 42000],
+      "product_marketing_manager": [35000, 45000], "brand_marketing_manager": [40000, 55000],
+      "digital_crm_manager": [40000, 60000], "content_marketing_manager": [40000, 55000],
+      "marketing_manager": [45000, 60000], "senior_marketing_manager": [55000, 70000],
+      "head_of_marketing": [65000, 120000], "marketing_director_cmo": [75000, 150000]
+    },
+    "public_relations": {
+      "pr_assistant": [18000, 22000], "pr_officer_representative": [18000, 22000],
+      "senior_pr_executive": [25000, 35000], "pr_communication_manager": [40000, 60000],
+      "corporate_communication_manager": [45000, 60000]
+    },
+    "ecommerce_digital": {
+      "ecommerce_operation_specialist": [20000, 35000], "ux_ui_designer": [28000, 42000],
+      "data_analytics_specialist": [28000, 42000], "ecommerce_digital_marketing_manager": [50000, 65000],
+      "ecommerce_sales_partnership_manager": [50000, 80000], "ecommerce_director": [80000, 110000]
+    }
+  }
+}

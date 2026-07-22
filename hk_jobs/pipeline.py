@@ -584,6 +584,34 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     p.add_argument(
+        "--audit-salaries",
+        dest="audit_salaries",
+        action="store_true",
+        help=(
+            "Run the salary outlier audit agent (hk_jobs.salary_audit): re-judges the "
+            "estimates most likely to be wrong (>=120k, cluster outliers, ambiguous "
+            "'Team Head'-style titles), auto-applies DOWNWARD corrections with an audit "
+            "log, and reports upward suggestions for review. Requires DEEPSEEK_API_KEY."
+        ),
+    )
+    p.add_argument(
+        "--audit-limit",
+        dest="audit_limit",
+        type=int,
+        default=None,
+        help="Max number of flagged jobs the salary audit reviews in this run.",
+    )
+    p.add_argument(
+        "--audit-full",
+        dest="audit_full",
+        action="store_true",
+        help=(
+            "Review every active priced job, not just heuristic-flagged outliers. "
+            "Only sensible while the dataset is small enough to make a full LLM pass "
+            "affordable — use --audit-limit to cap cost/time if needed."
+        ),
+    )
+    p.add_argument(
         "--repair-companies",
         dest="repair_companies",
         action="store_true",
@@ -610,6 +638,27 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         dest="export_trends",
         metavar="PATH",
         help="Export the latest trend snapshot for every company to a JSONL file.",
+    )
+    p.add_argument(
+        "--fetch-posts",
+        dest="fetch_posts",
+        action="store_true",
+        help=(
+            "LP-2 'Secret Market' pipeline: poll recruiters.yaml watchlist for new "
+            "LinkedIn posts via Apify (raw ingestion only — no jobs/PocketBase yet, "
+            "see docs/PLAN_LINKEDIN_POSTS.md). Requires APIFY_API_TOKEN. "
+            "Self-enforces the $30/mo budget cap (hk_jobs.posts.budget)."
+        ),
+    )
+    p.add_argument(
+        "--posts-discovery",
+        dest="posts_discovery",
+        action="store_true",
+        help=(
+            "LP-2 weekly discovery search: keyword search for new job-bearing posts "
+            "(hk_jobs.posts.fetcher.DEFAULT_DISCOVERY_QUERIES). Independent of "
+            "--fetch-posts — run on a weekly cadence, not daily. Requires APIFY_API_TOKEN."
+        ),
     )
     return p.parse_args(argv)
 
@@ -645,6 +694,10 @@ def main(argv: list[str] | None = None) -> None:
             migrate_to_phase_20,
             migrate_to_phase_21,
             migrate_to_phase_22,
+            migrate_to_phase_23,
+            migrate_to_phase_24,
+            migrate_to_phase_25,
+            migrate_to_phase_26,
         )
         Path(args.db).parent.mkdir(parents=True, exist_ok=True)
         migrate_to_phase_11(args.db)
@@ -659,6 +712,10 @@ def main(argv: list[str] | None = None) -> None:
         migrate_to_phase_20(args.db)
         migrate_to_phase_21(args.db)
         migrate_to_phase_22(args.db)
+        migrate_to_phase_23(args.db)
+        migrate_to_phase_24(args.db)
+        migrate_to_phase_25(args.db)
+        migrate_to_phase_26(args.db)
 
     # --weekly-report: send Monday trend report email (no scraping).
     if getattr(args, "weekly_report", False):
@@ -701,6 +758,15 @@ def main(argv: list[str] | None = None) -> None:
         )
         return
 
+    # --audit-salaries: outlier audit agent pass, no scraping.
+    if getattr(args, "audit_salaries", False):
+        from hk_jobs.migrations import migrate_to_phase_24
+        from hk_jobs.salary_audit import run_audit
+        migrate_to_phase_24(args.db)
+        run_audit(args.db, limit=getattr(args, "audit_limit", None),
+                  full=getattr(args, "audit_full", False))
+        return
+
     # --fetch-descriptions: pull full description text from detail pages.
     if getattr(args, "fetch_descriptions", False):
         from hk_jobs.description_fetcher import DescriptionFetcher
@@ -708,6 +774,26 @@ def main(argv: list[str] | None = None) -> None:
             limit=getattr(args, "fetch_limit", None),
             incremental=getattr(args, "incremental", False),
         )
+        return
+
+    # --fetch-posts: LP-2 watchlist poll, raw ingestion only. No scraping.
+    if getattr(args, "fetch_posts", False):
+        from hk_jobs.migrations import migrate_to_phase_26
+        from hk_jobs.posts.fetcher import fetch_watchlist
+        migrate_to_phase_26(args.db)
+        summary = fetch_watchlist(args.db)
+        if summary.errors and not summary.recruiters_polled:
+            raise SystemExit(f"Posts watchlist poll failed entirely: {summary.errors}")
+        return
+
+    # --posts-discovery: LP-2 weekly keyword discovery search. No scraping.
+    if getattr(args, "posts_discovery", False):
+        from hk_jobs.migrations import migrate_to_phase_26
+        from hk_jobs.posts.fetcher import fetch_discovery
+        migrate_to_phase_26(args.db)
+        summary = fetch_discovery(args.db)
+        if summary.errors and not summary.recruiters_polled:
+            raise SystemExit(f"Posts discovery search failed entirely: {summary.errors}")
         return
 
     # --repair-companies: fix mislabeled company fields for existing JobsDB rows

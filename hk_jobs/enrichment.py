@@ -23,13 +23,20 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 from typing import Any
 
-from hk_jobs.enrichers.deepseek import DeepSeekEnricher
-from hk_jobs.salary_clamp import clamp_salary
+from hk_jobs.enrichers.deepseek import _MODEL, PROMPT_VERSION, DeepSeekEnricher
+from hk_jobs.salary_clamp import clamp_salary, fix_salary_magnitude
 
 logger = logging.getLogger(__name__)
 
-_MAX_WORKERS = 20   # concurrent DeepSeek API calls; bump carefully — rate limits apply
-_BATCH_SIZE = 50    # jobs fetched from DB per write cycle
+_MAX_WORKERS = 90   # concurrent DeepSeek API calls; bump carefully — rate limits apply.
+                    # Bumped 20->60->150->90 for the v9 thinking-mode backfill. 150 hit no
+                    # 429s but caused a much higher rate of garbled/empty responses (~11%
+                    # of jobs needed a retry, vs ~1.7% at 60) — DeepSeek straining under
+                    # load rather than cleanly rejecting, which burns retries/tokens
+                    # without a clear backoff signal. 90 is a middle ground; re-check the
+                    # retry rate before pushing higher again.
+_BATCH_SIZE = 90    # jobs fetched from DB per write cycle — matches _MAX_WORKERS so a
+                    # full batch saturates the worker pool
 
 _VALID_CONFIDENCE = {"low", "medium", "high"}
 
@@ -166,12 +173,20 @@ class EnrichmentPipeline:
                             failed += 1
                             continue
                         try:
-                            # Deterministic clamp: cap the model's estimate to the ceiling
-                            # of its declared (tier, seniority) Hays band. Down-only.
-                            est_salary_min, est_salary_max = clamp_salary(
-                                data.get("salary_tier"), data.get("seniority"),
+                            raw_min, raw_max = fix_salary_magnitude(
                                 _coerce_int(data.get("salary_estimated_min")),
                                 _coerce_int(data.get("salary_estimated_max")),
+                            )
+                            # Deterministic clamp: tier/seniority band -> named-role band ->
+                            # bank/insurance title-grade cap -> absolute HK$200k ceiling ->
+                            # floor raise on a confidently-matched grade row.
+                            est_salary_min, est_salary_max = clamp_salary(
+                                data.get("salary_tier"), data.get("seniority"),
+                                raw_min, raw_max,
+                                role=data.get("salary_role"),
+                                company_slug=row["company_slug"],
+                                title=row["title"],
+                                source_tier=row["source_tier"],
                             )
                             conn.execute(
                                 """
@@ -182,8 +197,8 @@ class EnrichmentPipeline:
                                      job_category, enriched_at, model_used,
                                      salary_estimated_min, salary_estimated_max,
                                      salary_estimated_confidence, description_summary,
-                                     title_en)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                     title_en, prompt_version, salary_tier, salary_role)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                                 ON CONFLICT (source, source_id) DO UPDATE SET
                                     seniority                 = excluded.seniority,
                                     years_experience_required = excluded.years_experience_required,
@@ -198,7 +213,10 @@ class EnrichmentPipeline:
                                     salary_estimated_max        = excluded.salary_estimated_max,
                                     salary_estimated_confidence = excluded.salary_estimated_confidence,
                                     description_summary         = excluded.description_summary,
-                                    title_en                    = excluded.title_en
+                                    title_en                    = excluded.title_en,
+                                    prompt_version               = excluded.prompt_version,
+                                    salary_tier                  = excluded.salary_tier,
+                                    salary_role                  = excluded.salary_role
                                 """,
                                 (
                                     row["source"], row["source_id"],
@@ -210,12 +228,15 @@ class EnrichmentPipeline:
                                     data.get("salary_hkd_max"),
                                     data.get("job_category"),
                                     datetime.now(UTC).isoformat(),
-                                    "deepseek-chat",
+                                    _MODEL,
                                     est_salary_min,
                                     est_salary_max,
                                     _norm_confidence(data.get("salary_estimated_confidence")),
                                     _clean_summary(data.get("description_summary")),
                                     _clean_title_en(data.get("title_en")),
+                                    PROMPT_VERSION,
+                                    data.get("salary_tier"),
+                                    data.get("salary_role"),
                                 ),
                             )
                             enriched += 1
@@ -242,12 +263,20 @@ class EnrichmentPipeline:
         # was set from the company config) and always reprocesses them — those
         # rows already have enrichment, so we must upsert, not skip them.
         boutique_filter = "AND j.category IS NOT NULL" if boutique_only else ""
-        # Default: only jobs with no enrichment row. re_enrich (or boutique_only):
-        # every matching active job (the ON CONFLICT DO UPDATE upserts), so a
-        # prompt change reaches existing rows too.
-        enriched_filter = "" if (re_enrich or boutique_only) else "AND e.source_id IS NULL"
+        # Default: jobs with no enrichment row, OR whose enrichment predates the current
+        # PROMPT_VERSION — this is what lets a job reactivated after soft-delete (or any
+        # job enriched under an older prompt/model) get automatically refreshed by a
+        # regular run, not just an explicit --re-enrich. re_enrich/boutique_only still
+        # reprocess everything matching (the ON CONFLICT DO UPDATE upserts).
+        enriched_filter = (
+            ""
+            if (re_enrich or boutique_only)
+            else f"AND (e.source_id IS NULL OR e.prompt_version IS NULL "
+                 f"OR e.prompt_version != '{PROMPT_VERSION}')"
+        )
         sql = f"""
-            SELECT j.source, j.source_id, j.title, j.company, j.description_clean
+            SELECT j.source, j.source_id, j.title, j.company, j.company_slug,
+                   j.source_tier, j.description_clean
               FROM jobs j
               LEFT JOIN job_enrichments e
                 ON j.source = e.source AND j.source_id = e.source_id

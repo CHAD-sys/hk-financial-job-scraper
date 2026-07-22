@@ -14,6 +14,11 @@ Source routing:
               Query: { jobDetails(id: ID!) { job { content abstract } } }
               Returns full HTML description in the 'content' field.
               No Scrapling needed — plain httpx, ~100 ms per job.
+  indeed    → NOT fetched (removed 2026-07-19). Indeed's Cloudflare turnstile
+              started demanding repeated interactive solves per job and stalled
+              the whole step for hours at near-zero throughput. Indeed rows keep
+              their listing data only — description_raw/clean stay empty, same
+              as CLAUDE.md's original "listing-only" design for this source.
 
 Usage:
   python -m hk_jobs.pipeline --fetch-descriptions
@@ -166,6 +171,7 @@ class DescriptionFetcher:
               FROM jobs
              WHERE is_active = 1
                AND (description_raw IS NULL OR description_raw = '')
+               AND source != 'indeed'
                {source_filter}
                {today_filter}
              ORDER BY fetched_at DESC
@@ -224,14 +230,21 @@ class DescriptionFetcher:
                     source, source_id, len(raw_html), len(clean), advertiser_name,
                 )
                 return FetchResult(source, source_id, raw_html, clean, advertiser_name=advertiser_name)
-            elif source in ("linkedin", "indeed"):
-                fetch = (_fetch_linkedin_description if source == "linkedin"
-                         else _fetch_indeed_description)
-                raw_html = fetch(source_id)
+            elif source == "linkedin":
+                raw_html = _fetch_linkedin_description(source_id)
                 if raw_html:
                     logger.info("✓ %s/%s: %d chars", source, source_id, len(raw_html))
                 clean = _strip_html(raw_html) if raw_html else None
                 return FetchResult(source, source_id, raw_html, clean)
+            elif source == "indeed":
+                # Removed 2026-07-19: Indeed's Cloudflare turnstile started demanding
+                # repeated interactive solves per job, stalling the whole description
+                # step for hours with near-zero throughput. _fetch_unenriched() already
+                # excludes 'indeed' at the query level so this branch shouldn't be
+                # reached in normal operation — kept only as a defensive skip for any
+                # direct caller. Indeed rows keep their listing data; description_raw
+                # stays empty, matching CLAUDE.md's original "listing-only" design.
+                return FetchResult(source, source_id, None, None, skipped=True)
             else:
                 logger.warning("Unknown source '%s' — skipping %s", source, source_id)
                 return FetchResult(source, source_id, None, None, skipped=True)
@@ -375,29 +388,6 @@ def _fetch_linkedin_description(source_id: str, max_retries: int = 4) -> str | N
                 or tree.css_first(".description__text"))
         return node.html if node else None
     return None
-
-
-def _fetch_indeed_description(source_id: str) -> str | None:
-    """
-    Fetch one Indeed job's description HTML from its viewjob detail page.
-
-    Indeed's detail page is Cloudflare-protected, so — like the Indeed listing
-    adapter — this uses Scrapling's StealthyFetcher (a headless browser). Run with
-    several workers to drive multiple browsers concurrently. Description lives in
-    #jobDescriptionText (fallback .jobsearch-JobComponent-description).
-    """
-    from scrapling.fetchers import StealthyFetcher
-    from selectolax.parser import HTMLParser
-
-    url = f"https://hk.indeed.com/viewjob?jk={source_id}"
-    page = StealthyFetcher.fetch(url, headless=True, solve_cloudflare=True, network_idle=False)
-    if getattr(page, "status", 0) != 200:
-        return None
-    html = str(page.html_content)
-    tree = HTMLParser(html)
-    node = (tree.css_first("#jobDescriptionText")
-            or tree.css_first(".jobsearch-JobComponent-description"))
-    return node.html if node else None
 
 
 def _fetch_workday_description(human_url: str) -> str | None:

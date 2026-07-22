@@ -1,0 +1,12 @@
+{
+  "runs": [
+    {
+      "date": "2026-07-17T12:14:06.234051+00:00",
+      "input_tokens": 131502,
+      "output_tokens": 56356,
+      "mode": "update"
+    }
+  ],
+  "total_input_tokens": 131502,
+  "total_output_tokens": 56356
+}
