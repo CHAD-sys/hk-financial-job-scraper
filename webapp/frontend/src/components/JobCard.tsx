@@ -1,4 +1,4 @@
-import { Bookmark, MapPin, Clock, Star, Flame, Sparkles, Repeat2, Users, EyeOff, UserRound } from 'lucide-react'
+import { Bookmark, MapPin, Clock, Star, Flame, Sparkles, Repeat2, Users, EyeOff, UserRound, Mail } from 'lucide-react'
 import type { Job, LinkedInPostSignals } from '../api/client'
 import {
   formatSalary, formatEstimatedSalary, timeAgo, monogram,
@@ -329,6 +329,23 @@ function RecruiterBadge({ signals }: { signals: LinkedInPostSignals | undefined 
         <UserRound size={11} strokeWidth={2} aria-hidden="true" />
         via {signals.recruiter_name}
       </span>
+      {signals.recruiter_email && (
+        <a
+          href={`mailto:${signals.recruiter_email}`}
+          onClick={e => e.stopPropagation()}
+          className="relative z-10 inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-medium"
+          style={{
+            backgroundColor: 'var(--color-surface-2)',
+            color: 'var(--color-ink-muted)',
+            border: '1px solid var(--color-border)',
+            fontSize: '12px',
+          }}
+          title={`Email ${signals.recruiter_name}: ${signals.recruiter_email}`}
+        >
+          <Mail size={11} strokeWidth={2} aria-hidden="true" />
+          Email
+        </a>
+      )}
       {typeof likes === 'number' && likes > 0 && (
         <span className="text-xs" style={{ color: 'var(--color-ink-faint)' }}>
           {likes} like{likes === 1 ? '' : 's'}

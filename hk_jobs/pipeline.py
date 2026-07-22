@@ -685,6 +685,24 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "markdown to a file; omit the path to print only."
         ),
     )
+    p.add_argument(
+        "--harvest-recruiter-emails",
+        dest="harvest_recruiter_emails",
+        action="store_true",
+        help=(
+            "LP-5: one-time-per-recruiter (then quarterly-refresh) email harvest via "
+            "harvestapi/linkedin-profile-scraper's $10/1k email-search mode. Skips "
+            "recruiters with an email fetched in the last 90 days unless --force-refresh. "
+            "Also backfills board_signals.recruiter_email on already-promoted jobs. "
+            "Requires APIFY_API_TOKEN. Self-enforces the $30/mo budget cap."
+        ),
+    )
+    p.add_argument(
+        "--force-refresh",
+        dest="force_refresh",
+        action="store_true",
+        help="With --harvest-recruiter-emails: re-fetch every recruiter's email, ignoring the 90-day freshness skip.",
+    )
     return p.parse_args(argv)
 
 
@@ -843,6 +861,17 @@ def main(argv: list[str] | None = None) -> None:
         if target != "-":
             Path(target).write_text(report, encoding="utf-8")
             logger.info("Pilot report written to %s", target)
+        return
+
+    # --harvest-recruiter-emails: LP-5 one-time/quarterly email harvest. No scraping.
+    if getattr(args, "harvest_recruiter_emails", False):
+        from hk_jobs.migrations import migrate_to_phase_26, migrate_to_phase_28
+        from hk_jobs.posts.email_harvest import run_email_harvest
+        migrate_to_phase_26(args.db)
+        migrate_to_phase_28(args.db)
+        summary = run_email_harvest(args.db, force=getattr(args, "force_refresh", False))
+        if summary.errors and not summary.harvested and summary.checked:
+            raise SystemExit(f"Recruiter email harvest failed entirely: {summary.errors}")
         return
 
     # --repair-companies: fix mislabeled company fields for existing JobsDB rows

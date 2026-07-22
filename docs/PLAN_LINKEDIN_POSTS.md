@@ -218,9 +218,31 @@ Schema mapping notes:
   cards, so not a regression; a direct DOM `.click()` confirmed the modal
   mechanism itself opens correctly (`dialog.open === true`). Worth a real
   manual click-through before fully trusting the modal's new section.
-- **Not done yet**: recruiter email harvest (~$1-2 one-time via HarvestAPI
-  email search) — "recruiter email on card" from the original bullet list is
-  therefore not yet shown; deferred as a separate, explicitly-costed step.
+- **Recruiter email harvest — ✅ BUILT + RUN (2026-07-23)**, closing the one
+  remaining LP-5 gap. `hk_jobs/posts/email_harvest.py` +
+  `--harvest-recruiter-emails` via a THIRD Apify actor,
+  `harvestapi/linkedin-profile-scraper`, in its $10/1k email-search mode
+  (confirmed live, not guessed — this actor's schema is completely different
+  from the other two: profile-URL field is `queries`, plus a required
+  `profileScraperMode` enum string). Per-recruiter freshness check (90-day
+  "quarterly refresh" skip) so re-runs don't re-charge for known emails;
+  budget-checked and per-recruiter isolated like fetcher.py. A separate
+  backfill pass pushes freshly-harvested emails into `board_signals` on
+  ALREADY-promoted jobs (promote.py only touches 'pending' rows, so without
+  this a job promoted before its recruiter's email was harvested would never
+  get one). `recruiters.yaml` posts fetch bumped from 20 to 50 max per profile
+  at the same time (plain default-value change in vendor_client.py).
+  Frontend: an "Email" chip on `JobCard`, a mailto link in
+  `JobDetailModal`'s recruiter-attribution block, and an "Email {recruiter}"
+  secondary CTA in `ApplyFooter`. 29 new tests (vendor client + orchestrator +
+  backfill idempotency), all passing; TypeScript/build/oxlint clean.
+  **Real run**: 47 recruiters checked, 10 real emails harvested (LinkedIn
+  doesn't expose one for everyone — 37 had none), $0.47 spent, 1
+  already-promoted job backfilled and confirmed live via the API and a
+  browser screenshot (the "Email" chip rendering with Phoebe Leung's real
+  harvested address). Confirmed NOT wired into `daily_run.sh` or the
+  crontab — manual-only per owner instruction, unlike --fetch-posts/
+  --posts-discovery/--promote-posts which do run automatically.
 
 ### LP-6 — Steady state (post-GO)
 - Scale watchlist toward ~100 active profiles (stay under $30/mo; cost counter

@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from hk_jobs.migrations import migrate_to_phase_26, migrate_to_phase_27
+from hk_jobs.migrations import migrate_to_phase_26, migrate_to_phase_27, migrate_to_phase_28
 from hk_jobs.posts.extractor import ExtractionResult
 from hk_jobs.posts.metrics import compute_metrics
 from hk_jobs.posts.promote import run_promotion
@@ -24,6 +24,7 @@ def db(tmp_path: Path) -> str:
     path = str(tmp_path / "test.db")
     migrate_to_phase_26(path)
     migrate_to_phase_27(path)
+    migrate_to_phase_28(path)
     return path
 
 

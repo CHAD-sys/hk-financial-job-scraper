@@ -584,3 +584,34 @@ def migrate_to_phase_27(db_path: str) -> None:
             logger.debug("Phase 27 migration: extraction columns already exist")
     finally:
         conn.close()
+
+
+def migrate_to_phase_28(db_path: str) -> None:
+    """
+    Add email/email_fetched_at columns to recruiter_fetch_state (LP-5 email
+    harvest, PLAN_LINKEDIN_POSTS.md decision #10).
+
+    Lives on recruiter_fetch_state (not a new table) since it's already the
+    per-recruiter-slug runtime state table (phase 26) — one row per recruiter,
+    same key. email_fetched_at lets the harvest skip recruiters with a
+    recent-enough email without re-paying the $10/1k email-search rate, and
+    supports the plan's "refresh quarterly" cadence later without a schema
+    change.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(recruiter_fetch_state)").fetchall()}
+        added = []
+        with conn:
+            if "email" not in cols:
+                conn.execute("ALTER TABLE recruiter_fetch_state ADD COLUMN email TEXT")
+                added.append("email")
+            if "email_fetched_at" not in cols:
+                conn.execute("ALTER TABLE recruiter_fetch_state ADD COLUMN email_fetched_at TEXT")
+                added.append("email_fetched_at")
+        if added:
+            logger.info("Phase 28 migration: added columns to recruiter_fetch_state: %s", ", ".join(added))
+        else:
+            logger.debug("Phase 28 migration: email columns already exist")
+    finally:
+        conn.close()

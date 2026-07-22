@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   X, Bookmark, ExternalLink, MapPin, Briefcase,
-  GraduationCap, DollarSign, Tag, Calendar, MessageCircle, UserRound, EyeOff,
+  GraduationCap, DollarSign, Tag, Calendar, MessageCircle, UserRound, EyeOff, Mail,
 } from 'lucide-react'
 import type { Job, JobDetail, LinkedInPostSignals } from '../api/client'
 import { fetchJobDetail } from '../api/client'
@@ -283,6 +283,16 @@ function RecruiterAttribution({ signals }: { signals: LinkedInPostSignals | unde
           {signals.employer_hint ? ` — described only as "${signals.employer_hint}"` : ''}.
           This role doesn't appear on any public job board.
         </p>
+        {signals.recruiter_email && (
+          <a
+            href={`mailto:${signals.recruiter_email}`}
+            className="inline-flex items-center gap-1.5 text-sm font-medium mt-2"
+            style={{ color: '#6B4EFF' }}
+          >
+            <Mail size={13} strokeWidth={2} aria-hidden="true" />
+            {signals.recruiter_email}
+          </a>
+        )}
       </div>
     </div>
   )
@@ -507,6 +517,20 @@ function ApplyFooter({ job }: { job: Job }) {
           <MessageCircle size={15} strokeWidth={2} />
           DM {signals?.recruiter_name ?? 'the recruiter'} to apply
         </a>
+        {signals?.recruiter_email && (
+          <a
+            href={`mailto:${signals.recruiter_email}`}
+            className="flex w-full items-center justify-center gap-2 rounded py-2.5 text-sm font-medium transition-all duration-200 cursor-pointer"
+            style={{
+              backgroundColor: 'var(--color-surface)',
+              color: '#6B4EFF',
+              border: '1px solid rgba(107,78,255,0.35)',
+            }}
+          >
+            <Mail size={14} strokeWidth={2} />
+            Email {signals.recruiter_name}
+          </a>
+        )}
         {job.url && (
           <a
             href={job.url}

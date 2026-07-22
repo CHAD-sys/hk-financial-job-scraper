@@ -1,0 +1,19 @@
+[
+  {
+    "id": "ACoAABT53VYBbCTKb3wt9SqFDNaoJyZ6sWjAr9k",
+    "publicIdentifier": "lamgillian",
+    "firstName": "Gillian",
+    "lastName": "Lam",
+    "emails": [
+      {
+        "email": "gillian.lam@selbyjennings.com",
+        "deliverable": true,
+        "catchAllDomain": false,
+        "validEmailServer": true,
+        "free": false,
+        "status": "valid",
+        "qualityScore": 90
+      }
+    ]
+  }
+]

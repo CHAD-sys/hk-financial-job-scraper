@@ -80,6 +80,9 @@ export type TierTab = 'all' | 'boutique' | 'mainstream' | 'social'
 export interface LinkedInPostSignals {
   recruiter_name: string | null
   recruiter_profile_url: string | null
+  // Harvested by hk_jobs/posts/email_harvest.py (LP-5) — null until that
+  // module has run for this recruiter, or if no email was found.
+  recruiter_email: string | null
   employer_hint: string | null
   engagement: { likes: number; comments: number } | null
   post_created_at: string | null

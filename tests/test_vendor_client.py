@@ -13,8 +13,10 @@ import httpx
 import pytest
 
 from hk_jobs.posts.vendor_client import (
+    EMAIL_SEARCH_COST_PER_PROFILE_USD,
     POST_SEARCH_ACTOR,
     PROFILE_POSTS_ACTOR,
+    PROFILE_SCRAPER_ACTOR,
     ApifyAuthError,
     ApifyClient,
 )
@@ -25,6 +27,11 @@ FIXTURE_DIR = Path(__file__).parent / "fixtures" / "apify"
 @pytest.fixture
 def profile_posts_items():
     return json.loads((FIXTURE_DIR / "profile_posts_sample.json").read_text())
+
+
+@pytest.fixture
+def profile_scraper_email_items():
+    return json.loads((FIXTURE_DIR / "profile_scraper_email_sample.json").read_text())
 
 
 @pytest.fixture
@@ -156,3 +163,42 @@ def test_call_actor_raises_auth_error_on_401(client, monkeypatch):
     )
     with pytest.raises(ApifyAuthError):
         client._call_actor(PROFILE_POSTS_ACTOR, {"targetUrls": ["https://x"]})
+
+
+def test_fetch_profile_email_uses_queries_field_and_email_search_mode(
+    client, profile_scraper_email_items, monkeypatch
+):
+    """
+    Regression test: this actor's profile-URL field is `queries`, NOT
+    `targetUrls` (the profile-posts actor's field) — and profileScraperMode
+    must be the exact email-search string or it silently runs the cheaper
+    no-email mode. Both confirmed live 2026-07-22.
+    """
+    calls = []
+
+    def _mock_call_actor(self, actor, payload, *, max_items=None):
+        calls.append((actor, payload))
+        return profile_scraper_email_items
+
+    monkeypatch.setattr(ApifyClient, "_call_actor", _mock_call_actor)
+    result = client.fetch_profile_email("https://hk.linkedin.com/in/lamgillian")
+
+    assert result.actor == PROFILE_SCRAPER_ACTOR
+    assert calls[0][0] == PROFILE_SCRAPER_ACTOR
+    assert calls[0][1]["queries"] == ["https://hk.linkedin.com/in/lamgillian"]
+    assert "targetUrls" not in calls[0][1]
+    assert calls[0][1]["profileScraperMode"] == "Profile details + email search ($10 per 1k)"
+
+
+def test_fetch_profile_email_cost_uses_email_search_rate_not_post_rate(
+    client, profile_scraper_email_items, monkeypatch
+):
+    """$10/1k email rate differs from the $2/1k post rate — must not be conflated."""
+    monkeypatch.setattr(
+        ApifyClient, "_call_actor",
+        lambda self, actor, payload, **kw: profile_scraper_email_items,
+    )
+    result = client.fetch_profile_email("https://x")
+    expected = len(profile_scraper_email_items) * EMAIL_SEARCH_COST_PER_PROFILE_USD
+    assert result.cost_usd == pytest.approx(expected)
+    assert result.cost_usd == pytest.approx(0.01)  # 1 item at $10/1000

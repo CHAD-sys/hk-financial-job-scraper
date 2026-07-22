@@ -43,6 +43,7 @@ from hk_jobs.posts.extractor import (
     ExtractorAuthError,
     extract_post,
 )
+from hk_jobs.posts.store import PostStore
 from hk_jobs.schema import Job
 from hk_jobs.storage import JobStore
 
@@ -78,6 +79,12 @@ def run_promotion(db_path: str, *, limit: int | None = None) -> PromotionSummary
         logger.info("No pending posts to promote")
         return summary
 
+    # Loaded once up front rather than per-post — cheap (one query), and a job
+    # promoted before its recruiter's email was harvested still gets it via
+    # hk_jobs.posts.email_harvest's separate backfill pass over ALREADY-promoted
+    # rows (this dict only helps NEW promotions in this run).
+    recruiter_emails = PostStore(db_path).all_recruiter_emails()
+
     promoted_jobs: list[Job] = []
     conn = sqlite3.connect(db_path)
     try:
@@ -106,7 +113,7 @@ def run_promotion(db_path: str, *, limit: int | None = None) -> PromotionSummary
                     _set_status(conn, row["post_urn"], "rejected")
                     continue
 
-                job = _build_job(row, result)
+                job = _build_job(row, result, recruiter_emails.get(row["recruiter_slug"]))
                 promoted_jobs.append(job)
                 summary.promoted += 1
                 _set_status(conn, row["post_urn"], "promoted")
@@ -160,7 +167,9 @@ def _passes_gate(result: ExtractionResult) -> bool:
     )
 
 
-def _build_job(row: sqlite3.Row, result: ExtractionResult) -> Job:
+def _build_job(
+    row: sqlite3.Row, result: ExtractionResult, recruiter_email: str | None = None
+) -> Job:
     recruiter_slug = row["recruiter_slug"]
     author_name = row["author_name"] or recruiter_slug
 
@@ -174,6 +183,7 @@ def _build_job(row: sqlite3.Row, result: ExtractionResult) -> Job:
     board_signals = {
         "recruiter_name": author_name,
         "recruiter_profile_url": row["author_profile_url"],
+        "recruiter_email": recruiter_email,  # None until hk_jobs.posts.email_harvest runs
         "employer_hint": result.employer_hint if not result.employer_named else None,
         "engagement": {
             "likes": row["engagement_likes"],

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from hk_jobs.migrations import migrate_to_phase_26, migrate_to_phase_27
+from hk_jobs.migrations import migrate_to_phase_26, migrate_to_phase_27, migrate_to_phase_28
 from hk_jobs.posts import budget
 from hk_jobs.posts.pilot_report import format_report, generate_pilot_report
 from hk_jobs.posts.promote import run_promotion
@@ -17,6 +17,7 @@ def db(tmp_path: Path) -> str:
     path = str(tmp_path / "test.db")
     migrate_to_phase_26(path)
     migrate_to_phase_27(path)
+    migrate_to_phase_28(path)
     JobStore(path).close()
     return path
 

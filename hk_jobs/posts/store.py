@@ -99,6 +99,50 @@ class PostStore:
         finally:
             conn.close()
 
+    def get_email_fetched_at(self, slug: str) -> str | None:
+        conn = sqlite3.connect(self.db_path)
+        try:
+            row = conn.execute(
+                "SELECT email_fetched_at FROM recruiter_fetch_state WHERE slug = ?", (slug,)
+            ).fetchone()
+            return row[0] if row else None
+        finally:
+            conn.close()
+
+    def record_email(self, slug: str, email: str | None) -> None:
+        """
+        Store the harvested email (or None if the search found none — still
+        recorded, with a fresh email_fetched_at, so a "no email available"
+        result doesn't get retried at $0.01/profile every single run).
+        """
+        conn = sqlite3.connect(self.db_path)
+        now = datetime.now(UTC).isoformat()
+        try:
+            with conn:
+                conn.execute(
+                    """
+                    INSERT INTO recruiter_fetch_state (slug, email, email_fetched_at)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(slug) DO UPDATE SET
+                        email = excluded.email,
+                        email_fetched_at = excluded.email_fetched_at
+                    """,
+                    (slug, email, now),
+                )
+        finally:
+            conn.close()
+
+    def all_recruiter_emails(self) -> dict[str, str]:
+        """slug -> email for every recruiter with a non-null harvested email."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            rows = conn.execute(
+                "SELECT slug, email FROM recruiter_fetch_state WHERE email IS NOT NULL"
+            ).fetchall()
+            return {slug: email for slug, email in rows}
+        finally:
+            conn.close()
+
     def record_fetch_result(
         self, slug: str, *, status: str, error: str | None = None
     ) -> None:
