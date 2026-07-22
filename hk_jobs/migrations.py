@@ -552,3 +552,35 @@ def migrate_to_phase_26(db_path: str) -> None:
         logger.info("Phase 26 migration: linkedin_posts/recruiter_fetch_state/vendor_costs ready")
     finally:
         conn.close()
+
+
+def migrate_to_phase_27(db_path: str) -> None:
+    """
+    Add extraction result columns to linkedin_posts (LP-3).
+
+    Stores the extractor's raw JSON response, its confidence, and the prompt
+    version that produced it — same replayability principle as vendor_payload_json
+    (phase 26): a prompt/model change can be detected (stored prompt_version !=
+    current PROMPT_VERSION) and re-run without re-paying Apify, mirroring how
+    job_enrichments.prompt_version (phase 23) lets stale enrichments self-heal.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(linkedin_posts)").fetchall()}
+        added = []
+        with conn:
+            if "extraction_result_json" not in cols:
+                conn.execute("ALTER TABLE linkedin_posts ADD COLUMN extraction_result_json TEXT")
+                added.append("extraction_result_json")
+            if "extraction_confidence" not in cols:
+                conn.execute("ALTER TABLE linkedin_posts ADD COLUMN extraction_confidence REAL")
+                added.append("extraction_confidence")
+            if "extraction_prompt_version" not in cols:
+                conn.execute("ALTER TABLE linkedin_posts ADD COLUMN extraction_prompt_version TEXT")
+                added.append("extraction_prompt_version")
+        if added:
+            logger.info("Phase 27 migration: added columns to linkedin_posts: %s", ", ".join(added))
+        else:
+            logger.debug("Phase 27 migration: extraction columns already exist")
+    finally:
+        conn.close()

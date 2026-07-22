@@ -92,6 +92,16 @@ if [[ "$(date '+%u')" == "1" ]]; then
     log "Phase 5b complete"
 fi
 
+# Phase 5c: LP-3 — classify+extract+promote pending LinkedIn posts into the
+# jobs table. Non-fatal for the same reasons as phase 5 (separate, non-
+# critical vendor-adjacent source; a DeepSeek hiccup must never abort the
+# core job-board pipeline). Runs after both fetch phases so anything fetched
+# today (or the Monday discovery batch) gets a chance to be promoted today.
+log "--- Phase 5c: Promoting LinkedIn posts (LP-3 extract + promote) ---"
+python -m hk_jobs.pipeline --promote-posts 2>&1 | tee -a "$LOG_FILE" \
+    || log "WARNING: LinkedIn posts promotion failed (non-fatal — is DEEPSEEK_API_KEY set?)"
+log "Phase 5c complete"
+
 # Phase 6: Backup database (30-day rolling retention)
 log "--- Phase 6: Backing up database ---"
 python -m hk_jobs.pipeline --backup 2>&1 | tee -a "$LOG_FILE"

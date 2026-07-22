@@ -1,0 +1,125 @@
+"""
+Tests for hk_jobs/posts/extractor.py.
+
+_call_deepseek is the single mockable seam — no real network call is made.
+"""
+
+import json
+
+import httpx
+import pytest
+
+from hk_jobs.posts.extractor import ExtractorAuthError, extract_post
+
+
+def _canned_reply(**overrides):
+    data = {
+        "is_job_post": True,
+        "confidence": 0.9,
+        "title": "Assistant Relationship Manager",
+        "employer_named": False,
+        "employer_hint": "international private bank",
+        "location": "Hong Kong",
+        "hk_plausible": True,
+        "seniority": "mid",
+        "salary_min": None,
+        "salary_max": None,
+        "salary_currency": None,
+        "skills": ["private banking", "relationship management"],
+    }
+    data.update(overrides)
+    return json.dumps(data)
+
+
+def test_empty_post_returns_none():
+    assert extract_post("", api_key="fake") is None
+    assert extract_post("   ", api_key="fake") is None
+
+
+def test_missing_key_raises_auth_error(monkeypatch):
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    with pytest.raises(ExtractorAuthError):
+        extract_post("some post text")
+
+
+def test_successful_extraction(monkeypatch):
+    monkeypatch.setattr(
+        "hk_jobs.posts.extractor._call_deepseek", lambda text, api_key: _canned_reply()
+    )
+    result = extract_post("Hiring an ARM in HK", api_key="fake")
+    assert result is not None
+    assert result.is_job_post is True
+    assert result.title == "Assistant Relationship Manager"
+    assert result.employer_named is False
+    assert result.hk_plausible is True
+    assert result.confidence == 0.9
+    assert result.skills == ["private banking", "relationship management"]
+
+
+def test_non_job_post_nulls_other_fields(monkeypatch):
+    reply = _canned_reply(is_job_post=False, title="Some Title", location="Hong Kong")
+    monkeypatch.setattr("hk_jobs.posts.extractor._call_deepseek", lambda text, api_key: reply)
+    result = extract_post("just a congratulations post", api_key="fake")
+    assert result.is_job_post is False
+    assert result.title is None
+    assert result.location is None
+    assert result.hk_plausible is False
+    assert result.skills == []
+
+
+def test_confidence_is_clamped(monkeypatch):
+    reply = _canned_reply(confidence=1.5)
+    monkeypatch.setattr("hk_jobs.posts.extractor._call_deepseek", lambda text, api_key: reply)
+    result = extract_post("x", api_key="fake")
+    assert result.confidence == 1.0
+
+
+def test_markdown_fenced_json_is_stripped(monkeypatch):
+    fenced = "```json\n" + _canned_reply() + "\n```"
+    monkeypatch.setattr("hk_jobs.posts.extractor._call_deepseek", lambda text, api_key: fenced)
+    result = extract_post("x", api_key="fake")
+    assert result is not None
+    assert result.title == "Assistant Relationship Manager"
+
+
+def test_malformed_json_retries_then_returns_none(monkeypatch):
+    calls = {"n": 0}
+
+    def _bad_call(text, api_key):
+        calls["n"] += 1
+        return "not valid json{{{"
+
+    monkeypatch.setattr("hk_jobs.posts.extractor._call_deepseek", _bad_call)
+    result = extract_post("x", api_key="fake")
+    assert result is None
+    assert calls["n"] == 2  # low retry cap, matches vendor_client.py
+
+
+def test_auth_error_from_call_is_not_retried(monkeypatch):
+    calls = {"n": 0}
+
+    def _auth_fail(text, api_key):
+        calls["n"] += 1
+        resp = httpx.Response(401, request=httpx.Request("POST", "https://x"))
+        raise httpx.HTTPStatusError("unauthorized", request=resp.request, response=resp)
+
+    monkeypatch.setattr("hk_jobs.posts.extractor._call_deepseek", _auth_fail)
+    with pytest.raises(ExtractorAuthError):
+        extract_post("x", api_key="fake")
+    assert calls["n"] == 1
+
+
+def test_transient_http_error_retries_then_succeeds(monkeypatch):
+    calls = {"n": 0}
+
+    def _flaky(text, api_key):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            resp = httpx.Response(500, request=httpx.Request("POST", "https://x"))
+            raise httpx.HTTPStatusError("server error", request=resp.request, response=resp)
+        return _canned_reply()
+
+    monkeypatch.setattr("hk_jobs.posts.extractor._call_deepseek", _flaky)
+    result = extract_post("x", api_key="fake")
+    assert result is not None
+    assert calls["n"] == 2

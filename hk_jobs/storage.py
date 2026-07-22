@@ -131,6 +131,10 @@ _SOURCE_PRIORITY: tuple[str, ...] = (
     "linkedin",
     "indeed",
     "jobsdb",
+    # linkedin_posts (LP-3 "Secret Market") is deliberately LAST: apply-routing
+    # must always prefer a real ATS/board listing over a recruiter's post when
+    # the same vacancy exists on both (PLAN_LINKEDIN_POSTS.md decision record).
+    "linkedin_posts",
 )
 
 
@@ -159,6 +163,9 @@ _DISPLAY_PRIORITY: tuple[str, ...] = (
     "longtail",
     "linkedin",
     "indeed",
+    # Same reasoning as _SOURCE_PRIORITY above: never show the thin/confidential
+    # post copy over a real board listing when both exist for the same vacancy.
+    "linkedin_posts",
 )
 
 

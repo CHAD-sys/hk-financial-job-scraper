@@ -50,9 +50,9 @@
     "semantic_hash": "d9dff24766949826b729a68c18eb8feb"
   },
   "hk_jobs/description_fetcher.py": {
-    "mtime": 1784123648.3401976,
-    "ast_hash": "a25d13dc8a199b09535b0453875f4d60",
-    "semantic_hash": "a25d13dc8a199b09535b0453875f4d60"
+    "mtime": 1784492872.0453706,
+    "ast_hash": "f982ce3ab10a2cb90a0459bb284e6df8",
+    "semantic_hash": ""
   },
   "hk_jobs/enrich.py": {
     "mtime": 1780047565.7821977,
@@ -65,13 +65,13 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "hk_jobs/enrichers/deepseek.py": {
-    "mtime": 1784375524.3825126,
-    "ast_hash": "86eb69be2671751fda5b846473e2bdd3",
+    "mtime": 1784670565.9745543,
+    "ast_hash": "ee7562b1bfb811c4cbaa0b2d7370b65e",
     "semantic_hash": ""
   },
   "hk_jobs/enrichment.py": {
-    "mtime": 1784375453.4491131,
-    "ast_hash": "3265c95ea079d129b273f1fb81d85583",
+    "mtime": 1784718905.6854792,
+    "ast_hash": "df3ec8d01fba19f505b736f1b2b6a41b",
     "semantic_hash": ""
   },
   "hk_jobs/http_utils.py": {
@@ -80,9 +80,9 @@
     "semantic_hash": "fff68d03499d3fd6622050489ce7f34c"
   },
   "hk_jobs/migrations.py": {
-    "mtime": 1784226862.528705,
-    "ast_hash": "58fb789d4f0870ecc0f42eb2c8968a4a",
-    "semantic_hash": "58fb789d4f0870ecc0f42eb2c8968a4a"
+    "mtime": 1784714554.6049187,
+    "ast_hash": "ee8b45fef4bd0b2834a8c478be2592fc",
+    "semantic_hash": ""
   },
   "hk_jobs/notifications.py": {
     "mtime": 1780655202.842049,
@@ -90,9 +90,9 @@
     "semantic_hash": "9bb13ec1e4beb58a38a6571d6599635e"
   },
   "hk_jobs/pipeline.py": {
-    "mtime": 1784226876.4395957,
-    "ast_hash": "b8c597c34b0d590a1d79bc8dd2f98fc3",
-    "semantic_hash": "b8c597c34b0d590a1d79bc8dd2f98fc3"
+    "mtime": 1784714572.702351,
+    "ast_hash": "aa5733017a61806892f5b380005daba0",
+    "semantic_hash": ""
   },
   "hk_jobs/reports/__init__.py": {
     "mtime": 1780655202.8489363,
@@ -120,9 +120,9 @@
     "semantic_hash": "b68e34c34b0f55968a865e5de268ffe0"
   },
   "scripts/daily_run.sh": {
-    "mtime": 1783980633.6622264,
-    "ast_hash": "17e4e4f5878105629de3d11e49952dd8",
-    "semantic_hash": "17e4e4f5878105629de3d11e49952dd8"
+    "mtime": 1784670901.3942306,
+    "ast_hash": "eab56a7471af6b50c3ef8682bbbd311d",
+    "semantic_hash": ""
   },
   "scripts/discover_companies.py": {
     "mtime": 1781956494.795637,
@@ -315,8 +315,8 @@
     "semantic_hash": "6303d68a31437c501452c1a103026781"
   },
   "webapp/frontend/src/api/client.ts": {
-    "mtime": 1784297453.4930844,
-    "ast_hash": "8408b6a781bbce3ef225715bb5b0f6c9",
+    "mtime": 1784672048.961666,
+    "ast_hash": "b699ef86692640b9c86ef3a0ec0ebb04",
     "semantic_hash": ""
   },
   "webapp/frontend/src/components/EmptyState.tsx": {
@@ -325,34 +325,34 @@
     "semantic_hash": "ab2a08879e4c5b9a1b2e0e31c91f98e7"
   },
   "webapp/frontend/src/components/FilterBar.tsx": {
-    "mtime": 1784294280.8298235,
-    "ast_hash": "2d6ec5bed6eff59b61012a4e5e7e00a1",
+    "mtime": 1784719078.4367352,
+    "ast_hash": "9d63495b6b6179e194149f4068663ce3",
     "semantic_hash": ""
   },
   "webapp/frontend/src/components/JobCard.tsx": {
-    "mtime": 1784223055.7294993,
-    "ast_hash": "4163b25db3972992a29c4c0dcde0a7e0",
-    "semantic_hash": "4163b25db3972992a29c4c0dcde0a7e0"
+    "mtime": 1784719078.4592528,
+    "ast_hash": "ccb0a903f0081d5c6de5a8e8d748a904",
+    "semantic_hash": ""
   },
   "webapp/frontend/src/components/JobDetailModal.tsx": {
-    "mtime": 1784294280.9719286,
-    "ast_hash": "6d16957f0087ad3381d0e7a74dbe144e",
+    "mtime": 1784719078.4623332,
+    "ast_hash": "1dacc9b7b5aa261b92a54f2bdd40ecc3",
     "semantic_hash": ""
   },
   "webapp/frontend/src/components/MultiSelect.tsx": {
-    "mtime": 1784223006.03721,
-    "ast_hash": "564647740eaaf196ee9413a95b3244b7",
-    "semantic_hash": "564647740eaaf196ee9413a95b3244b7"
+    "mtime": 1784719078.443961,
+    "ast_hash": "cee52dc15a5a42561a780412975a26a4",
+    "semantic_hash": ""
   },
   "webapp/frontend/src/components/Nav.tsx": {
-    "mtime": 1784222303.1999757,
-    "ast_hash": "88c5539b2ff478ecae1c4223713e8c8f",
-    "semantic_hash": "88c5539b2ff478ecae1c4223713e8c8f"
+    "mtime": 1784719078.4325385,
+    "ast_hash": "c2f611eea3b85d3bfe46fbb274f19824",
+    "semantic_hash": ""
   },
   "webapp/frontend/src/components/Pagination.tsx": {
-    "mtime": 1784222303.2010324,
-    "ast_hash": "c8157aa9122bc263bfe6bc0270155ab4",
-    "semantic_hash": "c8157aa9122bc263bfe6bc0270155ab4"
+    "mtime": 1784719078.4563062,
+    "ast_hash": "9b2f55f4d171681c9e8c5a6c23805064",
+    "semantic_hash": ""
   },
   "webapp/frontend/src/components/SkeletonCard.tsx": {
     "mtime": 1782361812.0166874,
@@ -380,13 +380,13 @@
     "semantic_hash": "787e5a07efeb2bf6209d5937195f2f68"
   },
   "webapp/frontend/src/pages/JobBoardPage.tsx": {
-    "mtime": 1784223181.97521,
-    "ast_hash": "79a709b500fcdf5bc3dfa63e7a754a22",
-    "semantic_hash": "79a709b500fcdf5bc3dfa63e7a754a22"
+    "mtime": 1784719078.452863,
+    "ast_hash": "0be24aeacc34c9bdc57e25ac54bee102",
+    "semantic_hash": ""
   },
   "webapp/frontend/src/pages/LandingPage.tsx": {
-    "mtime": 1784294281.0521102,
-    "ast_hash": "b140c8dc71edda0a7aecfe5cb927a1fc",
+    "mtime": 1784719078.46868,
+    "ast_hash": "905d81d05fd920de9924b4849dd25327",
     "semantic_hash": ""
   },
   "webapp/frontend/src/pages/SavedJobsPage.tsx": {
@@ -425,9 +425,9 @@
     "semantic_hash": ""
   },
   "webapp/frontend/DESIGN.md": {
-    "mtime": 1782360092.8878322,
-    "ast_hash": "a50aa839080cf3ef3d23b8542ec4197b",
-    "semantic_hash": "a50aa839080cf3ef3d23b8542ec4197b"
+    "mtime": 1784719078.428195,
+    "ast_hash": "da5bbe1c1d91a4ebfa0c7572f1287c7d",
+    "semantic_hash": ""
   },
   "webapp/frontend/README.md": {
     "mtime": 1782359776.9564757,
@@ -680,13 +680,13 @@
     "semantic_hash": "98a407512b4b530e14570774a65d3c67"
   },
   "hk_jobs/salary_clamp.py": {
-    "mtime": 1784375383.3771753,
-    "ast_hash": "e617476de133ced5f24a603aff6896c5",
+    "mtime": 1784718914.892024,
+    "ast_hash": "5275b02257a7f9d700d10e4dbdbc3864",
     "semantic_hash": ""
   },
   "salary_guidlines/hk_salary_anchors.json": {
-    "mtime": 1784321092.5171192,
-    "ast_hash": "cd2b16c1be798058462510ee5a5d4bd0",
+    "mtime": 1784670313.6207685,
+    "ast_hash": "493fc1ab7b3bb53234ad8c1a4dbf2e18",
     "semantic_hash": ""
   },
   "scripts/clamp_existing_salaries.py": {
@@ -705,8 +705,73 @@
     "semantic_hash": ""
   },
   "tests/test_salary_clamp.py": {
-    "mtime": 1784375512.1424313,
-    "ast_hash": "00db0b0824657c0b88aafbac7b7f8c86",
+    "mtime": 1784718935.1646023,
+    "ast_hash": "05dfcc5bd72ff8b9764928665c62cb68",
+    "semantic_hash": ""
+  },
+  "docs/bakeoff/apify_post_search_raw.json": {
+    "mtime": 1784486784.5982108,
+    "ast_hash": "1b7492177cc623edb0a109926222f9ac",
+    "semantic_hash": ""
+  },
+  "docs/bakeoff/apify_profile_posts_raw.json": {
+    "mtime": 1784486642.269451,
+    "ast_hash": "13fe58b945abf4b68314e6b522719bfb",
+    "semantic_hash": ""
+  },
+  "hk_jobs/salary_audit.py": {
+    "mtime": 1784718924.1636443,
+    "ast_hash": "27c29362a50dc4dcce1657b0a1511e2d",
+    "semantic_hash": ""
+  },
+  "salary_guidlines/adecco_2026.json": {
+    "mtime": 1784668742.7842338,
+    "ast_hash": "308f351e6a32917868bb7a000101267b",
+    "semantic_hash": ""
+  },
+  "salary_guidlines/persolkelly_2025.json": {
+    "mtime": 1784668667.2733674,
+    "ast_hash": "7f2e2e097d7be7a13cef5a3aa99916fc",
+    "semantic_hash": ""
+  },
+  "scripts/apply_boutique_salary_discount.py": {
+    "mtime": 1784655331.509664,
+    "ast_hash": "6289e49558a8cb83e433437e048d414e",
+    "semantic_hash": ""
+  },
+  "scripts/build_merged_salary_anchors.py": {
+    "mtime": 1784670279.4305274,
+    "ast_hash": "cf0615f3e79cbe5b98876d9463153706",
+    "semantic_hash": ""
+  },
+  "webapp/frontend/src/components/FilterPrimitives.tsx": {
+    "mtime": 1784719078.4484985,
+    "ast_hash": "a73457c0c8b59e93bf8978a8929ee7e5",
+    "semantic_hash": ""
+  },
+  "webapp/frontend/src/components/MobileFilterSheet.tsx": {
+    "mtime": 1784719078.4401128,
+    "ast_hash": "6238f54435c3e31683a6f3a53add1a1d",
+    "semantic_hash": ""
+  },
+  "webapp/frontend/src/hooks/useModalHistoryGuard.ts": {
+    "mtime": 1784719078.4657443,
+    "ast_hash": "80674e94f054384b34f8579b256ed533",
+    "semantic_hash": ""
+  },
+  "docs/BAKEOFF_RESULTS.md": {
+    "mtime": 1784486832.7385163,
+    "ast_hash": "5734c4026934f478c9d1db95cf7bd5db",
+    "semantic_hash": ""
+  },
+  "docs/PLAN_LINKEDIN_POSTS.md": {
+    "mtime": 1784486847.4669602,
+    "ast_hash": "c050de931b94fe74349d4c7c5c0e835f",
+    "semantic_hash": ""
+  },
+  "hk_jobs/recruiters.yaml": {
+    "mtime": 1784492661.7282536,
+    "ast_hash": "0eeb0d7dd2029fef03c9ac7149aa94c0",
     "semantic_hash": ""
   }
 }

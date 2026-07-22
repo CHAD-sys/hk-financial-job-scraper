@@ -660,6 +660,18 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "--fetch-posts — run on a weekly cadence, not daily. Requires APIFY_API_TOKEN."
         ),
     )
+    p.add_argument(
+        "--promote-posts",
+        dest="promote_posts",
+        action="store_true",
+        help=(
+            "LP-3: classify+extract every pending linkedin_posts row via DeepSeek and "
+            "promote the ones that pass the gate (concrete title + HK-plausible location) "
+            "into the jobs table as source='linkedin_posts'. Requires DEEPSEEK_API_KEY. "
+            "Prints the Secret Market metrics (promoted, %% truly hidden, %% high-confidence) "
+            "after the run."
+        ),
+    )
     return p.parse_args(argv)
 
 
@@ -794,6 +806,19 @@ def main(argv: list[str] | None = None) -> None:
         summary = fetch_discovery(args.db)
         if summary.errors and not summary.recruiters_polled:
             raise SystemExit(f"Posts discovery search failed entirely: {summary.errors}")
+        return
+
+    # --promote-posts: LP-3 classify+extract+promote pass. No scraping.
+    if getattr(args, "promote_posts", False):
+        from hk_jobs.migrations import migrate_to_phase_26, migrate_to_phase_27
+        from hk_jobs.posts.metrics import compute_metrics, format_metrics
+        from hk_jobs.posts.promote import run_promotion
+        migrate_to_phase_26(args.db)
+        migrate_to_phase_27(args.db)
+        summary = run_promotion(args.db)
+        logger.info(format_metrics(compute_metrics(args.db)))
+        if summary.errors and not summary.promoted and summary.processed:
+            raise SystemExit(f"Posts promotion failed entirely: {summary.errors}")
         return
 
     # --repair-companies: fix mislabeled company fields for existing JobsDB rows
