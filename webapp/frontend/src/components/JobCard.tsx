@@ -24,7 +24,7 @@ export default function JobCard({ job, saved, onToggleSave, onClick }: Props) {
 
   return (
     <article
-      className="relative flex flex-col gap-3 rounded-lg p-5 cursor-pointer transition-all duration-200 group"
+      className="job-card relative flex flex-col gap-3 rounded-lg p-5 cursor-pointer transition-all duration-200 group"
       style={{
         backgroundColor: 'var(--color-surface)',
         border: '1px solid var(--color-border)',

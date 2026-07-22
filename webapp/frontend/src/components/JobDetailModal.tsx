@@ -6,6 +6,7 @@ import {
 import type { Job, JobDetail } from '../api/client'
 import { fetchJobDetail } from '../api/client'
 import SourceBadges from './SourceBadges'
+import { useModalHistoryGuard } from '../hooks/useModalHistoryGuard'
 import {
   formatSalary, formatEstimatedSalary, timeAgo, getSectorColor,
   getSeniorityColor, formatRemoteType, shortLocation,
@@ -22,6 +23,22 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [detail, setDetail] = useState<JobDetail | null>(null)
   const [loading, setLoading] = useState(true)
+  // Drives the enter/exit transition defined in .job-detail-dialog (index.css):
+  // 'entering' is the initial (off-screen) paint, flipped to 'entered' a frame
+  // after mount so the transition actually plays; 'closing' plays the exit
+  // transition before the parent's onClose actually unmounts this component.
+  const [visualState, setVisualState] = useState<'entering' | 'entered' | 'closing'>('entering')
+  const closingRef = useRef(false)
+
+  const requestClose = () => {
+    if (closingRef.current) return
+    closingRef.current = true
+    setVisualState('closing')
+    window.setTimeout(onClose, 200) // exit is faster than the 300ms enter
+  }
+
+  // Phone/browser back gesture closes the modal instead of leaving /jobs.
+  useModalHistoryGuard(requestClose)
 
   useEffect(() => {
     setLoading(true)
@@ -30,19 +47,35 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
       .finally(() => setLoading(false))
   }, [job.source, job.source_id])
 
-  // Open as a modal: the native <dialog> gives us focus trapping, Escape
-  // dismissal (the 'close' event below) and the ::backdrop layer for free.
-  // Clicks on the ::backdrop are delivered with the dialog itself as target,
-  // so backdrop-click-to-close (a pointer-only convenience — keyboard users
-  // dismiss with Escape) is wired here rather than in the markup.
+  // Open as a modal: the native <dialog> gives us focus trapping and the
+  // ::backdrop layer for free. Clicks on the ::backdrop are delivered with
+  // the dialog itself as target, so backdrop-click-to-close (a pointer-only
+  // convenience — keyboard users dismiss with Escape) is wired here rather
+  // than in the markup. 'cancel' (Escape) is intercepted so it plays the same
+  // exit animation as every other close path instead of closing instantly.
   useEffect(() => {
     const dlg = dialogRef.current
     if (!dlg) return
     dlg.showModal()
-    const onBackdropClick = (e: MouseEvent) => { if (e.target === dlg) onClose() }
+    // Double rAF: the initial off-screen style must actually paint before we
+    // flip to 'entered', or the browser collapses the transition to a no-op.
+    // Both ids are local to this effect run, so the cleanup below can read
+    // them directly without the staleness a ref would introduce.
+    const rafIds: number[] = []
+    rafIds.push(requestAnimationFrame(() => {
+      rafIds.push(requestAnimationFrame(() => setVisualState('entered')))
+    }))
+    const onBackdropClick = (e: MouseEvent) => { if (e.target === dlg) requestClose() }
+    const onCancel = (e: Event) => { e.preventDefault(); requestClose() }
     dlg.addEventListener('click', onBackdropClick)
-    return () => dlg.removeEventListener('click', onBackdropClick)
-  }, [onClose])
+    dlg.addEventListener('cancel', onCancel)
+    return () => {
+      rafIds.forEach(cancelAnimationFrame)
+      dlg.removeEventListener('click', onBackdropClick)
+      dlg.removeEventListener('cancel', onCancel)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Lock body scroll
   useEffect(() => {
@@ -63,8 +96,7 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
   return (
     <dialog
       ref={dialogRef}
-      // Fires on Escape (via 'cancel') and any programmatic close.
-      onClose={onClose}
+      data-state={visualState}
       aria-label={displayTitle}
       className="job-detail-dialog"
     >
@@ -82,7 +114,7 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
           sectorColor={sectorColor}
           saved={saved}
           onToggleSave={onToggleSave}
-          onClose={onClose}
+          onClose={requestClose}
         />
 
         {/* Scrollable body */}
@@ -194,7 +226,7 @@ function ModalHeader({
         <button
           type="button"
           onClick={onClose}
-          className="p-2 rounded transition-colors duration-150 cursor-pointer"
+          className="flex min-h-11 min-w-11 items-center justify-center rounded transition-colors duration-150 cursor-pointer"
           style={{ color: 'var(--color-ink-faint)' }}
           onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-surface-2)')}
           onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent')}

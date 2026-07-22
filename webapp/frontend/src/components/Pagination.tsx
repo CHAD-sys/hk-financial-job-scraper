@@ -55,25 +55,58 @@ export default function Pagination({ page, totalPages, onChange }: Props) {
 
   return (
     <nav
-      className="flex items-center justify-center gap-1 py-8"
+      className="flex items-center justify-center py-8"
       aria-label="Pagination"
     >
-      {btn(<ChevronLeft size={16} />, page - 1, page === 1)}
-      {pages.map((p, i) =>
-        p === '…' ? (
-          <span
-            key={`ellipsis-${i}`}
-            className="flex h-9 w-9 items-center justify-center text-sm"
-            style={{ color: 'var(--color-ink-faint)' }}
-            aria-hidden="true"
-          >
-            …
-          </span>
-        ) : (
-          btn(p, p, false, p === page)
-        ),
-      )}
-      {btn(<ChevronRight size={16} />, page + 1, page === totalPages)}
+      {/* Compact mode below sm: — a full numbered pager (up to 9 buttons)
+          can overflow or wrap awkwardly on a 360px screen; Prev/Next + a
+          page label degrades cleanly and stays a single row. */}
+      <div className="flex sm:hidden items-center gap-3">
+        <button type="button"
+          onClick={() => page > 1 && onChange(page - 1)}
+          disabled={page === 1}
+          className="flex min-h-11 min-w-11 items-center justify-center rounded cursor-pointer disabled:cursor-default disabled:opacity-40"
+          style={{ border: '1px solid var(--color-border)', color: 'var(--color-ink-muted)' }}
+          aria-label="Previous page"
+        >
+          <ChevronLeft size={18} />
+        </button>
+        <span
+          className="text-sm font-medium tabular-nums"
+          style={{ color: 'var(--color-ink-muted)', fontFamily: 'var(--font-mono)' }}
+        >
+          Page {page} of {totalPages}
+        </span>
+        <button type="button"
+          onClick={() => page < totalPages && onChange(page + 1)}
+          disabled={page === totalPages}
+          className="flex min-h-11 min-w-11 items-center justify-center rounded cursor-pointer disabled:cursor-default disabled:opacity-40"
+          style={{ border: '1px solid var(--color-border)', color: 'var(--color-ink-muted)' }}
+          aria-label="Next page"
+        >
+          <ChevronRight size={18} />
+        </button>
+      </div>
+
+      {/* Full numbered pager — sm: and up */}
+      <div className="hidden sm:flex items-center gap-1">
+        {btn(<ChevronLeft size={16} />, page - 1, page === 1)}
+        {pages.map((p, i) =>
+          p === '…' ? (
+            <span
+              key={`ellipsis-${i}`}
+              className="flex h-9 w-9 items-center justify-center text-sm"
+              style={{ color: 'var(--color-ink-faint)' }}
+              aria-hidden="true"
+            >
+              …
+            </span>
+          ) : (
+            btn(p, p, false, p === page)
+          ),
+        )}
+        {btn(<ChevronRight size={16} />, page + 1, page === totalPages)}
+      </div>
     </nav>
   )
 }

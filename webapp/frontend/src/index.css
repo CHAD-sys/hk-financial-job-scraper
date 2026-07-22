@@ -67,6 +67,11 @@ body {
   outline-offset: 2px;
 }
 
+/* Kills the mobile ~300ms tap delay on every interactive element. */
+button, a, input, select, [role="button"], [role="tab"] {
+  touch-action: manipulation;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -98,6 +103,22 @@ body {
 }
 .filter-pill:active { transform: scale(0.96); }
 
+/* ── Job card press feedback (touch has no hover) ──────────────── */
+.job-card {
+  transition: box-shadow 200ms, border-color 200ms, transform 200ms var(--ease-out-expo);
+}
+.job-card:active { transform: scale(0.985); }
+
+/* ── Mobile filter sheet (full-screen overlay, z-300 — above Nav's
+   z-200 since it takes over the whole screen including the nav) ── */
+.mobile-filter-sheet {
+  animation: mobile-sheet-in 220ms var(--ease-out-expo);
+}
+@keyframes mobile-sheet-in {
+  from { transform: translateY(12px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
 /* ── Job detail modal (native <dialog>) ───────────────────────── */
 /* Side panel anchored below the sticky nav, filling the right edge. */
 .job-detail-dialog {
@@ -117,8 +138,29 @@ body {
   background-color: var(--color-surface);
   color: var(--color-ink);
   box-shadow: var(--shadow-float);
+  /* Enter: 300ms (--ease-out-expo). Exit ("closing"): 200ms, ~2/3 of enter,
+     per the exit-faster-than-enter motion convention — driven by a data-state
+     attribute the component flips a frame after mount / on close request. */
+  transform: translateX(100%);
+  opacity: 0;
+  transition: transform 300ms var(--ease-out-expo), opacity 300ms var(--ease-out-expo);
+}
+.job-detail-dialog[data-state="entered"] {
+  transform: translateX(0);
+  opacity: 1;
+}
+.job-detail-dialog[data-state="closing"] {
+  transition-duration: 200ms;
 }
 .job-detail-dialog::backdrop {
   background-color: rgba(11, 22, 40, 0.55);
   backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity 300ms var(--ease-out-expo);
+}
+.job-detail-dialog[data-state="entered"]::backdrop {
+  opacity: 1;
+}
+.job-detail-dialog[data-state="closing"]::backdrop {
+  transition-duration: 200ms;
 }

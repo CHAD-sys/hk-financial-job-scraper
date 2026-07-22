@@ -123,11 +123,11 @@ export default function JobBoardPage() {
         }}
         aria-label="Job board header"
       >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
             <div>
               <p
-                className="text-xs font-semibold uppercase tracking-widest mb-1"
+                className="text-xs font-semibold uppercase tracking-widest mb-0.5 sm:mb-1"
                 style={{ color: 'var(--color-gold)', letterSpacing: '0.12em' }}
               >
                 Hong Kong · Live Market Data
@@ -157,13 +157,16 @@ export default function JobBoardPage() {
       />
 
       {/* ── Main content ────────────────────────────────────── */}
-      <main id="main-content" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+      <main id="main-content" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-3 pb-6 sm:py-6">
 
-        {/* Tier tabs: All / Exclusive / Mainstream — segmented control */}
+        {/* Tier tabs: All / Exclusive / Mainstream — segmented control.
+            Below sm: this scrolls horizontally instead of wrapping, since 3
+            tabs with icon+label+count can exceed a 360px viewport; wrapping
+            them would push everything below down by an extra row. */}
         <div
           role="tablist"
           aria-label="Job tier"
-          className="inline-flex flex-wrap items-stretch gap-1.5 mb-6 p-1.5 rounded-xl"
+          className="flex flex-nowrap sm:inline-flex sm:flex-wrap items-stretch gap-1.5 mb-3 sm:mb-6 p-1.5 rounded-xl overflow-x-auto sm:overflow-visible"
           style={{
             backgroundColor: 'var(--color-surface-2)',
             border: '1px solid var(--color-border-strong)',
@@ -181,7 +184,7 @@ export default function JobBoardPage() {
                 role="tab"
                 aria-selected={selected}
                 onClick={() => updateFilters({ tier: tab.value })}
-                className="tier-tab inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer outline-none"
+                className="tier-tab flex-shrink-0 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer outline-none"
                 style={{
                   backgroundColor: selected ? 'var(--color-ink)' : 'transparent',
                   color: selected ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
@@ -217,9 +220,11 @@ export default function JobBoardPage() {
           })}
         </div>
 
-        {/* Results header */}
-        <div className="flex items-center justify-between mb-5">
-          <p className="text-sm" style={{ color: 'var(--color-ink-muted)' }}>
+        {/* Results header. The count text is hidden below sm: — it's redundant
+            with the "All jobs N" tab badge just above and was one of two
+            stacked rows contributing to excess chrome above the fold. */}
+        <div className="flex items-center justify-end sm:justify-between mb-3 sm:mb-5">
+          <p className="hidden sm:block text-sm" style={{ color: 'var(--color-ink-muted)' }}>
             {loading ? (
               <span className="animate-pulse">Loading…</span>
             ) : (
@@ -241,7 +246,7 @@ export default function JobBoardPage() {
             <select
               value={sort}
               onChange={e => handleSortChange(e.target.value)}
-              className="appearance-none rounded pl-3 pr-8 py-2 text-sm font-medium transition-colors duration-150 cursor-pointer outline-none"
+              className="appearance-none rounded pl-3 pr-8 py-2.5 min-h-11 text-sm font-medium transition-colors duration-150 cursor-pointer outline-none"
               style={{
                 backgroundColor: 'var(--color-surface)',
                 border: '1px solid var(--color-border)',

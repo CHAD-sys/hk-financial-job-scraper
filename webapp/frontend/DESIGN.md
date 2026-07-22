@@ -158,6 +158,8 @@ Defined in `--shadow-*` tokens. Each level adds depth without heavy drop shadows
 40   overlay (drawer backdrops)
 100  modal
 200  navigation (sticky header, always on top)
+300  mobile full-screen overlays (e.g. the mobile Filters sheet —
+     covers the nav too, since it's a total screen takeover)
 ```
 
 ---

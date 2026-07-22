@@ -1,4 +1,8 @@
-export const API = 'http://localhost:8000'
+// API base. Empty (VITE_API_URL="") → relative "/api" calls, which the Vite dev
+// server proxies to the backend (see vite.config.ts). This lets a single tunnel
+// on :5173 serve both the UI and the API (same origin, no CORS). Set VITE_API_URL
+// to an absolute URL to point at a separately-hosted backend.
+export const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -132,10 +136,7 @@ export async function fetchJobs(
   } else if (filters.salary_min !== null) {
     p.set('salary_min', String(filters.salary_min))
   }
-  if (filters.salary_max !== null && !filters.salary_disclosed_only === false) {
-    p.set('salary_max', String(filters.salary_max))
-  }
-  if (filters.salary_disclosed_only && filters.salary_max !== null) {
+  if (filters.salary_max !== null) {
     p.set('salary_max', String(filters.salary_max))
   }
 

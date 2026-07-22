@@ -93,7 +93,7 @@ function HeroSection({ roles }: { roles: string }) {
         style={{ backgroundColor: 'var(--color-gold)' }}
       />
 
-      <div className="relative mx-auto max-w-7xl px-6 lg:px-8 pt-20 pb-16 lg:pt-28 lg:pb-24">
+      <div className="relative mx-auto max-w-7xl px-6 lg:px-8 pt-12 pb-10 sm:pt-20 sm:pb-16 lg:pt-28 lg:pb-24">
         <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-10 lg:gap-8 items-center">
         <div>
 
@@ -149,7 +149,7 @@ function HeroSection({ roles }: { roles: string }) {
             <button
               type="button"
               onClick={() => navigate('/jobs')}
-              className="inline-flex items-center gap-2 rounded px-6 py-3 text-sm font-semibold transition-all duration-200 cursor-pointer"
+              className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded px-6 py-3 text-sm font-semibold transition-all duration-200 cursor-pointer"
               style={{ backgroundColor: 'var(--color-ink)', color: 'var(--color-ink-inverse)' }}
               onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-blue)')}
               onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-ink)')}
@@ -161,7 +161,7 @@ function HeroSection({ roles }: { roles: string }) {
             <button
               type="button"
               onClick={() => navigate('/jobs?tier=boutique')}
-              className="inline-flex items-center gap-1.5 rounded px-5 py-3 text-sm font-semibold transition-all duration-200 cursor-pointer"
+              className="w-full sm:w-auto justify-center inline-flex items-center gap-1.5 rounded px-5 py-3 text-sm font-semibold transition-all duration-200 cursor-pointer"
               style={{ color: 'var(--color-gold)', border: '1px solid var(--color-gold)', backgroundColor: 'var(--color-gold-light)' }}
               onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#F6E7BE')}
               onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-gold-light)')}
