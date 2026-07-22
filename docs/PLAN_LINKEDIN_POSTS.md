@@ -190,13 +190,37 @@ Schema mapping notes:
   in the file: extrapolated monthly cost from a <1-day window is noisy,
   don't read $49.96/mo as a real steady-state number)
 
-### LP-5 — UI + PocketBase (post-GO, ~3–4 days)
-- PB mirror: new fields/collection via `sync_pocketbase.py`
-- Webapp: dedicated "Secret Market" section (recruiter attribution, employer or
-  hint, link to original post, "DM to apply" CTA, recruiter email on card)
-- Contextual injection: active filters (e.g. urgently-hiring) render a distinct
-  secret-market sub-section alongside main results — never intermixed rows
-- One-time email harvest for watchlist recruiters (~$1–2), refresh quarterly
+### LP-5 — UI + PocketBase — ✅ MOSTLY BUILT (2026-07-22); email harvest still open
+- PB mirror: `board_signals` added to `sync_pocketbase.py`'s `_ENRICHMENT_FIELDS`
+  (it was silently dropped before — the value-mapping already handled it, the PB
+  column just never existed). Synced live: 4804 rows, confirmed recruiter
+  attribution now visible in the PB browse view for `linkedin_posts` rows.
+- Backend (`webapp/backend/main.py`): `tier=social` accepted in `_build_where`;
+  new `hidden_only` param (`source_tier='social' AND cross_posted=0`) composes
+  with every other active filter, reusing `/api/jobs` rather than a new endpoint.
+- Webapp: dedicated "Secret Market" tier tab + a genuinely separate contextual
+  sub-section (own fetch/state, own grid block — never intermixed with the main
+  grid's rows, per decision #9) that previews matching hidden jobs under the
+  active filters and links to the full tab. `JobCard`/`JobDetailModal`: a
+  "Hidden market" badge, recruiter attribution (name + LinkedIn profile link +
+  employer_hint when confidential + engagement), and a "DM {recruiter} to
+  apply" CTA replacing "Apply on company site" (job.url is the post permalink
+  for this source, not a careers page) + a link back to the original post.
+  `SourceBadges.tsx` gained a `linkedin_posts` → "Recruiter post" entry (was
+  silently dropped before, per the earlier research pass).
+- Verified: TypeScript compiles clean, production build succeeds, oxlint clean.
+  Live-checked in a real browser against the real 17 promoted jobs — tier tab
+  count, contextual sub-section, badges, and recruiter chips all confirmed
+  rendering correctly with real data (screenshots taken). The job-detail
+  MODAL's new content (recruiter attribution block, DM CTA) could not be
+  screenshotted — a browser-automation click quirk on the card's stretched
+  title-button hit area, reproduced identically on pre-existing unmodified
+  cards, so not a regression; a direct DOM `.click()` confirmed the modal
+  mechanism itself opens correctly (`dialog.open === true`). Worth a real
+  manual click-through before fully trusting the modal's new section.
+- **Not done yet**: recruiter email harvest (~$1-2 one-time via HarvestAPI
+  email search) — "recruiter email on card" from the original bullet list is
+  therefore not yet shown; deferred as a separate, explicitly-costed step.
 
 ### LP-6 — Steady state (post-GO)
 - Scale watchlist toward ~100 active profiles (stay under $30/mo; cost counter

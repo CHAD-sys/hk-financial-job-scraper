@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   X, Bookmark, ExternalLink, MapPin, Briefcase,
-  GraduationCap, DollarSign, Tag, Calendar,
+  GraduationCap, DollarSign, Tag, Calendar, MessageCircle, UserRound, EyeOff,
 } from 'lucide-react'
-import type { Job, JobDetail } from '../api/client'
+import type { Job, JobDetail, LinkedInPostSignals } from '../api/client'
 import { fetchJobDetail } from '../api/client'
 import SourceBadges from './SourceBadges'
 import { useModalHistoryGuard } from '../hooks/useModalHistoryGuard'
@@ -124,6 +124,12 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
             {/* Job boards this vacancy is listed on (detail view only) */}
             <SourceBadges sources={detail?.sources ?? [job.source]} />
 
+            {job.source_tier === 'social' && (
+              <RecruiterAttribution
+                signals={job.board_signals?.linkedin_posts as unknown as LinkedInPostSignals | undefined}
+              />
+            )}
+
             <MetaGrid d={d} />
 
             {salary && <DisclosedSalary salary={salary} />}
@@ -148,7 +154,7 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
           </div>
         </div>
 
-        <ApplyFooter url={job.url} />
+        <ApplyFooter job={job} />
       </div>
     </dialog>
   )
@@ -234,6 +240,49 @@ function ModalHeader({
         >
           <X size={18} strokeWidth={1.8} />
         </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Recruiter attribution (Secret Market / source_tier === 'social') ─────────
+//
+// company is already "Confidential via {recruiter}" when no employer was named
+// (hk_jobs/posts/promote.py) — this section adds the WHY: this is a personal
+// LinkedIn post by a recruiter, not a formal board listing, plus a link back
+// to the original post and (via ApplyFooter) a "DM to apply" CTA, per
+// PLAN_LINKEDIN_POSTS.md decision #9.
+
+function RecruiterAttribution({ signals }: { signals: LinkedInPostSignals | undefined }) {
+  if (!signals?.recruiter_name) return null
+  return (
+    <div
+      className="flex items-start gap-3 rounded-lg p-4"
+      style={{ backgroundColor: 'rgba(107,78,255,0.06)', border: '1px solid rgba(107,78,255,0.22)' }}
+    >
+      <EyeOff size={16} style={{ color: '#6B4EFF', marginTop: 2 }} strokeWidth={1.8} aria-hidden="true" />
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#6B4EFF' }}>
+          Secret Market listing
+        </p>
+        <p className="text-sm mt-1" style={{ color: 'var(--color-ink)' }}>
+          Sourced from a LinkedIn post by{' '}
+          {signals.recruiter_profile_url ? (
+            <a
+              href={signals.recruiter_profile_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold underline"
+              style={{ color: '#6B4EFF' }}
+            >
+              {signals.recruiter_name}
+            </a>
+          ) : (
+            <span className="font-semibold">{signals.recruiter_name}</span>
+          )}
+          {signals.employer_hint ? ` — described only as "${signals.employer_hint}"` : ''}.
+          This role doesn't appear on any public job board.
+        </p>
       </div>
     </div>
   )
@@ -430,15 +479,57 @@ function DescriptionSection({ loading, text }: { loading: boolean; text: string 
 }
 
 // ── Sticky apply CTA ──────────────────────────────────────────────────────────
+//
+// For source_tier === 'social', job.url is the LinkedIn POST permalink (set
+// in hk_jobs/posts/promote.py), not a company careers page — there's no
+// formal "apply" flow, so the primary CTA is "DM to apply" (message the
+// recruiter), with the original post as a secondary link, per decision #9.
 
-function ApplyFooter({ url }: { url: string }) {
+function ApplyFooter({ job }: { job: Job }) {
+  const signals = job.board_signals?.linkedin_posts as unknown as LinkedInPostSignals | undefined
+  const profileUrl = job.source_tier === 'social' ? signals?.recruiter_profile_url : null
+
+  if (profileUrl) {
+    return (
+      <div
+        className="flex-shrink-0 px-6 py-4 flex flex-col gap-2"
+        style={{ borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)' }}
+      >
+        <a
+          href={profileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex w-full items-center justify-center gap-2 rounded py-3 text-sm font-semibold transition-all duration-200 cursor-pointer"
+          style={{ backgroundColor: '#6B4EFF', color: '#fff' }}
+          onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#5A3FE0')}
+          onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#6B4EFF')}
+        >
+          <MessageCircle size={15} strokeWidth={2} />
+          DM {signals?.recruiter_name ?? 'the recruiter'} to apply
+        </a>
+        {job.url && (
+          <a
+            href={job.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 text-xs font-medium py-1"
+            style={{ color: 'var(--color-ink-faint)' }}
+          >
+            <UserRound size={12} strokeWidth={1.8} />
+            View original LinkedIn post
+          </a>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div
       className="flex-shrink-0 px-6 py-4"
       style={{ borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)' }}
     >
       <a
-        href={url}
+        href={job.url}
         target="_blank"
         rel="noopener noreferrer"
         className="flex w-full items-center justify-center gap-2 rounded py-3 text-sm font-semibold transition-all duration-200 cursor-pointer"

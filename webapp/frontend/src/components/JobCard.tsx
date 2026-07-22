@@ -1,5 +1,5 @@
-import { Bookmark, MapPin, Clock, Star, Flame, Sparkles, Repeat2, Users } from 'lucide-react'
-import type { Job } from '../api/client'
+import { Bookmark, MapPin, Clock, Star, Flame, Sparkles, Repeat2, Users, EyeOff, UserRound } from 'lucide-react'
+import type { Job, LinkedInPostSignals } from '../api/client'
 import {
   formatSalary, formatEstimatedSalary, timeAgo, monogram,
   getSectorColor, getSeniorityColor,
@@ -73,7 +73,11 @@ export default function JobCard({ job, saved, onToggleSave, onClick }: Props) {
       </h3>
 
       <MetaRow job={job} />
-      <SignalBadges boardSignals={job.board_signals} />
+      {job.source_tier === 'social' ? (
+        <RecruiterBadge signals={job.board_signals?.linkedin_posts as unknown as LinkedInPostSignals | undefined} />
+      ) : (
+        <SignalBadges boardSignals={job.board_signals} />
+      )}
       <SkillChips skills={job.required_skills} />
       <CardFooter job={job} />
     </article>
@@ -144,6 +148,21 @@ function CardHeader({
               >
                 <Star size={10} strokeWidth={2} fill="currentColor" aria-hidden="true" />
                 Exclusive
+              </span>
+            )}
+            {job.source_tier === 'social' && (
+              <span
+                className="inline-flex items-center gap-0.5 rounded-sm px-1.5 py-0.5 font-semibold"
+                style={{
+                  backgroundColor: 'rgba(107,78,255,0.12)',
+                  color: '#6B4EFF',
+                  fontSize: '12px',
+                  letterSpacing: '0.04em',
+                }}
+                title="Secret Market — sourced from a recruiter's LinkedIn post, not a public job board"
+              >
+                <EyeOff size={10} strokeWidth={2} aria-hidden="true" />
+                Hidden market
               </span>
             )}
           </div>
@@ -284,6 +303,35 @@ function SignalBadges({ boardSignals }: { boardSignals: Job['board_signals'] }) 
         >
           <Users size={11} strokeWidth={2} aria-hidden="true" />
           {applicants} applicant{applicants === 1 ? '' : 's'}
+        </span>
+      )}
+    </div>
+  )
+}
+
+// ── Recruiter attribution (Secret Market / source_tier === 'social') ─────────
+
+function RecruiterBadge({ signals }: { signals: LinkedInPostSignals | undefined }) {
+  if (!signals?.recruiter_name) return null
+  const likes = signals.engagement?.likes
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span
+        className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-medium"
+        style={{
+          backgroundColor: 'rgba(107,78,255,0.08)',
+          color: '#6B4EFF',
+          border: '1px solid rgba(107,78,255,0.22)',
+          fontSize: '12px',
+        }}
+        title="Posted by this recruiter on LinkedIn — not a formal job board listing"
+      >
+        <UserRound size={11} strokeWidth={2} aria-hidden="true" />
+        via {signals.recruiter_name}
+      </span>
+      {typeof likes === 'number' && likes > 0 && (
+        <span className="text-xs" style={{ color: 'var(--color-ink-faint)' }}>
+          {likes} like{likes === 1 ? '' : 's'}
         </span>
       )}
     </div>

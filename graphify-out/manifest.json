@@ -90,8 +90,8 @@
     "semantic_hash": "9bb13ec1e4beb58a38a6571d6599635e"
   },
   "hk_jobs/pipeline.py": {
-    "mtime": 1784752821.9155104,
-    "ast_hash": "850f2983f82a295b7b92e1eff334f1d2",
+    "mtime": 1784754809.6878855,
+    "ast_hash": "f634dfc54c7984f2efbf1168d5ff9b9a",
     "semantic_hash": ""
   },
   "hk_jobs/reports/__init__.py": {
@@ -765,8 +765,8 @@
     "semantic_hash": ""
   },
   "docs/PLAN_LINKEDIN_POSTS.md": {
-    "mtime": 1784751441.1280153,
-    "ast_hash": "a725574a98e885dbb77efb33c2b9f971",
+    "mtime": 1784754953.0346036,
+    "ast_hash": "248c8e873dec983f68adfb890b04733f",
     "semantic_hash": ""
   },
   "hk_jobs/recruiters.yaml": {
@@ -857,6 +857,16 @@
   "tests/test_promote.py": {
     "mtime": 1784754405.8515399,
     "ast_hash": "e9522d09bffa3b8356647bda192ed2a6",
+    "semantic_hash": ""
+  },
+  "hk_jobs/posts/pilot_report.py": {
+    "mtime": 1784754793.8732553,
+    "ast_hash": "c4fee19a999b93e05808881e5b182b17",
+    "semantic_hash": ""
+  },
+  "tests/test_pilot_report.py": {
+    "mtime": 1784754925.590012,
+    "ast_hash": "04515976a2e1e0de51658d9dceb39062",
     "semantic_hash": ""
   }
 }

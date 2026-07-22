@@ -300,6 +300,7 @@ def _build_where(
     is_new: Optional[bool] = None,
     urgently_hiring: Optional[bool] = None,
     max_applicants: Optional[int] = None,
+    hidden_only: Optional[bool] = None,
 ) -> tuple[str, list]:
     conditions: list[str] = ["j.is_active = 1 AND j.is_primary = 1"]
     params: list = []
@@ -318,10 +319,19 @@ def _build_where(
         params.append(max_applicants)
 
     # Tier tabs: 'boutique' = the Exclusive section (longtail companies scraped via
-    # LLM extraction), 'mainstream' = structured job-board sources. 'all'/None = both.
-    if tier in ("boutique", "mainstream"):
+    # LLM extraction), 'mainstream' = structured job-board sources, 'social' = the
+    # Secret Market (LinkedIn recruiter posts, LP-5). 'all'/None = every tier.
+    if tier in ("boutique", "mainstream", "social"):
         conditions.append("j.source_tier = ?")
         params.append(tier)
+
+    # Secret Market "truly hidden" filter (PLAN_LINKEDIN_POSTS.md decision #9's
+    # contextual sub-section): a social-tier job with no cross-source match, i.e.
+    # a vacancy that genuinely doesn't exist on any real board. Composes with
+    # every other active filter (sector, search, etc.) rather than being its own
+    # separate query, so "urgently hiring" + hidden_only can be combined.
+    if hidden_only:
+        conditions.append("j.source_tier = 'social' AND j.cross_posted = 0")
 
     if search:
         conditions.append("(LOWER(j.title) LIKE ? OR LOWER(j.company) LIKE ?)")
@@ -441,10 +451,11 @@ def list_jobs(
     exp_max: Optional[int] = Query(None, description="Maximum years experience"),
     posted_within_days: Optional[int] = Query(None, description="Posted within N days"),
     is_internship: Optional[bool] = Query(None, description="Filter internships only"),
-    tier: Optional[str] = Query(None, description="Tier tab: boutique (Exclusive) | mainstream | all"),
+    tier: Optional[str] = Query(None, description="Tier tab: boutique (Exclusive) | mainstream | social (Secret Market) | all"),
     is_new: Optional[bool] = Query(None, description="Only newly-posted jobs (board 'New' flag)"),
     urgently_hiring: Optional[bool] = Query(None, description="Only 'urgently hiring' jobs"),
     max_applicants: Optional[int] = Query(None, ge=1, description="Only jobs with fewer than N applicants"),
+    hidden_only: Optional[bool] = Query(None, description="Only Secret Market jobs with no match on any real board"),
     sort: str = Query("newest", description="Sort: newest | salary_high | salary_low | company"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(24, ge=1, le=100, description="Results per page"),
@@ -473,7 +484,7 @@ def list_jobs(
     where_sql, params = _build_where(
         search, sectors, companies, seniority, remote_type, skills,
         salary_min, salary_max, exp_min, exp_max, posted_within_days, is_internship,
-        tier, is_new, urgently_hiring, max_applicants,
+        tier, is_new, urgently_hiring, max_applicants, hidden_only,
     )
 
     offset = (page - 1) * page_size

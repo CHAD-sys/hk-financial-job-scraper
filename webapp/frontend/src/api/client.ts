@@ -73,7 +73,17 @@ export interface StatsResponse {
   internship_count: number
 }
 
-export type TierTab = 'all' | 'boutique' | 'mainstream'
+export type TierTab = 'all' | 'boutique' | 'mainstream' | 'social'
+
+// board_signals.linkedin_posts shape, set by hk_jobs/posts/promote.py — recruiter
+// attribution for Secret Market jobs (source_tier === 'social').
+export interface LinkedInPostSignals {
+  recruiter_name: string | null
+  recruiter_profile_url: string | null
+  employer_hint: string | null
+  engagement: { likes: number; comments: number } | null
+  post_created_at: string | null
+}
 
 export interface JobFilters {
   tier: TierTab
@@ -92,6 +102,7 @@ export interface JobFilters {
   is_new: boolean
   urgently_hiring: boolean
   max_applicants: number | null
+  hidden_only: boolean
 }
 
 export const DEFAULT_FILTERS: JobFilters = {
@@ -111,6 +122,7 @@ export const DEFAULT_FILTERS: JobFilters = {
   is_new: false,
   urgently_hiring: false,
   max_applicants: null,
+  hidden_only: false,
 }
 
 // ── Fetch helpers ─────────────────────────────────────────────────────────────
@@ -146,6 +158,7 @@ export async function fetchJobs(
   if (filters.is_new) p.set('is_new', 'true')
   if (filters.urgently_hiring) p.set('urgently_hiring', 'true')
   if (filters.max_applicants !== null) p.set('max_applicants', String(filters.max_applicants))
+  if (filters.hidden_only) p.set('hidden_only', 'true')
 
   p.set('sort', sort)
   p.set('page', String(page))
@@ -198,6 +211,7 @@ export function filtersToSearchParams(
   if (filters.is_new) p.set('new', '1')
   if (filters.urgently_hiring) p.set('urgent', '1')
   if (filters.max_applicants !== null) p.set('max_appl', String(filters.max_applicants))
+  if (filters.hidden_only) p.set('hidden', '1')
   if (sort !== 'newest') p.set('sort', sort)
   if (page > 1) p.set('page', String(page))
   return p
@@ -209,7 +223,7 @@ export function searchParamsToFilters(
   const tierParam = p.get('tier')
   return {
     filters: {
-      tier: (tierParam === 'boutique' || tierParam === 'mainstream') ? tierParam : 'all',
+      tier: (tierParam === 'boutique' || tierParam === 'mainstream' || tierParam === 'social') ? tierParam : 'all',
       search: p.get('q') ?? '',
       sectors: p.getAll('sector'),
       companies: p.getAll('company'),
@@ -225,6 +239,7 @@ export function searchParamsToFilters(
       is_new: p.get('new') === '1',
       urgently_hiring: p.get('urgent') === '1',
       max_applicants: p.has('max_appl') ? Number(p.get('max_appl')) : null,
+      hidden_only: p.get('hidden') === '1',
     },
     sort: p.get('sort') ?? 'newest',
     page: Number(p.get('page') ?? '1'),
@@ -245,5 +260,6 @@ export function countActiveFilters(filters: JobFilters): number {
   if (filters.is_new) n++
   if (filters.urgently_hiring) n++
   if (filters.max_applicants !== null) n++
+  if (filters.hidden_only) n++
   return n
 }

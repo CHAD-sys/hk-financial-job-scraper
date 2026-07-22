@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ChevronDown, Star } from 'lucide-react'
+import { ChevronDown, Star, EyeOff } from 'lucide-react'
 import type { Job, FiltersResponse, JobListResponse, TierTab } from '../api/client'
 import {
   DEFAULT_FILTERS, fetchJobs, fetchFilters, fetchStats,
@@ -26,11 +26,16 @@ const SORT_OPTIONS = [
   { value: 'company', label: 'Company A–Z' },
 ]
 
-const TIER_TABS: { value: TierTab; label: string; star?: boolean }[] = [
+const TIER_TABS: { value: TierTab; label: string; star?: boolean; eyeOff?: boolean }[] = [
   { value: 'all', label: 'All jobs' },
   { value: 'boutique', label: 'Exclusive', star: true },
   { value: 'mainstream', label: 'Mainstream' },
+  { value: 'social', label: 'Secret Market', eyeOff: true },
 ]
+
+// How many Secret Market cards to show in the contextual sub-section (decision
+// #9) — a preview strip, not the full list; "View all" switches to the tab.
+const SECRET_MARKET_PREVIEW_SIZE = 3
 
 export default function JobBoardPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -53,6 +58,10 @@ export default function JobBoardPage() {
   const [tierCounts, setTierCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
+  // Secret Market contextual sub-section (decision #9): a separate fetch/state
+  // pair so these jobs render in their own distinct block, never mixed into
+  // the main grid's `jobs.map(...)` loop above.
+  const [secretMarket, setSecretMarket] = useState<JobListResponse | null>(null)
 
   const { toggle: toggleSave, isSaved, count: savedCount } = useSavedJobs()
 
@@ -88,6 +97,21 @@ export default function JobBoardPage() {
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [activeFilters, sort, page])
+
+  // Secret Market preview strip: same active filters (sector/search/seniority/
+  // etc.), tier forced to 'social', small page. Skipped entirely when already
+  // ON the Secret Market tab — the main grid below already shows exactly this.
+  useEffect(() => {
+    if (activeFilters.tier === 'social') {
+      setSecretMarket(null)
+      return
+    }
+    let cancelled = false
+    fetchJobs({ ...activeFilters, tier: 'social' }, 'newest', 1, SECRET_MARKET_PREVIEW_SIZE)
+      .then(r => { if (!cancelled) setSecretMarket(r) })
+      .catch(console.error)
+    return () => { cancelled = true }
+  }, [activeFilters])
 
   const updateFilters = useCallback((patch: Partial<JobFilters>) => {
     const { search, ...rest } = patch
@@ -201,6 +225,14 @@ export default function JobBoardPage() {
                     aria-hidden="true"
                   />
                 )}
+                {tab.eyeOff && (
+                  <EyeOff
+                    size={15}
+                    strokeWidth={2.25}
+                    style={{ color: selected ? 'var(--color-ink-inverse)' : '#6B4EFF' }}
+                    aria-hidden="true"
+                  />
+                )}
                 {tab.label}
                 {count != null && (
                   <span
@@ -267,6 +299,49 @@ export default function JobBoardPage() {
             />
           </div>
         </div>
+
+        {/* Secret Market contextual sub-section (decision #9): a distinct block,
+            never intermixed with the main grid below. Only shown when there's
+            something to show and we're not already ON the Secret Market tab. */}
+        {activeFilters.tier !== 'social' && secretMarket && secretMarket.total > 0 && (
+          <section
+            className="mb-4 sm:mb-6 rounded-xl p-4 sm:p-5"
+            style={{ backgroundColor: 'rgba(107,78,255,0.05)', border: '1px solid rgba(107,78,255,0.2)' }}
+            aria-label="Secret Market — hidden roles matching your filters"
+          >
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <EyeOff size={16} strokeWidth={2.25} style={{ color: '#6B4EFF' }} aria-hidden="true" />
+                <h2 className="text-sm font-bold" style={{ color: 'var(--color-ink)' }}>
+                  Secret Market
+                </h2>
+                <span className="text-xs" style={{ color: 'var(--color-ink-muted)' }}>
+                  {secretMarket.total} role{secretMarket.total === 1 ? '' : 's'} sourced from recruiter posts
+                  {activeCount > 0 ? ' matching your filters' : ''} — not on any public board
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => updateFilters({ tier: 'social' })}
+                className="text-xs font-semibold cursor-pointer"
+                style={{ color: '#6B4EFF' }}
+              >
+                View all {secretMarket.total} →
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {secretMarket.jobs.map(job => (
+                <JobCard
+                  key={`${job.source}__${job.source_id}`}
+                  job={job}
+                  saved={isSaved(job)}
+                  onToggleSave={toggleSave}
+                  onClick={setSelectedJob}
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Job grid */}
         {loading ? (

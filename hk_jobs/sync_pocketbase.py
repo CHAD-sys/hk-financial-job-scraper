@@ -52,8 +52,17 @@ _DEFAULT_SQLITE = "data/jobs.db"
 _DEFAULT_PB = "pocketbase/pb_data/data.db"
 
 # PB field name -> its source in SQLite. Fields whose PB name matches a `jobs`
-# column are copied straight across (see _map_row); the entries below are the
-# AI-enrichment extras that live in job_enrichments and must be added to PB.
+# column are copied straight across (see _map_row); the entries below are
+# columns that PB's `jobs` table doesn't already have and must be added.
+# Originally just the AI-enrichment extras from job_enrichments (the
+# "salary_estimated_*"/"title_en"/etc rows) — board_signals (LP-5) is a plain
+# base `jobs` column (added to the Job model after PB's original migration
+# was created) that was silently dropped by the mirror for the same reason:
+# _map_row's value-mapping already handles it fine (it's part of `j.*`), it
+# just needs the PB column/field to exist for that mapping to have anywhere
+# to write to. Needed so recruiter attribution (recruiter_name,
+# recruiter_profile_url, employer_hint, engagement, post_created_at for
+# source='linkedin_posts' rows) is visible in the boss-facing PB browse view.
 _ENRICHMENT_FIELDS = {
     "salary_estimated_min": ("number", "e.salary_estimated_min"),
     "salary_estimated_max": ("number", "e.salary_estimated_max"),
@@ -61,6 +70,7 @@ _ENRICHMENT_FIELDS = {
     "title_en": ("text", "e.title_en"),
     "description_summary": ("text", "e.description_summary"),
     "job_category": ("text", "e.job_category"),
+    "board_signals": ("text", "j.board_signals"),
 }
 
 

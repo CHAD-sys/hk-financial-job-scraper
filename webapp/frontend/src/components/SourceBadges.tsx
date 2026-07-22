@@ -20,13 +20,18 @@ const BOARDS: Record<string, Board> = {
   indeed:            { label: 'Indeed',            color: '#2557A7', mark: 'i' },
   linkedin:          { label: 'LinkedIn',          color: '#0A66C2', mark: 'in' },
   efinancialcareers: { label: 'eFinancialCareers', color: '#00857C', mark: 'eF' },
+  // Not a job board — a recruiter's own LinkedIn post (LP-5 "Secret Market").
+  // Kept distinct from `linkedin` (LinkedIn Jobs) since it's a different kind
+  // of listing: a personal post, not a formal board posting.
+  linkedin_posts:    { label: 'Recruiter post',    color: '#6B4EFF', mark: 'in' },
 }
 
 // Sources that are the employer's own careers page rather than a job board.
 const OWN_SITE = new Set(['workday', 'eightfold', 'longtail'])
 
-// Display order: own site first, then boards by preference.
-const ORDER = ['company', 'efinancialcareers', 'indeed', 'jobsdb', 'linkedin']
+// Display order: own site first, then boards by preference, recruiter posts last
+// (lowest priority everywhere else in the pipeline too — storage.py _SOURCE_PRIORITY).
+const ORDER = ['company', 'efinancialcareers', 'indeed', 'jobsdb', 'linkedin', 'linkedin_posts']
 
 /** hex (#rrggbb) → rgba() string at the given alpha, for subtle tints. */
 function tint(hex: string, alpha: number): string {

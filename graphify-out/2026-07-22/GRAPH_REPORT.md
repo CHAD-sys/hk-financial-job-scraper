@@ -1,16 +1,16 @@
 # Graph Report - hk-job-scraper  (2026-07-22)
 
 ## Corpus Check
-- 134 files · ~283,752 words
+- 139 files · ~287,382 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1640 nodes · 2911 edges · 105 communities (87 shown, 18 thin omitted)
-- Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 167 edges (avg confidence: 0.52)
+- 1708 nodes · 3100 edges · 110 communities (93 shown, 17 thin omitted)
+- Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 187 edges (avg confidence: 0.51)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `b9cfedb4`
+- Built from commit: `b6645250`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -115,34 +115,40 @@
 - [[_COMMUNITY_Community 102|Community 102]]
 - [[_COMMUNITY_Community 103|Community 103]]
 - [[_COMMUNITY_Community 104|Community 104]]
+- [[_COMMUNITY_Community 105|Community 105]]
+- [[_COMMUNITY_Community 106|Community 106]]
+- [[_COMMUNITY_Community 107|Community 107]]
+- [[_COMMUNITY_Community 108|Community 108]]
+- [[_COMMUNITY_Community 109|Community 109]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `Job` - 70 edges
-2. `clamp_salary()` - 47 edges
-3. `BaseAdapter` - 43 edges
-4. `enrich()` - 36 edges
-5. `JobStore` - 35 edges
-6. `_job()` - 30 edges
-7. `main()` - 29 edges
+1. `Job` - 69 edges
+2. `JobStore` - 52 edges
+3. `clamp_salary()` - 47 edges
+4. `BaseAdapter` - 43 edges
+5. `enrich()` - 36 edges
+6. `main()` - 33 edges
+7. `_job()` - 30 edges
 8. `run()` - 27 edges
 9. `ApifyClient` - 27 edges
 10. `IndeedAdapter` - 26 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `Request` --uses--> `WorkdayAdapter`  [INFERRED]
-  tests/test_workday.py → hk_jobs/adapters/workday.py
-- `Response` --uses--> `WorkdayAdapter`  [INFERRED]
-  tests/test_workday.py → hk_jobs/adapters/workday.py
 - `Connection` --uses--> `DeepSeekEnricher`  [INFERRED]
   scripts/reestimate_salaries.py → hk_jobs/enrichers/deepseek.py
-- `Path` --uses--> `RawPost`  [INFERRED]
-  tests/test_posts_pipeline.py → hk_jobs/posts/store.py
-- `Path` --uses--> `PostStore`  [INFERRED]
-  tests/test_posts_pipeline.py → hk_jobs/posts/store.py
+- `Job` --uses--> `Job`  [INFERRED]
+  tests/test_schema.py → hk_jobs/schema.py
+- `Path` --uses--> `ExtractionResult`  [INFERRED]
+  tests/test_promote.py → hk_jobs/posts/extractor.py
+- `CompanyConfig` --uses--> `JobStore`  [INFERRED]
+  tests/test_pipeline.py → hk_jobs/storage.py
+- `_MockAdapter` --uses--> `JobStore`  [INFERRED]
+  tests/test_pipeline.py → hk_jobs/storage.py
 
 ## Import Cycles
 - 1-file cycle: `hk_jobs/pipeline.py -> hk_jobs/pipeline.py`
 - 1-file cycle: `hk_jobs/storage.py -> hk_jobs/storage.py`
+- 1-file cycle: `hk_jobs/posts/promote.py -> hk_jobs/posts/promote.py`
 - 1-file cycle: `hk_jobs/posts/budget.py -> hk_jobs/posts/budget.py`
 - 1-file cycle: `hk_jobs/adapters/efc.py -> hk_jobs/adapters/efc.py`
 - 1-file cycle: `hk_jobs/adapters/indeed.py -> hk_jobs/adapters/indeed.py`
@@ -160,11 +166,11 @@
 - **Hero Section Composition** — screenshots_about_hero_headline, screenshots_about_location_badge, screenshots_about_cta_buttons, screenshots_about_trust_signals [INFERRED 0.85]
 - **Metrics & Data Provenance Section** — screenshots_about_stat_cards, screenshots_about_ai_supported, screenshots_about_footer [INFERRED 0.75]
 
-## Communities (105 total, 18 thin omitted)
+## Communities (110 total, 17 thin omitted)
 
 ### Community 0 - "Company Config Loader"
-Cohesion: 0.05
-Nodes (76): CompanyConfig, CompanyConfig, load_companies(), Path, Company configuration loader.  Reads companies.yaml and returns validated Compan, Raise ValueError with the company name if the config is invalid., One validated entry from companies.yaml., Instantiate and return the adapter for this company.          Returns a BaseAdap (+68 more)
+Cohesion: 0.12
+Nodes (39): CompanyConfig, _parse_args(), Execute the full scrape-enrich-store pipeline.      Returns the list of per-comp, run(), _classify_batch(), Tech-role filter — keep the board FINANCE-only by dropping hard tech/IT roles., Classify any NEW tech-candidate titles, then soft-delete active jobs whose     t, Return indices (into `titles`) the model labels TECH. (+31 more)
 
 ### Community 1 - "Workday Adapter"
 Cohesion: 0.10
@@ -175,24 +181,24 @@ Cohesion: 0.09
 Nodes (47): _detect_employment_type(), _detect_remote_type(), _detect_seniority(), _detect_skills(), _detect_years(), enrich(), enrich_all(), enrich_with_llm() (+39 more)
 
 ### Community 3 - "eFinancialCareers Adapter"
-Cohesion: 0.19
-Nodes (16): _extract_efc_id(), Extract the trailing `.id{NUMBER}` from a detailsPageUrl; fall back to url., _adapter(), _api_job(), _DummyClient, Tests for the eFinancialCareers adapter (JSON API).  The HTTP layer is mocked vi, A global brand returns worldwide jobs; only Hong Kong ones are kept., pages: list of (data_list, page_count) returned successively by _fetch_page. (+8 more)
+Cohesion: 0.12
+Nodes (25): _efc_signals(), _extract_efc_id(), _map_employment_type(), _parse_iso(), eFinancialCareers adapter (per-company, JSON API).  ╔═══════════════════════════, P2/P3 market signals from one eFC job object (only non-empty ones)., Parse an ISO 8601 timestamp (e.g. '2026-07-14T10:15:01.567Z') to aware UTC., Extract the trailing `.id{NUMBER}` from a detailsPageUrl; fall back to url. (+17 more)
 
 ### Community 4 - "JobStore (SQLite)"
 Cohesion: 0.16
 Nodes (19): _job(), Tests for hk_jobs/storage.py — SQLite persistence layer., test_context_manager(), test_insert_two_new_jobs(), test_mark_inactive_deactivates_stale_rows(), test_mark_inactive_leaves_current_rows_active(), test_mark_inactive_only_affects_target_company(), test_mark_inactive_returns_count() (+11 more)
 
 ### Community 5 - "DB Migrations"
-Cohesion: 0.09
-Nodes (21): migrate_to_phase_11(), migrate_to_phase_13(), migrate_to_phase_14(), migrate_to_phase_18(), migrate_to_phase_20(), migrate_to_phase_21(), migrate_to_phase_22(), migrate_to_phase_23() (+13 more)
+Cohesion: 0.08
+Nodes (34): backup_database(), Database backup utility.  Creates a dated copy of jobs.db in data/backups/. By d, migrate_to_phase_11(), migrate_to_phase_12(), migrate_to_phase_13(), migrate_to_phase_14(), migrate_to_phase_15(), migrate_to_phase_16() (+26 more)
 
 ### Community 6 - "Base Adapter (ABC)"
 Cohesion: 0.12
-Nodes (13): ABC, BaseAdapter, Abstract base class that every ATS adapter must implement.  An adapter's sole jo, Subclass this once per ATS type (Workday, Eightfold, etc.).      Subclasses set, Args:             company:      Human-readable name, e.g. "HSBC".             co, Fetch all active jobs from this source and return them as Job objects., Return a pre-configured httpx.Client.          Use as a context manager in adapt, Call fn(*args, **kwargs) and return its result.          If fn raises for any re (+5 more)
+Nodes (23): ABC, BaseAdapter, Abstract base class that every ATS adapter must implement.  An adapter's sole jo, Subclass this once per ATS type (Workday, Eightfold, etc.).      Subclasses set, Return a pre-configured httpx.Client.          Use as a context manager in adapt, Eightfold AI ATS adapter.  Eightfold is used by HSBC, Hang Seng Bank, and HSBC L, Indeed fallback adapter.  ╔═════════════════════════════════════════════════════, Adapter registry.  Maps the `ats` string from companies.yaml to the adapter clas (+15 more)
 
 ### Community 7 - "Community 7"
-Cohesion: 0.14
-Nodes (12): LinkedInAdapter, Scrapes one employer's public guest job listings from linkedin.com.      Plain h, Job, Page 2 repeats card 333 — output must be 4 unique jobs, not 5., test_authwall_returns_empty_list(), test_block_status_returns_empty_list(), test_geo_id_included_in_url(), test_network_exception_retried_then_succeeds() (+4 more)
+Cohesion: 0.13
+Nodes (17): load_companies(), Parse companies.yaml and return a list of validated CompanyConfig objects., Path, Tests for hk_jobs/config.py — companies.yaml loader and validator., A company may be scraped from more than one source under the SAME slug (e.g., Sanity-check we have a reasonable mix — not all jobsdb fallbacks., test_adapter_distribution(), test_disabled_entry_still_validated() (+9 more)
 
 ### Community 8 - "Frontend Illustrations"
 Cohesion: 0.09
@@ -207,40 +213,40 @@ Cohesion: 0.14
 Nodes (26): _build_where(), ExperienceRange, FiltersResponse, get_db(), get_filters(), get_job(), get_stats(), JobDetail (+18 more)
 
 ### Community 11 - "DeepSeek Enricher"
-Cohesion: 0.12
-Nodes (19): DeepSeekEnricher, _clean_summary(), _clean_title_en(), _coerce_int(), _norm_confidence(), Any, Connection, Row (+11 more)
+Cohesion: 0.17
+Nodes (16): _clean_summary(), _clean_title_en(), _coerce_int(), EnrichmentPipeline, _norm_confidence(), Any, Phase 12: LLM-based job enrichment pipeline — optimized.  Uses ThreadPoolExecuto, Salary estimates may come back as int, float, str, or null — coerce to int|None. (+8 more)
 
 ### Community 12 - "JSONL Import/Export"
-Cohesion: 0.15
-Nodes (16): _cluster_by_title(), _preferred_apply_url(), _primary_rowid(), Row, SQLite persistence layer.  Design principles:   - SQL is written to be Postgres-, Return the URL of the highest-priority source among cross-posted copies., rowid of the copy to display (highest display priority) among a group., Word set of a title (lowercased, punctuation folded) for overlap scoring. (+8 more)
+Cohesion: 0.11
+Nodes (19): _cluster_by_title(), _preferred_apply_url(), _primary_rowid(), datetime, Row, SQLite persistence layer.  Design principles:   - SQL is written to be Postgres-, Return the URL of the highest-priority source among cross-posted copies., rowid of the copy to display (highest display priority) among a group. (+11 more)
 
 ### Community 13 - "Cross-Posting Dedup Tests"
 Cohesion: 0.11
 Nodes (27): _job(), Tests for Phase 19 cross-source apply routing:   - JobStore.reconcile_cross_post, The real case that drove matches to zero: same role, but eFC says "Hong Kong", Different word order / punctuation for the same role still matches., Fuzzy match must NOT collapse different seniority levels of the same job., Titles that merely share one common word are not merged., One card per cross-posted role: JobsDB copy is primary (rich), eFC hidden., A role on only one board is always displayed. (+19 more)
 
 ### Community 14 - "Description Fetcher"
-Cohesion: 0.13
-Nodes (17): DescriptionFetcher, _fetch_eightfold_description(), _fetch_jobsdb_description(), _fetch_linkedin_description(), _fetch_workday_description(), FetchResult, Connection, Row (+9 more)
+Cohesion: 0.24
+Nodes (8): DescriptionFetcher, FetchResult, Connection, Row, Persist one batch of results. Returns (written, skipped, failed).          Also, Repair mislabeled company fields for existing JobsDB rows.          Calls the li, Calls ATS JSON detail APIs to populate description_raw / description_clean., NamedTuple
 
 ### Community 15 - "Intelligence Report Gen"
 Cohesion: 0.13
 Nodes (11): build_styles(), fmt_date(), fmt_skills(), group_by_company(), load_data(), main(), Generate a comprehensive PDF: architecture overview + all 1,592 jobs. Output: ou, ReportDoc (+3 more)
 
 ### Community 16 - "Eightfold Adapter Tests"
-Cohesion: 0.06
-Nodes (15): _ef_signals(), EightfoldAdapter, P2/P3 market signals from one Eightfold position (only non-empty ones)., Fetches jobs from Eightfold AI's public JSON API.      'tenant' is the subdomain, Public entry point — wraps _fetch_all in _safe_fetch for error isolation., Client, Job, main() (+7 more)
+Cohesion: 0.09
+Nodes (4): adapter(), _MockTransport, Tests for the Eightfold adapter.  All HTTP is intercepted by a custom transport, Serves paginated fixture data by inspecting the 'start' query param.
 
 ### Community 17 - "Community 17"
-Cohesion: 0.13
-Nodes (12): JobStore, datetime, Manages a SQLite database of job postings.      Usage:         store = JobStore(, Soft-delete jobs for a company that were NOT seen in this run.          After we, Write all active jobs to a JSONL file, sorted by company then title.          Re, Close the underlying database connection., Path, store() (+4 more)
+Cohesion: 0.16
+Nodes (11): JobStore, Manages a SQLite database of job postings.      Usage:         store = JobStore(, Close the underlying database connection., Path, Path, store(), db(), Path (+3 more)
 
 ### Community 18 - "Indeed Parsing"
-Cohesion: 0.14
-Nodes (16): _epoch_ms_to_dt(), _extract_signals(), _parse_listing_json(), Indeed fallback adapter.  ╔═════════════════════════════════════════════════════, Convert an Indeed epoch-milliseconds timestamp to a UTC datetime., Extract job cards from an Indeed company listing page's embedded JSON.      The, Pull P2/P3 market signals out of one Indeed mosaic card (only non-empty ones)., datetime (+8 more)
+Cohesion: 0.20
+Nodes (10): _extract_signals(), _parse_listing_json(), Extract job cards from an Indeed company listing page's embedded JSON.      The, Pull P2/P3 market signals out of one Indeed mosaic card (only non-empty ones)., Employer-scoped /cmp/ pages leave each card's company blank., test_listing_card_company_blank_on_employer_page(), test_listing_card_fields(), test_listing_card_posted_at_parsed() (+2 more)
 
 ### Community 19 - "JobsDB Adapter"
-Cohesion: 0.11
-Nodes (17): _is_challenge(), JobsDBAdapter, Return True if we got a Cloudflare or bot-protection response.      Only scans f, Scrapes listing pages for one company from hk.jobsdb.com.      Uses Scrapling's, Fetch url and return (http_status, html_string).          Single mockable seam —, Fetch one listing page, retrying on transient failures.          Two kinds of tr, For plain-listing companies, drop cards whose advertiser isn't accepted., Job (+9 more)
+Cohesion: 0.10
+Nodes (20): _is_challenge(), JobsDBAdapter, Return True if we got a Cloudflare or bot-protection response.      Only scans f, Scrapes listing pages for one company from hk.jobsdb.com.      Uses Scrapling's, Fetch url and return (http_status, html_string).          Single mockable seam —, Fetch one listing page, retrying on transient failures.          Two kinds of tr, Job, main() (+12 more)
 
 ### Community 20 - "Frontend Deps (package.json)"
 Cohesion: 0.08
@@ -251,28 +257,28 @@ Cohesion: 0.14
 Nodes (13): Drawing, bar_chart(), by_category(), fmt_exp(), fmt_salary(), fmt_skills(), fmt_source(), FullReport (+5 more)
 
 ### Community 22 - "JobsDB Parsing Tests"
-Cohesion: 0.09
-Nodes (22): _parse_listing_html(), Extract job cards from a JobsDB company listing page.      data-automation value, Tests for the JobsDB fallback adapter.  All HTTP is intercepted via monkeypatchi, Fix A: company is extracted from the card, not stamped from config., Card 3 has no advertiser node — must fall back to config company., Listing-only: only 1 URL should be fetched (the listing page)., Without detail pages, descriptions are empty strings — expected., Card 1 has data-automation='jobAdvertiser' — must be extracted. (+14 more)
+Cohesion: 0.08
+Nodes (27): _parse_listing_date(), _parse_listing_html(), Extract job cards from a JobsDB company listing page.      data-automation value, Parse a JobsDB relative date string into a UTC datetime.      Live page formats, Tests for the JobsDB fallback adapter.  All HTTP is intercepted via monkeypatchi, Fix A: company is extracted from the card, not stamped from config., Card 3 has no advertiser node — must fall back to config company., Listing-only: only 1 URL should be fetched (the listing page). (+19 more)
 
 ### Community 23 - "LinkedIn Adapter"
-Cohesion: 0.13
-Nodes (11): _parse_cards(), Extract job cards from a LinkedIn guest-search HTML fragment.      Each card is, Tests for the LinkedIn guest-jobs fallback adapter.  All HTTP is intercepted by, Fallback: extract the numeric id from the /jobs/view/ link if urn is missing., test_parse_card_fields(), test_parse_card_posted_at(), test_parse_card_url_stripped_of_tracking(), test_parse_cards_empty_html() (+3 more)
+Cohesion: 0.06
+Nodes (36): _clean_view_url(), _extract_job_id(), _is_authwall(), LinkedInAdapter, _parse_cards(), Fetch url and return (http_status, html_string).          Single mockable seam —, Fetch one listing page, retrying on transient failures / block responses., Pull the numeric job id from the card's entity-urn, falling back to its link. (+28 more)
 
 ### Community 24 - "Frontend API Client"
 Cohesion: 0.11
 Nodes (21): countActiveFilters(), DEFAULT_FILTERS, fetchFilters(), fetchJobs(), filtersToSearchParams(), Job, JobDetail, JobListResponse (+13 more)
 
 ### Community 25 - "Indeed Adapter"
-Cohesion: 0.11
-Nodes (17): IndeedAdapter, Scrapes the employer-scoped listing pages for one company from hk.indeed.com., Job, adapter(), Page 2 repeats one card (ccc333) — output must contain 5 unique jobs, not 6., If a page returns only jobs we've seen, pagination stops (no spin to max_pages)., A login/verify wall must yield [] and never raise — we do not cross it., Single-page adapter serving page-1 fixture for every fetch. (+9 more)
+Cohesion: 0.12
+Nodes (15): IndeedAdapter, Scrapes the employer-scoped listing pages for one company from hk.indeed.com., Job, adapter(), If a page returns only jobs we've seen, pagination stops (no spin to max_pages)., A login/verify wall must yield [] and never raise — we do not cross it., Single-page adapter serving page-1 fixture for every fetch., test_403_returns_empty_list() (+7 more)
 
 ### Community 26 - "Enrichment Pipeline Orchestrator"
-Cohesion: 0.16
-Nodes (16): EnrichmentPipeline, CompanyResult, _log_trend_changes(), _NullLock, _print_report(), datetime, Pipeline orchestrator.  Reads companies.yaml, instantiates the right adapter for, Fetch, enrich, and store jobs for one company. Returns a CompanyResult.      db_ (+8 more)
+Cohesion: 0.15
+Nodes (16): CompanyResult, date, Write one job_history row per company and refresh company_metrics.      Called a, record_scrape_snapshot(), CompanyResult, _log_trend_changes(), _print_report(), datetime (+8 more)
 
 ### Community 27 - "Longtail LLM Adapter (module)"
-Cohesion: 0.07
-Nodes (34): LongtailAdapter, _needs_browser(), _parse_posted_date(), Longtail adapter — LLM-based extraction for medium/boutique HK companies that ar, Best-effort parse of the LLM's posted_date string, with sanity bounds.     Retur, Scrapling page_action for click-to-reveal careers pages (e.g. Pioneer): the job, LLM-extraction adapter for one boutique company's careers page., Static fetch via httpx → (status, html); (0, '') on error. Mockable seam. (+26 more)
+Cohesion: 0.08
+Nodes (24): LongtailAdapter, _needs_browser(), Longtail adapter — LLM-based extraction for medium/boutique HK companies that ar, Scrapling page_action for click-to-reveal careers pages (e.g. Pioneer): the job, LLM-extraction adapter for one boutique company's careers page., Static fetch via httpx → (status, html); (0, '') on error. Mockable seam., Rendered fetch via Scrapling's headless browser → (status, html). Mockable seam., Visible-text → DeepSeek → Job objects for one fetched page. (+16 more)
 
 ### Community 28 - "Longtail Adapter (class)"
 Cohesion: 0.22
@@ -287,16 +293,16 @@ Cohesion: 0.18
 Nodes (18): _classify(), _extract_cards(), _extract_mosaic_cards(), _fetch(), _find_embedded_json(), _ldjson_jobs(), main(), probe() (+10 more)
 
 ### Community 31 - "Community 31"
-Cohesion: 0.12
-Nodes (17): CompanyResult, date, calculate_hiring_velocity(), export_trends_jsonl(), get_all_trends(), get_company_trend(), print_trends_report(), print_velocity_report() (+9 more)
+Cohesion: 0.15
+Nodes (13): calculate_hiring_velocity(), export_trends_jsonl(), get_all_trends(), get_company_trend(), print_trends_report(), print_velocity_report(), Job history analytics: snapshot recording and trend reporting.  Called by the pi, Return daily history rows for one company over the last N days. (+5 more)
 
 ### Community 32 - "Community 32"
 Cohesion: 0.24
 Nodes (17): discover_one(), _dns_ok(), domain_from_website(), jobsdb_slugs(), load_known_names(), main(), _match_key(), _name_core() (+9 more)
 
 ### Community 33 - "Community 33"
-Cohesion: 0.19
-Nodes (12): _BrokenAdapter, _EchoAdapter, Job, Tests for hk_jobs/adapters/base.py., test_client_has_browser_user_agent(), test_client_includes_zh_hk_accept_language(), test_concrete_subclass_stores_fields(), test_fetch_jobs_returns_job_objects() (+4 more)
+Cohesion: 0.18
+Nodes (13): _BrokenAdapter, _EchoAdapter, Job, Tests for hk_jobs/adapters/base.py., test_cannot_instantiate_base_directly(), test_client_has_browser_user_agent(), test_client_includes_zh_hk_accept_language(), test_concrete_subclass_stores_fields() (+5 more)
 
 ### Community 34 - "Community 34"
 Cohesion: 0.04
@@ -311,12 +317,12 @@ Cohesion: 0.20
 Nodes (15): Any, Shared HTTP utilities used across adapters.  with_retry() wraps a single HTTP ca, Call fn() up to max_attempts times, retrying on transient HTTP errors.      Retr, with_retry(), Tests for hk_jobs/http_utils.py — retry-with-backoff helper., test_does_not_retry_403(), test_does_not_retry_404(), test_raises_after_max_attempts_429() (+7 more)
 
 ### Community 37 - "Community 37"
-Cohesion: 0.23
-Nodes (7): Public entry point — wraps _fetch_all in _safe_fetch for error isolation., Fetches jobs from Workday's internal JSON API.      Each company that uses Workd, WorkdayAdapter, Client, Job, main(), Live smoke-test for the Workday adapter.  Run this LOCALLY (not in CI) to verify
+Cohesion: 0.24
+Nodes (6): _map_time_type(), Public entry point — wraps _fetch_all in _safe_fetch for error isolation., Map Workday's timeType string to our canonical employment_type value., Client, Job, test_map_time_type()
 
 ### Community 38 - "Community 38"
-Cohesion: 0.12
-Nodes (28): Job, jobs_from_jsonl(), jobs_to_jsonl(), Canonical Job schema.  Every adapter — regardless of source ATS — maps its raw d, Return a 12-character fingerprint that identifies this job posting.          Why, Write a list of Job objects to a newline-delimited JSON file (one job per line)., Read a JSONL file written by jobs_to_jsonl and return Job objects., _make_job() (+20 more)
+Cohesion: 0.13
+Nodes (25): jobs_from_jsonl(), jobs_to_jsonl(), Write a list of Job objects to a newline-delimited JSON file (one job per line)., Read a JSONL file written by jobs_to_jsonl and return Job objects., _make_job(), Job, Tests for hk_jobs/schema.py — the canonical Job model., Jobs with no locations listed must still return a valid hash. (+17 more)
 
 ### Community 39 - "Community 39"
 Cohesion: 0.14
@@ -331,8 +337,8 @@ Cohesion: 0.24
 Nodes (14): build_story(), date_str(), detect_sector(), load_jobs(), loc_str(), main(), make_header_footer(), make_table() (+6 more)
 
 ### Community 42 - "Community 42"
-Cohesion: 0.15
-Nodes (16): migrate_to_phase_12(), migrate_to_phase_16(), migrate_to_phase_17(), Add source_tier and extraction_confidence columns to the jobs table.      - sour, Add the category column to the jobs table.      Holds a boutique company's busin, Create job_enrichments table if it doesn't already exist., Email notifications for pipeline events.  Sends two types of emails:   - Failure, Query today's stats and send a summary email. (+8 more)
+Cohesion: 0.25
+Nodes (9): Email notifications for pipeline events.  Sends two types of emails:   - Failure, Query today's stats and send a summary email., Send an immediate alert when the pipeline raises an exception., send_daily_summary(), _send_email(), send_failure_alert(), generate_weekly_report(), Weekly hiring trends report — emailed every Monday 9 AM HKT.  Run manually:   py (+1 more)
 
 ### Community 43 - "Community 43"
 Cohesion: 0.67
@@ -343,8 +349,8 @@ Cohesion: 0.14
 Nodes (13): Companies config (hk_jobs/companies.yaml), Company list (name → adapter → slug → enabled), Current contents, Data Model & Pipeline Inputs, Database (data/jobs.db), Discovery inputs/outputs (scripts/*.csv), Discovery results (discovered_companies.csv), Master list (companies_master_list.csv) (+5 more)
 
 ### Community 45 - "Community 45"
-Cohesion: 0.20
-Nodes (10): _parse_listing_date(), JobsDB fallback adapter.  ╔═════════════════════════════════════════════════════, Parse a JobsDB relative date string into a UTC datetime.      Live page formats, # IMPORTANT: these selectors could not be verified against live Cloudflare-, datetime, test_parse_listing_date_days_ago(), test_parse_listing_date_empty(), test_parse_listing_date_hours_ago() (+2 more)
+Cohesion: 0.25
+Nodes (21): compute_metrics(), Extract + promote every linkedin_posts row still in extraction_status='pending'., run_promotion(), _good_result(), Tests for hk_jobs/posts/promote.py and hk_jobs/posts/metrics.py.  extract_post i, A confidential post can never cluster with a real board listing -> stays 'hidden, Same company_slug + fuzzy-matching title as an existing board job -> cross_poste, _seed_post() (+13 more)
 
 ### Community 46 - "Community 46"
 Cohesion: 0.18
@@ -356,15 +362,15 @@ Nodes (10): build(), detect_sector(), fmt_num(), fmt_pct(), load(), main(), make
 
 ### Community 48 - "Community 48"
 Cohesion: 0.22
-Nodes (7): _is_authwall(), Fetch url and return (http_status, html_string).          Single mockable seam —, Fetch one listing page, retrying on transient failures / block responses., True if LinkedIn gated us behind sign-in / a rate-limit block., test_authwall_false_on_content(), test_authwall_on_block_statuses(), test_authwall_on_signin_text()
+Nodes (18): Connection, ExtractionResult, datetime, Job, Row, ExtractionResult, ExtractorAuthError, Raised when DEEPSEEK_API_KEY is missing. Never retried. (+10 more)
 
 ### Community 49 - "Community 49"
-Cohesion: 0.22
-Nodes (7): adapter(), _MockTransport, Request, Response, Serves fixture data without touching the network., WorkdayAdapter wired to mock transport; detail sleep removed., test_no_detail_fetch_skips_get()
+Cohesion: 0.18
+Nodes (11): Fetches jobs from Workday's internal JSON API.      Each company that uses Workd, WorkdayAdapter, main(), Live smoke-test for the Workday adapter.  Run this LOCALLY (not in CI) to verify, adapter(), _MockTransport, Request, Response (+3 more)
 
 ### Community 50 - "Community 50"
-Cohesion: 0.40
-Nodes (5): _classify_batch(), Tech-role filter — keep the board FINANCE-only by dropping hard tech/IT roles., Classify any NEW tech-candidate titles, then soft-delete active jobs whose     t, Return indices (into `titles`) the model labels TECH., run_tech_filter()
+Cohesion: 0.19
+Nodes (17): _call_deepseek(), extract_post(), LP-3 two-stage extractor: is this LinkedIn post a genuine job mandate, and if so, Classify + extract one post. Returns None if the post is empty/whitespace,     o, Single mockable seam — patch this in tests to inject a canned reply., _to_result(), _canned_reply(), Tests for hk_jobs/posts/extractor.py.  _call_deepseek is the single mockable sea (+9 more)
 
 ### Community 51 - "Community 51"
 Cohesion: 0.11
@@ -375,28 +381,28 @@ Cohesion: 0.24
 Nodes (8): Board, BOARDS, BoardTag(), normalise(), ORDER, OWN_SITE, SourceBadges(), tint()
 
 ### Community 53 - "Community 53"
-Cohesion: 0.31
-Nodes (8): _advertiser_accepted(), _normalize_advertiser_tokens(), Lowercase, strip punctuation + corporate-suffix noise, return token set., True if `advertiser` matches any accepted name.      Match is token-subset in ei, _acc(), test_allowlist_accepts_legal_entity_variants(), test_allowlist_empty_advertiser_rejected(), test_allowlist_rejects_cross_advertisers()
+Cohesion: 0.24
+Nodes (9): _advertiser_accepted(), _normalize_advertiser_tokens(), For plain-listing companies, drop cards whose advertiser isn't accepted., Lowercase, strip punctuation + corporate-suffix noise, return token set., True if `advertiser` matches any accepted name.      Match is token-subset in ei, _acc(), test_allowlist_accepts_legal_entity_variants(), test_allowlist_empty_advertiser_rejected() (+1 more)
 
 ### Community 54 - "Community 54"
 Cohesion: 0.40
 Nodes (5): _extract_source_id(), Extract trailing numeric job ID from a JobsDB URL; fall back to full URL., test_extract_source_id_legacy_suffix(), test_extract_source_id_modern_url(), test_extract_source_id_no_number_falls_back()
 
 ### Community 55 - "Community 55"
-Cohesion: 0.12
-Nodes (12): _extract_mosaic_json(), Pull the `mosaic-provider-jobcards` JSON object out of the page.      Indeed ass, Tests for the Indeed fallback adapter.  All HTTP is intercepted by monkeypatchin, Card company is blank on employer pages → stamp the configured company name., Listing-only: exactly one URL fetched (the page-1 listing)., The brace-matcher must not stop at a nested '}' inside the object., test_extract_mosaic_json_absent_returns_none(), test_extract_mosaic_json_brace_match_survives_nested_braces() (+4 more)
+Cohesion: 0.13
+Nodes (9): _epoch_ms_to_dt(), Convert an Indeed epoch-milliseconds timestamp to a UTC datetime., Tests for the Indeed fallback adapter.  All HTTP is intercepted by monkeypatchin, Card company is blank on employer pages → stamp the configured company name., Listing-only: exactly one URL fetched (the page-1 listing)., test_epoch_ms_to_dt_valid(), test_epoch_ms_to_dt_zero_or_bad(), test_fetch_jobs_company_stamped_from_config() (+1 more)
 
 ### Community 56 - "Community 56"
-Cohesion: 0.15
-Nodes (12): _clean_view_url(), _extract_job_id(), _parse_date(), parse_detail_signals(), LinkedIn fallback adapter (public *guest* jobs API — no login).  ╔══════════════, Extract P2 market signals from a LinkedIn guest job-detail page.      Returns {a, Pull the numeric job id from the card's entity-urn, falling back to its link., Read the ISO date from the card's <time datetime="YYYY-MM-DD"> element. (+4 more)
+Cohesion: 0.40
+Nodes (4): parse_detail_signals(), Extract P2 market signals from a LinkedIn guest job-detail page.      Returns {a, _fetch(), Fetch LinkedIn detail-page market signals (applicant count, reposted) and merge
 
 ### Community 57 - "Community 57"
 Cohesion: 0.33
 Nodes (5): plugins, rules, react/only-export-components, react/rules-of-hooks, $schema
 
 ### Community 58 - "Community 58"
-Cohesion: 0.22
-Nodes (6): Eightfold AI ATS adapter.  Eightfold is used by HSBC, Hang Seng Bank, and HSBC L, Adapter registry.  Maps the `ats` string from companies.yaml to the adapter clas, _map_time_type(), Workday ATS adapter.  Workday is the most common ATS among large HK financial fi, Map Workday's timeType string to our canonical employment_type value., test_map_time_type()
+Cohesion: 0.16
+Nodes (10): _ef_signals(), EightfoldAdapter, P2/P3 market signals from one Eightfold position (only non-empty ones)., Fetches jobs from Eightfold AI's public JSON API.      'tenant' is the subdomain, Public entry point — wraps _fetch_all in _safe_fetch for error isolation., Job, main(), Live smoke-test for the Eightfold adapter.  Run this LOCALLY (not in CI) to conf (+2 more)
 
 ### Community 59 - "Community 59"
 Cohesion: 0.47
@@ -411,36 +417,48 @@ Cohesion: 0.50
 Nodes (4): _classify_batch(), main(), Soft-delete "hard tech" roles from jobs.db, using DeepSeek to decide.  This job, Return the set of indices (into `titles`) the model labels TECH.
 
 ### Community 62 - "Community 62"
-Cohesion: 0.12
-Nodes (18): Any, _discovery_slug(), _parse_vendor_item(), max(last_fetched_at, now - CATCHUP_FLOOR_HOURS), as an ISO date string., Discovery posts don't come from a known recruiters.yaml entry. Prefix     with ', Map one HarvestAPI dataset item to a RawPost. Shape confirmed against     real L, _resolve_since(), Tests for hk_jobs/posts/store.py, budget.py, and fetcher.py.  No real Apify call (+10 more)
+Cohesion: 0.10
+Nodes (24): migrate_to_phase_26(), Database migrations for hk_jobs.  Each migration function is idempotent — safe t, Create the LP-2 "Secret Market" ingestion tables: linkedin_posts,     recruiter_, fetch_watchlist(), max(last_fetched_at, now - CATCHUP_FLOOR_HOURS), as an ISO date string., Poll every enabled recruiters.yaml entry for new posts since last success., _resolve_since(), PostStore (+16 more)
 
 ### Community 65 - "Community 65"
 Cohesion: 0.07
 Nodes (26): Accessibility Compliance, Anti-Patterns (from ui-ux-pro-max), Brand Accent, Color Tokens, Component Patterns, Elevation / Shadow Scale, FinEx Careers — Design System, Fonts (+18 more)
+
+### Community 67 - "Community 67"
+Cohesion: 0.24
+Nodes (11): candidate_slugs(), _hk_count(), main(), Indeed /cmp slug resolver — extend the Indeed source to ALL firms (run locally)., How many returned jobs look HK-based (hk.indeed.com is HK-scoped anyway)., Try candidate slugs for one firm; return the first that yields HK jobs., ['goldman','sachs'] → 'Goldman-Sachs' (Indeed uses Title-Case-Hyphen)., Best-effort /cmp slug guesses for a company name, most-likely first.      Indeed (+3 more)
 
 ### Community 68 - "Community 68"
 Cohesion: 0.67
 Nodes (3): log(), PATH, daily_run.sh script
 
 ### Community 70 - "Community 70"
-Cohesion: 0.13
-Nodes (17): Any, fetch_watchlist(), Poll every enabled recruiters.yaml entry for new posts since last success., ApifyClient, Weekly discovery search: posts matching a free-text query.          `searchQueri, Single mockable seam — patch this in tests to inject fixture JSON         instea, Thin wrapper around the two HarvestAPI actors. Retries transient     failures (t, Watchlist polling: posts from ONE profile, optionally since a date.          `si (+9 more)
+Cohesion: 0.15
+Nodes (10): Any, ApifyClient, Thin client for the Apify/HarvestAPI actors that back the "Secret Market" Linked, Weekly discovery search: posts matching a free-text query.          `searchQueri, Single mockable seam — patch this in tests to inject fixture JSON         instea, Thin wrapper around the two HarvestAPI actors. Retries transient     failures (t, Watchlist polling: posts from ONE profile, optionally since a date.          `si, main() (+2 more)
 
 ### Community 73 - "Community 73"
 Cohesion: 0.29
-Nodes (6): _job_to_row(), Any, Job, Insert or update a batch of jobs.          Returns (inserted, updated) counts. A, Return summary counts for monitoring and reporting.          Shape:, Flatten a Job into a dict of SQLite-compatible scalar values.
+Nodes (6): Any, _job_to_row(), Job, Insert or update a batch of jobs.          Returns (inserted, updated) counts. A, Return summary counts for monitoring and reporting.          Shape:, Flatten a Job into a dict of SQLite-compatible scalar values.
 
 ### Community 75 - "Community 75"
 Cohesion: 0.19
 Nodes (19): load_recruiters(), _parse_entry(), Any, Path, Recruiter watchlist configuration loader.  Reads recruiters.yaml and returns val, One validated entry from recruiters.yaml., Parse recruiters.yaml and return validated RecruiterConfig objects.      A malfo, Validate one raw entry. Returns None (and logs) if it's malformed. (+11 more)
 
+### Community 76 - "Community 76"
+Cohesion: 0.36
+Nodes (10): _parse_posted_date(), Best-effort parse of the LLM's posted_date string, with sanity bounds.     Retur, _iso(), Tests for the longtail (LLM-extraction) adapter.  Focus: _parse_posted_date must, test_absent_or_unparseable_is_none(), test_ancient_date_is_rejected(), test_future_date_is_rejected(), test_multiple_formats_parse() (+2 more)
+
+### Community 77 - "Community 77"
+Cohesion: 0.24
+Nodes (9): _fetch_eightfold_description(), _fetch_jobsdb_description(), _fetch_linkedin_description(), _fetch_workday_description(), Fetch full job descriptions from ATS JSON APIs.  Why this is a separate step: th, Fetch one LinkedIn job's description HTML via the guest jobPosting endpoint., Derive the Workday JSON detail API URL from the human-facing URL and fetch., Call the Eightfold per-job detail API.      GET https://{tenant}.eightfold.ai/ap (+1 more)
+
 ### Community 78 - "Community 78"
-Cohesion: 0.25
-Nodes (16): ApifyClient, fetch_discovery(), FetchRunSummary, _poll_one_recruiter(), Fetcher: polls the recruiters.yaml watchlist for new posts, and runs the weekly, Run the weekly keyword discovery search across the seed query list., _record_result_cost(), RawPost (+8 more)
+Cohesion: 0.19
+Nodes (23): ApifyClient, Any, _discovery_slug(), fetch_discovery(), FetchRunSummary, _parse_vendor_item(), _poll_one_recruiter(), Fetcher: polls the recruiters.yaml watchlist for new posts, and runs the weekly (+15 more)
 
 ### Community 79 - "Community 79"
-Cohesion: 0.12
-Nodes (14): _company_category(), _detect_grade(), Deterministic salary-estimate clamp.  The DeepSeek enricher returns a Hong Kong, (lo, hi) of the *named* standardized grade row matching seniority, or None., Ceiling of the role's ladder row matching `seniority`, or None if unrecognised., Bank/insurance management-grade cap for this title, or None if not applicable., _role_band(), _role_ceiling() (+6 more)
+Cohesion: 0.15
+Nodes (11): _company_category(), _detect_grade(), Deterministic salary-estimate clamp.  The DeepSeek enricher returns a Hong Kong, (lo, hi) of the *named* standardized grade row matching seniority, or None., Ceiling of the role's ladder row matching `seniority`, or None if unrecognised., Bank/insurance management-grade cap for this title, or None if not applicable., _role_band(), _role_ceiling() (+3 more)
 
 ### Community 80 - "Community 80"
 Cohesion: 0.12
@@ -451,7 +469,7 @@ Cohesion: 0.23
 Nodes (15): adecco_cell(), bank_ladder(), direct_ladder(), hays_at(), hays_row(), ins_ladder(), merge(), _norm() (+7 more)
 
 ### Community 82 - "Community 82"
-Cohesion: 0.21
+Cohesion: 0.19
 Nodes (8): EfcAdapter, Fetch one API page; return (job_dicts, total_page_count). Retries throttles., Fetches one employer's HK jobs from the eFinancialCareers JSON API.      Config, Client, Job, main(), Live smoke-test for the eFinancialCareers adapter (JSON API).  ⚠  LEGAL: hits eF, test_brand_defaults_to_employer()
 
 ### Community 88 - "Community 88"
@@ -459,56 +477,68 @@ Cohesion: 0.15
 Nodes (5): client(), Tests for hk_jobs/posts/vendor_client.py.  _call_actor is the single mockable se, Regression test for the LP-0 bake-off gotcha: the actor's input field is     `se, test_missing_token_raises_auth_error(), test_search_posts_uses_search_queries_field_not_queries()
 
 ### Community 92 - "Community 92"
-Cohesion: 0.24
-Nodes (9): _efc_signals(), _map_employment_type(), _parse_iso(), eFinancialCareers adapter (per-company, JSON API).  ╔═══════════════════════════, P2/P3 market signals from one eFC job object (only non-empty ones)., Parse an ISO 8601 timestamp (e.g. '2026-07-14T10:15:01.567Z') to aware UTC., datetime, test_employment_type_map() (+1 more)
+Cohesion: 0.25
+Nodes (7): CompanyConfig, Company configuration loader.  Reads companies.yaml and returns validated Compan, Raise ValueError with the company name if the config is invalid., One validated entry from companies.yaml., Instantiate and return the adapter for this company.          Returns a BaseAdap, _validate(), test_build_adapter_returns_correct_type()
 
 ### Community 93 - "Community 93"
-Cohesion: 0.27
-Nodes (10): DeepSeekEnricher, migrate_to_phase_24(), Create the salary_audit_log table.      Every correction the outlier audit agent, _judge(), main(), Connection, Row, Outlier audit agent for salary estimates.  Runs AFTER enrichment (wired into the (+2 more)
+Cohesion: 0.15
+Nodes (17): DeepSeekEnricher, migrate_to_phase_24(), Create the salary_audit_log table.      Every correction the outlier audit agent, _judge(), main(), Connection, Row, Outlier audit agent for salary estimates.  Runs AFTER enrichment (wired into the (+9 more)
 
 ### Community 94 - "Community 94"
 Cohesion: 0.29
 Nodes (9): datetime, BudgetStatus, check_budget(), month_to_date_spend(), Month-to-date Apify spend tracking and the $30/mo hard cap (PLAN_LINKEDIN_POSTS., Sum cost_usd from vendor_costs for the current calendar month (UTC)., Return the current budget status. Call this BEFORE making an Apify call.      `b, Log one vendor call's cost. Call this AFTER a successful Apify call. (+1 more)
-
-### Community 95 - "Community 95"
-Cohesion: 0.20
-Nodes (5): PostStore, SQLite persistence for the raw linkedin_posts tier and per-recruiter fetch state, Update recruiter_fetch_state after an attempt. last_fetched_at is only         a, Insert new posts / refresh engagement on repeats. Returns (inserted, updated)., test_recruiter_fetch_state_round_trip()
 
 ### Community 96 - "Community 96"
 Cohesion: 0.29
 Nodes (6): Apify test 1 — `harvestapi/linkedin-profile-posts` (watchlist simulation), Apify test 2 — `harvestapi/linkedin-post-search` (discovery simulation), Cost model check, Decision, LP-0 — Vendor Bake-off Results, Why Piloterr was disqualified without a live test
 
 ### Community 97 - "Community 97"
-Cohesion: 0.38
-Nodes (4): Enrich jobs sequentially. Callers wrap this in ThreadPoolExecutor for parallelis, Single API call. Raises on error., Any, RuntimeError
+Cohesion: 0.17
+Nodes (7): DeepSeekEnricher, Enrich jobs sequentially. Callers wrap this in ThreadPoolExecutor for parallelis, Single API call. Raises on error., Any, Connection, Row, main()
 
 ### Community 98 - "Community 98"
 Cohesion: 0.47
 Nodes (5): _fmt_band(), _fmt_k(), _load_salary_reference(), DeepSeek LLM enricher — v4: adds English translation of Chinese postings.  v1: t, Render the JSON's granular NAMED-ROLE ladders (tables_monthly_hkd) into a compac
 
 ### Community 99 - "Community 99"
-Cohesion: 0.33
-Nodes (6): fix_salary_magnitude(), Detect and correct the x1000 "thousands shorthand" glitch described above., test_magnitude_fix_handles_none_min(), test_magnitude_fix_passes_through_none_max(), test_magnitude_glitch_is_scaled_up_by_1000(), test_normal_scale_values_are_left_untouched_by_magnitude_fix()
+Cohesion: 0.25
+Nodes (5): Args:             company:      Human-readable name, e.g. "HSBC".             co, Fetch all active jobs from this source and return them as Job objects., Call fn(*args, **kwargs) and return its result.          If fn raises for any re, Any, Job
+
+### Community 100 - "Community 100"
+Cohesion: 0.32
+Nodes (7): Path, _field_of(), main(), Merge resolved Indeed entries into companies.yaml — safely, with validation.  Ta, Split resolver output into individual '  - name: …' entry blocks (drop banner)., # NOTE: read the target file (args.yaml), not the default, so --yaml works., _split_blocks()
+
+### Community 101 - "Community 101"
+Cohesion: 0.29
+Nodes (7): _extract_mosaic_json(), Pull the `mosaic-provider-jobcards` JSON object out of the page.      Indeed ass, The brace-matcher must not stop at a nested '}' inside the object., test_extract_mosaic_json_absent_returns_none(), test_extract_mosaic_json_brace_match_survives_nested_braces(), test_extract_mosaic_json_malformed_returns_none(), test_extract_mosaic_json_returns_model()
+
+### Community 105 - "Community 105"
+Cohesion: 0.67
+Nodes (3): format_metrics(), PostsMetrics, LP-3 daily metrics (PLAN_LINKEDIN_POSTS.md §7) — computed on every run, permanen
+
+### Community 106 - "Community 106"
+Cohesion: 0.67
+Nodes (3): infer_tier(), main(), Deterministic, permissive tier guess. Defaults to front_office (highest ceiling)
 
 ## Knowledge Gaps
-- **190 isolated node(s):** `What we are building`, `What an ATS is`, `Which ATS each company uses (and why it matters)`, `What an API is (the key insight)`, `The fallback strategy` (+185 more)
+- **190 isolated node(s):** `PATH`, `What we are building`, `What an ATS is`, `Which ATS each company uses (and why it matters)`, `What an API is (the key insight)` (+185 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **18 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **17 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Job` connect `Community 38` to `Company Config Loader`, `Rule-based Enrichment`, `JobStore (SQLite)`, `Base Adapter (ABC)`, `Community 7`, `FastAPI Backend API`, `JSONL Import/Export`, `Cross-Posting Dedup Tests`, `Eightfold Adapter Tests`, `Community 17`, `Indeed Parsing`, `JobsDB Adapter`, `Indeed Adapter`, `Longtail LLM Adapter (module)`, `Community 33`, `Community 37`, `Community 45`, `Community 56`, `Community 58`, `Community 73`, `Community 82`, `Community 92`?**
-  _High betweenness centrality (0.245) - this node is a cross-community bridge._
-- **Why does `run_audit()` connect `Community 93` to `Community 99`, `Community 42`, `DeepSeek Enricher`, `Community 51`, `Enrichment Pipeline Orchestrator`?**
-  _High betweenness centrality (0.066) - this node is a cross-community bridge._
-- **Why does `JobStore` connect `Community 17` to `Company Config Loader`, `JobStore (SQLite)`, `Community 38`, `Community 73`, `JSONL Import/Export`, `Cross-Posting Dedup Tests`, `Enrichment Pipeline Orchestrator`?**
-  _High betweenness centrality (0.063) - this node is a cross-community bridge._
-- **Are the 43 inferred relationships involving `Job` (e.g. with `BaseAdapter` and `EfcAdapter`) actually correct?**
-  _`Job` has 43 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `Job` connect `Base Adapter (ABC)` to `Company Config Loader`, `Rule-based Enrichment`, `eFinancialCareers Adapter`, `JobStore (SQLite)`, `FastAPI Backend API`, `JSONL Import/Export`, `Cross-Posting Dedup Tests`, `Community 17`, `JobsDB Adapter`, `LinkedIn Adapter`, `Indeed Adapter`, `Longtail LLM Adapter (module)`, `Community 33`, `Community 37`, `Community 38`, `Community 49`, `Community 58`, `Community 73`, `Community 82`, `Community 99`?**
+  _High betweenness centrality (0.259) - this node is a cross-community bridge._
+- **Why does `JobStore` connect `Community 17` to `Company Config Loader`, `JobStore (SQLite)`, `DB Migrations`, `Base Adapter (ABC)`, `Community 104`, `Community 73`, `JSONL Import/Export`, `Community 45`, `Cross-Posting Dedup Tests`, `Community 48`, `Enrichment Pipeline Orchestrator`?**
+  _High betweenness centrality (0.085) - this node is a cross-community bridge._
+- **Why does `run_audit()` connect `Community 93` to `Community 97`, `Community 51`, `DB Migrations`?**
+  _High betweenness centrality (0.070) - this node is a cross-community bridge._
+- **Are the 42 inferred relationships involving `Job` (e.g. with `BaseAdapter` and `EfcAdapter`) actually correct?**
+  _`Job` has 42 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 19 inferred relationships involving `JobStore` (e.g. with `CompanyConfig` and `Connection`) actually correct?**
+  _`JobStore` has 19 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 24 inferred relationships involving `BaseAdapter` (e.g. with `Job` and `EfcAdapter`) actually correct?**
   _`BaseAdapter` has 24 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 11 inferred relationships involving `JobStore` (e.g. with `CompanyConfig` and `CompanyResult`) actually correct?**
-  _`JobStore` has 11 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `What we are building`, `What an ATS is`, `Which ATS each company uses (and why it matters)` to the rest of the system?**
-  _516 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **What connects `Database migrations for hk_jobs.  Each migration function is idempotent — safe t`, `Create job_history and company_metrics tables if they don't already exist.`, `Create job_enrichments table if it doesn't already exist.` to the rest of the system?**
+  _529 weakly-connected nodes found - possible documentation gaps or missing edges._
