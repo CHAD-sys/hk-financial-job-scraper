@@ -168,13 +168,27 @@ Schema mapping notes:
 - Metrics module (§7) wired into the run summary
 - **STOP for review**
 
-### LP-4 — PILOT (3–4 days elapsed, ~30 recruiters) → BOSS GATE
-- Run LP-2+LP-3 daily via `daily_run.sh`; no UI yet
-- Day 3–4 deliverable, one page: promoted jobs count, % truly hidden,
-  precision from a ~30-post MANUAL spot-check, cost so far, extrapolated monthly cost
-- Caveat stated on the page: volume/week is extrapolated from a small window;
-  hidden-% and precision are per-post and solid
-- **Boss decides go/no-go. Nothing below is built before GO**
+### LP-4 — PILOT — ✅ BUILT + CONNECTED (2026-07-22), gate compressed by owner decision
+- `hk_jobs/posts/pilot_report.py` + `--posts-pilot-report [PATH]`: the one-page
+  deliverable — promoted count, % truly hidden, cost so far (real Apify spend
+  from `vendor_costs`; DeepSeek call count stated, NOT a fabricated dollar
+  figure — no cost tracking exists for DeepSeek anywhere in this codebase),
+  extrapolated monthly, and a random sample of promoted jobs sized for a human
+  manual precision spot-check (this module cannot perform that read itself)
+- `daily_run.sh` phases 5/5b/5c (fetch / weekly discovery / promote) are now
+  driven by a real crontab entry (`0 18 * * *`, installed 2026-07-22) — the
+  full LP-2+LP-3 pipeline runs unattended daily against real recruiters.yaml
+  and real Apify/DeepSeek spend from now on
+- Owner decision (2026-07-22): the plan's original "3-4 days elapsed, then
+  boss gate before LP-5" ritual is explicitly COMPRESSED — build proceeded
+  straight into LP-5 after a single manual pilot run (see below), not a
+  multi-day elapsed window. Recorded here for the audit trail; not a plan
+  violation, a conscious amendment by the person the gate exists to serve
+- First real run: 47/47 recruiters, 29 posts, 17 promoted, 100% truly hidden
+  on this small sample, $0.058 Apify spend, 28 DeepSeek calls. Full report:
+  `data/lp4_pilot_report_2026-07-22.md` (gitignored, local only — see caveat
+  in the file: extrapolated monthly cost from a <1-day window is noisy,
+  don't read $49.96/mo as a real steady-state number)
 
 ### LP-5 — UI + PocketBase (post-GO, ~3–4 days)
 - PB mirror: new fields/collection via `sync_pocketbase.py`

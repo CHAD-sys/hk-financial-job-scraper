@@ -672,6 +672,19 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "after the run."
         ),
     )
+    p.add_argument(
+        "--posts-pilot-report",
+        dest="posts_pilot_report",
+        metavar="PATH",
+        nargs="?",
+        const="-",
+        help=(
+            "LP-4: print the pilot go/no-go report (promoted count, %% truly hidden, "
+            "cost so far, extrapolated monthly, a random sample for manual precision "
+            "spot-check). No scraping/vendor calls. Pass a path to also write the "
+            "markdown to a file; omit the path to print only."
+        ),
+    )
     return p.parse_args(argv)
 
 
@@ -819,6 +832,17 @@ def main(argv: list[str] | None = None) -> None:
         logger.info(format_metrics(compute_metrics(args.db)))
         if summary.errors and not summary.promoted and summary.processed:
             raise SystemExit(f"Posts promotion failed entirely: {summary.errors}")
+        return
+
+    # --posts-pilot-report: LP-4 go/no-go report. No scraping/vendor calls.
+    if getattr(args, "posts_pilot_report", None):
+        from hk_jobs.posts.pilot_report import format_report, generate_pilot_report
+        report = format_report(generate_pilot_report(args.db))
+        print(report)
+        target = args.posts_pilot_report
+        if target != "-":
+            Path(target).write_text(report, encoding="utf-8")
+            logger.info("Pilot report written to %s", target)
         return
 
     # --repair-companies: fix mislabeled company fields for existing JobsDB rows
