@@ -1,5 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-
+/* Fonts are loaded via <link> tags in index.html (preconnect + stylesheet)
+   instead of @import here — @import is render-blocking because the browser
+   must fetch and parse this file, discover the import, then fetch the font
+   before it can paint any text. */
 @import "tailwindcss";
 
 @theme {
@@ -28,6 +30,25 @@
   --color-border-strong: #CBD5E1;
   --color-ring:          #1E3A8A;
   --color-destructive:   #DC2626;
+  --color-gold-hover:    #F6E7BE;  /* hover tint for gold-outline buttons */
+
+  /* ── Status / feature colors ──────────────────────────────── */
+  /* Previously scattered as raw hex/rgba across components; centralized here
+     so every "Recruiter Posts", "Verified", "Urgently hiring", "New" and
+     "Internship" badge draws from one source of truth. */
+  --color-recruiter:        #6B4EFF;  /* Recruiter Posts / social tier */
+  --color-recruiter-hover:  #5A3FE0;
+  --color-success:          #15803D;  /* New / Verified */
+  --color-success-light:    #DCFCE7;
+  --color-success-border:   #BBF7D0;
+  --color-urgent:           #B91C1C;  /* Urgently hiring */
+  --color-urgent-light:     #FEE2E2;
+  --color-urgent-border:    #FECACA;
+  --color-internship:       #854D0E;
+  --color-internship-light: #FEF9C3;
+  --color-internship-border: #FDE68A;
+  --color-apply:            #059669;  /* "Apply on company site" CTA */
+  --color-apply-hover:      #047857;
 
   /* ── Typography ───────────────────────────────────────────── */
   --font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowRight, Star, Sparkles, ShieldCheck, Layers, Languages,
-  Coins, Gauge, Radar, Building2, CalendarClock, Puzzle,
+  Coins, Gauge, Radar, Building2, CalendarClock, Puzzle, EyeOff,
 } from 'lucide-react'
 import Nav from '../components/Nav'
 import { DataFlow, CoverageRadar, GrowthBars } from '../components/Illustrations'
@@ -21,7 +21,8 @@ const ENRICHMENTS = [
 const SOURCES = [
   { icon: Radar, title: 'Straight from the employer', body: 'We read jobs directly from applicant-tracking systems (Workday, Eightfold) — structured data at the source, not fragile page-scraping.' },
   { icon: Building2, title: 'Major public boards', body: 'Widely-listed roles are folded in and de-duplicated so nothing is counted twice.' },
-  { icon: Star, title: 'Boutique careers pages', body: 'Our Exclusive track reads roles published on the official sites of specialist firms — hedge funds, family offices, brokerages — that never reach the aggregators.', gold: true },
+  { icon: Star, title: 'Boutique careers pages', body: 'Our Exclusive track reads roles published on the official sites of specialist firms — hedge funds, family offices, brokerages — that never reach the aggregators.', accent: 'gold' as const },
+  { icon: EyeOff, title: 'Recruiter LinkedIn posts', body: 'Our Recruiter Posts track watches Hong Kong recruiters and headhunters on LinkedIn and extracts the roles they mention — mandates that never get formally posted anywhere.', accent: 'purple' as const },
 ]
 
 export default function AboutPage() {
@@ -29,11 +30,13 @@ export default function AboutPage() {
   const [roles, setRoles] = useState('2,400+')
   const [sectors, setSectors] = useState('6')
   const [boutique, setBoutique] = useState<number | null>(null)
+  const [social, setSocial] = useState<number | null>(null)
   useEffect(() => {
     fetchStats().then(s => {
       setRoles((Math.floor(s.total_active_jobs / 100) * 100).toLocaleString() + '+')
       setSectors(String(Object.keys(s.by_sector).length))
       setBoutique(s.by_source_tier?.boutique ?? null)
+      setSocial(s.by_source_tier?.social ?? null)
     }).catch(() => {})
   }, [])
 
@@ -162,26 +165,36 @@ export default function AboutPage() {
               Where the data comes from
             </h2>
             <p className="max-w-2xl text-base leading-relaxed mb-8" style={{ color: 'var(--color-ink-muted)' }}>
-              Three kinds of sources, all public. The third is what sets FinEx apart.
+              Four kinds of sources, all public. The last two are what set FinEx apart.
             </p>
-            <div className="grid md:grid-cols-3 gap-4">
-              {SOURCES.map(({ icon: Icon, title, body, gold }) => (
-                <div key={title} className="rounded-xl p-6"
-                     style={{ backgroundColor: 'var(--color-surface)', border: `1px solid ${gold ? 'var(--color-gold)' : 'var(--color-border)'}`, boxShadow: 'var(--shadow-card)' }}>
-                  <span className="flex h-11 w-11 items-center justify-center rounded-lg mb-4"
-                        style={{ backgroundColor: gold ? 'var(--color-gold)' : 'var(--color-gold-light)', color: gold ? 'var(--color-nav)' : 'var(--color-gold)' }}>
-                    <Icon size={20} strokeWidth={1.8} fill={gold ? 'currentColor' : 'none'} />
-                  </span>
-                  {gold && (
-                    <span className="inline-block text-[10px] font-bold uppercase tracking-wider mb-2 px-2 py-0.5 rounded"
-                          style={{ backgroundColor: 'var(--color-gold-light)', color: 'var(--color-gold)' }}>
-                      Exclusive{boutique != null ? ` · ${boutique} live` : ''}
+            <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
+              {SOURCES.map(({ icon: Icon, title, body, accent }) => {
+                const accentColor = accent === 'gold' ? 'var(--color-gold)' : accent === 'purple' ? 'var(--color-recruiter)' : null
+                const accentLight = accent === 'gold' ? 'var(--color-gold-light)' : accent === 'purple' ? 'color-mix(in srgb, var(--color-recruiter) 12%, transparent)' : null
+                return (
+                  <div key={title} className="rounded-xl p-6"
+                       style={{ backgroundColor: 'var(--color-surface)', border: `1px solid ${accentColor ?? 'var(--color-border)'}`, boxShadow: 'var(--shadow-card)' }}>
+                    <span className="flex h-11 w-11 items-center justify-center rounded-lg mb-4"
+                          style={{ backgroundColor: accent === 'gold' ? accentColor! : (accentLight ?? 'var(--color-gold-light)'), color: accent === 'gold' ? 'var(--color-nav)' : (accentColor ?? 'var(--color-gold)') }}>
+                      <Icon size={20} strokeWidth={1.8} fill={accent === 'gold' ? 'currentColor' : 'none'} />
                     </span>
-                  )}
-                  <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--color-ink)' }}>{title}</h3>
-                  <p className="text-sm leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>{body}</p>
-                </div>
-              ))}
+                    {accent === 'gold' && (
+                      <span className="inline-block text-[10px] font-bold uppercase tracking-wider mb-2 px-2 py-0.5 rounded"
+                            style={{ backgroundColor: 'var(--color-gold-light)', color: 'var(--color-gold)' }}>
+                        Exclusive{boutique != null ? ` · ${boutique} live` : ''}
+                      </span>
+                    )}
+                    {accent === 'purple' && (
+                      <span className="inline-block text-[10px] font-bold uppercase tracking-wider mb-2 px-2 py-0.5 rounded"
+                            style={{ backgroundColor: 'color-mix(in srgb, var(--color-recruiter) 12%, transparent)', color: 'var(--color-recruiter)' }}>
+                        Recruiter Posts{social != null ? ` · ${social} live` : ''}
+                      </span>
+                    )}
+                    <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--color-ink)' }}>{title}</h3>
+                    <p className="text-sm leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>{body}</p>
+                  </div>
+                )
+              })}
             </div>
             <div className="flex items-start gap-3 mt-8 rounded-lg p-4" style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
               <ShieldCheck size={18} style={{ color: 'var(--color-gold)', marginTop: 1 }} />

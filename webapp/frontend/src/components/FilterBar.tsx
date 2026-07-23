@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { JobFilters, FiltersResponse } from '../api/client'
 import MultiSelect from './MultiSelect'
 import MobileFilterSheet from './MobileFilterSheet'
-import { PillButton, FilterRow, SalaryFields, ExpFields, ApplicantsFields } from './FilterPrimitives'
+import { PillButton, FilterRow, SalaryFields, ExpFields, ApplicantsFields, usePopoverDismiss } from './FilterPrimitives'
 
 interface Props {
   filters: JobFilters
@@ -179,6 +179,7 @@ function SearchInput({ value, onChange }: { value: string; onChange: (v: string)
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder="Search roles, companies…"
+        aria-label="Search roles, companies"
         className="w-full rounded-md pl-9 pr-3 py-2 text-sm outline-none transition-all duration-150"
         style={{
           backgroundColor: 'var(--color-surface-2)',
@@ -425,10 +426,11 @@ function SalaryToggle({
   onUpdate: (p: Partial<JobFilters>) => void
 }) {
   const [open, setOpen] = useState(false)
+  const ref = usePopoverDismiss(open, () => setOpen(false))
   const isActive = filters.salary_disclosed_only || filters.salary_min !== null || filters.salary_max !== null
 
   return (
-    <div className="relative">
+    <div ref={ref} className="relative">
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
@@ -481,10 +483,11 @@ function ExpFilter({
   onUpdate: (p: Partial<JobFilters>) => void
 }) {
   const [open, setOpen] = useState(false)
+  const ref = usePopoverDismiss(open, () => setOpen(false))
   const isActive = filters.exp_min !== null || filters.exp_max !== null
 
   return (
-    <div className="relative">
+    <div ref={ref} className="relative">
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
@@ -537,10 +540,11 @@ function ApplicantsFilter({
   onUpdate: (p: Partial<JobFilters>) => void
 }) {
   const [open, setOpen] = useState(false)
+  const ref = usePopoverDismiss(open, () => setOpen(false))
   const isActive = filters.max_applicants !== null
 
   return (
-    <div className="relative">
+    <div ref={ref} className="relative">
       <button
         type="button"
         onClick={() => setOpen(o => !o)}

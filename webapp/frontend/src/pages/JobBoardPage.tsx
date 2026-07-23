@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ChevronDown, Star, EyeOff } from 'lucide-react'
 import type { Job, FiltersResponse, JobListResponse, TierTab } from '../api/client'
@@ -133,6 +134,23 @@ export default function JobBoardPage() {
     setPage(1)
   }
 
+  // Roving tabindex for the job-tier tablist, per the ARIA Tab pattern:
+  // only the selected tab sits in the Tab order; arrow keys move both focus
+  // and the active tab between the others.
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const handleTabKeyDown = (e: ReactKeyboardEvent<HTMLButtonElement>, index: number) => {
+    let nextIndex: number | null = null
+    if (e.key === 'ArrowRight') nextIndex = (index + 1) % TIER_TABS.length
+    else if (e.key === 'ArrowLeft') nextIndex = (index - 1 + TIER_TABS.length) % TIER_TABS.length
+    else if (e.key === 'Home') nextIndex = 0
+    else if (e.key === 'End') nextIndex = TIER_TABS.length - 1
+    if (nextIndex !== null) {
+      e.preventDefault()
+      updateFilters({ tier: TIER_TABS[nextIndex].value })
+      tabRefs.current[nextIndex]?.focus()
+    }
+  }
+
   const total = result?.total ?? 0
   const totalPages = result?.total_pages ?? 0
   const jobs = result?.jobs ?? []
@@ -199,7 +217,7 @@ export default function JobBoardPage() {
             boxShadow: 'var(--shadow-card)',
           }}
         >
-          {TIER_TABS.map(tab => {
+          {TIER_TABS.map((tab, i) => {
             const selected = activeFilters.tier === tab.value
             const count = tab.value === 'all'
               ? (boardTotal ?? undefined)
@@ -207,9 +225,12 @@ export default function JobBoardPage() {
             return (
               <button type="button"
                 key={tab.value}
+                ref={el => { tabRefs.current[i] = el }}
                 role="tab"
                 aria-selected={selected}
+                tabIndex={selected ? 0 : -1}
                 onClick={() => updateFilters({ tier: tab.value })}
+                onKeyDown={e => handleTabKeyDown(e, i)}
                 className="tier-tab flex-shrink-0 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer outline-none"
                 style={{
                   backgroundColor: selected ? 'var(--color-ink)' : 'transparent',
@@ -231,7 +252,7 @@ export default function JobBoardPage() {
                   <EyeOff
                     size={15}
                     strokeWidth={2.25}
-                    style={{ color: selected ? 'var(--color-ink-inverse)' : '#6B4EFF' }}
+                    style={{ color: selected ? 'var(--color-ink-inverse)' : 'var(--color-recruiter)' }}
                     aria-hidden="true"
                   />
                 )}
@@ -308,13 +329,13 @@ export default function JobBoardPage() {
             Posts tab. */}
         {activeFilters.tier !== 'social' && recruiterPosts && recruiterPosts.total > 0 && (
           <section
-            className="mb-4 sm:mb-6 rounded-xl p-4 sm:p-5"
-            style={{ backgroundColor: 'rgba(107,78,255,0.05)', border: '1px solid rgba(107,78,255,0.2)' }}
+            className="hidden sm:block sm:mb-6 rounded-xl p-4 sm:p-5"
+            style={{ backgroundColor: 'color-mix(in srgb, var(--color-recruiter) 5%, transparent)', border: '1px solid color-mix(in srgb, var(--color-recruiter) 20%, transparent)' }}
             aria-label="Recruiter Posts — hidden roles matching your filters"
           >
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <div className="flex items-center gap-2">
-                <EyeOff size={16} strokeWidth={2.25} style={{ color: '#6B4EFF' }} aria-hidden="true" />
+                <EyeOff size={16} strokeWidth={2.25} style={{ color: 'var(--color-recruiter)' }} aria-hidden="true" />
                 <h2 className="text-sm font-bold" style={{ color: 'var(--color-ink)' }}>
                   Recruiter Posts
                 </h2>
@@ -327,7 +348,7 @@ export default function JobBoardPage() {
                 type="button"
                 onClick={() => updateFilters({ tier: 'social' })}
                 className="text-xs font-semibold cursor-pointer"
-                style={{ color: '#6B4EFF' }}
+                style={{ color: 'var(--color-recruiter)' }}
               >
                 View all {recruiterPosts.total} →
               </button>

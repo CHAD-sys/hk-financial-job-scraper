@@ -193,7 +193,7 @@ function ModalHeader({
           {job.is_internship && (
             <span
               className="text-xs px-2 py-0.5 rounded"
-              style={{ backgroundColor: '#FEF9C3', color: '#854D0E' }}
+              style={{ backgroundColor: 'var(--color-internship-light)', color: 'var(--color-internship)' }}
             >
               Internship
             </span>
@@ -258,18 +258,18 @@ function RecruiterAttribution({ signals }: { signals: LinkedInPostSignals | unde
   return (
     <div
       className="flex items-start gap-3 rounded-lg p-4"
-      style={{ backgroundColor: 'rgba(107,78,255,0.06)', border: '1px solid rgba(107,78,255,0.22)' }}
+      style={{ backgroundColor: 'color-mix(in srgb, var(--color-recruiter) 6%, transparent)', border: '1px solid color-mix(in srgb, var(--color-recruiter) 22%, transparent)' }}
     >
-      <EyeOff size={16} style={{ color: '#6B4EFF', marginTop: 2 }} strokeWidth={1.8} aria-hidden="true" />
+      <EyeOff size={16} style={{ color: 'var(--color-recruiter)', marginTop: 2 }} strokeWidth={1.8} aria-hidden="true" />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#6B4EFF' }}>
+          <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-recruiter)' }}>
             Recruiter Posts listing
           </p>
           {signals.not_a_ghost_job && (
             <span
               className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
-              style={{ backgroundColor: '#DCFCE7', color: '#15803D', border: '1px solid #BBF7D0' }}
+              style={{ backgroundColor: 'var(--color-success-light)', color: 'var(--color-success)', border: '1px solid var(--color-success-border)' }}
               title="Confirmed: this role also appears on a public job board, so it's a real, currently-open vacancy"
             >
               <ShieldCheck size={10} strokeWidth={2.5} aria-hidden="true" />
@@ -285,7 +285,7 @@ function RecruiterAttribution({ signals }: { signals: LinkedInPostSignals | unde
               target="_blank"
               rel="noopener noreferrer"
               className="font-semibold underline"
-              style={{ color: '#6B4EFF' }}
+              style={{ color: 'var(--color-recruiter)' }}
             >
               {signals.recruiter_name}
             </a>
@@ -299,7 +299,7 @@ function RecruiterAttribution({ signals }: { signals: LinkedInPostSignals | unde
           <a
             href={`mailto:${signals.recruiter_email}`}
             className="inline-flex items-center gap-1.5 text-sm font-medium mt-2"
-            style={{ color: '#6B4EFF' }}
+            style={{ color: 'var(--color-recruiter)' }}
           >
             <Mail size={13} strokeWidth={2} aria-hidden="true" />
             {signals.recruiter_email}
@@ -522,9 +522,9 @@ function ApplyFooter({ job }: { job: Job }) {
           target="_blank"
           rel="noopener noreferrer"
           className="flex w-full items-center justify-center gap-2 rounded py-3 text-sm font-semibold transition-all duration-200 cursor-pointer"
-          style={{ backgroundColor: '#6B4EFF', color: '#fff' }}
-          onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#5A3FE0')}
-          onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#6B4EFF')}
+          style={{ backgroundColor: 'var(--color-recruiter)', color: 'var(--color-ink-inverse)' }}
+          onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = 'var(--color-recruiter-hover)')}
+          onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = 'var(--color-recruiter)')}
         >
           <MessageCircle size={15} strokeWidth={2} />
           DM {signals?.recruiter_name ?? 'the recruiter'} to apply
@@ -535,8 +535,8 @@ function ApplyFooter({ job }: { job: Job }) {
             className="flex w-full items-center justify-center gap-2 rounded py-2.5 text-sm font-medium transition-all duration-200 cursor-pointer"
             style={{
               backgroundColor: 'var(--color-surface)',
-              color: '#6B4EFF',
-              border: '1px solid rgba(107,78,255,0.35)',
+              color: 'var(--color-recruiter)',
+              border: '1px solid color-mix(in srgb, var(--color-recruiter) 35%, transparent)',
             }}
           >
             <Mail size={14} strokeWidth={2} />
@@ -569,9 +569,9 @@ function ApplyFooter({ job }: { job: Job }) {
         target="_blank"
         rel="noopener noreferrer"
         className="flex w-full items-center justify-center gap-2 rounded py-3 text-sm font-semibold transition-all duration-200 cursor-pointer"
-        style={{ backgroundColor: '#059669', color: '#fff' }}
-        onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#047857')}
-        onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#059669')}
+        style={{ backgroundColor: 'var(--color-apply)', color: 'var(--color-ink-inverse)' }}
+        onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = 'var(--color-apply-hover)')}
+        onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = 'var(--color-apply)')}
       >
         Apply on company site
         <ExternalLink size={15} strokeWidth={2} />

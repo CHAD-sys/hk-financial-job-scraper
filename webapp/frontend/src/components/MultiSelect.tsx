@@ -121,7 +121,7 @@ export default function MultiSelect({
                     border: `1.5px solid ${isChecked ? 'var(--color-blue)' : 'var(--color-border-strong)'}`,
                   }}
                 >
-                  {isChecked && <Check size={10} color="#fff" strokeWidth={3} />}
+                  {isChecked && <Check size={10} color="var(--color-ink-inverse)" strokeWidth={3} />}
                 </span>
                 <span className="flex-1 truncate">{opt.name}</span>
                 {showCount && (
@@ -200,7 +200,7 @@ export default function MultiSelect({
         {isActive && (
           <span
             className="flex h-4 w-4 items-center justify-center rounded-full text-xs font-bold"
-            style={{ backgroundColor: 'var(--color-gold)', color: '#fff' }}
+            style={{ backgroundColor: 'var(--color-gold)', color: 'var(--color-ink-inverse)' }}
           >
             {selected.length}
           </span>

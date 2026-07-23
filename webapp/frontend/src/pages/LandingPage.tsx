@@ -164,7 +164,7 @@ function HeroSection({ roles }: { roles: string }) {
               onClick={() => navigate('/jobs?tier=boutique')}
               className="w-full sm:w-auto justify-center inline-flex items-center gap-1.5 rounded px-5 py-3 text-sm font-semibold transition-all duration-200 cursor-pointer"
               style={{ color: 'var(--color-gold)', border: '1px solid var(--color-gold)', backgroundColor: 'var(--color-gold-light)' }}
-              onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#F6E7BE')}
+              onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-gold-hover)')}
               onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-gold-light)')}
             >
               <Star size={14} strokeWidth={2} fill="currentColor" />
@@ -283,7 +283,7 @@ function RecruiterPostsCallout() {
           className="rounded-xl p-8 lg:p-10 flex flex-col lg:flex-row lg:items-center gap-8"
           style={{
             backgroundColor: 'var(--color-surface)',
-            border: '1px solid #6B4EFF',
+            border: '1px solid var(--color-recruiter)',
             boxShadow: 'var(--shadow-card)',
           }}
         >
@@ -291,9 +291,9 @@ function RecruiterPostsCallout() {
             <span
               className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-widest mb-4"
               style={{
-                backgroundColor: 'rgba(107,78,255,0.1)',
-                color: '#6B4EFF',
-                border: '1px solid #6B4EFF',
+                backgroundColor: 'color-mix(in srgb, var(--color-recruiter) 10%, transparent)',
+                color: 'var(--color-recruiter)',
+                border: '1px solid var(--color-recruiter)',
               }}
             >
               <EyeOff size={13} strokeWidth={2} aria-hidden="true" />
@@ -315,7 +315,7 @@ function RecruiterPostsCallout() {
               their network before (or instead of) a formal listing. Each post is read and
               structured with AI. Where a role also turns out to match a listing already on the
               public board, we mark it{' '}
-              <span style={{ color: '#15803D', fontWeight: 600 }}>Verified</span>{' '}
+              <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>Verified</span>{' '}
               — confirmed as a real, currently-open vacancy rather than an unconfirmed claim.
             </p>
           </div>
@@ -325,7 +325,7 @@ function RecruiterPostsCallout() {
               type="button"
               onClick={() => navigate('/jobs?tier=social')}
               className="inline-flex items-center gap-2 rounded px-6 py-3 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap"
-              style={{ backgroundColor: '#6B4EFF', color: '#fff' }}
+              style={{ backgroundColor: 'var(--color-recruiter)', color: 'var(--color-ink-inverse)' }}
               onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.opacity = '0.9')}
               onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.opacity = '1')}
             >
@@ -343,6 +343,7 @@ function RecruiterPostsCallout() {
 // ── Thin institutional stripe ─────────────────────────────────────────────────
 
 function MethodologyStripe() {
+  const navigate = useNavigate()
   return (
     <section
       aria-label="Data freshness note"
@@ -357,16 +358,20 @@ function MethodologyStripe() {
           Data refreshed daily from public postings. Enriched with AI-derived skills,
           seniority classification, and compensation signals.
         </p>
-        <a
-          href="#"
+        {/* No standalone methodology page exists yet — links to the About
+            page's "Under the hood" section, which covers the same ground,
+            rather than a placeholder href="#". */}
+        <button
+          type="button"
+          onClick={() => navigate('/about')}
           className="text-sm font-medium whitespace-nowrap flex items-center gap-1 cursor-pointer transition-colors duration-150"
           style={{ color: 'var(--color-gold)' }}
-          onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-blue)')}
-          onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-gold)')}
+          onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-blue)')}
+          onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-gold)')}
         >
           Read the methodology
           <ChevronRight size={14} strokeWidth={2} />
-        </a>
+        </button>
       </div>
     </section>
   )
@@ -375,6 +380,13 @@ function MethodologyStripe() {
 // ── Footer ────────────────────────────────────────────────────────────────────
 
 function LandingFooter() {
+  const navigate = useNavigate()
+  // Companies / Sectors / API had no corresponding page and were wired to
+  // href="#" (dead links); only Browse and About lead somewhere real today.
+  const links = [
+    { label: 'Browse', path: '/jobs' },
+    { label: 'About', path: '/about' },
+  ]
   return (
     <footer
       className="mt-auto"
@@ -400,17 +412,18 @@ function LandingFooter() {
           className="flex flex-wrap gap-x-6 gap-y-2"
           aria-label="Footer navigation"
         >
-          {['Browse', 'Companies', 'Sectors', 'API', 'About'].map(label => (
-            <a
+          {links.map(({ label, path }) => (
+            <button
+              type="button"
               key={label}
-              href="#"
+              onClick={() => navigate(path)}
               className="text-xs font-medium transition-colors duration-150 cursor-pointer"
               style={{ color: 'var(--color-ink-faint)' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-ink-muted)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-ink-faint)')}
+              onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-ink-muted)')}
+              onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-ink-faint)')}
             >
               {label}
-            </a>
+            </button>
           ))}
         </nav>
 

@@ -29,7 +29,7 @@ export default function Nav({ savedCount = 0 }: Props) {
               className="flex h-8 w-8 items-center justify-center rounded"
               style={{ backgroundColor: 'var(--color-gold)' }}
             >
-              <Briefcase size={16} color="#fff" strokeWidth={2} />
+              <Briefcase size={16} color="var(--color-ink-inverse)" strokeWidth={2} />
             </span>
             <span
               className="text-lg font-semibold tracking-tight select-none"
@@ -98,7 +98,7 @@ export default function Nav({ savedCount = 0 }: Props) {
               {savedCount > 0 && (
                 <span
                   className="flex h-4 w-4 items-center justify-center rounded-full text-xs font-bold"
-                  style={{ backgroundColor: 'var(--color-gold)', color: '#fff' }}
+                  style={{ backgroundColor: 'var(--color-gold)', color: 'var(--color-ink-inverse)' }}
                 >
                   {savedCount}
                 </span>

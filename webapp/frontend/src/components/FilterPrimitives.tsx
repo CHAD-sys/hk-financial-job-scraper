@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import type { JobFilters } from '../api/client'
 
@@ -6,12 +7,36 @@ import type { JobFilters } from '../api/client'
 // (same fields rendered always-expanded, full width). Keeping them here means
 // the two surfaces can never drift out of sync with each other.
 
+// Outside-click + Escape dismissal for the Salary/Experience/Applicants
+// popovers, matching the pattern MultiSelect.tsx already uses — those three
+// popovers previously had neither, so they stayed open on outside click and
+// couldn't be closed with the keyboard.
+export function usePopoverDismiss(open: boolean, onDismiss: () => void) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onDismiss()
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onDismiss()
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open, onDismiss])
+  return ref
+}
+
 export const PILL_PALETTES = {
   ink: { bg: 'var(--color-ink)', fg: 'var(--color-ink-inverse)', border: 'var(--color-ink)' },
-  blue: { bg: 'var(--color-blue)', fg: '#fff', border: 'var(--color-blue)' },
-  amber: { bg: '#FEF3C7', fg: '#854D0E', border: '#F5C451' },
-  green: { bg: '#DCFCE7', fg: '#15803D', border: '#BBF7D0' },
-  red: { bg: '#FEE2E2', fg: '#B91C1C', border: '#FECACA' },
+  blue: { bg: 'var(--color-blue)', fg: 'var(--color-ink-inverse)', border: 'var(--color-blue)' },
+  amber: { bg: 'var(--color-internship-light)', fg: 'var(--color-internship)', border: 'var(--color-internship-border)' },
+  green: { bg: 'var(--color-success-light)', fg: 'var(--color-success)', border: 'var(--color-success-border)' },
+  red: { bg: 'var(--color-urgent-light)', fg: 'var(--color-urgent)', border: 'var(--color-urgent-border)' },
 } as const
 
 export function PillButton({

@@ -123,7 +123,7 @@ function CardHeader({
             {job.company}
           </p>
           {/* Sector label + Exclusive badge */}
-          <div className="flex items-center gap-1.5 mt-0.5">
+          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
             <span
               className="inline-block text-xs font-medium rounded-sm px-1.5 py-0.5"
               style={{
@@ -137,7 +137,7 @@ function CardHeader({
             </span>
             {job.source_tier === 'boutique' && (
               <span
-                className="inline-flex items-center gap-0.5 rounded-sm px-1.5 py-0.5 font-semibold"
+                className="inline-flex flex-shrink-0 items-center gap-0.5 whitespace-nowrap rounded-sm px-1.5 py-0.5 font-semibold"
                 style={{
                   backgroundColor: 'var(--color-gold-light, rgba(201,162,74,0.12))',
                   color: 'var(--color-gold)',
@@ -152,10 +152,10 @@ function CardHeader({
             )}
             {job.source_tier === 'social' && (
               <span
-                className="inline-flex items-center gap-0.5 rounded-sm px-1.5 py-0.5 font-semibold"
+                className="inline-flex flex-shrink-0 items-center gap-0.5 whitespace-nowrap rounded-sm px-1.5 py-0.5 font-semibold"
                 style={{
-                  backgroundColor: 'rgba(107,78,255,0.12)',
-                  color: '#6B4EFF',
+                  backgroundColor: 'color-mix(in srgb, var(--color-recruiter) 12%, transparent)',
+                  color: 'var(--color-recruiter)',
                   fontSize: '12px',
                   letterSpacing: '0.04em',
                 }}
@@ -168,10 +168,10 @@ function CardHeader({
             {job.source_tier === 'social'
               && (job.board_signals?.linkedin_posts as unknown as LinkedInPostSignals | undefined)?.not_a_ghost_job && (
               <span
-                className="inline-flex items-center gap-0.5 rounded-sm px-1.5 py-0.5 font-semibold"
+                className="inline-flex flex-shrink-0 items-center gap-0.5 whitespace-nowrap rounded-sm px-1.5 py-0.5 font-semibold"
                 style={{
-                  backgroundColor: '#DCFCE7',
-                  color: '#15803D',
+                  backgroundColor: 'var(--color-success-light)',
+                  color: 'var(--color-success)',
                   fontSize: '12px',
                   letterSpacing: '0.04em',
                 }}
@@ -189,7 +189,7 @@ function CardHeader({
       <button
         type="button"
         onClick={e => { e.stopPropagation(); onToggleSave(job) }}
-        className="relative z-10 flex-shrink-0 p-1.5 rounded transition-colors duration-150 cursor-pointer"
+        className="relative z-10 flex-shrink-0 flex min-h-11 min-w-11 items-center justify-center rounded transition-colors duration-150 cursor-pointer"
         style={{
           color: saved ? 'var(--color-gold)' : 'var(--color-ink-faint)',
         }}
@@ -256,7 +256,7 @@ function MetaRow({ job }: { job: Job }) {
       {job.is_internship && (
         <span
           className="text-xs rounded px-1.5 py-0.5"
-          style={{ backgroundColor: '#FEF9C3', color: '#854D0E', border: '1px solid #FDE68A' }}
+          style={{ backgroundColor: 'var(--color-internship-light)', color: 'var(--color-internship)', border: '1px solid var(--color-internship-border)' }}
         >
           Internship
         </span>
@@ -287,7 +287,7 @@ function SignalBadges({ boardSignals }: { boardSignals: Job['board_signals'] }) 
       {urgent && (
         <span
           className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-semibold"
-          style={{ backgroundColor: '#FEE2E2', color: '#B91C1C', border: '1px solid #FECACA', fontSize: '12px' }}
+          style={{ backgroundColor: 'var(--color-urgent-light)', color: 'var(--color-urgent)', border: '1px solid var(--color-urgent-border)', fontSize: '12px' }}
         >
           <Flame size={11} strokeWidth={2} aria-hidden="true" />
           Urgently hiring
@@ -296,7 +296,7 @@ function SignalBadges({ boardSignals }: { boardSignals: Job['board_signals'] }) 
       {isNew && (
         <span
           className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-semibold"
-          style={{ backgroundColor: '#DCFCE7', color: '#15803D', border: '1px solid #BBF7D0', fontSize: '12px' }}
+          style={{ backgroundColor: 'var(--color-success-light)', color: 'var(--color-success)', border: '1px solid var(--color-success-border)', fontSize: '12px' }}
         >
           <Sparkles size={11} strokeWidth={2} aria-hidden="true" />
           New
@@ -335,9 +335,9 @@ function RecruiterBadge({ signals }: { signals: LinkedInPostSignals | undefined 
       <span
         className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-medium"
         style={{
-          backgroundColor: 'rgba(107,78,255,0.08)',
-          color: '#6B4EFF',
-          border: '1px solid rgba(107,78,255,0.22)',
+          backgroundColor: 'color-mix(in srgb, var(--color-recruiter) 8%, transparent)',
+          color: 'var(--color-recruiter)',
+          border: '1px solid color-mix(in srgb, var(--color-recruiter) 22%, transparent)',
           fontSize: '12px',
         }}
         title="Posted by this recruiter on LinkedIn — not a formal job board listing"
