@@ -303,6 +303,20 @@ Schema mapping notes:
   drift possible regardless of session length. Verified live: 3
   consecutive open/close cycles via the X button, plus the back-gesture
   path, all correctly land on /jobs.
+- **Age-based expiry, `--deactivate-stale-posts [DAYS]` (default 90).**
+  `--fetch-posts-backfill`'s no-date-filter deep pull means promoted jobs
+  can be months/years old (some recruiters' post history went back to
+  2022) — not a currently-open mandate. `hk_jobs/posts/expiry.py`
+  soft-deletes (is_active=0, never hard-delete, per CLAUDE.md) active
+  `linkedin_posts` jobs whose `posted_at` is older than the cutoff; NULL
+  `posted_at` rows are left untouched (can't determine age, don't guess).
+  Scoped to `linkedin_posts` only — mainstream/boutique jobs already have
+  their own daily refresh/soft-delete lifecycle via
+  `JobStore.mark_inactive_for_run` and don't have this staleness problem.
+  Manual-only, not wired into `daily_run.sh`. Real run (2026-07-23): 372
+  of 575 active jobs were older than 3 months and deactivated, 203
+  remained active — confirmed via the API (`tier=social` -> 203) and a
+  fresh PocketBase sync (372 stale rows removed from the mirror).
 
 ### LP-6 — Steady state (post-GO)
 - Scale watchlist toward ~100 active profiles (stay under $30/mo; cost counter

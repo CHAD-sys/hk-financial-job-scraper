@@ -720,6 +720,20 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "ignoring the 90-day freshness skip."
         ),
     )
+    p.add_argument(
+        "--deactivate-stale-posts",
+        dest="deactivate_stale_posts",
+        type=int,
+        nargs="?",
+        const=90,
+        metavar="DAYS",
+        help=(
+            "Soft-delete (is_active=0) active linkedin_posts jobs whose posted_at "
+            "is older than DAYS (default 90 / ~3 months). No scraping/vendor calls. "
+            "linkedin_posts-only: --fetch-posts-backfill can promote posts from "
+            "months/years ago since it pulls full history with no date filter."
+        ),
+    )
     return p.parse_args(argv)
 
 
@@ -899,6 +913,12 @@ def main(argv: list[str] | None = None) -> None:
         summary = run_email_harvest(args.db, force=getattr(args, "force_refresh", False))
         if summary.errors and not summary.harvested and summary.checked:
             raise SystemExit(f"Recruiter email harvest failed entirely: {summary.errors}")
+        return
+
+    # --deactivate-stale-posts: soft-delete old linkedin_posts jobs. No scraping.
+    if getattr(args, "deactivate_stale_posts", None) is not None:
+        from hk_jobs.posts.expiry import deactivate_stale_jobs
+        deactivate_stale_jobs(args.db, max_age_days=args.deactivate_stale_posts)
         return
 
     # --repair-companies: fix mislabeled company fields for existing JobsDB rows
