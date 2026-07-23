@@ -386,3 +386,232 @@ def migrate_to_phase_22(db_path: str) -> None:
         logger.info("Phase 22 migration: added grp_new/grp_urgent/grp_applicants + indexes")
     finally:
         conn.close()
+
+
+def migrate_to_phase_23(db_path: str) -> None:
+    """
+    Add prompt_version column to job_enrichments.
+
+    Tracks which enricher prompt/model version produced each row (see
+    hk_jobs.enrichers.deepseek.PROMPT_VERSION). Without this, a job that gets
+    soft-deleted and later reactivated keeps whatever salary estimate it had from
+    whenever it was last enriched — potentially predating a prompt or model
+    change — because the default (non re-enrich) enrichment pass only looks at
+    whether a row has *any* enrichment, not whether it's current. Comparing this
+    column against the live PROMPT_VERSION lets the regular daily enrichment pass
+    catch and refresh stale rows on its own.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(job_enrichments)").fetchall()}
+        with conn:
+            if "prompt_version" not in cols:
+                conn.execute("ALTER TABLE job_enrichments ADD COLUMN prompt_version TEXT")
+        if "prompt_version" not in cols:
+            logger.info("Phase 23 migration: added prompt_version column to job_enrichments")
+        else:
+            logger.debug("Phase 23 migration: prompt_version already exists")
+    finally:
+        conn.close()
+
+
+def migrate_to_phase_24(db_path: str) -> None:
+    """
+    Create the salary_audit_log table.
+
+    Every correction the outlier audit agent (hk_jobs.salary_audit) applies — and
+    every upward suggestion it declines to apply — is recorded here so changes to
+    published salary estimates are always traceable to a reason, never silent.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        with conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS salary_audit_log (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    source      TEXT NOT NULL,
+                    source_id   TEXT NOT NULL,
+                    audited_at  TEXT NOT NULL,
+                    old_min     INTEGER,
+                    old_max     INTEGER,
+                    new_min     INTEGER,
+                    new_max     INTEGER,
+                    action      TEXT NOT NULL,   -- 'lowered' | 'flag_up'
+                    reason      TEXT
+                )
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_source ON salary_audit_log(source, source_id)")
+        logger.debug("Phase 24 migration: salary_audit_log ready")
+    finally:
+        conn.close()
+
+
+def migrate_to_phase_25(db_path: str) -> None:
+    """
+    Add salary_tier / salary_role columns to job_enrichments.
+
+    DeepSeek classifies both on every call and enrichment.py already uses them
+    in-memory to run the deterministic clamp (see EnrichmentPipeline.run), but
+    was discarding them afterwards instead of storing them. Without a stored
+    tier/role, anything that needs to re-run clamp_salary later — the outlier
+    audit agent, a future retroactive re-clamp — has no way to recover the
+    per-role ceiling and falls back to weaker company/title-only caps. Rows
+    enriched before this migration will have both columns NULL; only rows
+    enriched from now on carry them.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(job_enrichments)").fetchall()}
+        with conn:
+            if "salary_tier" not in cols:
+                conn.execute("ALTER TABLE job_enrichments ADD COLUMN salary_tier TEXT")
+            if "salary_role" not in cols:
+                conn.execute("ALTER TABLE job_enrichments ADD COLUMN salary_role TEXT")
+        if "salary_tier" not in cols or "salary_role" not in cols:
+            logger.info("Phase 25 migration: added salary_tier/salary_role columns to job_enrichments")
+        else:
+            logger.debug("Phase 25 migration: salary_tier/salary_role already exist")
+    finally:
+        conn.close()
+
+
+def migrate_to_phase_26(db_path: str) -> None:
+    """
+    Create the LP-2 "Secret Market" ingestion tables: linkedin_posts,
+    recruiter_fetch_state, and vendor_costs.
+
+    linkedin_posts is the raw, replayable tier (PLAN_LINKEDIN_POSTS.md §4) —
+    every post the vendor returns lands here untouched, including the full
+    vendor_payload_json, so extraction (LP-3) can be re-run later without
+    re-paying Apify. It is NOT the jobs table: promotion to jobs happens only
+    after LP-3's classifier + promotion gate exist.
+
+    recruiter_fetch_state tracks last_fetched_at per recruiters.yaml slug so
+    the fetcher can ask for "posts since last success" instead of a fixed
+    last-24h window, which would silently create gaps on a missed/delayed
+    daily run (see hk_jobs.posts.fetcher module docstring).
+
+    vendor_costs is the running Apify spend ledger backing the $30/mo hard
+    cap (PLAN_LINKEDIN_POSTS.md decision #6): hk_jobs.posts.budget checks
+    month-to-date cost against it before every call and refuses new calls
+    once the cap is hit.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        with conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS linkedin_posts (
+                    post_urn            TEXT PRIMARY KEY,
+                    recruiter_slug      TEXT NOT NULL,
+                    source_run          TEXT NOT NULL,   -- 'watchlist' | 'discovery'
+                    author_name         TEXT,
+                    author_profile_url  TEXT,
+                    post_text           TEXT NOT NULL DEFAULT '',
+                    post_url            TEXT,
+                    posted_at           TEXT,
+                    engagement_likes    INTEGER DEFAULT 0,
+                    engagement_comments INTEGER DEFAULT 0,
+                    fetched_at          TEXT NOT NULL,
+                    vendor_payload_json TEXT NOT NULL,
+                    extraction_status   TEXT NOT NULL DEFAULT 'pending'
+                )
+            """)
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_linkedin_posts_recruiter "
+                "ON linkedin_posts(recruiter_slug)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_linkedin_posts_status "
+                "ON linkedin_posts(extraction_status)"
+            )
+
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS recruiter_fetch_state (
+                    slug            TEXT PRIMARY KEY,
+                    last_fetched_at TEXT,
+                    last_status     TEXT,   -- 'ok' | 'error'
+                    last_error      TEXT
+                )
+            """)
+
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS vendor_costs (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    logged_at   TEXT NOT NULL,
+                    vendor      TEXT NOT NULL,   -- 'apify'
+                    actor       TEXT NOT NULL,   -- e.g. 'harvestapi/linkedin-profile-posts'
+                    run_kind    TEXT NOT NULL,   -- 'watchlist' | 'discovery'
+                    items       INTEGER NOT NULL,
+                    cost_usd    REAL NOT NULL
+                )
+            """)
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_vendor_costs_logged_at "
+                "ON vendor_costs(logged_at)"
+            )
+        logger.info("Phase 26 migration: linkedin_posts/recruiter_fetch_state/vendor_costs ready")
+    finally:
+        conn.close()
+
+
+def migrate_to_phase_27(db_path: str) -> None:
+    """
+    Add extraction result columns to linkedin_posts (LP-3).
+
+    Stores the extractor's raw JSON response, its confidence, and the prompt
+    version that produced it — same replayability principle as vendor_payload_json
+    (phase 26): a prompt/model change can be detected (stored prompt_version !=
+    current PROMPT_VERSION) and re-run without re-paying Apify, mirroring how
+    job_enrichments.prompt_version (phase 23) lets stale enrichments self-heal.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(linkedin_posts)").fetchall()}
+        added = []
+        with conn:
+            if "extraction_result_json" not in cols:
+                conn.execute("ALTER TABLE linkedin_posts ADD COLUMN extraction_result_json TEXT")
+                added.append("extraction_result_json")
+            if "extraction_confidence" not in cols:
+                conn.execute("ALTER TABLE linkedin_posts ADD COLUMN extraction_confidence REAL")
+                added.append("extraction_confidence")
+            if "extraction_prompt_version" not in cols:
+                conn.execute("ALTER TABLE linkedin_posts ADD COLUMN extraction_prompt_version TEXT")
+                added.append("extraction_prompt_version")
+        if added:
+            logger.info("Phase 27 migration: added columns to linkedin_posts: %s", ", ".join(added))
+        else:
+            logger.debug("Phase 27 migration: extraction columns already exist")
+    finally:
+        conn.close()
+
+
+def migrate_to_phase_28(db_path: str) -> None:
+    """
+    Add email/email_fetched_at columns to recruiter_fetch_state (LP-5 email
+    harvest, PLAN_LINKEDIN_POSTS.md decision #10).
+
+    Lives on recruiter_fetch_state (not a new table) since it's already the
+    per-recruiter-slug runtime state table (phase 26) — one row per recruiter,
+    same key. email_fetched_at lets the harvest skip recruiters with a
+    recent-enough email without re-paying the $10/1k email-search rate, and
+    supports the plan's "refresh quarterly" cadence later without a schema
+    change.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(recruiter_fetch_state)").fetchall()}
+        added = []
+        with conn:
+            if "email" not in cols:
+                conn.execute("ALTER TABLE recruiter_fetch_state ADD COLUMN email TEXT")
+                added.append("email")
+            if "email_fetched_at" not in cols:
+                conn.execute("ALTER TABLE recruiter_fetch_state ADD COLUMN email_fetched_at TEXT")
+                added.append("email_fetched_at")
+        if added:
+            logger.info("Phase 28 migration: added columns to recruiter_fetch_state: %s", ", ".join(added))
+        else:
+            logger.debug("Phase 28 migration: email columns already exist")
+    finally:
+        conn.close()

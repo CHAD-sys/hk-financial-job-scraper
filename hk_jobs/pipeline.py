@@ -584,6 +584,34 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     p.add_argument(
+        "--audit-salaries",
+        dest="audit_salaries",
+        action="store_true",
+        help=(
+            "Run the salary outlier audit agent (hk_jobs.salary_audit): re-judges the "
+            "estimates most likely to be wrong (>=120k, cluster outliers, ambiguous "
+            "'Team Head'-style titles), auto-applies DOWNWARD corrections with an audit "
+            "log, and reports upward suggestions for review. Requires DEEPSEEK_API_KEY."
+        ),
+    )
+    p.add_argument(
+        "--audit-limit",
+        dest="audit_limit",
+        type=int,
+        default=None,
+        help="Max number of flagged jobs the salary audit reviews in this run.",
+    )
+    p.add_argument(
+        "--audit-full",
+        dest="audit_full",
+        action="store_true",
+        help=(
+            "Review every active priced job, not just heuristic-flagged outliers. "
+            "Only sensible while the dataset is small enough to make a full LLM pass "
+            "affordable — use --audit-limit to cap cost/time if needed."
+        ),
+    )
+    p.add_argument(
         "--repair-companies",
         dest="repair_companies",
         action="store_true",
@@ -610,6 +638,115 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         dest="export_trends",
         metavar="PATH",
         help="Export the latest trend snapshot for every company to a JSONL file.",
+    )
+    p.add_argument(
+        "--fetch-posts",
+        dest="fetch_posts",
+        action="store_true",
+        help=(
+            "LP-2 'Secret Market' pipeline: poll recruiters.yaml watchlist for new "
+            "LinkedIn posts via Apify (raw ingestion only — no jobs/PocketBase yet, "
+            "see docs/PLAN_LINKEDIN_POSTS.md). Requires APIFY_API_TOKEN. "
+            "Self-enforces the $30/mo budget cap (hk_jobs.posts.budget)."
+        ),
+    )
+    p.add_argument(
+        "--fetch-posts-backfill",
+        dest="fetch_posts_backfill",
+        action="store_true",
+        help=(
+            "One-time deep pull per recruiter: no date filter, up to max_posts "
+            "(default 50) each, instead of --fetch-posts's normal 'since last "
+            "success' incremental window. Use this once (or after adding new "
+            "recruiters) to actually populate real post history — every normal "
+            "--fetch-posts call, including each recruiter's very first, was "
+            "already scoped to a 48h floor, so raising max_posts alone never "
+            "increased real volume. Requires APIFY_API_TOKEN."
+        ),
+    )
+    p.add_argument(
+        "--posts-discovery",
+        dest="posts_discovery",
+        action="store_true",
+        help=(
+            "LP-2 weekly discovery search: keyword search for new job-bearing posts "
+            "(hk_jobs.posts.fetcher.DEFAULT_DISCOVERY_QUERIES). Independent of "
+            "--fetch-posts — run on a weekly cadence, not daily. Requires APIFY_API_TOKEN."
+        ),
+    )
+    p.add_argument(
+        "--promote-posts",
+        dest="promote_posts",
+        action="store_true",
+        help=(
+            "LP-3: classify+extract every pending linkedin_posts row via DeepSeek and "
+            "promote the ones that pass the gate (concrete title + HK-plausible location) "
+            "into the jobs table as source='linkedin_posts'. Requires DEEPSEEK_API_KEY. "
+            "Prints the Secret Market metrics (promoted, %% truly hidden, %% high-confidence) "
+            "after the run."
+        ),
+    )
+    p.add_argument(
+        "--posts-pilot-report",
+        dest="posts_pilot_report",
+        metavar="PATH",
+        nargs="?",
+        const="-",
+        help=(
+            "LP-4: print the pilot go/no-go report (promoted count, %% truly hidden, "
+            "cost so far, extrapolated monthly, a random sample for manual precision "
+            "spot-check). No scraping/vendor calls. Pass a path to also write the "
+            "markdown to a file; omit the path to print only."
+        ),
+    )
+    p.add_argument(
+        "--harvest-recruiter-emails",
+        dest="harvest_recruiter_emails",
+        action="store_true",
+        help=(
+            "LP-5: one-time-per-recruiter (then quarterly-refresh) email harvest via "
+            "harvestapi/linkedin-profile-scraper's $10/1k email-search mode. Skips "
+            "recruiters with an email fetched in the last 90 days unless --force-refresh. "
+            "Also backfills board_signals.recruiter_email on already-promoted jobs. "
+            "Requires APIFY_API_TOKEN. Self-enforces the $30/mo budget cap."
+        ),
+    )
+    p.add_argument(
+        "--force-refresh",
+        dest="force_refresh",
+        action="store_true",
+        help=(
+            "With --harvest-recruiter-emails: re-fetch every recruiter's email, "
+            "ignoring the 90-day freshness skip."
+        ),
+    )
+    p.add_argument(
+        "--deactivate-stale-posts",
+        dest="deactivate_stale_posts",
+        type=int,
+        nargs="?",
+        const=90,
+        metavar="DAYS",
+        help=(
+            "Soft-delete (is_active=0) active linkedin_posts jobs whose posted_at "
+            "is older than DAYS (default 90 / ~3 months). No scraping/vendor calls. "
+            "linkedin_posts-only: --fetch-posts-backfill can promote posts from "
+            "months/years ago since it pulls full history with no date filter."
+        ),
+    )
+    p.add_argument(
+        "--check-ghost-jobs",
+        dest="check_ghost_jobs",
+        action="store_true",
+        help=(
+            "Flag active linkedin_posts jobs that are actually the same real vacancy "
+            "as one already on the mainstream/boutique board (invisible to the "
+            "company_slug-based reconcile_cross_posted() since confidential posts "
+            "never carry a real employer slug). Free fuzzy-title pre-filter, then one "
+            "cheap DeepSeek call per candidate post. Sets "
+            "board_signals.not_a_ghost_job=true on confirmed matches. No scraping/"
+            "Apify calls. Requires DEEPSEEK_API_KEY."
+        ),
     )
     return p.parse_args(argv)
 
@@ -645,6 +782,10 @@ def main(argv: list[str] | None = None) -> None:
             migrate_to_phase_20,
             migrate_to_phase_21,
             migrate_to_phase_22,
+            migrate_to_phase_23,
+            migrate_to_phase_24,
+            migrate_to_phase_25,
+            migrate_to_phase_26,
         )
         Path(args.db).parent.mkdir(parents=True, exist_ok=True)
         migrate_to_phase_11(args.db)
@@ -659,6 +800,10 @@ def main(argv: list[str] | None = None) -> None:
         migrate_to_phase_20(args.db)
         migrate_to_phase_21(args.db)
         migrate_to_phase_22(args.db)
+        migrate_to_phase_23(args.db)
+        migrate_to_phase_24(args.db)
+        migrate_to_phase_25(args.db)
+        migrate_to_phase_26(args.db)
 
     # --weekly-report: send Monday trend report email (no scraping).
     if getattr(args, "weekly_report", False):
@@ -701,12 +846,104 @@ def main(argv: list[str] | None = None) -> None:
         )
         return
 
+    # --audit-salaries: outlier audit agent pass, no scraping.
+    if getattr(args, "audit_salaries", False):
+        from hk_jobs.migrations import migrate_to_phase_24
+        from hk_jobs.salary_audit import run_audit
+        migrate_to_phase_24(args.db)
+        run_audit(args.db, limit=getattr(args, "audit_limit", None),
+                  full=getattr(args, "audit_full", False))
+        return
+
     # --fetch-descriptions: pull full description text from detail pages.
     if getattr(args, "fetch_descriptions", False):
         from hk_jobs.description_fetcher import DescriptionFetcher
         DescriptionFetcher(db_path=args.db).run(
             limit=getattr(args, "fetch_limit", None),
             incremental=getattr(args, "incremental", False),
+        )
+        return
+
+    # --fetch-posts: LP-2 watchlist poll, raw ingestion only. No scraping.
+    if getattr(args, "fetch_posts", False):
+        from hk_jobs.migrations import migrate_to_phase_26
+        from hk_jobs.posts.fetcher import fetch_watchlist
+        migrate_to_phase_26(args.db)
+        summary = fetch_watchlist(args.db)
+        if summary.errors and not summary.recruiters_polled:
+            raise SystemExit(f"Posts watchlist poll failed entirely: {summary.errors}")
+        return
+
+    # --fetch-posts-backfill: one-time deep pull, no date filter. No scraping.
+    if getattr(args, "fetch_posts_backfill", False):
+        from hk_jobs.migrations import migrate_to_phase_26
+        from hk_jobs.posts.fetcher import fetch_watchlist
+        migrate_to_phase_26(args.db)
+        summary = fetch_watchlist(args.db, backfill=True)
+        if summary.errors and not summary.recruiters_polled:
+            raise SystemExit(f"Posts backfill failed entirely: {summary.errors}")
+        return
+
+    # --posts-discovery: LP-2 weekly keyword discovery search. No scraping.
+    if getattr(args, "posts_discovery", False):
+        from hk_jobs.migrations import migrate_to_phase_26
+        from hk_jobs.posts.fetcher import fetch_discovery
+        migrate_to_phase_26(args.db)
+        summary = fetch_discovery(args.db)
+        if summary.errors and not summary.recruiters_polled:
+            raise SystemExit(f"Posts discovery search failed entirely: {summary.errors}")
+        return
+
+    # --promote-posts: LP-3 classify+extract+promote pass. No scraping.
+    if getattr(args, "promote_posts", False):
+        from hk_jobs.migrations import migrate_to_phase_26, migrate_to_phase_27
+        from hk_jobs.posts.metrics import compute_metrics, format_metrics
+        from hk_jobs.posts.promote import run_promotion
+        migrate_to_phase_26(args.db)
+        migrate_to_phase_27(args.db)
+        summary = run_promotion(args.db)
+        logger.info(format_metrics(compute_metrics(args.db)))
+        if summary.errors and not summary.promoted and summary.processed:
+            raise SystemExit(f"Posts promotion failed entirely: {summary.errors}")
+        return
+
+    # --posts-pilot-report: LP-4 go/no-go report. No scraping/vendor calls.
+    if getattr(args, "posts_pilot_report", None):
+        from hk_jobs.posts.pilot_report import format_report, generate_pilot_report
+        report = format_report(generate_pilot_report(args.db))
+        print(report)
+        target = args.posts_pilot_report
+        if target != "-":
+            Path(target).write_text(report, encoding="utf-8")
+            logger.info("Pilot report written to %s", target)
+        return
+
+    # --harvest-recruiter-emails: LP-5 one-time/quarterly email harvest. No scraping.
+    if getattr(args, "harvest_recruiter_emails", False):
+        from hk_jobs.migrations import migrate_to_phase_26, migrate_to_phase_28
+        from hk_jobs.posts.email_harvest import run_email_harvest
+        migrate_to_phase_26(args.db)
+        migrate_to_phase_28(args.db)
+        summary = run_email_harvest(args.db, force=getattr(args, "force_refresh", False))
+        if summary.errors and not summary.harvested and summary.checked:
+            raise SystemExit(f"Recruiter email harvest failed entirely: {summary.errors}")
+        return
+
+    # --deactivate-stale-posts: soft-delete old linkedin_posts jobs. No scraping.
+    if getattr(args, "deactivate_stale_posts", None) is not None:
+        from hk_jobs.posts.expiry import deactivate_stale_jobs
+        deactivate_stale_jobs(args.db, max_age_days=args.deactivate_stale_posts)
+        return
+
+    # --check-ghost-jobs: flag Secret Market posts that duplicate a board listing.
+    if getattr(args, "check_ghost_jobs", False):
+        from hk_jobs.posts.ghost_check import run_ghost_check
+        summary = run_ghost_check(args.db)
+        logger.info(
+            "Ghost check: %d checked, %d with candidates, %d AI calls, "
+            "%d matched, %d errors",
+            summary.checked, summary.with_candidates, summary.ai_calls,
+            summary.matched, summary.errors,
         )
         return
 

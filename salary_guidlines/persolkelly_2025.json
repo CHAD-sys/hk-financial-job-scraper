@@ -1,0 +1,267 @@
+{
+  "meta": {
+    "source": "PERSOLKELLY Salary Guide 2025 — Hong Kong (1734427316-final_hk-salary-guide-2025_singlepage.pdf)",
+    "basis": "ANNUAL base salary in HKD as printed (k = thousand, m = million). Convert to monthly via /12.",
+    "grades": "analyst (0-3y), associate (3-7y), vp (7-10y), director (10y+), md (15y+)",
+    "insurance_grades": "officer_senior_analyst (0-4y), asst_manager_manager (5-9y), senior_manager_senior_director (10-15y), head (15y+)",
+    "extracted": "2026-07-21, pages 12-17 (Banking & FS), 20 (Corporate Professionals FINANCE), 41-44 (Insurance)",
+    "note": "null upper bound = open-ended (printed as '+')"
+  },
+  "banking_financial_services_annual_hkd": {
+    "equity_research": {
+      "analyst": [500000, 850000], "associate": [620000, 960000], "vp": [840000, 1500000],
+      "director": [1400000, 2000000], "md": [1800000, 2000000]
+    },
+    "sales_trading": {
+      "analyst": [440000, 750000], "associate": [720000, 1400000], "vp": [1400000, 2100000],
+      "director": [1600000, 2700000], "md": [2300000, 2400000]
+    },
+    "compliance_banking": {
+      "analyst": [360000, 580000], "associate": [600000, 900000], "vp": [900000, 1400000],
+      "director": [1400000, 2000000], "md": [2000000, 2600000]
+    },
+    "corporate_banking_rm": {
+      "analyst": [280000, 550000], "associate": [450000, 850000], "vp": [720000, 1500000],
+      "director": [1200000, 2200000], "md": [1800000, 2000000]
+    },
+    "operations_documentation": {
+      "analyst": [216000, 360000], "associate": [336000, 600000], "vp": [500000, 1100000],
+      "director": [650000, 1500000], "md": [1800000, 2200000]
+    },
+    "operations_kyc_cdd_onboarding": {
+      "analyst": [220000, 360000], "associate": [336000, 660000], "vp": [650000, 1200000],
+      "director": [850000, 1800000], "md": [2000000, 2400000]
+    },
+    "private_banking_rm": {
+      "analyst": [500000, 720000], "associate": [800000, 1000000], "vp": [560000, 1500000],
+      "director": [1200000, 1800000], "md": [1800000, 2200000]
+    },
+    "assistant_private_banker": {
+      "analyst": [336000, 504000], "associate": [500000, 900000], "vp": [500000, 900000],
+      "director": [960000, null]
+    },
+    "am_institutional_distribution_sales": {
+      "analyst": [350000, 500000], "associate": [500000, 900000], "vp": [900000, 1400000],
+      "director": [1400000, 1800000], "md": [1800000, null]
+    },
+    "am_portfolio_management": {
+      "analyst": [550000, 700000], "associate": [700000, 1000000], "vp": [1000000, 1400000],
+      "director": [1400000, 1800000], "md": [1800000, null]
+    },
+    "am_fund_accounting": {
+      "analyst": [250000, 420000], "associate": [420000, 540000], "vp": [540000, 720000],
+      "director": [720000, 1000000], "md": [1000000, 2400000]
+    },
+    "am_client_services": {
+      "analyst": [250000, 450000], "associate": [450000, 750000], "vp": [750000, 1000000],
+      "director": [1000000, 1400000], "md": [1400000, null]
+    },
+    "am_research": {
+      "analyst": [250000, 450000], "associate": [450000, 750000], "vp": [750000, 900000],
+      "director": [900000, 1200000], "md": [1200000, null]
+    },
+    "am_rfp": {
+      "analyst": [200000, 350000], "associate": [350000, 500000], "vp": [500000, 750000],
+      "director": [750000, 1000000], "md": [1000000, null]
+    },
+    "am_fund_operation": {
+      "analyst": [220000, 250000], "associate": [250000, 300000], "vp": [300000, 500000],
+      "director": [500000, 750000], "md": [750000, null]
+    },
+    "am_compliance": {
+      "analyst": [320000, 450000], "associate": [450000, 700000], "vp": [700000, 1100000],
+      "director": [1100000, 2000000], "md": [1700000, 2000000]
+    },
+    "digital_assets_institutional_sales": {
+      "analyst": [480000, 600000], "associate": [750000, 950000], "vp": [1000000, 1500000],
+      "director": [1700000, 2000000], "md": [2200000, null]
+    },
+    "digital_assets_quant_traders": {
+      "analyst": [800000, 936000], "associate": [1000000, 1500000], "vp": [2000000, 3000000],
+      "director": [4000000, 5000000], "md": [6000000, null]
+    },
+    "financial_control_reporting": {
+      "analyst": [210000, 400000], "associate": [384000, 600000], "vp": [600000, 840000],
+      "director": [900000, 1100000], "md": [1800000, 2000000]
+    },
+    "regulatory_reporting": {
+      "analyst": [216000, 420000], "associate": [420000, 540000], "vp": [540000, 720000],
+      "director": [860000, 1200000], "md": [1200000, 1800000]
+    },
+    "management_reporting": {
+      "analyst": [240000, 360000], "associate": [360000, 600000], "vp": [600000, 1000000],
+      "director": [1100000, 1600000], "md": [1600000, null]
+    },
+    "internal_audit_banking": {
+      "analyst": [240000, 420000], "associate": [420000, 720000], "vp": [720000, 1200000],
+      "director": [1200000, 1800000], "md": [1800000, null]
+    },
+    "treasury_banking": {
+      "analyst": [216000, 360000], "associate": [360000, 600000], "vp": [600000, 960000],
+      "director": [960000, 1200000], "md": [1400000, null]
+    },
+    "product_control": {
+      "analyst": [264000, 420000], "associate": [420000, 600000], "vp": [600000, 960000],
+      "director": [960000, 1100000], "md": [1400000, null]
+    },
+    "project_management_banking": {
+      "analyst": [264000, 456000], "associate": [456000, 780000], "vp": [780000, 1500000],
+      "director": [1100000, 1500000], "md": [2000000, null]
+    },
+    "kyc_cdd": {
+      "analyst": [240000, 340000], "associate": [340000, 500000], "vp": [500000, 700000],
+      "director": [700000, 850000], "md": [1200000, null]
+    },
+    "risk_management": {
+      "analyst": [240000, 480000], "associate": [480000, 720000], "vp": [720000, 1000000],
+      "director": [1000000, 1500000], "md": [1500000, null]
+    },
+    "fcc_aml": {
+      "analyst": [240000, 400000], "associate": [400000, 700000], "vp": [700000, 1200000],
+      "director": [1200000, 1500000], "md": [1400000, null]
+    },
+    "anti_bribery_corruption": {
+      "analyst": [240000, 360000], "associate": [360000, 600000], "vp": [600000, 1000000],
+      "director": [1000000, 1200000], "md": [1200000, null]
+    },
+    "forensic_accounting": {
+      "analyst": [240000, 450000], "associate": [450000, 1000000], "vp": [1000000, 1200000],
+      "director": [1200000, 1500000], "md": [1500000, null]
+    },
+    "legal_counsel_banking": {
+      "analyst": [550000, 700000], "associate": [700000, 850000], "vp": [860000, 1200000],
+      "director": [1200000, 1500000], "md": [1800000, null]
+    },
+    "operations_administration": {
+      "analyst": [168000, 192000], "associate": [210000, 336000], "vp": [336000, 504000],
+      "director": [540000, 720000], "md": [900000, 1000000]
+    },
+    "loans_operation": {
+      "analyst": [180000, 252000], "associate": [280000, 465000], "vp": [465000, 690000],
+      "director": [690000, 960000], "md": [960000, 1000000]
+    },
+    "remittance": {
+      "analyst": [180000, 225000], "associate": [225000, 392000], "vp": [392000, 675000],
+      "director": [675000, 960000], "md": [900000, 1000000]
+    },
+    "trade_services": {
+      "analyst": [180000, 270000], "associate": [270000, 465000], "vp": [465000, 690000],
+      "director": [690000, 1000000], "md": [1000000, 1200000]
+    }
+  },
+  "corporate_professionals_finance_annual_hkd": {
+    "financial_accounting_corporate": {
+      "accounts_clerk": [220000, 280000], "assistant_accountant": [260000, 320000],
+      "accounting_manager": [360000, 550000], "finance_manager": [500000, 650000],
+      "senior_finance_manager": [700000, 900000], "controller": [700000, 900000],
+      "regional_controller": [840000, 1000000], "director_department_head": [1200000, 2000000],
+      "cfo": [1200000, 2500000]
+    },
+    "audit_internal_control_corporate": {
+      "internal_auditor": [420000, 500000], "internal_audit_manager": [720000, 1000000],
+      "head_of_audit": [1200000, 2200000]
+    },
+    "fpa_corporate": {
+      "analyst_data": [260000, 300000], "analyst": [320000, 420000], "senior_analyst": [455000, 480000],
+      "manager": [600000, 720000], "head_of_planning_analysis": [840000, 1000000]
+    },
+    "treasury_corporate": {
+      "treasury_specialist": [360000, 720000], "treasury_accountant": [550000, 650000],
+      "head_of_treasury": [1000000, null]
+    }
+  },
+  "insurance_annual_hkd": {
+    "distribution_bancassurance": {
+      "officer_senior_analyst": [280000, 450000], "asst_manager_manager": [480000, 800000],
+      "senior_manager_senior_director": [840000, 1200000], "head": [1200000, 2000000]
+    },
+    "distribution_agency": {
+      "officer_senior_analyst": [250000, 430000], "asst_manager_manager": [420000, 600000],
+      "senior_manager_senior_director": [720000, 960000], "head": [960000, 1500000]
+    },
+    "distribution_brokerage": {
+      "officer_senior_analyst": [240000, 420000], "asst_manager_manager": [420000, 600000],
+      "senior_manager_senior_director": [720000, 960000], "head": [960000, 1500000]
+    },
+    "distribution_training_development": {
+      "officer_senior_analyst": [250000, 440000], "asst_manager_manager": [450000, 600000],
+      "senior_manager_senior_director": [700000, 960000], "head": [960000, 1200000]
+    },
+    "insurance_marketing": {
+      "officer_senior_analyst": [240000, 420000], "asst_manager_manager": [400000, 700000],
+      "senior_manager_senior_director": [600000, 800000], "head": [1000000, 1500000]
+    },
+    "actuarial_bancassurance": {
+      "officer_senior_analyst": [250000, 520000], "asst_manager_manager": [480000, 720000],
+      "senior_manager_senior_director": [720000, 1200000], "head": [1400000, 1800000]
+    },
+    "actuarial_agency": {
+      "officer_senior_analyst": [250000, 550000], "asst_manager_manager": [520000, 900000],
+      "senior_manager_senior_director": [900000, 1200000], "head": [1400000, 1800000]
+    },
+    "actuarial_brokerage": {
+      "officer_senior_analyst": [250000, 500000], "asst_manager_manager": [520000, 900000],
+      "senior_manager_senior_director": [900000, 1400000], "head": [1400000, 1800000]
+    },
+    "actuarial_training": {
+      "officer_senior_analyst": [250000, 420000], "asst_manager_manager": [400000, 780000],
+      "senior_manager_senior_director": [780000, 1200000], "head": [1200000, 1250000]
+    },
+    "insurance_accounting_generalist": {
+      "officer_senior_analyst": [200000, 320000], "asst_manager_manager": [400000, 900000],
+      "senior_manager_senior_director": [800000, 1300000], "head": [1500000, 2000000]
+    },
+    "insurance_financial_reporting": {
+      "officer_senior_analyst": [200000, 440000], "asst_manager_manager": [456000, 780000],
+      "senior_manager_senior_director": [840000, 1500000], "head": [1500000, 2000000]
+    },
+    "insurance_management_reporting": {
+      "officer_senior_analyst": [210000, 465000], "asst_manager_manager": [456000, 720000],
+      "senior_manager_senior_director": [840000, 1600000], "head": [1600000, 2000000]
+    },
+    "insurance_finance_operation": {
+      "officer_senior_analyst": [200000, 410000], "asst_manager_manager": [420000, 660000],
+      "senior_manager_senior_director": [720000, 1000000], "head": [1000000, 2000000]
+    },
+    "insurance_auditing": {
+      "officer_senior_analyst": [220000, 440000], "asst_manager_manager": [660000, 840000],
+      "senior_manager_senior_director": [700000, 1200000], "head": [1000000, 2000000]
+    },
+    "insurance_compliance": {
+      "officer_senior_analyst": [320000, 420000], "asst_manager_manager": [400000, 700000],
+      "senior_manager_senior_director": [900000, 1200000], "head": [1200000, 2000000]
+    },
+    "insurance_legal": {
+      "officer_senior_analyst": [350000, 450000], "asst_manager_manager": [480000, 840000],
+      "senior_manager_senior_director": [840000, 1200000], "head": [1200000, 2000000]
+    },
+    "insurance_risk": {
+      "officer_senior_analyst": [360000, 470000], "asst_manager_manager": [450000, 840000],
+      "senior_manager_senior_director": [840000, 1400000], "head": [1400000, 2400000]
+    },
+    "insurance_customer_service": {
+      "officer_senior_analyst": [220000, 360000], "asst_manager_manager": [360000, 660000],
+      "senior_manager_senior_director": [660000, 960000], "head": [960000, 1200000]
+    },
+    "insurance_policy_administration": {
+      "officer_senior_analyst": [210000, 280000], "asst_manager_manager": [360000, 540000],
+      "senior_manager_senior_director": [660000, 960000], "head": [960000, 1100000]
+    },
+    "insurance_underwriting": {
+      "officer_senior_analyst": [260000, 420000], "asst_manager_manager": [420000, 600000],
+      "senior_manager_senior_director": [600000, 840000], "head": [840000, 1800000]
+    },
+    "insurance_claims": {
+      "officer_senior_analyst": [220000, 420000], "asst_manager_manager": [420000, 600000],
+      "senior_manager_senior_director": [780000, 1200000], "head": [1200000, 1400000]
+    },
+    "insurance_hr_generalist": {
+      "officer_senior_analyst": [240000, 400000], "asst_manager_manager": [400000, 900000],
+      "senior_manager_senior_director": [700000, 1200000], "head": [1200000, 1400000]
+    },
+    "insurance_hr_comp_benefits": {
+      "officer_senior_analyst": [220000, 300000], "asst_manager_manager": [300000, 800000],
+      "senior_manager_senior_director": [800000, 1400000], "head": [1400000, null]
+    }
+  }
+}

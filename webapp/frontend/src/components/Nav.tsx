@@ -71,7 +71,7 @@ export default function Nav({ savedCount = 0 }: Props) {
             {/* Saved jobs */}
             <button type="button"
               onClick={() => navigate('/saved')}
-              className="flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-all duration-150 cursor-pointer"
+              className="flex min-h-11 items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-all duration-150 cursor-pointer"
               style={{
                 backgroundColor: pathname === '/saved' ? 'var(--color-gold)' : 'rgba(255,255,255,0.08)',
                 color: 'var(--color-ink-inverse)',
@@ -92,7 +92,9 @@ export default function Nav({ savedCount = 0 }: Props) {
                 strokeWidth={1.8}
                 fill={savedCount > 0 ? 'currentColor' : 'none'}
               />
-              <span>Saved</span>
+              {/* Text drops below ~400px so the wordmark + this + the hamburger
+                  don't crowd each other; the aria-label above keeps full context. */}
+              <span className="max-[400px]:hidden">Saved</span>
               {savedCount > 0 && (
                 <span
                   className="flex h-4 w-4 items-center justify-center rounded-full text-xs font-bold"
@@ -105,7 +107,7 @@ export default function Nav({ savedCount = 0 }: Props) {
 
             {/* Mobile toggle */}
             <button type="button"
-              className="md:hidden p-2 rounded cursor-pointer"
+              className="md:hidden flex min-h-11 min-w-11 items-center justify-center rounded cursor-pointer"
               style={{ color: 'var(--color-ink-inverse)' }}
               onClick={() => setOpen(o => !o)}
               aria-label="Toggle menu"
@@ -133,7 +135,7 @@ export default function Nav({ savedCount = 0 }: Props) {
             <button type="button"
               key={label}
               onClick={() => { navigate(path); setOpen(false) }}
-              className="text-sm font-medium text-left cursor-pointer"
+              className="flex min-h-11 items-center text-sm font-medium text-left cursor-pointer"
               style={{ color: 'rgba(248,250,252,0.8)' }}
             >
               {label}

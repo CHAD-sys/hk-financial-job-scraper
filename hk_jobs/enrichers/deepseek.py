@@ -27,6 +27,36 @@ v7: the model now also returns "salary_tier" — the exact anchor key of the fun
     band's ceiling deterministically in enrichment.py, so an over-band number can no longer
     reach the DB no matter what the model returns. The prompt still does the detection; the
     clamp only enforces the ceiling.
+v8: switched the reference table from the coarse 7-tier x 4-level ladder to the ~50
+    granular named-role ladders in hk_salary_anchors.json's tables_monthly_hkd (the model
+    now also returns "salary_role" — the specific role key it matched, or null). Added a
+    hard HK$200,000/month absolute ceiling and deterministic management-grade title caps
+    for banks and big insurance companies (see management_grade_caps_monthly_hkd in the
+    anchors file and hk_jobs.salary_clamp) — the estimator was running ~30% too high in
+    production, mostly on senior titles at large employers being mis-tiered upward.
+v9: migrated off deepseek-chat/deepseek-reasoner (retired 2026-07-24) to deepseek-v4-pro
+    with thinking mode enabled. A/B test against 4 known-bad postings showed materially
+    better tier/role selection (e.g. a KPMG "Associate Director" role dropped from a
+    stale HK$333k to a well-reasoned HK$110k on tier/role alone, no clamp involved) — the
+    remaining overestimation was as much a model-reasoning problem as a data-calibration
+    one. Thinking mode drops temperature/top_p (unsupported, silently ignored) and needs
+    a much larger max_tokens: the reasoning trace is billed as output and can exhaust a
+    small budget before the model ever writes the final JSON answer.
+    v9.1: v4-pro + thinking took ~16s/job — ~21h to re-enrich the full active set even at
+    20 concurrent workers. Switched to deepseek-v4-flash (same thinking-mode toggle, same
+    cheap base rate as the old deepseek-chat), keeping the large max_tokens budget from v9.
+    v9.2: briefly set reasoning_effort="max" to push flash to reason as hard as possible —
+    burned through the account balance in ~9 minutes with no proven quality gain over
+    default effort (the v9 A/B test used default, not max). Reverted to default effort;
+    thinking stays enabled, just without forcing maximum reasoning depth on every job.
+v10: granular 3-source reference table + prefix-cached prompt layout. The anchors JSON is
+    now a weighted merge of Hays 2026 + PERSOLKELLY 2025 + Adecco 2026 (60% most
+    conservative / 25% / 15% where they overlap — see scripts/build_merged_salary_anchors.py),
+    ~95 named roles with standardized Analyst/Associate/VP/Director/MD grade rows, including
+    new IT/HR/admin/CS/marketing ladders for support roles at financial firms. Added explicit
+    "Team Head" disambiguation (CR/service team heads are manager-grade, NOT the Director row
+    — the #1 reported mispricing). Prompt reordered static-first/job-data-last so DeepSeek's
+    automatic prefix caching bills the big reference block at ~1/10th input rate.
 
 API key: set DEEPSEEK_API_KEY env var.
 """
@@ -45,8 +75,25 @@ import httpx
 logger = logging.getLogger(__name__)
 
 _API_URL = "https://api.deepseek.com/chat/completions"
-_MODEL = "deepseek-chat"
+# v4-pro + thinking was A/B tested and produced measurably better tier/role selection
+# (see v9 changelog), but at ~16s/job it would take ~21h to re-enrich the full active
+# set even at 20 concurrent workers. v4-flash + thinking (this module's PROMPT_VERSION
+# name still says "v4pro" from the first attempt — see below) is the fast tier with the
+# same reasoning-mode toggle: same cheap base rate as the old deepseek-chat, told to
+# reason harder via reasoning_effort="max" and given a large max_tokens budget so the
+# reasoning trace never gets cut off before the final answer.
+_MODEL = "deepseek-v4-flash"
 _DESC_MAX_CHARS = 2_000   # cap to keep prompt tight; descriptions are typically 1–4 KB
+
+# Bump whenever the model, the salary prompt, OR the deterministic clamp in
+# hk_jobs.salary_clamp changes materially — not just model/prompt swaps. hk_jobs.enrichment
+# stores this alongside each enrichment row and re-enriches any active job whose stored
+# version doesn't match — on every regular run, not just an explicit --re-enrich — so a
+# change reaches jobs that get soft-deleted and reactivated later, not just what's active
+# the day the change ships. Missing this on a clamp-only change (no model/prompt edit) is
+# exactly what let the 2026-07-21 boutique-discount and single-value-range fixes silently
+# skip ~200 already-"fresh"-marked rows until a one-off manual patch caught them.
+PROMPT_VERSION = "2026-07-21-v10-merged-3source-granular-prefix-cached"
 
 # Salary anchor table — the single source of truth, extracted from the 2026 Hays
 # Asia Salary Guide (HK) into a structured JSON. Loaded and rendered into the prompt
@@ -87,23 +134,37 @@ def _fmt_k(x: int | None) -> str:
 
 def _fmt_band(band: list) -> str:
     lo, hi = band
-    return f"{_fmt_k(lo)}-{_fmt_k(hi)}" if hi else f"{_fmt_k(lo)}+"
+    if hi is None:
+        return f"{_fmt_k(lo)}+"
+    if lo == hi == 200_000:  # open-ended top row collapsed by the HK$200k global cap
+        return "200k (capped)"
+    if lo == hi:
+        return f"{_fmt_k(hi)}"
+    return f"{_fmt_k(lo)}-{_fmt_k(hi)}"
 
 
 def _load_salary_reference() -> str:
-    """Render the JSON anchor ladders into a compact prompt block (high tier → low)."""
+    """
+    Render the JSON's granular NAMED-ROLE ladders (tables_monthly_hkd) into a compact
+    prompt block — one line per role, high tier first. This replaces the old coarse
+    tier x seniority ladder: a specific named role (e.g. "audit_banking") is almost
+    always a tighter, more accurate band than its whole function tier's general range.
+    Each role line is prefixed with its "[role_key]" so the model can echo it back
+    verbatim as "salary_role".
+    """
     try:
         data = json.loads(_ANCHORS_PATH.read_text(encoding="utf-8"))
-        ladders = data["ladders_monthly_hkd"]
+        tables = data["tables_monthly_hkd"]
         order = data["tier_order_low_to_high"][::-1]  # display highest-paid first
         lines = []
         for tier in order:
-            lvl = ladders[tier]
+            tier_data = tables.get(tier)
+            if not tier_data:
+                continue
             lines.append(f"- {_TIER_LABELS.get(tier, tier)}:")
-            lines.append(
-                f"    junior {_fmt_band(lvl['junior'])} | mid {_fmt_band(lvl['mid'])} | "
-                f"senior {_fmt_band(lvl['senior'])} | lead {_fmt_band(lvl['lead'])}"
-            )
+            for role, levels in tier_data.get("roles", {}).items():
+                parts = [f"{title} {_fmt_band(band)}" for title, band in levels.items()]
+                lines.append(f"    [{role}] " + " | ".join(parts))
         return "\n".join(lines)
     except Exception as exc:  # missing file, bad JSON, schema drift — degrade gracefully
         logger.warning("Salary anchor file unavailable (%s); using fallback ladder.", exc)
@@ -117,7 +178,8 @@ _SALARY_REFERENCE = _load_salary_reference()
 # company tier/sector — distinct from disclosed salary_hkd_min/max.
 _SALARY_INSTRUCTIONS = """\
 For the salary_estimated_* fields, estimate a Hong Kong monthly BASE salary (HKD) using
-this THREE-STEP procedure, in order:
+this procedure, in order. This estimator has historically run about 30% TOO HIGH — when
+in doubt, always bias LOW, never high.
 
 STEP 1 — Detect ROLE TYPE from BOTH the title AND description, and set caps:
 - INTERNSHIP — flag ONLY when the role is genuinely an internship / student / fresh-grad
@@ -143,39 +205,87 @@ If found, use those EXACT figures as the estimate — they OVERRIDE the Step 1 c
 Step 3 reference table. (e.g. description says "HK$3,000-5,000/month" → min 3000, max 5000.)
 
 STEP 3 — Only if NO salary is stated in the description, estimate from the REFERENCE TABLE
-below. It is the 2026 Hays Asia Salary Guide (HK), converted to monthly HK$ BASE. These bands
-are GROUND TRUTH: your estimate MUST fall inside the matching band. This estimator has
-historically run TOO HIGH — so when in doubt, bias LOW, never high.
+below. It is a weighted merge of three 2025/2026 HK recruiter salary guides (Hays, PERSOLKELLY,
+Adecco), in monthly HK$ BASE, broken down into ~95 NAMED ROLES with per-grade rows. These bands
+are GROUND TRUTH: your estimate MUST fall inside the matching named role's row.
 
-STEP 3a — Map the seniority field to a level:
-  Analyst/Officer → junior ; Associate/AVP/Assistant Manager → mid ;
-  VP/SVP/Senior Manager → senior ; Director/MD/Head/Chief/C-suite → lead.
+STEP 3a — Map the title to a GRADE row. Most banking roles use the corporate ladder
+  Analyst (0-3y) / Associate (3-7y) / VP (7-10y) / Director (10y+) / MD (15y+):
+  Analyst/Officer → Analyst ; Associate/AVP/Assistant Manager/Manager → Associate ;
+  VP/SVP/Senior Manager → VP ; Director/Head of function → Director ; MD/C-suite → MD.
+  Insurance roles use Officer-Senior Analyst / AsstMgr-Manager / SrMgr-SrDirector / Head.
+  Some roles keep their own exact title labels — match the closest one.
 
-STEP 3b — Detect the FUNCTION TIER from the title AND description, then read that tier's band
-for the level from Step 3a. Most postings are NOT front office. When the tier is unclear or the
-role could fit two tiers, DEFAULT to the LOWER-paying tier (back office / operations, retail,
-middle office) — NEVER default to front office. Return the tier you used as "salary_tier",
-using EXACTLY one of these keys: front_office, commercial_corporate_banking, retail_banking,
-corporate_finance_accounting, middle_office, insurance, back_office_operations. A role that is
-not a finance desk at all (e.g. facilities, workplace/interior design, general IT, HR, admin)
-is NOT front office — use back_office_operations or middle_office for it.
+STEP 3b — Detect the FUNCTION TIER from the title AND description. Most postings are NOT front
+office. When the tier is unclear or the role could fit two tiers, DEFAULT to the LOWER-paying
+tier (back office / operations, retail, middle office) — NEVER default to front office. Return
+the tier you used as "salary_tier", using EXACTLY one of these keys: front_office,
+commercial_corporate_banking, retail_banking, corporate_finance_accounting, middle_office,
+insurance, back_office_operations. A role that is not a finance desk at all (e.g. facilities,
+workplace/interior design, general IT, HR, admin) is NOT front office — use
+back_office_operations or middle_office for it (they now contain dedicated IT / HR / admin /
+customer-service / marketing role ladders — prefer those over guessing).
 
-REFERENCE — monthly HK$ BASE by function tier and level (higher-paid tiers first):
+Within that tier, find the SPECIFIC NAMED ROLE below (e.g. "audit_banking", "treasury",
+"private_banking_rm") whose title labels most closely match this posting's title + description,
+and read the row for the grade from Step 3a. Return the role key you used as "salary_role"
+(e.g. "audit_banking") — or null if nothing in the tier's named roles clearly fits, in which
+case fall back to the closest grade row of the most similar role you can see for that tier.
+
+CRITICAL DISAMBIGUATION — "Team Head" / "Team Lead" / "Head of" titles:
+- A "Team Head"/"Team Lead" is NOT automatically the top of a ladder. Read what the team DOES.
+  Head of a REVENUE-GENERATING front-office team (RM team of top private bankers, trading desk,
+  IB coverage team) → the Director row of that front-office role.
+  Head of a SUPPORT / SERVICE / CLIENT-RELATIONSHIP (CR/CRM) / operations / admin team — of
+  which a bank has MANY — is a manager-grade position: use the Associate or VP row of the
+  matching role, NOT Director. Example: "Team Head, Client Relationship Management, Private
+  Bank" is client SERVICING, not a banker team head → private_banking_rm Associate/VP row
+  (roughly 50k-100k), never the Director/MD rows.
+- "Head of [entire function/business]" (e.g. Head of Private Banking, Head of Compliance,
+  Head of IT) → Director or MD row of that role, as the reference shows.
+- When you cannot tell which kind of team it is, use the LOWER interpretation.
+
+REFERENCE — monthly HK$ BASE, by function tier → named role → title level (higher tiers first;
+"[role_key]" is the exact string to return as "salary_role"):
 {salary_reference}
 
-STEP 3c — Set salary_estimated_min at the LOWER part of the matched band and
-salary_estimated_max no higher than that band's upper figure. Do NOT exceed the band max, and
-do NOT add a further 20-40% on top. Apply the Step-1 role-type caps FIRST — they override this table.
+STEP 3c — Set salary_estimated_min at the LOWER part of the matched named role's row and
+salary_estimated_max no higher than that row's upper figure. Do NOT exceed it, and do NOT add
+a further 20-40% on top. Apply the Step-1 role-type caps FIRST — they override this table.
 
-STEP 3d — Employer nudge WITHIN the band only (never above its max): Tier-1 / bulge-bracket
+STEP 3d — Employer nudge WITHIN the matched band only (never above its max): Tier-1 / bulge-bracket
 (Goldman, JPMorgan, Morgan Stanley, HSBC, BlackRock) → upper part of the band; Tier-2 (Standard
 Chartered, DBS, Macquarie, Citi) → middle; Tier-3 / regional / virtual banks / fintech → lower part.
 Digital assets / crypto are wide and volatile: 30,000-200,000 by seniority.
 
+STEP 4 — HARD CEILINGS. Apply LAST, after Steps 1-3. These can only LOWER your estimate, never
+raise it, and they override every band above:
+- ABSOLUTE MAXIMUM: never estimate above HK$200,000/month for ANY role, at ANY company, at ANY
+  seniority. There are no exceptions.
+- BANKS — if the company is a bank and the title clearly names one of these management grades
+  (hierarchy, highest to lowest: Managing Director > Executive Director > Director > Associate
+  Director > Vice President > Assistant Vice President; "Manager"/"Assistant Manager" titles
+  are the Assistant Vice President grade), cap at:
+    Assistant Vice President / AVP / Manager: max HK$70,000
+    Vice President / VP:                     max HK$80,000
+    Associate Director / AD:                 max HK$110,000
+    Director:                                max HK$160,000
+    Executive Director:                      max HK$200,000
+    Managing Director:                       max HK$200,000
+- BIG INSURANCE COMPANIES (e.g. AIA, Manulife, Prudential, AXA, Zurich, FWD, Sun Life,
+  Generali, China Life, Ping An, Chubb, Allianz, Swiss Re) — if the title clearly names one of
+  these grades, cap at:
+    Senior Manager / Principal: max HK$80,000
+    Associate Director / AD:    max HK$150,000
+    Director:                   max HK$200,000
+  Specifically at FWD, Sun Life, and Manulife the order is reversed at the top: Vice
+  President > Assistant Vice President > Director > Associate Director > Senior Manager >
+  Manager. VP/AVP roles at these three still never exceed the HK$200,000 absolute maximum.
+
 salary_estimated_max: the upper bound of a stated range if found in Step 2, otherwise AT MOST the
-matched band's upper figure — never above it. These are BASE SALARY only (in HK finance total comp
-is ~1.5-3x base at senior levels) — do NOT estimate total comp. Return null for all three fields if
-truly unable to estimate.
+matched band's upper figure after Step 4's caps — never above it. These are BASE SALARY only (in
+HK finance total comp is ~1.5-3x base at senior levels) — do NOT estimate total comp. Return null
+for all three fields if truly unable to estimate.
 
 salary_estimated_confidence:
 - "high"   = salary explicitly stated in the description (exact figures found in Step 2)
@@ -219,15 +329,15 @@ STRICT rules:
 - If the description is empty, missing, or nothing in it is legible, return an empty string ""
   — never invent, guess, or hallucinate a summary."""
 
+# Prompt layout note (v10): ALL static content (schema, rules, the big reference table)
+# comes FIRST and is byte-identical across every call; the variable job data (company/
+# title/description) comes LAST. DeepSeek automatically caches identical prompt prefixes
+# and bills cache-hits at ~1/10th the input rate, so the large reference block costs
+# almost nothing marginal across a run. Do not reorder — putting job data first (the old
+# layout) silently disables the prefix cache and multiplies input cost.
 _PROMPT_WITH_DESC = """\
-Extract structured data from this Hong Kong job posting. Return ONLY valid JSON, no markdown.
-
-Company: {company}
-Title: {title}
-Description:
-{description}
-
-Return exactly this JSON:
+You extract structured data from Hong Kong job postings at financial firms. The posting
+appears at the END of this prompt. Return ONLY valid JSON, no markdown, in exactly this shape:
 {{
   "title_en": "<English job title, see LANGUAGE rules below>",
   "seniority": "junior|mid|senior|lead",
@@ -241,6 +351,7 @@ Return exactly this JSON:
   "salary_estimated_max": <integer or null>,
   "salary_estimated_confidence": "low|medium|high" or null,
   "salary_tier": "front_office|commercial_corporate_banking|retail_banking|corporate_finance_accounting|middle_office|insurance|back_office_operations",
+  "salary_role": "<role_key from the matched named role in the reference table, or null>",
   "description_summary": "<short neutral English summary, see rules below>"
 }}
 
@@ -256,15 +367,18 @@ List each as a short phrase. Do NOT pad with vague generics (e.g. "strong commun
 
 {salary_instructions}
 
-{summary_instructions}"""
+{summary_instructions}
 
-_PROMPT_TITLE_ONLY = """\
-Extract structured data from this Hong Kong job posting. Return ONLY valid JSON, no markdown.
-
+======== THE JOB POSTING TO EXTRACT ========
 Company: {company}
 Title: {title}
+Description:
+{description}"""
 
-Return exactly this JSON:
+_PROMPT_TITLE_ONLY = """\
+You extract structured data from Hong Kong job postings at financial firms. The posting
+appears at the END of this prompt (title only — no description was available). Return ONLY
+valid JSON, no markdown, in exactly this shape:
 {{
   "title_en": "<English job title, see LANGUAGE rules below>",
   "seniority": "junior|mid|senior|lead",
@@ -278,6 +392,7 @@ Return exactly this JSON:
   "salary_estimated_max": <integer or null>,
   "salary_estimated_confidence": "low|medium|high" or null,
   "salary_tier": "front_office|commercial_corporate_banking|retail_banking|corporate_finance_accounting|middle_office|insurance|back_office_operations",
+  "salary_role": "<role_key from the matched named role in the reference table, or null>",
   "description_summary": ""
 }}
 
@@ -288,7 +403,11 @@ For "skills": infer 3-5 skills from the title — domain expertise, likely tools
 Set "description_summary" to an empty string "" — no job description was provided, so do not
 write or invent one.
 
-{salary_instructions}"""
+{salary_instructions}
+
+======== THE JOB POSTING TO EXTRACT ========
+Company: {company}
+Title: {title}"""
 
 
 class DeepSeekEnricher:
@@ -345,16 +464,19 @@ class DeepSeekEnricher:
                 salary_instructions=_SALARY_INSTRUCTIONS,
                 summary_instructions=_SUMMARY_INSTRUCTIONS,
             )
-            max_tokens = 620   # +title_en +salary +~50-word summary; headroom over actual output
+            # Thinking mode's reasoning trace is billed as output and must complete
+            # before the model writes the final JSON — a small budget here truncates
+            # the reasoning and leaves `content` empty (see v9 changelog).
+            max_tokens = 12_000
         else:
             prompt = _PROMPT_TITLE_ONLY.format(
                 company=company, title=title,
                 translation_instructions=_TRANSLATION_INSTRUCTIONS,
                 salary_instructions=_SALARY_INSTRUCTIONS,
             )
-            max_tokens = 400
+            max_tokens = 12_000
 
-        with httpx.Client(timeout=60.0) as client:
+        with httpx.Client(timeout=120.0) as client:
             resp = client.post(
                 _API_URL,
                 headers={
@@ -364,16 +486,30 @@ class DeepSeekEnricher:
                 json={
                     "model": _MODEL,
                     "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.2,
                     "max_tokens": max_tokens,
-                    "top_p": 0.9,
+                    "thinking": {"type": "enabled"},
+                    # reasoning_effort intentionally omitted (defaults to "high") — "max"
+                    # burned through the DeepSeek balance in ~9 minutes for no proven
+                    # quality gain over default; the A/B test that actually validated
+                    # thinking mode's tier/role improvements used default effort, not max.
+                    # temperature/top_p are unsupported under thinking mode (silently
+                    # ignored per DeepSeek's docs) — omitted for clarity, not because
+                    # they'd error.
                 },
             )
 
         if resp.status_code != 200:
             raise RuntimeError(f"API {resp.status_code}: {resp.text[:120]}")
 
-        text = resp.json()["choices"][0]["message"]["content"].strip()
+        message = resp.json()["choices"][0]["message"]
+        # Thinking mode adds this alongside `content` — not persisted to the DB, but
+        # logged at DEBUG so a mis-tiered job's reasoning can be inspected after the fact
+        # (set logging to DEBUG for hk_jobs.enrichers.deepseek to see it).
+        reasoning = message.get("reasoning_content")
+        if reasoning:
+            logger.debug("Reasoning for %r: %s", title[:60], reasoning[:2000])
+
+        text = message["content"].strip()
         text = text.replace("```json", "").replace("```", "").strip()
         return json.loads(text)
 

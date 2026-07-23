@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   X, Bookmark, ExternalLink, MapPin, Briefcase,
-  GraduationCap, DollarSign, Tag, Calendar,
+  GraduationCap, DollarSign, Tag, Calendar, MessageCircle, UserRound, EyeOff, Mail, ShieldCheck,
 } from 'lucide-react'
-import type { Job, JobDetail } from '../api/client'
+import type { Job, JobDetail, LinkedInPostSignals } from '../api/client'
 import { fetchJobDetail } from '../api/client'
 import SourceBadges from './SourceBadges'
+import { useModalHistoryGuard } from '../hooks/useModalHistoryGuard'
 import {
   formatSalary, formatEstimatedSalary, timeAgo, getSectorColor,
   getSeniorityColor, formatRemoteType, shortLocation,
@@ -22,6 +23,22 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [detail, setDetail] = useState<JobDetail | null>(null)
   const [loading, setLoading] = useState(true)
+  // Drives the enter/exit transition defined in .job-detail-dialog (index.css):
+  // 'entering' is the initial (off-screen) paint, flipped to 'entered' a frame
+  // after mount so the transition actually plays; 'closing' plays the exit
+  // transition before the parent's onClose actually unmounts this component.
+  const [visualState, setVisualState] = useState<'entering' | 'entered' | 'closing'>('entering')
+  const closingRef = useRef(false)
+
+  const requestClose = () => {
+    if (closingRef.current) return
+    closingRef.current = true
+    setVisualState('closing')
+    window.setTimeout(onClose, 200) // exit is faster than the 300ms enter
+  }
+
+  // Phone/browser back gesture closes the modal instead of leaving /jobs.
+  useModalHistoryGuard(requestClose)
 
   useEffect(() => {
     setLoading(true)
@@ -30,19 +47,35 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
       .finally(() => setLoading(false))
   }, [job.source, job.source_id])
 
-  // Open as a modal: the native <dialog> gives us focus trapping, Escape
-  // dismissal (the 'close' event below) and the ::backdrop layer for free.
-  // Clicks on the ::backdrop are delivered with the dialog itself as target,
-  // so backdrop-click-to-close (a pointer-only convenience — keyboard users
-  // dismiss with Escape) is wired here rather than in the markup.
+  // Open as a modal: the native <dialog> gives us focus trapping and the
+  // ::backdrop layer for free. Clicks on the ::backdrop are delivered with
+  // the dialog itself as target, so backdrop-click-to-close (a pointer-only
+  // convenience — keyboard users dismiss with Escape) is wired here rather
+  // than in the markup. 'cancel' (Escape) is intercepted so it plays the same
+  // exit animation as every other close path instead of closing instantly.
   useEffect(() => {
     const dlg = dialogRef.current
     if (!dlg) return
     dlg.showModal()
-    const onBackdropClick = (e: MouseEvent) => { if (e.target === dlg) onClose() }
+    // Double rAF: the initial off-screen style must actually paint before we
+    // flip to 'entered', or the browser collapses the transition to a no-op.
+    // Both ids are local to this effect run, so the cleanup below can read
+    // them directly without the staleness a ref would introduce.
+    const rafIds: number[] = []
+    rafIds.push(requestAnimationFrame(() => {
+      rafIds.push(requestAnimationFrame(() => setVisualState('entered')))
+    }))
+    const onBackdropClick = (e: MouseEvent) => { if (e.target === dlg) requestClose() }
+    const onCancel = (e: Event) => { e.preventDefault(); requestClose() }
     dlg.addEventListener('click', onBackdropClick)
-    return () => dlg.removeEventListener('click', onBackdropClick)
-  }, [onClose])
+    dlg.addEventListener('cancel', onCancel)
+    return () => {
+      rafIds.forEach(cancelAnimationFrame)
+      dlg.removeEventListener('click', onBackdropClick)
+      dlg.removeEventListener('cancel', onCancel)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Lock body scroll
   useEffect(() => {
@@ -63,8 +96,7 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
   return (
     <dialog
       ref={dialogRef}
-      // Fires on Escape (via 'cancel') and any programmatic close.
-      onClose={onClose}
+      data-state={visualState}
       aria-label={displayTitle}
       className="job-detail-dialog"
     >
@@ -82,7 +114,7 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
           sectorColor={sectorColor}
           saved={saved}
           onToggleSave={onToggleSave}
-          onClose={onClose}
+          onClose={requestClose}
         />
 
         {/* Scrollable body */}
@@ -91,6 +123,12 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
 
             {/* Job boards this vacancy is listed on (detail view only) */}
             <SourceBadges sources={detail?.sources ?? [job.source]} />
+
+            {job.source_tier === 'social' && (
+              <RecruiterAttribution
+                signals={job.board_signals?.linkedin_posts as unknown as LinkedInPostSignals | undefined}
+              />
+            )}
 
             <MetaGrid d={d} />
 
@@ -116,7 +154,7 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
           </div>
         </div>
 
-        <ApplyFooter url={job.url} />
+        <ApplyFooter job={job} />
       </div>
     </dialog>
   )
@@ -194,7 +232,7 @@ function ModalHeader({
         <button
           type="button"
           onClick={onClose}
-          className="p-2 rounded transition-colors duration-150 cursor-pointer"
+          className="flex min-h-11 min-w-11 items-center justify-center rounded transition-colors duration-150 cursor-pointer"
           style={{ color: 'var(--color-ink-faint)' }}
           onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-surface-2)')}
           onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent')}
@@ -202,6 +240,71 @@ function ModalHeader({
         >
           <X size={18} strokeWidth={1.8} />
         </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Recruiter attribution (Recruiter Posts / source_tier === 'social') ───────
+//
+// company is already "Confidential via {recruiter}" when no employer was named
+// (hk_jobs/posts/promote.py) — this section adds the WHY: this is a personal
+// LinkedIn post by a recruiter, not a formal board listing, plus a link back
+// to the original post and (via ApplyFooter) a "DM to apply" CTA, per
+// PLAN_LINKEDIN_POSTS.md decision #9.
+
+function RecruiterAttribution({ signals }: { signals: LinkedInPostSignals | undefined }) {
+  if (!signals?.recruiter_name) return null
+  return (
+    <div
+      className="flex items-start gap-3 rounded-lg p-4"
+      style={{ backgroundColor: 'rgba(107,78,255,0.06)', border: '1px solid rgba(107,78,255,0.22)' }}
+    >
+      <EyeOff size={16} style={{ color: '#6B4EFF', marginTop: 2 }} strokeWidth={1.8} aria-hidden="true" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#6B4EFF' }}>
+            Recruiter Posts listing
+          </p>
+          {signals.not_a_ghost_job && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+              style={{ backgroundColor: '#DCFCE7', color: '#15803D', border: '1px solid #BBF7D0' }}
+              title="Confirmed: this role also appears on a public job board, so it's a real, currently-open vacancy"
+            >
+              <ShieldCheck size={10} strokeWidth={2.5} aria-hidden="true" />
+              Verified
+            </span>
+          )}
+        </div>
+        <p className="text-sm mt-1" style={{ color: 'var(--color-ink)' }}>
+          Sourced from a LinkedIn post by{' '}
+          {signals.recruiter_profile_url ? (
+            <a
+              href={signals.recruiter_profile_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold underline"
+              style={{ color: '#6B4EFF' }}
+            >
+              {signals.recruiter_name}
+            </a>
+          ) : (
+            <span className="font-semibold">{signals.recruiter_name}</span>
+          )}
+          {signals.employer_hint ? ` — described only as "${signals.employer_hint}"` : ''}.
+          This role doesn't appear on any public job board.
+        </p>
+        {signals.recruiter_email && (
+          <a
+            href={`mailto:${signals.recruiter_email}`}
+            className="inline-flex items-center gap-1.5 text-sm font-medium mt-2"
+            style={{ color: '#6B4EFF' }}
+          >
+            <Mail size={13} strokeWidth={2} aria-hidden="true" />
+            {signals.recruiter_email}
+          </a>
+        )}
       </div>
     </div>
   )
@@ -398,15 +501,71 @@ function DescriptionSection({ loading, text }: { loading: boolean; text: string 
 }
 
 // ── Sticky apply CTA ──────────────────────────────────────────────────────────
+//
+// For source_tier === 'social', job.url is the LinkedIn POST permalink (set
+// in hk_jobs/posts/promote.py), not a company careers page — there's no
+// formal "apply" flow, so the primary CTA is "DM to apply" (message the
+// recruiter), with the original post as a secondary link, per decision #9.
 
-function ApplyFooter({ url }: { url: string }) {
+function ApplyFooter({ job }: { job: Job }) {
+  const signals = job.board_signals?.linkedin_posts as unknown as LinkedInPostSignals | undefined
+  const profileUrl = job.source_tier === 'social' ? signals?.recruiter_profile_url : null
+
+  if (profileUrl) {
+    return (
+      <div
+        className="flex-shrink-0 px-6 py-4 flex flex-col gap-2"
+        style={{ borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)' }}
+      >
+        <a
+          href={profileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex w-full items-center justify-center gap-2 rounded py-3 text-sm font-semibold transition-all duration-200 cursor-pointer"
+          style={{ backgroundColor: '#6B4EFF', color: '#fff' }}
+          onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#5A3FE0')}
+          onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#6B4EFF')}
+        >
+          <MessageCircle size={15} strokeWidth={2} />
+          DM {signals?.recruiter_name ?? 'the recruiter'} to apply
+        </a>
+        {signals?.recruiter_email && (
+          <a
+            href={`mailto:${signals.recruiter_email}`}
+            className="flex w-full items-center justify-center gap-2 rounded py-2.5 text-sm font-medium transition-all duration-200 cursor-pointer"
+            style={{
+              backgroundColor: 'var(--color-surface)',
+              color: '#6B4EFF',
+              border: '1px solid rgba(107,78,255,0.35)',
+            }}
+          >
+            <Mail size={14} strokeWidth={2} />
+            Email {signals.recruiter_name}
+          </a>
+        )}
+        {job.url && (
+          <a
+            href={job.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 text-xs font-medium py-1"
+            style={{ color: 'var(--color-ink-faint)' }}
+          >
+            <UserRound size={12} strokeWidth={1.8} />
+            View original LinkedIn post
+          </a>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div
       className="flex-shrink-0 px-6 py-4"
       style={{ borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)' }}
     >
       <a
-        href={url}
+        href={job.url}
         target="_blank"
         rel="noopener noreferrer"
         className="flex w-full items-center justify-center gap-2 rounded py-3 text-sm font-semibold transition-all duration-200 cursor-pointer"

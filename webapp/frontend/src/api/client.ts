@@ -1,4 +1,8 @@
-export const API = 'http://localhost:8000'
+// API base. Empty (VITE_API_URL="") → relative "/api" calls, which the Vite dev
+// server proxies to the backend (see vite.config.ts). This lets a single tunnel
+// on :5173 serve both the UI and the API (same origin, no CORS). Set VITE_API_URL
+// to an absolute URL to point at a separately-hosted backend.
+export const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -69,7 +73,24 @@ export interface StatsResponse {
   internship_count: number
 }
 
-export type TierTab = 'all' | 'boutique' | 'mainstream'
+export type TierTab = 'all' | 'boutique' | 'mainstream' | 'social'
+
+// board_signals.linkedin_posts shape, set by hk_jobs/posts/promote.py — recruiter
+// attribution for Recruiter Posts jobs (source_tier === 'social').
+export interface LinkedInPostSignals {
+  recruiter_name: string | null
+  recruiter_profile_url: string | null
+  // Harvested by hk_jobs/posts/email_harvest.py (LP-5) — null until that
+  // module has run for this recruiter, or if no email was found.
+  recruiter_email: string | null
+  employer_hint: string | null
+  engagement: { likes: number; comments: number } | null
+  post_created_at: string | null
+  // Set by hk_jobs/posts/ghost_check.py when a cheap DeepSeek pass confirms
+  // this post is the SAME real vacancy as a listing already on the mainstream/
+  // boutique board — undefined/false until that pass has run and matched.
+  not_a_ghost_job?: boolean
+}
 
 export interface JobFilters {
   tier: TierTab
@@ -88,6 +109,8 @@ export interface JobFilters {
   is_new: boolean
   urgently_hiring: boolean
   max_applicants: number | null
+  hidden_only: boolean
+  verified_only: boolean
 }
 
 export const DEFAULT_FILTERS: JobFilters = {
@@ -107,6 +130,8 @@ export const DEFAULT_FILTERS: JobFilters = {
   is_new: false,
   urgently_hiring: false,
   max_applicants: null,
+  hidden_only: false,
+  verified_only: false,
 }
 
 // ── Fetch helpers ─────────────────────────────────────────────────────────────
@@ -132,10 +157,7 @@ export async function fetchJobs(
   } else if (filters.salary_min !== null) {
     p.set('salary_min', String(filters.salary_min))
   }
-  if (filters.salary_max !== null && !filters.salary_disclosed_only === false) {
-    p.set('salary_max', String(filters.salary_max))
-  }
-  if (filters.salary_disclosed_only && filters.salary_max !== null) {
+  if (filters.salary_max !== null) {
     p.set('salary_max', String(filters.salary_max))
   }
 
@@ -145,6 +167,8 @@ export async function fetchJobs(
   if (filters.is_new) p.set('is_new', 'true')
   if (filters.urgently_hiring) p.set('urgently_hiring', 'true')
   if (filters.max_applicants !== null) p.set('max_applicants', String(filters.max_applicants))
+  if (filters.hidden_only) p.set('hidden_only', 'true')
+  if (filters.verified_only) p.set('verified_only', 'true')
 
   p.set('sort', sort)
   p.set('page', String(page))
@@ -197,6 +221,8 @@ export function filtersToSearchParams(
   if (filters.is_new) p.set('new', '1')
   if (filters.urgently_hiring) p.set('urgent', '1')
   if (filters.max_applicants !== null) p.set('max_appl', String(filters.max_applicants))
+  if (filters.hidden_only) p.set('hidden', '1')
+  if (filters.verified_only) p.set('verified', '1')
   if (sort !== 'newest') p.set('sort', sort)
   if (page > 1) p.set('page', String(page))
   return p
@@ -208,7 +234,7 @@ export function searchParamsToFilters(
   const tierParam = p.get('tier')
   return {
     filters: {
-      tier: (tierParam === 'boutique' || tierParam === 'mainstream') ? tierParam : 'all',
+      tier: (tierParam === 'boutique' || tierParam === 'mainstream' || tierParam === 'social') ? tierParam : 'all',
       search: p.get('q') ?? '',
       sectors: p.getAll('sector'),
       companies: p.getAll('company'),
@@ -224,6 +250,8 @@ export function searchParamsToFilters(
       is_new: p.get('new') === '1',
       urgently_hiring: p.get('urgent') === '1',
       max_applicants: p.has('max_appl') ? Number(p.get('max_appl')) : null,
+      hidden_only: p.get('hidden') === '1',
+      verified_only: p.get('verified') === '1',
     },
     sort: p.get('sort') ?? 'newest',
     page: Number(p.get('page') ?? '1'),
@@ -244,5 +272,7 @@ export function countActiveFilters(filters: JobFilters): number {
   if (filters.is_new) n++
   if (filters.urgently_hiring) n++
   if (filters.max_applicants !== null) n++
+  if (filters.hidden_only) n++
+  if (filters.verified_only) n++
   return n
 }

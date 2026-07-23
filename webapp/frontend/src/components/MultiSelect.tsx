@@ -9,6 +9,10 @@ interface Props {
   onChange: (vals: string[]) => void
   showCount?: boolean
   maxHeight?: number
+  // Renders as an always-expanded, full-width block instead of a floating
+  // popover — used inside MobileFilterSheet, where a fixed-minWidth absolute
+  // popover could clip off the edge of a narrow screen.
+  inline?: boolean
 }
 
 export default function MultiSelect({
@@ -18,12 +22,14 @@ export default function MultiSelect({
   onChange,
   showCount = true,
   maxHeight = 260,
+  inline = false,
 }: Props) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    if (inline) return // no floating panel to dismiss
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false)
@@ -32,7 +38,7 @@ export default function MultiSelect({
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [])
+  }, [inline])
 
   const filtered = query
     ? options.filter(o => o.name.toLowerCase().includes(query.toLowerCase()))
@@ -47,6 +53,133 @@ export default function MultiSelect({
   const isActive = selected.length > 0
   // Set lookup: checked-state is tested once per option while rendering the list.
   const selectedSet = new Set(selected)
+
+  const panelBody = (
+    <>
+      {/* Search */}
+      {options.length > 8 && (
+        <div
+          className="flex items-center gap-2 px-3 py-2"
+          style={{ borderBottom: '1px solid var(--color-border)' }}
+        >
+          <Search size={13} style={{ color: 'var(--color-ink-faint)' }} />
+          <input
+            autoFocus={!inline}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder={`Search ${label.toLowerCase()}…`}
+            className="flex-1 bg-transparent text-sm outline-none"
+            style={{ color: 'var(--color-ink)' }}
+          />
+          {query && (
+            <button type="button" onClick={() => setQuery('')} className="cursor-pointer" aria-label="Clear search">
+              <X size={13} style={{ color: 'var(--color-ink-faint)' }} />
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Options */}
+      <div
+        className="overflow-y-auto py-1"
+        style={{ maxHeight }}
+        role="listbox"
+        aria-multiselectable="true"
+      >
+        {filtered.length === 0 ? (
+          <p className="px-3 py-2 text-xs" style={{ color: 'var(--color-ink-faint)' }}>
+            No results
+          </p>
+        ) : (
+          filtered.map(opt => {
+            const isChecked = selectedSet.has(opt.name)
+            return (
+              <button type="button"
+                key={opt.name}
+                role="option"
+                aria-selected={isChecked}
+                onClick={() => toggle(opt.name)}
+                className="w-full flex items-center gap-2.5 px-3 py-1.5 text-sm text-left transition-colors duration-100 cursor-pointer"
+                style={{
+                  backgroundColor: isChecked ? 'var(--color-blue-light)' : 'transparent',
+                  color: 'var(--color-ink)',
+                }}
+                onMouseEnter={e => {
+                  if (!isChecked)
+                    (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                      'var(--color-surface-2)'
+                }}
+                onMouseLeave={e => {
+                  if (!isChecked)
+                    (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent'
+                }}
+              >
+                <span
+                  className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded"
+                  style={{
+                    backgroundColor: isChecked ? 'var(--color-blue)' : 'transparent',
+                    border: `1.5px solid ${isChecked ? 'var(--color-blue)' : 'var(--color-border-strong)'}`,
+                  }}
+                >
+                  {isChecked && <Check size={10} color="#fff" strokeWidth={3} />}
+                </span>
+                <span className="flex-1 truncate">{opt.name}</span>
+                {showCount && (
+                  <span
+                    className="text-xs tabular-nums"
+                    style={{ color: 'var(--color-ink-faint)', fontFamily: 'var(--font-mono)' }}
+                  >
+                    {opt.count}
+                  </span>
+                )}
+              </button>
+            )
+          })
+        )}
+      </div>
+
+      {/* Clear */}
+      {selected.length > 0 && (
+        <div style={{ borderTop: '1px solid var(--color-border)' }}>
+          <button type="button"
+            onClick={() => { onChange([]); if (!inline) setOpen(false) }}
+            className="w-full px-3 py-2 text-xs font-medium text-left transition-colors duration-100 cursor-pointer"
+            style={{ color: 'var(--color-gold)' }}
+            onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-blue)')}
+            onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-gold)')}
+          >
+            Clear selection
+          </button>
+        </div>
+      )}
+    </>
+  )
+
+  if (inline) {
+    return (
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <span
+            className="text-xs font-bold uppercase tracking-wider"
+            style={{ color: 'var(--color-ink-faint)', letterSpacing: '0.08em' }}
+          >
+            {label}
+          </span>
+          {isActive && (
+            <span className="text-xs font-medium" style={{ color: 'var(--color-gold)' }}>
+              {selected.length} selected
+            </span>
+          )}
+        </div>
+        <div
+          className="rounded-lg overflow-hidden"
+          style={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)' }}
+        >
+          {panelBody}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div ref={ref} className="relative">
@@ -90,102 +223,7 @@ export default function MultiSelect({
             boxShadow: 'var(--shadow-float)',
           }}
         >
-          {/* Search */}
-          {options.length > 8 && (
-            <div
-              className="flex items-center gap-2 px-3 py-2"
-              style={{ borderBottom: '1px solid var(--color-border)' }}
-            >
-              <Search size={13} style={{ color: 'var(--color-ink-faint)' }} />
-              <input
-                autoFocus
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                placeholder={`Search ${label.toLowerCase()}…`}
-                className="flex-1 bg-transparent text-sm outline-none"
-                style={{ color: 'var(--color-ink)' }}
-              />
-              {query && (
-                <button type="button" onClick={() => setQuery('')} className="cursor-pointer" aria-label="Clear search">
-                  <X size={13} style={{ color: 'var(--color-ink-faint)' }} />
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Options */}
-          <div
-            className="overflow-y-auto py-1"
-            style={{ maxHeight }}
-            role="listbox"
-            aria-multiselectable="true"
-          >
-            {filtered.length === 0 ? (
-              <p className="px-3 py-2 text-xs" style={{ color: 'var(--color-ink-faint)' }}>
-                No results
-              </p>
-            ) : (
-              filtered.map(opt => {
-                const isChecked = selectedSet.has(opt.name)
-                return (
-                  <button type="button"
-                    key={opt.name}
-                    role="option"
-                    aria-selected={isChecked}
-                    onClick={() => toggle(opt.name)}
-                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-sm text-left transition-colors duration-100 cursor-pointer"
-                    style={{
-                      backgroundColor: isChecked ? 'var(--color-blue-light)' : 'transparent',
-                      color: 'var(--color-ink)',
-                    }}
-                    onMouseEnter={e => {
-                      if (!isChecked)
-                        (e.currentTarget as HTMLButtonElement).style.backgroundColor =
-                          'var(--color-surface-2)'
-                    }}
-                    onMouseLeave={e => {
-                      if (!isChecked)
-                        (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent'
-                    }}
-                  >
-                    <span
-                      className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded"
-                      style={{
-                        backgroundColor: isChecked ? 'var(--color-blue)' : 'transparent',
-                        border: `1.5px solid ${isChecked ? 'var(--color-blue)' : 'var(--color-border-strong)'}`,
-                      }}
-                    >
-                      {isChecked && <Check size={10} color="#fff" strokeWidth={3} />}
-                    </span>
-                    <span className="flex-1 truncate">{opt.name}</span>
-                    {showCount && (
-                      <span
-                        className="text-xs tabular-nums"
-                        style={{ color: 'var(--color-ink-faint)', fontFamily: 'var(--font-mono)' }}
-                      >
-                        {opt.count}
-                      </span>
-                    )}
-                  </button>
-                )
-              })
-            )}
-          </div>
-
-          {/* Clear */}
-          {selected.length > 0 && (
-            <div style={{ borderTop: '1px solid var(--color-border)' }}>
-              <button type="button"
-                onClick={() => { onChange([]); setOpen(false) }}
-                className="w-full px-3 py-2 text-xs font-medium text-left transition-colors duration-100 cursor-pointer"
-                style={{ color: 'var(--color-gold)' }}
-                onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-blue)')}
-                onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-gold)')}
-              >
-                Clear selection
-              </button>
-            </div>
-          )}
+          {panelBody}
         </div>
       )}
     </div>

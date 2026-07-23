@@ -1,10 +1,14 @@
 {
   "meta": {
-    "source": "2026 Hays Asia Salary Guide — Hong Kong (19th ed.), Hong Kong SAR column",
+    "source": "Merged 2026-07-21: Hays Asia Salary Guide 2026 (HK) + PERSOLKELLY Salary Guide 2025 (HK) + Adecco Hong Kong Salary Guide 2026. Weighted average where sources overlap: 60% most conservative / 25% middle / 15% highest (by band midpoint). Monthly BASE HKD.",
     "basis": "monthly BASE salary in HKD (annual base / 12). NOT total comp (total is ~1.3-3x base at senior levels).",
     "converted_from": "annual HK$'000 tables, rounded to nearest HK$500",
     "seniority_mapping": "Analyst/Officer->junior; Associate/AVP/Assistant Manager->mid; VP/SVP/Senior Manager->senior; Director/MD/Head/CxO->lead",
-    "usage_note": "Default to the modest tier (commercial/retail/middle/back office) when the desk is unclear. Only use front_office bands when the title clearly names an IB/PE/HF/AM/trading/private-banking-RM desk. A salary disclosed in the description always overrides these anchors."
+    "usage_note": "Default to the modest tier (commercial/retail/middle/back office) when the desk is unclear. Only use front_office bands when the title clearly names an IB/PE/HF/AM/trading/private-banking-RM desk. A salary disclosed in the description always overrides these anchors.",
+    "global_max_monthly_hkd": 200000,
+    "global_max_note": "2026-07-21: every ladder/table upper bound is hard-capped at HK$200,000/month (annual comp caps and open-ended '+' bands removed). The estimator was running ~30% too high in production; this is a deliberate, conservative recalibration.",
+    "merge_script": "scripts/build_merged_salary_anchors.py (rerun after editing source JSONs)",
+    "grade_ladder_note": "Banking roles use Analyst/Associate/VP/Director/MD rows (PERSOLKELLY year bands: 0-3/3-7/7-10/10+/15+). Insurance roles use Officer-Senior Analyst / AsstMgr-Manager / SrMgr-SrDirector / Head. Roles only covered by one source carry that source's own row labels."
   },
   "tier_order_low_to_high": [
     "back_office_operations",
@@ -18,128 +22,128 @@
   "ladders_monthly_hkd": {
     "front_office": {
       "junior": [
-        33500,
-        71000
-      ],
-      "mid": [
-        62500,
-        116500
-      ],
-      "senior": [
-        100000,
+        23500,
         166500
       ],
+      "mid": [
+        32000,
+        166500
+      ],
+      "senior": [
+        41500,
+        200000
+      ],
       "lead": [
-        166500,
-        333500
+        80000,
+        200000
       ]
     },
     "commercial_corporate_banking": {
       "junior": [
-        20000,
-        35000
+        19000,
+        40000
       ],
       "mid": [
-        30000,
+        25000,
         60000
       ],
       "senior": [
-        50000,
-        100000
+        30000,
+        152500
       ],
       "lead": [
-        100000,
-        166500
+        33500,
+        200000
       ]
     },
     "retail_banking": {
       "junior": [
         16000,
-        35000
+        60000
       ],
       "mid": [
         30000,
-        55000
+        100000
       ],
       "senior": [
-        55000,
-        90000
+        30000,
+        100000
       ],
       "lead": [
-        90000,
-        133500
+        40000,
+        200000
       ]
     },
     "middle_office": {
       "junior": [
-        18000,
-        40000
+        19000,
+        150000
       ],
       "mid": [
-        30000,
-        60000
+        26000,
+        200000
       ],
       "senior": [
-        60000,
-        100000
+        30000,
+        200000
       ],
       "lead": [
-        100000,
-        158500
+        45000,
+        200000
       ]
     },
     "back_office_operations": {
       "junior": [
-        15000,
-        30000
+        12500,
+        40000
       ],
       "mid": [
-        25000,
-        50000
+        18000,
+        62500
       ],
       "senior": [
-        50000,
-        83500
+        25000,
+        150000
       ],
       "lead": [
-        83500,
-        133500
+        40000,
+        200000
       ]
     },
     "corporate_finance_accounting": {
       "junior": [
-        20000,
-        45000
+        15000,
+        65000
       ],
       "mid": [
-        35000,
-        75000
+        16000,
+        90000
       ],
       "senior": [
-        70000,
-        125000
+        16000,
+        133500
       ],
       "lead": [
-        100000,
+        20000,
         200000
       ]
     },
     "insurance": {
       "junior": [
-        16500,
-        40000
+        15000,
+        50000
       ],
       "mid": [
-        35000,
-        70000
+        25000,
+        100000
       ],
       "senior": [
-        70000,
-        116500
+        50000,
+        183500
       ],
       "lead": [
-        116500,
-        208500
+        73500,
+        200000
       ]
     }
   },
@@ -147,6 +151,68 @@
     "front_office": {
       "_desc": "IB/M&A, PE, hedge funds, asset management, global markets/trading, private banking RMs. Highest pay. Apply ONLY when the title clearly names one of these desks.",
       "roles": {
+        "equity_research": {
+          "Analyst": [
+            33500,
+            56000
+          ],
+          "Associate": [
+            54000,
+            73000
+          ],
+          "VP": [
+            73000,
+            125000
+          ],
+          "Director": [
+            119000,
+            169000
+          ],
+          "MD": [
+            157500,
+            176500
+          ]
+        },
+        "global_markets_trading": {
+          "Analyst": [
+            35500,
+            57000
+          ],
+          "Associate": [
+            57500,
+            105000
+          ],
+          "VP": [
+            105000,
+            163500
+          ],
+          "Director": [
+            110000,
+            178000
+          ],
+          "MD": [
+            174000,
+            200000
+          ]
+        },
+        "financial_markets_sales": {
+          "Associate": [
+            30000,
+            66500
+          ],
+          "VP": [
+            66500,
+            100000
+          ],
+          "Director": [
+            100000,
+            200000
+          ],
+          "MD": [
+            166500,
+            200000
+          ]
+        },
         "corporate_finance_ma_ecm_dcm": {
           "Analyst": [
             41500,
@@ -162,11 +228,11 @@
           ],
           "Director": [
             166500,
-            250000
+            200000
           ],
           "MD": [
-            250000,
-            null
+            200000,
+            200000
           ]
         },
         "private_equity": {
@@ -188,7 +254,7 @@
           ],
           "MD": [
             166500,
-            null
+            200000
           ]
         },
         "hedge_fund_investment": {
@@ -210,137 +276,113 @@
           ],
           "Fund Manager": [
             125000,
-            null
+            200000
           ]
         },
         "asset_management_research": {
-          "Research Analyst": [
-            30000,
-            50000
+          "Analyst": [
+            23500,
+            41000
           ],
-          "Senior Research Analyst": [
-            50000,
-            116500
+          "Associate": [
+            32000,
+            53500
           ],
-          "Head of Research": [
-            116500,
-            null
+          "VP": [
+            59000,
+            87000
+          ],
+          "Director": [
+            87000,
+            129500
+          ],
+          "MD": [
+            105000,
+            147000
           ]
         },
-        "asset_management_fund": {
-          "Assistant Fund Manager": [
-            55000,
-            83500
+        "asset_management_portfolio": {
+          "Analyst": [
+            48500,
+            65500
           ],
-          "Fund Manager": [
-            83500,
-            116500
+          "Associate": [
+            65500,
+            93000
           ],
-          "Senior Fund Manager": [
-            166500,
-            250000
+          "VP": [
+            108000,
+            141000
           ],
-          "Head of Investment / CIO": [
-            250000,
-            null
+          "Director": [
+            131500,
+            164500
+          ],
+          "MD": [
+            164500,
+            191000
           ]
         },
         "asset_management_sales": {
-          "Sales Support / Assistant": [
-            37500,
-            62500
-          ],
-          "Sales": [
-            66500,
-            125000
-          ],
-          "Senior Sales": [
-            125000,
-            208500
-          ],
-          "Head of Sales": [
-            208500,
-            null
-          ]
-        },
-        "global_markets_trading": {
-          "Junior Trader": [
-            35000,
-            55000
-          ],
-          "Trader": [
-            56500,
-            100000
-          ],
-          "Senior Trader": [
-            100000,
-            158500
-          ],
-          "Desk Head": [
-            166500,
-            null
-          ]
-        },
-        "financial_markets_sales": {
-          "Associate": [
-            30000,
-            66500
-          ],
-          "VP": [
-            66500,
-            100000
-          ],
-          "Director": [
-            100000,
-            200000
-          ],
-          "MD": [
-            166500,
-            null
-          ]
-        },
-        "research_strategy_ficc_equity": {
           "Analyst": [
-            30000,
-            50000
+            31500,
+            48000
           ],
           "Associate": [
-            55000,
-            70000
+            49000,
+            89500
           ],
           "VP": [
-            80000,
-            125000
+            89500,
+            141000
           ],
           "Director": [
-            125000,
-            175000
+            119000,
+            164500
           ],
           "MD": [
-            175000,
-            null
+            164500,
+            191000
           ]
         },
         "private_banking_rm": {
-          "Assistant RM": [
-            37500,
-            100000
+          "Analyst": [
+            40500,
+            72000
           ],
-          "Private Banking RM": [
+          "Associate": [
+            70500,
+            95500
+          ],
+          "VP": [
+            69500,
+            147000
+          ],
+          "Director": [
+            129500,
+            164500
+          ],
+          "MD": [
+            164500,
+            188000
+          ]
+        },
+        "assistant_private_banker": {
+          "Analyst": [
+            28000,
+            42000
+          ],
+          "Associate": [
+            41500,
+            75000
+          ],
+          "VP": [
+            41500,
+            75000
+          ],
+          "Director": [
             80000,
-            125000
-          ],
-          "Senior Private Banking RM": [
-            125000,
-            208500
-          ],
-          "Team Head": [
-            200000,
-            250000
-          ],
-          "Head of Department": [
-            250000,
-            null
+            100000
           ]
         },
         "investment_counsellor": {
@@ -350,7 +392,51 @@
           ],
           "Senior Investment Counsellor / Advisor": [
             150000,
-            233500
+            200000
+          ]
+        },
+        "digital_assets_sales": {
+          "Analyst": [
+            40000,
+            50000
+          ],
+          "Associate": [
+            62500,
+            79000
+          ],
+          "VP": [
+            83500,
+            125000
+          ],
+          "Director": [
+            141500,
+            166500
+          ],
+          "MD": [
+            183500,
+            200000
+          ]
+        },
+        "digital_assets_quant_trading": {
+          "Analyst": [
+            66500,
+            78000
+          ],
+          "Associate": [
+            83500,
+            125000
+          ],
+          "VP": [
+            166500,
+            200000
+          ],
+          "Director": [
+            160000,
+            200000
+          ],
+          "MD": [
+            160000,
+            200000
           ]
         }
       }
@@ -359,25 +445,25 @@
       "_desc": "Corporate / commercial / SME / FI relationship managers, transaction banking, wealth management. Mid pay.",
       "roles": {
         "corporate_banking_rm": {
-          "Assistant RM": [
-            21000,
-            33500
+          "Analyst": [
+            21500,
+            37000
           ],
-          "RM": [
-            31500,
-            50000
+          "Associate": [
+            33500,
+            56000
           ],
-          "Senior RM": [
-            70000,
-            100000
+          "VP": [
+            67000,
+            107500
           ],
-          "Team Head": [
-            75000,
-            140000
+          "Director": [
+            82500,
+            152500
           ],
-          "Department Head": [
+          "MD": [
             150000,
-            null
+            176500
           ]
         },
         "commercial_banking_rm": {
@@ -399,7 +485,7 @@
           ],
           "Department Head": [
             133500,
-            null
+            200000
           ]
         },
         "sme_banking_rm": {
@@ -421,7 +507,7 @@
           ],
           "Department Head": [
             100000,
-            null
+            200000
           ]
         },
         "fi_banking_rm": {
@@ -443,7 +529,7 @@
           ],
           "Department Head": [
             133500,
-            null
+            200000
           ]
         },
         "transaction_banking_rm": {
@@ -465,7 +551,7 @@
           ],
           "Department Head": [
             133500,
-            null
+            200000
           ]
         },
         "wealth_management": {
@@ -502,7 +588,7 @@
           ],
           "Regional / District Manager": [
             100000,
-            null
+            200000
           ]
         },
         "branch_operation": {
@@ -516,7 +602,7 @@
           ],
           "Operations Manager": [
             40000,
-            null
+            200000
           ]
         },
         "relationship_management": {
@@ -576,7 +662,7 @@
       }
     },
     "middle_office": {
-      "_desc": "Risk (credit/market/ops/enterprise), compliance, internal audit, product control, project/change mgmt. Below front office at the same title.",
+      "_desc": "Risk (credit/market/ops/enterprise), compliance, internal audit, product control, project/change mgmt. Below front office at the same title. Includes legal, company secretarial, IT leadership/governance and cybersecurity at financial firms.",
       "roles": {
         "risk_credit": {
           "Analyst": [
@@ -597,7 +683,7 @@
           ],
           "Director": [
             100000,
-            null
+            200000
           ],
           "Head of Department": [
             100000,
@@ -623,37 +709,33 @@
           ],
           "Director": [
             90000,
-            null
+            200000
           ],
           "Head of Department": [
             120000,
-            null
+            200000
           ]
         },
-        "risk_ops_enterprise": {
+        "risk_management_general": {
           "Analyst": [
             20000,
-            28000
+            31500
           ],
           "Associate": [
-            28000,
-            45000
-          ],
-          "AVP": [
-            45000,
-            60000
+            31500,
+            49500
           ],
           "VP": [
-            60000,
-            80000
+            49500,
+            67000
           ],
           "Director": [
-            80000,
-            120000
+            81000,
+            121500
           ],
-          "Head of Department": [
-            120000,
-            null
+          "MD": [
+            123500,
+            169000
           ]
         },
         "risk_climate_modeling_validation": {
@@ -676,58 +758,90 @@
         },
         "compliance_banking": {
           "Analyst": [
-            18000,
-            30000
+            21500,
+            35500
+          ],
+          "Associate": [
+            34500,
+            54000
+          ],
+          "VP": [
+            54000,
+            83500
+          ],
+          "Director": [
+            112000,
+            176500
+          ],
+          "MD": [
+            155000,
+            200000
+          ]
+        },
+        "fcc_aml": {
+          "Analyst": [
+            20000,
+            31500
+          ],
+          "Associate": [
+            31500,
+            54000
+          ],
+          "VP": [
+            54000,
+            91500
+          ],
+          "Director": [
+            91500,
+            112500
+          ],
+          "MD": [
+            108500,
+            135500
+          ]
+        },
+        "kyc_cdd_client_onboarding": {
+          "Analyst": [
+            19000,
+            29000
           ],
           "Associate": [
             28000,
-            45000
-          ],
-          "AVP": [
-            45000,
-            70000
+            48500
           ],
           "VP": [
-            70000,
-            100000
+            48000,
+            79000
           ],
           "Director": [
-            100000,
-            null
+            64500,
+            110500
           ],
-          "Chief Compliance Officer": [
-            150000,
-            null
+          "MD": [
+            133500,
+            162500
           ]
         },
         "audit_banking": {
-          "Auditor": [
-            29000,
-            37500
+          "Analyst": [
+            20000,
+            29500
           ],
-          "Senior Auditor (AVP)": [
-            37500,
-            54000
+          "Associate": [
+            33500,
+            48500
           ],
-          "Assistant Manager": [
-            54000,
-            71000
+          "VP": [
+            54500,
+            77500
           ],
-          "Audit Manager (VP)": [
-            71000,
-            91500
+          "Director": [
+            90000,
+            117500
           ],
-          "Senior Audit Manager (SVP)": [
-            91500,
-            108500
-          ],
-          "Head of Audit / Director": [
-            108500,
-            133500
-          ],
-          "CIA": [
-            158500,
-            null
+          "MD": [
+            152500,
+            191000
           ]
         },
         "trade_support": {
@@ -749,7 +863,7 @@
           ],
           "Director": [
             100000,
-            null
+            200000
           ]
         },
         "product_management": {
@@ -763,21 +877,29 @@
           ],
           "Manager": [
             50000,
-            null
+            200000
           ]
         },
         "change_project_management": {
-          "Business Analyst": [
-            21000,
-            66500
+          "Analyst": [
+            21500,
+            46500
           ],
-          "Project Manager": [
-            29000,
-            83500
+          "Associate": [
+            26000,
+            66000
           ],
-          "Head of Project Management": [
-            83500,
-            null
+          "VP": [
+            39500,
+            95500
+          ],
+          "Director": [
+            89500,
+            147000
+          ],
+          "MD": [
+            108000,
+            200000
           ]
         },
         "performance_investment_risk": {
@@ -791,78 +913,284 @@
           ],
           "Head": [
             100000,
-            null
+            200000
+          ]
+        },
+        "forensic_accounting": {
+          "Analyst": [
+            20000,
+            37500
+          ],
+          "Associate": [
+            37500,
+            83500
+          ],
+          "VP": [
+            83500,
+            100000
+          ],
+          "Director": [
+            100000,
+            125000
+          ],
+          "MD": [
+            125000,
+            156000
+          ]
+        },
+        "legal_counsel": {
+          "Analyst": [
+            48500,
+            60500
+          ],
+          "Associate": [
+            62000,
+            76500
+          ],
+          "VP": [
+            80000,
+            112000
+          ],
+          "Director": [
+            114500,
+            141000
+          ],
+          "MD": [
+            150000,
+            187500
+          ]
+        },
+        "company_secretarial": {
+          "cosec_assistant_officer": [
+            25000,
+            35000
+          ],
+          "senior_cosec_officer_assistant_manager": [
+            35000,
+            45000
+          ],
+          "cosec_manager_listed": [
+            50000,
+            70000
+          ],
+          "senior_cosec_manager_deputy": [
+            60000,
+            90000
+          ],
+          "named_company_secretary_head": [
+            85000,
+            130000
+          ]
+        },
+        "compliance_corporate_inhouse": {
+          "senior_compliance_officer": [
+            25000,
+            45000
+          ],
+          "assistant_compliance_manager": [
+            50000,
+            80000
+          ],
+          "head_of_compliance": [
+            100000,
+            150000
+          ]
+        },
+        "it_executive_leadership": {
+          "head_of_it_governance": [
+            100000,
+            150000
+          ],
+          "head_of_technology_transformation": [
+            100000,
+            200000
+          ],
+          "it_director_vp": [
+            85000,
+            200000
+          ],
+          "ciso_head_of_cybersecurity": [
+            100000,
+            200000
+          ],
+          "cto": [
+            150000,
+            200000
+          ],
+          "cio": [
+            160000,
+            200000
+          ]
+        },
+        "it_management": {
+          "application_support_manager": [
+            45000,
+            70000
+          ],
+          "project_manager": [
+            45000,
+            75000
+          ],
+          "business_analyst_manager": [
+            50000,
+            75000
+          ],
+          "service_delivery_manager": [
+            50000,
+            75000
+          ],
+          "infrastructure_manager": [
+            55000,
+            90000
+          ],
+          "pmo": [
+            55000,
+            90000
+          ],
+          "test_lead": [
+            65000,
+            80000
+          ],
+          "it_operations_manager": [
+            60000,
+            80000
+          ],
+          "development_manager": [
+            70000,
+            95000
+          ],
+          "program_manager": [
+            75000,
+            110000
+          ]
+        },
+        "it_governance_risk_compliance": {
+          "it_compliance_manager": [
+            50000,
+            70000
+          ],
+          "it_risk_manager": [
+            50000,
+            80000
+          ],
+          "it_audit_security": [
+            65000,
+            80000
+          ],
+          "it_governance_manager": [
+            80000,
+            100000
+          ],
+          "compliance_officer_it": [
+            45000,
+            70000
+          ]
+        },
+        "cybersecurity": {
+          "cybersecurity_analyst": [
+            40000,
+            70000
+          ],
+          "security_engineer": [
+            35000,
+            65000
+          ],
+          "cybersecurity_specialist": [
+            50000,
+            90000
           ]
         }
       }
     },
     "back_office_operations": {
-      "_desc": "Treasury / trade / payment / fund / securities operations, KYC / documentation / onboarding, loan admin, settlements. Lowest of the professional bands. Most operational bands share this ladder.",
+      "_desc": "Treasury / trade / payment / fund / securities operations, KYC / documentation / onboarding, loan admin, settlements. Lowest of the professional bands. Most operational bands share this ladder. Also HR, admin/secretarial, customer service, marketing and hands-on IT/engineering at financial firms.",
       "roles": {
         "operations_general": {
-          "Officer / Analyst": [
-            16500,
-            25000
+          "Analyst": [
+            14500,
+            18500
           ],
           "Associate": [
-            25000,
-            37500
-          ],
-          "AVP": [
-            37500,
-            60000
+            19500,
+            31000
           ],
           "VP": [
-            60000,
-            83500
+            31000,
+            47500
           ],
           "Director": [
-            83500,
-            null
+            49500,
+            67000
+          ],
+          "MD": [
+            77500,
+            117500
           ]
         },
         "payment_operation": {
-          "Officer": [
-            16500,
-            25000
+          "Analyst": [
+            15500,
+            20500
           ],
           "Associate": [
-            25000,
-            33500
-          ],
-          "AVP": [
-            33500,
-            50000
+            20500,
+            33000
           ],
           "VP": [
-            50000,
-            66500
+            33500,
+            52000
           ],
           "Director": [
-            66500,
-            null
+            52000,
+            70500
+          ],
+          "MD": [
+            72500,
+            117500
           ]
         },
-        "fund_investment_operations": {
-          "Administrator": [
-            21000,
-            29000
+        "fund_operations": {
+          "Analyst": [
+            19000,
+            23000
           ],
-          "Senior Administrator": [
-            31500,
-            65000
+          "Associate": [
+            24000,
+            37000
           ],
-          "Manager": [
-            50000,
-            100000
-          ],
-          "AVP": [
-            66500,
-            116500
+          "VP": [
+            32500,
+            59000
           ],
           "Director": [
+            49000,
+            78500
+          ],
+          "MD": [
+            68500,
+            114000
+          ]
+        },
+        "fund_accounting": {
+          "Analyst": [
+            21000,
+            35000
+          ],
+          "Associate": [
+            35000,
+            45000
+          ],
+          "VP": [
+            45000,
+            60000
+          ],
+          "Director": [
+            60000,
+            83500
+          ],
+          "MD": [
             83500,
-            null
+            200000
           ]
         },
         "collateral_management": {
@@ -884,7 +1212,391 @@
           ],
           "Director": [
             75000,
-            null
+            200000
+          ]
+        },
+        "loans_operation": {
+          "Analyst": [
+            15000,
+            21000
+          ],
+          "Associate": [
+            23500,
+            39000
+          ],
+          "VP": [
+            39000,
+            57500
+          ],
+          "Director": [
+            57500,
+            80000
+          ],
+          "MD": [
+            80000,
+            83500
+          ]
+        },
+        "trade_services": {
+          "Analyst": [
+            15000,
+            22500
+          ],
+          "Associate": [
+            22500,
+            39000
+          ],
+          "VP": [
+            39000,
+            57500
+          ],
+          "Director": [
+            57500,
+            83500
+          ],
+          "MD": [
+            83500,
+            100000
+          ]
+        },
+        "documentation_operations": {
+          "Analyst": [
+            18000,
+            30000
+          ],
+          "Associate": [
+            28000,
+            50000
+          ],
+          "VP": [
+            41500,
+            91500
+          ],
+          "Director": [
+            54000,
+            125000
+          ],
+          "MD": [
+            150000,
+            183500
+          ]
+        },
+        "client_services_am": {
+          "Analyst": [
+            21000,
+            37500
+          ],
+          "Associate": [
+            37500,
+            62500
+          ],
+          "VP": [
+            62500,
+            83500
+          ],
+          "Director": [
+            83500,
+            116500
+          ],
+          "MD": [
+            116500,
+            146000
+          ]
+        },
+        "rfp_proposals": {
+          "Analyst": [
+            16500,
+            29000
+          ],
+          "Associate": [
+            29000,
+            41500
+          ],
+          "VP": [
+            41500,
+            62500
+          ],
+          "Director": [
+            62500,
+            83500
+          ],
+          "MD": [
+            83500,
+            104000
+          ]
+        },
+        "human_resources": {
+          "hr_assistant": [
+            18000,
+            22000
+          ],
+          "hr_officer": [
+            23000,
+            27000
+          ],
+          "senior_hr_officer_specialist": [
+            30000,
+            35000
+          ],
+          "hris_specialist": [
+            30000,
+            38000
+          ],
+          "assistant_hr_manager": [
+            35000,
+            45000
+          ],
+          "hr_business_partner": [
+            40000,
+            50000
+          ],
+          "hr_manager": [
+            45000,
+            60000
+          ],
+          "hr_director": [
+            70000,
+            90000
+          ],
+          "regional_hr_director": [
+            90000,
+            130000
+          ]
+        },
+        "secretarial_admin": {
+          "office_assistant_clerk": [
+            16000,
+            18000
+          ],
+          "receptionist": [
+            18000,
+            25000
+          ],
+          "admin_assistant_officer": [
+            18000,
+            26000
+          ],
+          "admin_office_manager": [
+            40000,
+            55000
+          ],
+          "director_of_administration": [
+            65000,
+            85000
+          ],
+          "team_secretary_assistant": [
+            22000,
+            25000
+          ],
+          "junior_secretary": [
+            25000,
+            30000
+          ],
+          "executive_assistant": [
+            30000,
+            48000
+          ],
+          "personal_assistant": [
+            33000,
+            50000
+          ],
+          "senior_pa_ea": [
+            60000,
+            80000
+          ]
+        },
+        "customer_service": {
+          "cs_assistant": [
+            15000,
+            18000
+          ],
+          "cs_executive": [
+            18000,
+            23000
+          ],
+          "senior_cs_specialist": [
+            23000,
+            28000
+          ],
+          "cs_supervisor": [
+            28000,
+            35000
+          ],
+          "cs_manager": [
+            40000,
+            60000
+          ]
+        },
+        "marketing_communications": {
+          "marketing_assistant": [
+            15000,
+            20000
+          ],
+          "marketing_executive": [
+            20000,
+            30000
+          ],
+          "senior_marketing_executive": [
+            25000,
+            32000
+          ],
+          "assistant_marketing_manager": [
+            35000,
+            42000
+          ],
+          "product_marketing_manager": [
+            35000,
+            45000
+          ],
+          "brand_marketing_manager": [
+            40000,
+            55000
+          ],
+          "digital_crm_manager": [
+            40000,
+            60000
+          ],
+          "content_marketing_manager": [
+            40000,
+            55000
+          ],
+          "marketing_manager": [
+            45000,
+            60000
+          ],
+          "senior_marketing_manager": [
+            55000,
+            70000
+          ],
+          "head_of_marketing": [
+            65000,
+            120000
+          ],
+          "marketing_director_cmo": [
+            75000,
+            150000
+          ],
+          "pr_assistant": [
+            18000,
+            22000
+          ],
+          "pr_officer_representative": [
+            18000,
+            22000
+          ],
+          "senior_pr_executive": [
+            25000,
+            35000
+          ],
+          "pr_communication_manager": [
+            40000,
+            60000
+          ],
+          "corporate_communication_manager": [
+            45000,
+            60000
+          ]
+        },
+        "ecommerce_digital": {
+          "ecommerce_operation_specialist": [
+            20000,
+            35000
+          ],
+          "ux_ui_designer": [
+            28000,
+            42000
+          ],
+          "data_analytics_specialist": [
+            28000,
+            42000
+          ],
+          "ecommerce_digital_marketing_manager": [
+            50000,
+            65000
+          ],
+          "ecommerce_sales_partnership_manager": [
+            50000,
+            80000
+          ],
+          "ecommerce_director": [
+            80000,
+            110000
+          ]
+        },
+        "software_data_engineering": {
+          "programmer": [
+            25000,
+            30000
+          ],
+          "developer_backend_frontend": [
+            27000,
+            55000
+          ],
+          "full_stack_developer": [
+            35000,
+            55000
+          ],
+          "data_analyst": [
+            30000,
+            55000
+          ],
+          "data_engineer": [
+            35000,
+            70000
+          ],
+          "data_scientist": [
+            50000,
+            90000
+          ],
+          "devops_engineer": [
+            40000,
+            85000
+          ],
+          "cloud_engineer": [
+            55000,
+            90000
+          ],
+          "solutions_architect": [
+            70000,
+            95000
+          ],
+          "cloud_architect": [
+            75000,
+            150000
+          ],
+          "ai_architect": [
+            75000,
+            100000
+          ]
+        },
+        "it_infrastructure_support": {
+          "helpdesk_support": [
+            25000,
+            40000
+          ],
+          "it_support_specialist": [
+            35000,
+            50000
+          ],
+          "systems_engineer": [
+            35000,
+            60000
+          ],
+          "network_engineer": [
+            45000,
+            65000
+          ],
+          "it_business_analyst": [
+            35000,
+            60000
+          ],
+          "qa_tester": [
+            30000,
+            45000
+          ],
+          "qa_specialist": [
+            40000,
+            70000
           ]
         }
       }
@@ -892,70 +1604,114 @@
     "corporate_finance_accounting": {
       "_desc": "In-house FP&A, controllers, finance managers, tax, treasury, accounting support (commerce & industry + banking-industry finance). Use the modest ladder.",
       "roles": {
-        "in_house_finance_ci": {
-          "Financial Analyst": [
-            28000,
-            45000
+        "banking_industry_finance": {
+          "Analyst": [
+            21000,
+            37000
           ],
-          "Senior Accountant": [
-            23000,
-            45000
+          "Associate": [
+            36000,
+            57500
           ],
-          "FP&A Manager": [
-            40000,
-            75000
+          "VP": [
+            56000,
+            79000
           ],
-          "Senior Finance Manager": [
-            40000,
-            65000
+          "Director": [
+            77500,
+            109000
           ],
-          "Financial Controller": [
-            55000,
-            90000
-          ],
-          "FP&A Director": [
-            70000,
-            125000
-          ],
-          "Finance Director / CFO": [
-            66500,
-            200000
+          "MD": [
+            114500,
+            190000
           ]
         },
-        "banking_industry_finance": {
-          "Assistant Finance Manager": [
-            30000,
+        "regulatory_reporting": {
+          "Analyst": [
+            18000,
+            35000
+          ],
+          "Associate": [
+            35000,
             45000
           ],
-          "Finance Manager": [
+          "VP": [
             45000,
-            75000
+            60000
           ],
-          "Senior Finance Manager": [
-            70000,
+          "Director": [
+            71500,
             100000
           ],
-          "Financial Controller": [
-            83500,
-            150000
-          ],
-          "Finance Director / CFO": [
+          "MD": [
             100000,
-            291500
+            150000
+          ]
+        },
+        "management_reporting": {
+          "Analyst": [
+            20000,
+            30000
+          ],
+          "Associate": [
+            30000,
+            50000
+          ],
+          "VP": [
+            50000,
+            83500
+          ],
+          "Director": [
+            91500,
+            133500
+          ],
+          "MD": [
+            133500,
+            166500
+          ]
+        },
+        "treasury": {
+          "Analyst": [
+            17000,
+            39000
+          ],
+          "Associate": [
+            31500,
+            60000
+          ],
+          "VP": [
+            60000,
+            90500
+          ],
+          "Director": [
+            81000,
+            105000
+          ],
+          "MD": [
+            83500,
+            160500
           ]
         },
         "product_control": {
-          "Product Controller": [
-            41500,
-            83500
+          "Analyst": [
+            27500,
+            49500
           ],
-          "Senior Product Controller": [
-            70000,
-            100000
+          "Associate": [
+            37000,
+            60000
           ],
-          "Dept Head Product Control": [
-            83500,
-            125000
+          "VP": [
+            56000,
+            86000
+          ],
+          "Director": [
+            81000,
+            101500
+          ],
+          "MD": [
+            93500,
+            131000
           ]
         },
         "tax": {
@@ -969,25 +1725,7 @@
           ],
           "Tax Director / Head": [
             65000,
-            250000
-          ]
-        },
-        "treasury": {
-          "Treasury Accountant": [
-            15000,
-            60000
-          ],
-          "Treasury Manager": [
-            35000,
-            83500
-          ],
-          "Senior Treasury Manager": [
-            83500,
-            116500
-          ],
-          "Head of Treasury": [
-            70000,
-            166500
+            200000
           ]
         },
         "shared_service_centre": {
@@ -1045,7 +1783,73 @@
           ],
           "Director / Partner": [
             100000,
-            null
+            200000
+          ]
+        },
+        "corporate_accounting_finance": {
+          "Accounts Clerk": [
+            18500,
+            23500
+          ],
+          "Assistant Accountant": [
+            24000,
+            32500
+          ],
+          "Accountant / Financial Analyst": [
+            30000,
+            46000
+          ],
+          "Finance Manager": [
+            42500,
+            60000
+          ],
+          "Senior Finance Manager / Controller": [
+            59000,
+            85500
+          ],
+          "Finance Director": [
+            85000,
+            139000
+          ],
+          "CFO": [
+            89000,
+            200000
+          ]
+        },
+        "audit_internal_control_corporate": {
+          "Internal Auditor": [
+            30000,
+            39000
+          ],
+          "Audit Manager": [
+            51500,
+            70500
+          ],
+          "Head of Audit": [
+            86000,
+            138500
+          ]
+        },
+        "fpa_corporate": {
+          "analyst_data": [
+            21500,
+            25000
+          ],
+          "analyst": [
+            26500,
+            35000
+          ],
+          "senior_analyst": [
+            38000,
+            40000
+          ],
+          "manager": [
+            50000,
+            60000
+          ],
+          "head_of_planning_analysis": [
+            70000,
+            83500
           ]
         }
       }
@@ -1054,33 +1858,21 @@
       "_desc": "Actuarial, underwriting, claims, distribution/agency, plus insurance risk/compliance/audit/accounting. Use middle-office-equivalent bands; agency/distribution are often commission-based.",
       "roles": {
         "actuarial": {
-          "Officer / Senior Officer": [
+          "Officer / Senior Analyst": [
             20000,
-            35000
+            37500
           ],
-          "Associate / Senior Associate": [
-            30000,
-            50000
+          "Assistant Manager / Manager": [
+            40500,
+            63000
           ],
-          "Assistant Manager": [
-            40000,
-            60000
+          "Senior Manager / Senior Director": [
+            73000,
+            109000
           ],
-          "Manager": [
-            50000,
-            90000
-          ],
-          "Senior Manager": [
-            80000,
-            116500
-          ],
-          "Department Head": [
-            116500,
-            180000
-          ],
-          "Chief Actuary": [
-            125000,
-            250000
+          "Head": [
+            119000,
+            164500
           ]
         },
         "actuarial_pricing": {
@@ -1106,7 +1898,7 @@
           ],
           "Head of Pricing": [
             125000,
-            null
+            200000
           ]
         },
         "investment": {
@@ -1128,207 +1920,277 @@
           ],
           "Head of Investment / CIO": [
             125000,
-            250000
+            200000
           ]
         },
         "underwriting": {
-          "Assistant Manager": [
-            28500,
-            41000
+          "Officer / Senior Analyst": [
+            23500,
+            37000
           ],
-          "Manager": [
-            46000,
-            56000
+          "Assistant Manager / Manager": [
+            38000,
+            52000
           ],
-          "Senior Manager": [
-            60000,
+          "Senior Manager / Senior Director": [
+            53000,
             70000
           ],
-          "Head of Business Line": [
-            75000,
-            141500
+          "Head": [
+            73500,
+            144000
           ]
         },
         "claims": {
-          "Assistant Manager": [
-            31500,
-            41500
+          "Officer / Senior Analyst": [
+            22000,
+            37000
           ],
-          "Manager": [
-            47500,
-            60000
+          "Assistant Manager / Manager": [
+            38500,
+            53000
           ],
-          "Senior Manager": [
-            60000,
-            68500
+          "Senior Manager / Senior Director": [
+            66000,
+            82500
           ],
-          "Head of Business Line": [
-            66500,
-            75000
-          ],
-          "Head of Claims": [
-            75000,
+          "Head": [
+            82500,
             116500
           ]
         },
-        "agency": {
-          "Agency Officer": [
-            15000,
-            28500
+        "agency_distribution": {
+          "Officer / Senior Analyst": [
+            16500,
+            30500
           ],
-          "Assistant Manager": [
-            28500,
-            40000
+          "Assistant Manager / Manager": [
+            30500,
+            43000
           ],
-          "Manager": [
-            41500,
-            60000
-          ],
-          "Senior Manager": [
-            58500,
+          "Senior Manager / Senior Director": [
+            59000,
             80000
           ],
-          "Agency Director": [
-            83500,
-            133500
+          "Head": [
+            81000,
+            127500
           ]
         },
-        "distribution_bancassurance": {
-          "Bancassurance Officer": [
-            18000,
-            30000
+        "bancassurance_distribution": {
+          "Officer / Senior Analyst": [
+            19500,
+            32000
           ],
-          "Assistant Manager": [
-            30000,
-            40000
-          ],
-          "Manager": [
-            41500,
+          "Assistant Manager / Manager": [
+            40500,
             66500
           ],
-          "Senior Manager": [
-            60000,
-            85000
+          "Senior Manager / Senior Director": [
+            63000,
+            89500
           ],
-          "Department Head": [
-            100000,
-            166500
-          ],
-          "Chief Agency / Distribution Officer": [
-            108500,
-            208500
+          "Head": [
+            102500,
+            176500
           ]
         },
-        "risk_insurance": {
-          "Executive / Senior Executive": [
-            25000,
+        "brokerage_distribution": {
+          "Officer / Senior Analyst": [
+            20000,
             35000
           ],
-          "Assistant Manager": [
-            40000,
-            50000
-          ],
-          "Manager": [
-            60000,
-            70000
-          ],
-          "Senior Manager": [
-            70000,
-            90000
-          ],
-          "Director": [
-            100000,
-            150000
-          ],
-          "Chief Risk Officer": [
-            183500,
-            250000
-          ]
-        },
-        "compliance_insurance": {
-          "Officer / Senior Officer": [
-            25000,
-            40000
-          ],
-          "Assistant Manager": [
+          "Assistant Manager / Manager": [
             35000,
             50000
           ],
-          "Manager": [
+          "Senior Manager / Senior Director": [
+            60000,
+            80000
+          ],
+          "Head": [
+            80000,
+            125000
+          ]
+        },
+        "distribution_training": {
+          "Officer / Senior Analyst": [
+            21000,
+            36500
+          ],
+          "Assistant Manager / Manager": [
+            37500,
+            50000
+          ],
+          "Senior Manager / Senior Director": [
+            58500,
+            80000
+          ],
+          "Head": [
+            80000,
+            100000
+          ]
+        },
+        "insurance_marketing": {
+          "Officer / Senior Analyst": [
+            20000,
+            35000
+          ],
+          "Assistant Manager / Manager": [
+            33500,
+            58500
+          ],
+          "Senior Manager / Senior Director": [
             50000,
+            66500
+          ],
+          "Head": [
+            83500,
+            125000
+          ]
+        },
+        "risk_insurance": {
+          "Officer / Senior Analyst": [
+            26500,
+            36000
+          ],
+          "Assistant Manager / Manager": [
+            44000,
             70000
           ],
-          "Senior Manager": [
-            60000,
-            100000
+          "Senior Manager / Senior Director": [
+            70000,
+            98000
           ],
-          "Director": [
-            90000,
-            150000
+          "Head": [
+            136500,
+            200000
+          ]
+        },
+        "compliance_insurance": {
+          "Officer / Senior Analyst": [
+            26000,
+            36500
           ],
-          "Head of Compliance / AVP": [
-            125000,
-            210000
+          "Assistant Manager / Manager": [
+            38000,
+            62000
           ],
-          "Chief Compliance Officer": [
-            183500,
-            233500
+          "Senior Manager / Senior Director": [
+            79500,
+            114500
+          ],
+          "Head": [
+            124500,
+            176500
           ]
         },
         "audit_insurance": {
-          "Auditor / Senior Auditor": [
-            25000,
-            45000
+          "Officer / Senior Analyst": [
+            20500,
+            39000
           ],
-          "Assistant Audit Manager": [
-            40000,
-            50000
-          ],
-          "Audit Manager": [
-            50000,
+          "Assistant Manager / Manager": [
+            51500,
             70000
           ],
-          "Senior Audit Manager": [
-            65000,
-            90000
+          "Senior Manager / Senior Director": [
+            70500,
+            110000
           ],
-          "Audit Director": [
-            100000,
-            133500
-          ],
-          "Head of Audit / AVP": [
-            116500,
-            183500
-          ],
-          "Chief Auditor": [
-            183500,
-            250000
+          "Head": [
+            113000,
+            176500
           ]
         },
         "accounting_insurance": {
-          "Accountant / Executive": [
+          "Officer / Senior Analyst": [
             16500,
-            40000
+            34000
           ],
-          "Assistant Manager": [
-            20000,
-            40000
+          "Assistant Manager / Manager": [
+            37000,
+            70000
           ],
-          "Manager": [
+          "Senior Manager / Senior Director": [
+            72000,
+            119000
+          ],
+          "Head": [
+            132500,
+            176500
+          ]
+        },
+        "legal_insurance": {
+          "Officer / Senior Analyst": [
+            29000,
+            37500
+          ],
+          "Assistant Manager / Manager": [
             40000,
             70000
           ],
-          "Senior Manager": [
+          "Senior Manager / Senior Director": [
+            70000,
+            100000
+          ],
+          "Head": [
+            100000,
+            166500
+          ]
+        },
+        "policy_administration": {
+          "Officer / Senior Analyst": [
+            17500,
+            23500
+          ],
+          "Assistant Manager / Manager": [
+            30000,
+            45000
+          ],
+          "Senior Manager / Senior Director": [
+            55000,
+            80000
+          ],
+          "Head": [
             80000,
-            125000
+            91500
+          ]
+        },
+        "insurance_customer_service": {
+          "Officer / Senior Analyst": [
+            18500,
+            30000
           ],
-          "Financial Controller": [
-            150000,
-            200000
+          "Assistant Manager / Manager": [
+            30000,
+            55000
           ],
-          "Chief Financial Officer": [
-            150000,
-            250000
+          "Senior Manager / Senior Director": [
+            55000,
+            80000
+          ],
+          "Head": [
+            80000,
+            100000
+          ]
+        },
+        "insurance_hr": {
+          "Officer / Senior Analyst": [
+            19000,
+            29000
+          ],
+          "Assistant Manager / Manager": [
+            29000,
+            71000
+          ],
+          "Senior Manager / Senior Director": [
+            62500,
+            108500
+          ],
+          "Head": [
+            108500,
+            131000
           ]
         },
         "strategic_operations": {
@@ -1350,7 +2212,7 @@
           ],
           "COO": [
             150000,
-            208500
+            200000
           ]
         },
         "product_development": {
@@ -1368,7 +2230,7 @@
           ],
           "Director / Head of Products": [
             100000,
-            null
+            200000
           ]
         },
         "pension_operations": {
@@ -1394,6 +2256,41 @@
           ]
         }
       }
+    }
+  },
+  "management_grade_caps_monthly_hkd": {
+    "_desc": "Deterministic title-grade overrides for banks and big insurance companies, applied on top of (and only ever tightening) the tier/role bands above. Enforced in hk_jobs/salary_clamp.py; rendered into the DeepSeek prompt as soft guidance in hk_jobs/enrichers/deepseek.py.",
+    "bank": {
+      "hierarchy_high_to_low": [
+        "managing_director",
+        "executive_director",
+        "director",
+        "associate_director",
+        "vice_president",
+        "assistant_vice_president"
+      ],
+      "caps_monthly_hkd": {
+        "assistant_vice_president": 70000,
+        "vice_president": 80000,
+        "associate_director": 110000,
+        "director": 160000,
+        "executive_director": 200000,
+        "managing_director": 200000
+      },
+      "note": "'Manager' / 'Assistant Manager' titles are treated as the Assistant Vice President grade."
+    },
+    "insurance": {
+      "caps_monthly_hkd": {
+        "senior_manager_or_principal": 80000,
+        "associate_director": 150000,
+        "director": 200000
+      },
+      "reversed_hierarchy_companies": [
+        "fwd",
+        "sun life",
+        "manulife"
+      ],
+      "note": "At FWD, Sun Life, and Manulife specifically the seniority order is reversed at the top: Vice President > Assistant Vice President > Director > Associate Director > Senior Manager > Manager. No tighter figure is specified for VP/AVP at these three, so they fall back to global_max_monthly_hkd (200,000)."
     }
   }
 }
