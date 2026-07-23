@@ -1,4 +1,4 @@
-import { Search, X, SlidersHorizontal, ChevronDown, Flame, Sparkles, Users } from 'lucide-react'
+import { Search, X, SlidersHorizontal, ChevronDown, Flame, Sparkles, Users, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import type { JobFilters, FiltersResponse } from '../api/client'
 import MultiSelect from './MultiSelect'
@@ -295,6 +295,15 @@ function AdvancedFilters({
             <Flame size={12} strokeWidth={2} aria-hidden="true" />Urgently hiring
           </span>
         </PillButton>
+        <PillButton
+          active={filters.verified_only}
+          onClick={() => onUpdate({ verified_only: !filters.verified_only })}
+          palette="green"
+        >
+          <span className="inline-flex items-center gap-1">
+            <ShieldCheck size={12} strokeWidth={2} aria-hidden="true" />Verified job
+          </span>
+        </PillButton>
         <ApplicantsFilter filters={filters} onUpdate={onUpdate} />
       </FilterRow>
 
@@ -361,6 +370,7 @@ function ActiveChips({
       : []),
     ...(filters.is_new ? [{ label: 'New', remove: () => onUpdate({ is_new: false }) }] : []),
     ...(filters.urgently_hiring ? [{ label: 'Urgently hiring', remove: () => onUpdate({ urgently_hiring: false }) }] : []),
+    ...(filters.verified_only ? [{ label: 'Verified job', remove: () => onUpdate({ verified_only: false }) }] : []),
     ...(filters.max_applicants !== null
       ? [{ label: `Under ${filters.max_applicants} applicants`, remove: () => onUpdate({ max_applicants: null }) }]
       : []),

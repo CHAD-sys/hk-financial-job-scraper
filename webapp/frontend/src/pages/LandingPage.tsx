@@ -1,4 +1,4 @@
-import { ArrowRight, ChevronRight, TrendingUp, Shield, Cpu, Star } from 'lucide-react'
+import { ArrowRight, ChevronRight, TrendingUp, Shield, Cpu, Star, EyeOff } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Nav from '../components/Nav'
@@ -56,6 +56,7 @@ export default function LandingPage() {
         </section>
 
         <ExclusiveCallout />
+        <RecruiterPostsCallout />
         <MethodologyStripe />
       </main>
 
@@ -239,12 +240,12 @@ function ExclusiveCallout() {
               className="max-w-2xl text-base leading-relaxed"
               style={{ color: 'var(--color-ink-muted)' }}
             >
-              Alongside mainstream listings, we index openings published directly on the
-              official careers pages of boutique and specialist financial firms — many of
-              which never reach the large aggregators. Every exclusive role is compiled from
-              information the employer has made <span style={{ color: 'var(--color-ink)', fontWeight: 600 }}>publicly available on its own website</span>,
-              then structured and translated with AI. No logins, no scraping behind
-              paywalls — just public postings, organised in one place.
+              Alongside mainstream listings, we surface openings from{' '}
+              <span style={{ color: 'var(--color-ink)', fontWeight: 600 }}>boutique and specialist financial firms</span>{' '}
+              — smaller institutions and niche players whose roles rarely reach the large
+              aggregators. Every exclusive role is read from the employer's own public hiring
+              activity, then structured and translated with AI, so you see openings the big
+              boards miss.
             </p>
           </div>
 
@@ -259,6 +260,77 @@ function ExclusiveCallout() {
             >
               <Star size={15} strokeWidth={2} fill="currentColor" aria-hidden="true" />
               View Exclusive roles
+              <ArrowRight size={16} strokeWidth={2} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ── Recruiter Posts callout ───────────────────────────────────────────────────
+
+function RecruiterPostsCallout() {
+  const navigate = useNavigate()
+  return (
+    <section
+      aria-labelledby="recruiter-posts-heading"
+      style={{ borderBottom: '1px solid var(--color-border)' }}
+    >
+      <div className="mx-auto max-w-7xl px-6 lg:px-8 py-14">
+        <div
+          className="rounded-xl p-8 lg:p-10 flex flex-col lg:flex-row lg:items-center gap-8"
+          style={{
+            backgroundColor: 'var(--color-surface)',
+            border: '1px solid #6B4EFF',
+            boxShadow: 'var(--shadow-card)',
+          }}
+        >
+          <div className="min-w-0 flex-1">
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-widest mb-4"
+              style={{
+                backgroundColor: 'rgba(107,78,255,0.1)',
+                color: '#6B4EFF',
+                border: '1px solid #6B4EFF',
+              }}
+            >
+              <EyeOff size={13} strokeWidth={2} aria-hidden="true" />
+              Recruiter Posts
+            </span>
+            <h2
+              id="recruiter-posts-heading"
+              className="text-2xl lg:text-3xl font-bold tracking-tight mb-3"
+              style={{ fontFamily: 'var(--font-display)', color: 'var(--color-ink)', letterSpacing: '-0.02em' }}
+            >
+              Mandates that never make it to a job board
+            </h2>
+            <p
+              className="max-w-2xl text-base leading-relaxed"
+              style={{ color: 'var(--color-ink-muted)' }}
+            >
+              We track LinkedIn posts from recruiters and headhunters working Hong Kong's
+              financial sector — live mandates they're hiring for right now, often shared with
+              their network before (or instead of) a formal listing. Each post is read and
+              structured with AI. Where a role also turns out to match a listing already on the
+              public board, we mark it{' '}
+              <span style={{ color: '#15803D', fontWeight: 600 }}>Verified</span>{' '}
+              — confirmed as a real, currently-open vacancy rather than an unconfirmed claim.
+            </p>
+          </div>
+
+          <div className="flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => navigate('/jobs?tier=social')}
+              className="inline-flex items-center gap-2 rounded px-6 py-3 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap"
+              style={{ backgroundColor: '#6B4EFF', color: '#fff' }}
+              onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.opacity = '0.9')}
+              onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.opacity = '1')}
+            >
+              <EyeOff size={15} strokeWidth={2} aria-hidden="true" />
+              View Recruiter Posts
               <ArrowRight size={16} strokeWidth={2} />
             </button>
           </div>

@@ -76,7 +76,7 @@ export interface StatsResponse {
 export type TierTab = 'all' | 'boutique' | 'mainstream' | 'social'
 
 // board_signals.linkedin_posts shape, set by hk_jobs/posts/promote.py — recruiter
-// attribution for Secret Market jobs (source_tier === 'social').
+// attribution for Recruiter Posts jobs (source_tier === 'social').
 export interface LinkedInPostSignals {
   recruiter_name: string | null
   recruiter_profile_url: string | null
@@ -86,6 +86,10 @@ export interface LinkedInPostSignals {
   employer_hint: string | null
   engagement: { likes: number; comments: number } | null
   post_created_at: string | null
+  // Set by hk_jobs/posts/ghost_check.py when a cheap DeepSeek pass confirms
+  // this post is the SAME real vacancy as a listing already on the mainstream/
+  // boutique board — undefined/false until that pass has run and matched.
+  not_a_ghost_job?: boolean
 }
 
 export interface JobFilters {
@@ -106,6 +110,7 @@ export interface JobFilters {
   urgently_hiring: boolean
   max_applicants: number | null
   hidden_only: boolean
+  verified_only: boolean
 }
 
 export const DEFAULT_FILTERS: JobFilters = {
@@ -126,6 +131,7 @@ export const DEFAULT_FILTERS: JobFilters = {
   urgently_hiring: false,
   max_applicants: null,
   hidden_only: false,
+  verified_only: false,
 }
 
 // ── Fetch helpers ─────────────────────────────────────────────────────────────
@@ -162,6 +168,7 @@ export async function fetchJobs(
   if (filters.urgently_hiring) p.set('urgently_hiring', 'true')
   if (filters.max_applicants !== null) p.set('max_applicants', String(filters.max_applicants))
   if (filters.hidden_only) p.set('hidden_only', 'true')
+  if (filters.verified_only) p.set('verified_only', 'true')
 
   p.set('sort', sort)
   p.set('page', String(page))
@@ -215,6 +222,7 @@ export function filtersToSearchParams(
   if (filters.urgently_hiring) p.set('urgent', '1')
   if (filters.max_applicants !== null) p.set('max_appl', String(filters.max_applicants))
   if (filters.hidden_only) p.set('hidden', '1')
+  if (filters.verified_only) p.set('verified', '1')
   if (sort !== 'newest') p.set('sort', sort)
   if (page > 1) p.set('page', String(page))
   return p
@@ -243,6 +251,7 @@ export function searchParamsToFilters(
       urgently_hiring: p.get('urgent') === '1',
       max_applicants: p.has('max_appl') ? Number(p.get('max_appl')) : null,
       hidden_only: p.get('hidden') === '1',
+      verified_only: p.get('verified') === '1',
     },
     sort: p.get('sort') ?? 'newest',
     page: Number(p.get('page') ?? '1'),
@@ -264,5 +273,6 @@ export function countActiveFilters(filters: JobFilters): number {
   if (filters.urgently_hiring) n++
   if (filters.max_applicants !== null) n++
   if (filters.hidden_only) n++
+  if (filters.verified_only) n++
   return n
 }

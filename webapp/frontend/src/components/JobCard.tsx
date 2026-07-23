@@ -1,4 +1,4 @@
-import { Bookmark, MapPin, Clock, Star, Flame, Sparkles, Repeat2, Users, EyeOff, UserRound, Mail } from 'lucide-react'
+import { Bookmark, MapPin, Clock, Star, Flame, Sparkles, Repeat2, Users, EyeOff, UserRound, Mail, ShieldCheck } from 'lucide-react'
 import type { Job, LinkedInPostSignals } from '../api/client'
 import {
   formatSalary, formatEstimatedSalary, timeAgo, monogram,
@@ -159,10 +159,26 @@ function CardHeader({
                   fontSize: '12px',
                   letterSpacing: '0.04em',
                 }}
-                title="Secret Market — sourced from a recruiter's LinkedIn post, not a public job board"
+                title="Recruiter Posts — sourced from a recruiter's LinkedIn post, not a public job board"
               >
                 <EyeOff size={10} strokeWidth={2} aria-hidden="true" />
                 Hidden market
+              </span>
+            )}
+            {job.source_tier === 'social'
+              && (job.board_signals?.linkedin_posts as unknown as LinkedInPostSignals | undefined)?.not_a_ghost_job && (
+              <span
+                className="inline-flex items-center gap-0.5 rounded-sm px-1.5 py-0.5 font-semibold"
+                style={{
+                  backgroundColor: '#DCFCE7',
+                  color: '#15803D',
+                  fontSize: '12px',
+                  letterSpacing: '0.04em',
+                }}
+                title="Confirmed: this role also appears on a public job board, so it's a real, currently-open vacancy"
+              >
+                <ShieldCheck size={10} strokeWidth={2} aria-hidden="true" />
+                Verified
               </span>
             )}
           </div>
@@ -309,7 +325,7 @@ function SignalBadges({ boardSignals }: { boardSignals: Job['board_signals'] }) 
   )
 }
 
-// ── Recruiter attribution (Secret Market / source_tier === 'social') ─────────
+// ── Recruiter attribution (Recruiter Posts / source_tier === 'social') ───────
 
 function RecruiterBadge({ signals }: { signals: LinkedInPostSignals | undefined }) {
   if (!signals?.recruiter_name) return null

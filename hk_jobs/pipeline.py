@@ -734,6 +734,20 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "months/years ago since it pulls full history with no date filter."
         ),
     )
+    p.add_argument(
+        "--check-ghost-jobs",
+        dest="check_ghost_jobs",
+        action="store_true",
+        help=(
+            "Flag active linkedin_posts jobs that are actually the same real vacancy "
+            "as one already on the mainstream/boutique board (invisible to the "
+            "company_slug-based reconcile_cross_posted() since confidential posts "
+            "never carry a real employer slug). Free fuzzy-title pre-filter, then one "
+            "cheap DeepSeek call per candidate post. Sets "
+            "board_signals.not_a_ghost_job=true on confirmed matches. No scraping/"
+            "Apify calls. Requires DEEPSEEK_API_KEY."
+        ),
+    )
     return p.parse_args(argv)
 
 
@@ -919,6 +933,18 @@ def main(argv: list[str] | None = None) -> None:
     if getattr(args, "deactivate_stale_posts", None) is not None:
         from hk_jobs.posts.expiry import deactivate_stale_jobs
         deactivate_stale_jobs(args.db, max_age_days=args.deactivate_stale_posts)
+        return
+
+    # --check-ghost-jobs: flag Secret Market posts that duplicate a board listing.
+    if getattr(args, "check_ghost_jobs", False):
+        from hk_jobs.posts.ghost_check import run_ghost_check
+        summary = run_ghost_check(args.db)
+        logger.info(
+            "Ghost check: %d checked, %d with candidates, %d AI calls, "
+            "%d matched, %d errors",
+            summary.checked, summary.with_candidates, summary.ai_calls,
+            summary.matched, summary.errors,
+        )
         return
 
     # --repair-companies: fix mislabeled company fields for existing JobsDB rows

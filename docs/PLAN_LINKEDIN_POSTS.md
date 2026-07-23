@@ -317,6 +317,45 @@ Schema mapping notes:
   of 575 active jobs were older than 3 months and deactivated, 203
   remained active — confirmed via the API (`tier=social` -> 203) and a
   fresh PocketBase sync (372 stale rows removed from the mirror).
+- **Ghost-job detection, `--check-ghost-jobs`.**
+  `reconcile_cross_posted()` can never match a confidential post to a real
+  board listing — its `company_slug` is always `confidential-{recruiter}`,
+  which structurally can't equal a real employer's slug — so a Recruiter
+  Posts job that's actually the SAME real vacancy as one already on the
+  mainstream/boutique board looked like a brand-new, board-unique "ghost"
+  even when it wasn't. `hk_jobs/posts/ghost_check.py` fixes this in two
+  stages to keep AI spend down: (1) a free fuzzy title-token pre-filter
+  (reuses `storage.py`'s `_title_tokens`/`_LEVEL_TOKENS`, at a lenient 0.4
+  Jaccard threshold since it's just gathering candidates), then (2) one
+  cheap DeepSeek call (`deepseek-v4-flash`, temperature 0, no reasoning
+  mode requested) per Secret-Market post that has candidates, comparing
+  role/seniority/location only — never company names, so the model has no
+  employer identity to leak. A confirmed match sets
+  `board_signals.not_a_ghost_job = true`; the matched listing's own
+  identity is deliberately never persisted (board_signals is served to the
+  client verbatim, so storing it would de-anonymize the confidential post).
+  Gotcha hit live: `deepseek-v4-flash` always emits `reasoning_content`
+  before its actual JSON reply, and both count against `max_tokens`
+  together — the first live run used max_tokens=60 and got empty content
+  on all 100/100 calls (350-500+ reasoning tokens alone on a 5-candidate
+  comparison, with real variance even at temperature 0). Fixed by raising
+  the budget to 1200. Manual-only, not wired into `daily_run.sh`. Real run
+  (2026-07-23): 100 of 203 active posts had a pre-filter candidate, 20
+  confirmed matches (99/100 AI calls succeeded after the token-budget
+  fix). Surfaced in the UI as a green "Verified" badge (JobCard,
+  JobDetailModal) and a "Verified job" filter pill
+  (`verified_only` — `FilterBar`/`MobileFilterSheet`/`client.ts`/
+  `webapp/backend/main.py`), reading `json_extract(board_signals,
+  '$.not_a_ghost_job')` directly since `cross_posted` can't carry this.
+- **Renamed "Secret Market" → "Recruiter Posts" throughout the UI**, and
+  reordered the tier tabs to All / Mainstream / Exclusive / Recruiter
+  Posts (was All / Exclusive / Mainstream / Secret Market). Added a
+  landing-page callout for Recruiter Posts (mirrors the existing Exclusive
+  callout) and softened the Exclusive callout's copy — it previously
+  claimed roles are "published directly on the official careers pages" /
+  "publicly available on its own website", which overstates the sourcing
+  method (per CLAUDE.md, hostile-ATS companies are sourced via the
+  JobsDB/Indeed fallback, not always the employer's own site).
 
 ### LP-6 — Steady state (post-GO)
 - Scale watchlist toward ~100 active profiles (stay under $30/mo; cost counter

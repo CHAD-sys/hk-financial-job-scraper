@@ -4,9 +4,9 @@
 
 **Automated collection, AI enrichment, and market intelligence for Hong Kong's financial sector**
 
-![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white) ![React](https://img.shields.io/badge/UI-React%20%2B%20Vite-61DAFB?logo=react&logoColor=black) ![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?logo=sqlite&logoColor=white) ![DeepSeek](https://img.shields.io/badge/AI-DeepSeek-8A2BE2) ![Sources](https://img.shields.io/badge/Sources-7-orange) ![Companies](https://img.shields.io/badge/Companies-190%2B-teal) ![Jobs](https://img.shields.io/badge/Active%20Jobs-5%2C000%2B-success) ![Enriched](https://img.shields.io/badge/AI%20Enriched-100%25-brightgreen) ![Private](https://img.shields.io/badge/Visibility-Private-lightgrey)
+![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white) ![React](https://img.shields.io/badge/UI-React%20%2B%20Vite-61DAFB?logo=react&logoColor=black) ![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?logo=sqlite&logoColor=white) ![DeepSeek](https://img.shields.io/badge/AI-DeepSeek-8A2BE2) ![Sources](https://img.shields.io/badge/Sources-7-orange) ![Companies](https://img.shields.io/badge/Companies-190%2B-teal) ![Jobs](https://img.shields.io/badge/Active%20Jobs-5%2C000%2B-success) ![Enriched](https://img.shields.io/badge/AI%20Enriched-100%25-brightgreen) ![Recruiter Posts](https://img.shields.io/badge/Recruiter%20Posts-LinkedIn-6B4EFF) ![Private](https://img.shields.io/badge/Visibility-Private-lightgrey)
 
-*Not just a scraper — a full pipeline that **collects** jobs from 7 sources, **enriches** every listing with AI, **analyses** hiring trends over time, and **delivers** it through a web board, a boss-facing mirror, PDF intelligence reports, and daily email.*
+*Not just a scraper — a full pipeline that **collects** jobs from 7 sources plus a LinkedIn recruiter-posts watchlist, **enriches** every listing with AI, **analyses** hiring trends over time, and **delivers** it through a web board, a boss-facing mirror, PDF intelligence reports, and daily email.*
 
 </div>
 
@@ -16,7 +16,7 @@
 
 - [Overview](#overview) · [Screenshots](#screenshots) · [The Daily Pipeline](#the-daily-pipeline) · [Data Sources](#data-sources)
 - [AI Enrichment](#ai-enrichment--salary-calibration) · [Market Intelligence](#market-intelligence--analytics) · [Companies Covered](#companies-covered)
-- [Architecture](#architecture) · [Tech Stack](#tech-stack) · [Database Schema](#database-schema) · [Delivery Surfaces](#delivery-surfaces)
+- [Recruiter Posts (LinkedIn)](#recruiter-posts-linkedin) · [Architecture](#architecture) · [Tech Stack](#tech-stack) · [Database Schema](#database-schema) · [Delivery Surfaces](#delivery-surfaces)
 - [Setup](#setup) · [Usage](#usage) · [Daily Automation](#daily-automation) · [Results](#results) · [Project Structure](#project-structure) · [Team](#team)
 
 ---
@@ -25,7 +25,7 @@
 
 A fully automated platform that tracks hiring across Hong Kong's largest banks, insurers, and asset managers. It runs end-to-end every day:
 
-1. **Collect** — scrapes open roles from **seven sources**, each company resolved to its real Applicant Tracking System (ATS) and scraped through a **priority fallback chain**: a direct ATS JSON API where one exists → the finance-specialist board (eFinancialCareers) → general boards (JobsDB, Indeed, LinkedIn) → an LLM-based long-tail extractor for boutique firms with no structured feed.
+1. **Collect** — scrapes open roles from **seven sources**, each company resolved to its real Applicant Tracking System (ATS) and scraped through a **priority fallback chain**: a direct ATS JSON API where one exists → the finance-specialist board (eFinancialCareers) → general boards (JobsDB, Indeed, LinkedIn) → an LLM-based long-tail extractor for boutique firms with no structured feed. A separate, opt-in **Recruiter Posts** watchlist tracks live mandates recruiters share on LinkedIn before they ever reach a board (see [below](#recruiter-posts-linkedin)).
 2. **Enrich** — a single DeepSeek call per job adds seniority, skills, job category, remote type, an estimated HK salary range (calibrated against Hays anchors), and a plain-language card summary.
 3. **Analyse** — records daily snapshots per company, computes rolling averages and growth/velocity, reconciles cross-posted roles, and generates market-intelligence and trend reports.
 4. **Deliver** — a React job board, a read-only PocketBase mirror for stakeholders, a PDF intelligence report, and a daily summary email.
@@ -46,6 +46,8 @@ Every source maps into one canonical `Job` schema, so the rest of the system nev
 | ![Main board](screenshots/main-board.png) | ![Filters active](screenshots/filters-active.png) |
 | **Job detail (AI summary + salary)** | **Salary-sorted view** |
 | ![Job detail](screenshots/job-detail.png) | ![Salary sort](screenshots/salary-sort.png) |
+| **Recruiter Posts tab** | **Verified badge (ghost-job check)** |
+| ![Recruiter Posts](screenshots/recruiter-posts.png) | ![Verified job](screenshots/recruiter-posts-verified.png) |
 
 _About page_
 
@@ -131,6 +133,46 @@ Beyond the raw board, the platform turns the data into market intelligence:
 
 ---
 
+## Recruiter Posts (LinkedIn)
+
+The "no paid services" rule (see [Tech Stack](#tech-stack)) is deliberately overturned for **one** source: recruiters and headhunters routinely post live, currently-open mandates on their own LinkedIn feed — often before, or instead of, a formal board listing. DIY scraping of LinkedIn was evaluated and rejected (authwall, legal escalation risk), so this pipeline goes through a paid vendor, **Apify/HarvestAPI**, under a self-enforced **$30/month hard cap** (`hk_jobs/posts/budget.py`) scoped to `hk_jobs/posts/` only — every other source in this repo stays on the no-paid-services line.
+
+```
+recruiters.yaml (watchlist)
+        │
+        ▼  Fetch     vendor_client.py + fetcher.py  — polls each profile; 48h catch-up floor day-
+        │                                              to-day, full-history backfill mode for new adds
+        ▼  Extract   extractor.py (DeepSeek)        — classify (real mandate? y/n) + structured
+        │                                              extract in one call; never invents an employer
+        ▼  Promote   promote.py                     — confidence-gated; confidential rows get a
+        │                                              `confidential-{recruiter}` slug, employer never shown
+        ▼  Verify    ghost_check.py (DeepSeek)       — fuzzy pre-filter + one cheap AI call per
+        │                                              candidate; confirms when a post is the SAME real
+        │                                              vacancy as a board listing → "Verified" badge
+        ▼  Email     email_harvest.py               — manual-only recruiter email lookup, quarterly
+        ▼  Expiry    expiry.py                      — soft-deletes posts older than 90 days
+                                                        (posted_at, not fetched_at — a backfilled
+                                                        post can be years old)
+```
+
+**Why "Verified" exists.** The board's usual cross-post dedup (`storage.reconcile_cross_posted()`) matches on `company_slug` — but a confidential post's slug is always `confidential-{recruiter}`, which can never equal a real employer's slug. That leaves confidential posts structurally invisible to the normal dedup check, so a post that quietly matches a real, already-listed vacancy would otherwise look like an unverifiable claim forever. `ghost_check.py` closes that gap: a free fuzzy title/seniority pre-filter narrows candidates, then one cheap `deepseek-v4-flash` call (temperature 0, no reasoning mode) per candidate set compares role/seniority/location only — never company names, so the model has nothing to leak. A confirmed match sets `board_signals.not_a_ghost_job`, surfaced as a green **Verified** badge; the matched listing's identity is deliberately never persisted or shown, keeping the recruiter's confidentiality intact.
+
+**Ops.** All stages except the daily watchlist poll are **manual-only** — never wired into `daily_run.sh` — since they're either one-time/low-frequency (email harvest, expiry) or a deliberate cost-control choice (ghost-check). Run via `python -m hk_jobs.pipeline`:
+
+| Flag | What it does |
+|------|--------------|
+| `--fetch-posts` | Daily watchlist poll (48h catch-up floor, `max_posts=20`) |
+| `--fetch-posts-backfill` | One-time full-history pull for newly-added recruiters (no date filter) |
+| `--promote-posts` | Classify + extract pending posts, promote genuine mandates to `jobs` |
+| `--check-ghost-jobs` | Fuzzy pre-filter + DeepSeek pass; flags confirmed board matches as Verified |
+| `--harvest-recruiter-emails` | One-time-per-recruiter (then quarterly) email lookup via HarvestAPI |
+| `--deactivate-stale-posts [DAYS]` | Soft-deletes posts older than `DAYS` (default 90) |
+| `--posts-pilot-report [PATH]` | Go/no-go report: promoted count, % truly hidden, cost so far |
+
+Surfaced on the board as its own **Recruiter Posts** tab (purple "Hidden market" badge), with a contextual preview strip on the other tabs and a `verified_only` filter for jobs `ghost_check.py` has confirmed. Full design history and decision log: [`docs/PLAN_LINKEDIN_POSTS.md`](docs/PLAN_LINKEDIN_POSTS.md).
+
+---
+
 ## Architecture
 
 ```
@@ -191,7 +233,7 @@ The full job description on `jobs` is never overwritten — enrichment still rea
 
 ## Delivery Surfaces
 
-- **Web board** (`webapp/`) — FastAPI API + React/Vite UI: search, category/seniority/source filters, salary sort, job-detail modal with the AI summary, and saved jobs.
+- **Web board** (`webapp/`) — FastAPI API + React/Vite UI: search, category/seniority/source filters, salary sort, job-detail modal with the AI summary, saved jobs, and a dedicated Recruiter Posts tab with a Verified filter.
 - **PocketBase mirror** — a one-way, read-only mirror of `jobs.db` for non-technical stakeholders (`sync_pocketbase.py`).
 - **PDF intelligence report** — `outputs/HK_Job_Market_Intelligence_Report.pdf`.
 - **Email** — daily summary on success; failure alert immediately on any phase exception.
@@ -254,6 +296,11 @@ python scripts/generate_intelligence_report.py     # -> outputs/HK_Job_Market_In
 
 # Live-verify one source adapter (diagnostics)
 python scripts/try_efc_live.py        # also try_workday/eightfold/jobsdb_live.py
+
+# Recruiter Posts (LinkedIn) — see full flag table in that section above
+python -m hk_jobs.pipeline --fetch-posts
+python -m hk_jobs.pipeline --promote-posts
+python -m hk_jobs.pipeline --check-ghost-jobs
 ```
 
 ### Web App
@@ -292,9 +339,10 @@ _Figures refresh on every daily run; snapshot from the latest run._
 | Data sources | **7** live (Workday · Eightfold · eFinancialCareers · JobsDB · Indeed · LinkedIn · Longtail) |
 | Active companies | **~190** |
 | Active jobs by source | JobsDB ~1,780 · Indeed ~950 · LinkedIn ~935 · eFC ~840 · Eightfold ~320 · Workday ~160 · Longtail ~140 |
+| Recruiter Posts (LinkedIn) | **~200 active** · **20 confirmed Verified** against a real board listing |
 | Enrichment coverage | **100%** of description-bearing jobs |
 | Daily run time | **~30–45 min** (headless long-tail scraping dominates) |
-| Monthly AI cost | **~$1 USD** |
+| Monthly AI cost | **~$1 USD** (enrichment) · Recruiter Posts capped at **$30/mo** (Apify) |
 
 ---
 
@@ -327,8 +375,18 @@ hk-job-scraper/
 │   ├── http_utils.py            # Shared httpx retry/backoff helpers
 │   ├── pipeline.py              # Orchestration + CLI (argparse)
 │   ├── schema.py                # Pydantic Job model + dedup hashing
+│   ├── posts/                   # Recruiter Posts (LinkedIn) — paid-vendor exception
+│   │   ├── vendor_client.py     # Apify/HarvestAPI client
+│   │   ├── fetcher.py           # Watchlist polling (48h floor / backfill mode)
+│   │   ├── extractor.py         # DeepSeek classify + extract
+│   │   ├── promote.py           # Confidence-gated promotion to `jobs`
+│   │   ├── ghost_check.py       # Fuzzy pre-filter + DeepSeek board-match verification
+│   │   ├── email_harvest.py     # Manual-only recruiter email lookup
+│   │   ├── expiry.py            # Age-based soft-delete (90 days)
+│   │   └── budget.py            # $30/mo Apify spend cap
 │   ├── companies.yaml           # Core-ATS company config
-│   └── companies_longtail.yaml  # LLM long-tail company config
+│   ├── companies_longtail.yaml  # LLM long-tail company config
+│   └── recruiters.yaml          # LinkedIn recruiter watchlist
 ├── webapp/
 │   ├── backend/                 # FastAPI — job board API
 │   └── frontend/                # React + TypeScript + Vite job board UI
@@ -340,6 +398,7 @@ hk-job-scraper/
 │   ├── resolve_indeed_slugs.py / resolve_linkedin_ids.py / fetch_linkedin_signals.py
 │   └── try_*_live.py            # Per-adapter live verification diagnostics
 ├── tests/                       # pytest — adapters, storage, schema, cross-posting
+├── docs/PLAN_LINKEDIN_POSTS.md  # Recruiter Posts design history & decision log
 ├── salary_guidlines/            # Hays-derived salary calibration docs
 ├── outputs/                     # Generated reports (gitignored)
 ├── data/                        # gitignored — SQLite DB files

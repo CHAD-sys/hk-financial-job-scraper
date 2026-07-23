@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { X, Sparkles, Flame } from 'lucide-react'
+import { X, Sparkles, Flame, ShieldCheck } from 'lucide-react'
 import type { JobFilters, FiltersResponse } from '../api/client'
 import { PillButton, FilterRow, SalaryFields, ExpFields, ApplicantsFields } from './FilterPrimitives'
 import MultiSelect from './MultiSelect'
@@ -139,6 +139,11 @@ export default function MobileFilterSheet({
           <PillButton active={filters.urgently_hiring} onClick={() => onUpdate({ urgently_hiring: !filters.urgently_hiring })} palette="red">
             <span className="inline-flex items-center gap-1">
               <Flame size={12} strokeWidth={2} aria-hidden="true" />Urgently hiring
+            </span>
+          </PillButton>
+          <PillButton active={filters.verified_only} onClick={() => onUpdate({ verified_only: !filters.verified_only })} palette="green">
+            <span className="inline-flex items-center gap-1">
+              <ShieldCheck size={12} strokeWidth={2} aria-hidden="true" />Verified job
             </span>
           </PillButton>
         </FilterRow>

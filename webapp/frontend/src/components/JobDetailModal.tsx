@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   X, Bookmark, ExternalLink, MapPin, Briefcase,
-  GraduationCap, DollarSign, Tag, Calendar, MessageCircle, UserRound, EyeOff, Mail,
+  GraduationCap, DollarSign, Tag, Calendar, MessageCircle, UserRound, EyeOff, Mail, ShieldCheck,
 } from 'lucide-react'
 import type { Job, JobDetail, LinkedInPostSignals } from '../api/client'
 import { fetchJobDetail } from '../api/client'
@@ -245,7 +245,7 @@ function ModalHeader({
   )
 }
 
-// ── Recruiter attribution (Secret Market / source_tier === 'social') ─────────
+// ── Recruiter attribution (Recruiter Posts / source_tier === 'social') ───────
 //
 // company is already "Confidential via {recruiter}" when no employer was named
 // (hk_jobs/posts/promote.py) — this section adds the WHY: this is a personal
@@ -262,9 +262,21 @@ function RecruiterAttribution({ signals }: { signals: LinkedInPostSignals | unde
     >
       <EyeOff size={16} style={{ color: '#6B4EFF', marginTop: 2 }} strokeWidth={1.8} aria-hidden="true" />
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#6B4EFF' }}>
-          Secret Market listing
-        </p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#6B4EFF' }}>
+            Recruiter Posts listing
+          </p>
+          {signals.not_a_ghost_job && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+              style={{ backgroundColor: '#DCFCE7', color: '#15803D', border: '1px solid #BBF7D0' }}
+              title="Confirmed: this role also appears on a public job board, so it's a real, currently-open vacancy"
+            >
+              <ShieldCheck size={10} strokeWidth={2.5} aria-hidden="true" />
+              Verified
+            </span>
+          )}
+        </div>
         <p className="text-sm mt-1" style={{ color: 'var(--color-ink)' }}>
           Sourced from a LinkedIn post by{' '}
           {signals.recruiter_profile_url ? (
