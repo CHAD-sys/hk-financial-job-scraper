@@ -17,7 +17,7 @@
 - [Overview](#overview) · [Screenshots](#screenshots) · [The Daily Pipeline](#the-daily-pipeline) · [Data Sources](#data-sources)
 - [AI Enrichment](#ai-enrichment--salary-calibration) · [Market Intelligence](#market-intelligence--analytics) · [Companies Covered](#companies-covered)
 - [Recruiter Posts (LinkedIn)](#recruiter-posts-linkedin) · [Architecture](#architecture) · [Tech Stack](#tech-stack) · [Database Schema](#database-schema) · [Delivery Surfaces](#delivery-surfaces)
-- [Setup](#setup) · [Usage](#usage) · [Daily Automation](#daily-automation) · [Results](#results) · [Project Structure](#project-structure) · [Team](#team)
+- [Setup](#setup) · [Usage](#usage) · [Daily Automation](#daily-automation) · [Results](#results) · [Project Structure](#project-structure)
 
 ---
 
@@ -406,15 +406,6 @@ hk-job-scraper/
 ├── requirements.txt
 └── README.md
 ```
-
----
-
-## Team
-
-| Role | Name |
-|------|------|
-| Project Lead | Benjamin |
-| AI & Development | Amine & Kenson |
 
 ---
 
