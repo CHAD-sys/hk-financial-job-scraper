@@ -237,3 +237,50 @@ def test_metrics_on_empty_db(db):
     assert m.promoted_active == 0
     assert m.pct_truly_hidden == 0.0
     assert m.pct_high_confidence == 0.0
+
+
+# ── pluggable extractor_fn + concurrent mode ────────────────────────────────
+
+def test_custom_extractor_fn_is_used_instead_of_default(db):
+    _seed_post(db, urn="urn-1")
+    calls = []
+
+    def _custom_extractor(text):
+        calls.append(text)
+        return _good_result()
+
+    summary = run_promotion(db, extractor_fn=_custom_extractor)
+    assert summary.promoted == 1
+    assert calls == ["Hiring an Analyst"]
+
+
+def test_concurrent_mode_produces_same_result_as_sequential(db):
+    for i in range(5):
+        _seed_post(db, urn=f"urn-{i}", text=f"Hiring an Analyst {i}")
+
+    def _extractor(text):
+        return _good_result(title=f"Analyst {text[-1]}")
+
+    summary = run_promotion(db, extractor_fn=_extractor, max_workers=5)
+    assert summary.processed == 5
+    assert summary.promoted == 5
+
+    with JobStore(db) as store:
+        rows = store._conn.execute(
+            "SELECT title FROM jobs WHERE source='linkedin_posts'"
+        ).fetchall()
+    assert {r["title"] for r in rows} == {f"Analyst {i}" for i in range(5)}
+
+
+def test_concurrent_mode_auth_error_stops_run(db, monkeypatch):
+    for i in range(5):
+        _seed_post(db, urn=f"urn-{i}")
+
+    from hk_jobs.posts.extractor import ExtractorAuthError
+
+    def _extractor(text):
+        raise ExtractorAuthError("bad key")
+
+    summary = run_promotion(db, extractor_fn=_extractor, max_workers=3)
+    assert summary.promoted == 0
+    assert "Extractor auth failed" in summary.errors

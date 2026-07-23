@@ -9,7 +9,13 @@ import json
 import httpx
 import pytest
 
-from hk_jobs.posts.extractor import ExtractorAuthError, extract_post
+from hk_jobs.posts.extractor import (
+    ANTHROPIC_MODEL,
+    ExtractorAuthError,
+    _call_haiku,
+    extract_post,
+    extract_post_haiku,
+)
 
 
 def _canned_reply(**overrides):
@@ -123,3 +129,65 @@ def test_transient_http_error_retries_then_succeeds(monkeypatch):
     result = extract_post("x", api_key="fake")
     assert result is not None
     assert calls["n"] == 2
+
+
+# ── extract_post_haiku ──────────────────────────────────────────────────────
+
+def test_haiku_missing_key_raises_auth_error(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    with pytest.raises(ExtractorAuthError):
+        extract_post_haiku("some post text")
+
+
+def test_haiku_successful_extraction(monkeypatch):
+    """_call_haiku returns the model's continuation AFTER the '{' prefill —
+    _call_haiku itself re-attaches it, so the seam here returns raw model text."""
+    reply_after_prefill = _canned_reply()[1:]  # strip the leading '{' the prefill already covers
+    monkeypatch.setattr(
+        "hk_jobs.posts.extractor._call_haiku", lambda text, api_key: "{" + reply_after_prefill
+    )
+    result = extract_post_haiku("Hiring an ARM in HK", api_key="fake")
+    assert result is not None
+    assert result.title == "Assistant Relationship Manager"
+    assert result.is_job_post is True
+
+
+def test_call_haiku_prefills_and_reattaches_brace(monkeypatch):
+    captured = {}
+
+    class _FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"content": [{"text": '"is_job_post": false}'}]}
+
+    def _mock_post(url, headers, json, timeout):
+        captured["url"] = url
+        captured["json"] = json
+        return _FakeResponse()
+
+    monkeypatch.setattr("hk_jobs.posts.extractor.httpx.post", _mock_post)
+    text = _call_haiku("x", api_key="fake")
+    assert text == '{"is_job_post": false}'
+    assert captured["json"]["messages"][-1] == {"role": "assistant", "content": "{"}
+    assert captured["json"]["model"] == ANTHROPIC_MODEL
+    assert "anthropic.com" in captured["url"]
+
+
+def test_haiku_auth_error_on_401(monkeypatch):
+    class _FakeResponse:
+        status_code = 401
+        request = httpx.Request("POST", "https://x")
+
+        def raise_for_status(self):
+            pass
+
+    monkeypatch.setattr(
+        "hk_jobs.posts.extractor.httpx.post",
+        lambda url, headers, json, timeout: _FakeResponse(),
+    )
+    with pytest.raises(ExtractorAuthError):
+        extract_post_haiku("x", api_key="fake")

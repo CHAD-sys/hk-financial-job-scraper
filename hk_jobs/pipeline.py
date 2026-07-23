@@ -651,6 +651,20 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     p.add_argument(
+        "--fetch-posts-backfill",
+        dest="fetch_posts_backfill",
+        action="store_true",
+        help=(
+            "One-time deep pull per recruiter: no date filter, up to max_posts "
+            "(default 50) each, instead of --fetch-posts's normal 'since last "
+            "success' incremental window. Use this once (or after adding new "
+            "recruiters) to actually populate real post history — every normal "
+            "--fetch-posts call, including each recruiter's very first, was "
+            "already scoped to a 48h floor, so raising max_posts alone never "
+            "increased real volume. Requires APIFY_API_TOKEN."
+        ),
+    )
+    p.add_argument(
         "--posts-discovery",
         dest="posts_discovery",
         action="store_true",
@@ -701,7 +715,10 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--force-refresh",
         dest="force_refresh",
         action="store_true",
-        help="With --harvest-recruiter-emails: re-fetch every recruiter's email, ignoring the 90-day freshness skip.",
+        help=(
+            "With --harvest-recruiter-emails: re-fetch every recruiter's email, "
+            "ignoring the 90-day freshness skip."
+        ),
     )
     return p.parse_args(argv)
 
@@ -827,6 +844,16 @@ def main(argv: list[str] | None = None) -> None:
         summary = fetch_watchlist(args.db)
         if summary.errors and not summary.recruiters_polled:
             raise SystemExit(f"Posts watchlist poll failed entirely: {summary.errors}")
+        return
+
+    # --fetch-posts-backfill: one-time deep pull, no date filter. No scraping.
+    if getattr(args, "fetch_posts_backfill", False):
+        from hk_jobs.migrations import migrate_to_phase_26
+        from hk_jobs.posts.fetcher import fetch_watchlist
+        migrate_to_phase_26(args.db)
+        summary = fetch_watchlist(args.db, backfill=True)
+        if summary.errors and not summary.recruiters_polled:
+            raise SystemExit(f"Posts backfill failed entirely: {summary.errors}")
         return
 
     # --posts-discovery: LP-2 weekly keyword discovery search. No scraping.

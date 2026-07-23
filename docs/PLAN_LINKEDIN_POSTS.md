@@ -244,6 +244,66 @@ Schema mapping notes:
   crontab — manual-only per owner instruction, unlike --fetch-posts/
   --posts-discovery/--promote-posts which do run automatically.
 
+### Post-LP-5 fixes (2026-07-23)
+
+- **Real bug found and fixed: the 48h date-filter, not max_posts, was the
+  actual constraint on post volume.** `_poll_one_recruiter` scoped EVERY
+  fetch — including each recruiter's very first-ever poll — to `since =
+  max(last_fetched_at, now-48h)`. Bumping `max_posts` 20->50 therefore did
+  nothing (confirmed: a recruiter posting twice a week was never going to
+  return more than 0-1 posts from a 48h-scoped call regardless of the cap).
+  Added `--fetch-posts-backfill` (`fetch_watchlist(..., backfill=True)`):
+  a one-time deep pull with no date filter, up to 50 posts/profile. Real
+  run: 47/47 recruiters, **1,779 new posts** (up from 29 total before),
+  $3.62 spent. `max_posts` reverted to 20 for normal daily polling (the
+  48h floor was always correct for steady-state — only the backfill needs
+  more depth) — both settings verified restored on request.
+- **Bulk classification via Claude Haiku (not DeepSeek) for the backlog.**
+  `ANTHROPIC_API_KEY` in config/api_keys.env turned out to be invalid
+  (401) — pivoted to the user's own Claude subagent access instead
+  (`Agent` tool, `model: haiku`) rather than a paid external API.
+  `hk_jobs/posts/extractor.py` gained `extract_post_haiku()` (same prompt/
+  schema, Anthropic Messages API via assistant-prefill for forced JSON —
+  built but blocked by the bad key) and `hk_jobs/posts/promote.py`'s
+  `run_promotion()` gained a pluggable `extractor_fn` + concurrent
+  `max_workers` mode (thread pool for extraction only; every SQLite write
+  stays single-threaded in the main thread — no concurrent-write risk).
+  Fully backward compatible: `extractor_fn` resolves dynamically inside
+  the function body, not as a literal parameter default, so existing
+  tests that monkeypatch `hk_jobs.posts.promote.extract_post` keep working
+  unchanged. For the actual backlog, bypassed the API path entirely: split
+  1,680 pending posts into 17 chunks of 100, dispatched 17 parallel Haiku
+  subagents (writing JSON to disk, graphify-style), merged into a
+  `post_text -> ExtractionResult` lookup, fed into `run_promotion` as a
+  zero-network `extractor_fn`. Hit a session usage-limit partway (all 17
+  subagents failed simultaneously) — 13 chunks had already written valid
+  output before failing; only the missing/incomplete 4 needed retrying
+  after the limit reset. Final: 1,680 processed, **526 newly promoted, 0
+  failed**, 1,154 rejected. Total active Secret Market jobs: 17 -> 575.
+  Email coverage jumped from 1 job to 101 (promote.py already attaches a
+  known email at promotion time, so most of the 10 harvested emails'
+  recruiters got covered automatically, no extra backfill run needed).
+- **Fixed a real, user-reported modal bug**: closing the job-detail modal
+  navigated to Home instead of staying on /jobs.
+  `webapp/frontend/src/hooks/useModalHistoryGuard.ts` had a StrictMode
+  (dev-mode) interaction bug — every fresh `<JobDetailModal>` mount is
+  double-invoked (mount->cleanup->mount) by React StrictMode, and the
+  OLD hook called `history.back()` unconditionally in cleanup. The
+  throwaway first mount's cleanup queued an async `back()` while the real
+  second mount's `pushState` had already moved the pointer forward again
+  — when that queued `back()` finally resolved, it landed the browser's
+  ACTUAL history pointer one entry BEHIND where the live component
+  believed it was. This drift was invisible in one open/close cycle but
+  compounded on every additional modal opened in a session (StrictMode
+  re-invokes on every fresh mount), so after a few job cards, closing
+  overshot straight past /jobs to Home. Fixed by deferring the pushState
+  one tick (`setTimeout(0)`): the throwaway mount's cleanup now cancels
+  the timer before it ever fires, so it touches the History API zero
+  times — only the surviving mount ever pushes/pops, exactly once, no
+  drift possible regardless of session length. Verified live: 3
+  consecutive open/close cycles via the X button, plus the back-gesture
+  path, all correctly land on /jobs.
+
 ### LP-6 — Steady state (post-GO)
 - Scale watchlist toward ~100 active profiles (stay under $30/mo; cost counter
   alerts at $25)

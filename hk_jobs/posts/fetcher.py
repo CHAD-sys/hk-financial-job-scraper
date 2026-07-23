@@ -53,8 +53,16 @@ class FetchRunSummary:
     errors: list[str] = field(default_factory=list)
 
 
-def fetch_watchlist(db_path: str, *, client: ApifyClient | None = None) -> FetchRunSummary:
-    """Poll every enabled recruiters.yaml entry for new posts since last success."""
+def fetch_watchlist(
+    db_path: str, *, client: ApifyClient | None = None, backfill: bool = False
+) -> FetchRunSummary:
+    """
+    Poll every enabled recruiters.yaml entry.
+
+    backfill=True does a one-time deep pull (no date filter, up to max_posts
+    per profile) instead of the normal "since last success" incremental
+    poll — see _poll_one_recruiter's docstring for why this exists.
+    """
     summary = FetchRunSummary()
     store = PostStore(db_path)
     client = client or ApifyClient()
@@ -79,7 +87,9 @@ def fetch_watchlist(db_path: str, *, client: ApifyClient | None = None) -> Fetch
             break
 
         try:
-            _poll_one_recruiter(recruiter, client=client, store=store, summary=summary)
+            _poll_one_recruiter(
+                recruiter, client=client, store=store, summary=summary, backfill=backfill
+            )
             summary.recruiters_polled += 1
         except ApifyAuthError:
             # Bad/expired token affects every remaining recruiter identically —
@@ -105,12 +115,35 @@ def fetch_watchlist(db_path: str, *, client: ApifyClient | None = None) -> Fetch
 
 
 def _poll_one_recruiter(
-    recruiter: RecruiterConfig, *, client: ApifyClient, store: PostStore, summary: FetchRunSummary
+    recruiter: RecruiterConfig, *, client: ApifyClient, store: PostStore, summary: FetchRunSummary,
+    backfill: bool = False,
 ) -> None:
-    last_fetched_at = store.get_last_fetched_at(recruiter.slug)
-    since = _resolve_since(last_fetched_at)
+    """
+    backfill=False (normal daily poll): since = max(last_fetched_at, now-48h)
+    — correct for steady state, where we only want NEW posts since last time.
 
-    result = client.fetch_profile_posts(recruiter.profile_url, since_date=since)
+    backfill=True (one-time deep pull): since_date is omitted entirely, so
+    the actor returns each recruiter's actual recent post history up to
+    max_posts, uncapped by any date filter. Without this, EVERY fetch ever
+    made — including each recruiter's very first-ever poll — was already
+    scoped to the 48h floor, meaning the vendor's maxPosts cap (20, then 50)
+    was never the real constraint on volume; the 48h date filter was. This
+    is why bumping max_posts to 50 alone did nothing: a recruiter who posts
+    twice a week was never going to return more than 0-1 posts from a
+    48h-scoped call regardless of the cap. record_fetch_result still runs
+    afterward so the NEXT normal poll resumes incrementally from now, not
+    from another full history pull.
+    """
+    if backfill:
+        since = None
+        # Daily-poll default reverted to 20 (bumping it to 50 never helped —
+        # see docstring above); backfill explicitly asks for more since it's
+        # a one-time deep pull, not steady-state polling.
+        result = client.fetch_profile_posts(recruiter.profile_url, since_date=since, max_posts=50)
+    else:
+        last_fetched_at = store.get_last_fetched_at(recruiter.slug)
+        since = _resolve_since(last_fetched_at)
+        result = client.fetch_profile_posts(recruiter.profile_url, since_date=since)
     _record_result_cost(store.db_path, result, run_kind="watchlist")
     summary.cost_usd += result.cost_usd
 
@@ -126,7 +159,8 @@ def _poll_one_recruiter(
 
     logger.info(
         "%s (%s): %d posts fetched (%d new, %d refreshed) since %s",
-        recruiter.name, recruiter.slug, len(posts), inserted, updated, since,
+        recruiter.name, recruiter.slug, len(posts), inserted, updated,
+        since or "(no limit — backfill)",
     )
 
 

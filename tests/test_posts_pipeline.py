@@ -285,3 +285,55 @@ def test_fetch_discovery_runs_seed_queries(db, monkeypatch, tmp_path):
     conn = sqlite3.connect(db)
     rows = conn.execute("SELECT DISTINCT source_run FROM linkedin_posts").fetchall()
     assert rows == [("discovery",)]
+
+
+def test_fetch_watchlist_backfill_omits_since_date(db, tmp_path, monkeypatch, profile_posts_items):
+    """
+    Regression test for the bug where EVERY fetch (including a recruiter's
+    very first) was silently scoped to the 48h catch-up floor, making
+    max_posts never the real constraint on volume. backfill=True must pass
+    since_date=None so the vendor call is unrestricted by date.
+    """
+    yaml_path = tmp_path / "recruiters.yaml"
+    _write_recruiters_yaml(yaml_path, [{
+        "name": "Gillian Lam", "slug": "gillian-lam", "tier": "agency_recruiter",
+        "profile_url": "https://hk.linkedin.com/in/lamgillian", "enabled": True,
+    }])
+    monkeypatch.setattr("hk_jobs.recruiters_config._DEFAULT_YAML", yaml_path)
+
+    calls = []
+    client = ApifyClient(api_token="fake")
+
+    def _mock_call_actor(self, actor, payload, **kw):
+        calls.append(payload)
+        return profile_posts_items
+
+    monkeypatch.setattr(ApifyClient, "_call_actor", _mock_call_actor)
+
+    summary = fetch_watchlist(db, client=client, backfill=True)
+    assert summary.recruiters_polled == 1
+    assert "postedLimitDate" not in calls[0]
+
+
+def test_fetch_watchlist_normal_mode_still_scopes_by_date(
+    db, tmp_path, monkeypatch, profile_posts_items
+):
+    """Confirms backfill=False (the default, used by --fetch-posts) is unchanged."""
+    yaml_path = tmp_path / "recruiters.yaml"
+    _write_recruiters_yaml(yaml_path, [{
+        "name": "Gillian Lam", "slug": "gillian-lam", "tier": "agency_recruiter",
+        "profile_url": "https://hk.linkedin.com/in/lamgillian", "enabled": True,
+    }])
+    monkeypatch.setattr("hk_jobs.recruiters_config._DEFAULT_YAML", yaml_path)
+
+    calls = []
+    client = ApifyClient(api_token="fake")
+
+    def _mock_call_actor(self, actor, payload, **kw):
+        calls.append(payload)
+        return profile_posts_items
+
+    monkeypatch.setattr(ApifyClient, "_call_actor", _mock_call_actor)
+
+    fetch_watchlist(db, client=client)  # backfill defaults to False
+    assert "postedLimitDate" in calls[0]

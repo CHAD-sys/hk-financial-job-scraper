@@ -27,6 +27,18 @@ precedent followed here: system+user split, `response_format:
 Single mockable seam: `_call_deepseek()`. Tests monkeypatch this (same
 pattern as ApifyClient._call_actor in vendor_client.py) — no real network
 call in the test suite.
+
+Also provides `extract_post_haiku()` — same prompt, same ExtractionResult
+shape, but calls Anthropic's Messages API (claude-haiku-4-5) instead of
+DeepSeek. Added for one-time bulk backlog processing (e.g. after
+--fetch-posts-backfill produces thousands of pending posts at once): at
+DeepSeek's ~5-6s/call sequential rate that's hours; hk_jobs.posts.promote's
+concurrent mode (max_workers>1) makes a Haiku-based bulk pass practical in
+minutes instead. Uses ANTHROPIC_API_KEY (already present in
+config/api_keys.env). Forces JSON output via assistant-message prefill
+("{") — Anthropic's Messages API has no response_format=json_object
+equivalent, but prefilling the reply is the standard, reliable way to get a
+Claude model to continue straight into JSON with no preamble or fences.
 """
 
 from __future__ import annotations
@@ -42,6 +54,10 @@ logger = logging.getLogger(__name__)
 
 _API_URL = "https://api.deepseek.com/chat/completions"
 _MODEL = "deepseek-v4-flash"
+
+_ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
+_ANTHROPIC_VERSION = "2023-06-01"
+ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
 
 # Bump whenever the prompt or model changes materially — stored per-post
 # (linkedin_posts.extraction_prompt_version, phase 27) so a prompt change can
@@ -146,6 +162,81 @@ def extract_post(post_text: str, *, api_key: str | None = None) -> ExtractionRes
                 return None
             logger.warning("Extraction attempt %d failed (%s) — retrying", attempt, exc)
     return None
+
+
+def extract_post_haiku(post_text: str, *, api_key: str | None = None) -> ExtractionResult | None:
+    """
+    Same contract as extract_post(), but calls Claude Haiku instead of
+    DeepSeek. See module docstring for why this exists.
+    """
+    if not post_text or not post_text.strip():
+        return None
+
+    key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+    if not key:
+        raise ExtractorAuthError(
+            "ANTHROPIC_API_KEY not set. Export it or add it to config/api_keys.env."
+        )
+
+    for attempt in range(1, 3):
+        try:
+            content = _call_haiku(post_text, api_key=key)
+            data = json.loads(content.replace("```json", "").replace("```", "").strip())
+            return _to_result(data)
+        except httpx.HTTPStatusError as exc:
+            code = exc.response.status_code
+            if code in (401, 403):
+                raise ExtractorAuthError(f"Anthropic rejected the API key (HTTP {code})") from exc
+            if attempt == 2:
+                logger.error("Haiku extraction failed after retries: HTTP %d", code)
+                return None
+            logger.warning("Haiku extraction attempt %d failed (HTTP %d) — retrying", attempt, code)
+        except (
+            httpx.TimeoutException, httpx.NetworkError, json.JSONDecodeError,
+            KeyError, IndexError,
+        ) as exc:
+            if attempt == 2:
+                logger.error("Haiku extraction failed after retries: %s", exc)
+                return None
+            logger.warning("Haiku extraction attempt %d failed (%s) — retrying", attempt, exc)
+    return None
+
+
+def _call_haiku(post_text: str, *, api_key: str) -> str:
+    """
+    Single mockable seam for the Haiku path — patch this in tests, same
+    convention as _call_deepseek.
+
+    Assistant-message prefill ("{") forces the reply to continue straight
+    into a JSON object with no preamble/fences (Anthropic has no
+    response_format=json_object equivalent) — the "{" is stripped from the
+    model's own output but re-attached here so callers always get a
+    complete, parseable JSON string back.
+    """
+    resp = httpx.post(
+        _ANTHROPIC_API_URL,
+        headers={
+            "x-api-key": api_key,
+            "anthropic-version": _ANTHROPIC_VERSION,
+            "content-type": "application/json",
+        },
+        json={
+            "model": ANTHROPIC_MODEL,
+            "max_tokens": 800,
+            "system": _SYSTEM_PROMPT,
+            "messages": [
+                {"role": "user", "content": post_text},
+                {"role": "assistant", "content": "{"},
+            ],
+        },
+        timeout=90.0,
+    )
+    if resp.status_code in (401, 403):
+        raise httpx.HTTPStatusError(
+            f"Anthropic auth error {resp.status_code}", request=resp.request, response=resp
+        )
+    resp.raise_for_status()
+    return "{" + resp.json()["content"][0]["text"]
 
 
 def _to_result(data: dict) -> ExtractionResult:

@@ -34,8 +34,10 @@ import json
 import logging
 import re
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Callable
 
 from hk_jobs.posts.extractor import (
     PROMPT_VERSION,
@@ -62,7 +64,16 @@ class PromotionSummary:
     errors: list[str] = field(default_factory=list)
 
 
-def run_promotion(db_path: str, *, limit: int | None = None) -> PromotionSummary:
+_EMPTY_TEXT = object()  # sentinel distinct from a legitimate None extraction result
+
+
+def run_promotion(
+    db_path: str,
+    *,
+    limit: int | None = None,
+    extractor_fn: Callable[[str], ExtractionResult | None] | None = None,
+    max_workers: int = 1,
+) -> PromotionSummary:
     """
     Extract + promote every linkedin_posts row still in extraction_status='pending'.
 
@@ -72,7 +83,25 @@ def run_promotion(db_path: str, *, limit: int | None = None) -> PromotionSummary
     per-post, matching how it's already called once per daily pipeline run for
     the ATS sources (storage.py's own convention — it re-derives cross_posted/
     apply_url/is_primary globally, not incrementally).
+
+    extractor_fn defaults to hk_jobs.posts.extractor.extract_post (DeepSeek)
+    when not passed — resolved dynamically INSIDE the function body (not as
+    a literal parameter default) so tests that monkeypatch
+    hk_jobs.posts.promote.extract_post keep working; a default bound at def
+    time would capture the real function forever and silently bypass any
+    monkeypatch. Pass extract_post_haiku (or any compatible callable) for a
+    different model/provider — e.g. a one-time bulk backlog where DeepSeek's
+    ~5-6s/call sequential rate would take hours.
+
+    max_workers > 1 parallelizes ONLY the extractor_fn network calls, via a
+    thread pool (I/O-bound HTTP requests — safe to run concurrently despite
+    the GIL). Every SQLite write still happens on the single `conn`, in the
+    main thread, one row at a time as each future completes — never from a
+    worker thread — so there's no concurrent-write risk.
     """
+    if extractor_fn is None:
+        extractor_fn = extract_post
+
     summary = PromotionSummary()
     rows = _fetch_pending(db_path, limit=limit)
     if not rows:
@@ -87,47 +116,80 @@ def run_promotion(db_path: str, *, limit: int | None = None) -> PromotionSummary
 
     promoted_jobs: list[Job] = []
     conn = sqlite3.connect(db_path)
+
+    def _extract(row: sqlite3.Row):
+        text = row["post_text"]
+        if not text or not text.strip():
+            return (row, _EMPTY_TEXT, None)
+        try:
+            return (row, extractor_fn(text), None)
+        except Exception as exc:  # noqa: BLE001 - surfaced to the main thread below
+            return (row, None, exc)
+
+    def _handle(row: sqlite3.Row, result, exc: Exception | None) -> bool:
+        """Applies one row's extraction outcome. Returns False to stop the whole run."""
+        summary.processed += 1
+
+        if result is _EMPTY_TEXT:
+            # Empty content (seen in real discovery-search results — e.g. a
+            # company post with no body text). extractor_fn would also return
+            # None for this, but leaving the row 'pending' would retry it
+            # forever for zero chance of ever succeeding. Reject immediately.
+            summary.rejected += 1
+            _set_status(conn, row["post_urn"], "rejected")
+            return True
+
+        if isinstance(exc, ExtractorAuthError):
+            # A bad/missing key affects every remaining post identically —
+            # no point continuing just to fail the same way.
+            logger.error("Extractor auth failed — aborting promotion run entirely")
+            summary.errors.append("Extractor auth failed")
+            summary.failed += 1
+            return False
+
+        if exc is not None:
+            logger.error("Post %s: extraction failed: %s", row["post_urn"], exc)
+            summary.failed += 1
+            summary.errors.append(f"{row['post_urn']}: {exc}")
+            return True
+
+        try:
+            _store_extraction_result(conn, row["post_urn"], result)
+
+            if result is None:
+                summary.failed += 1
+                return True
+
+            if not _passes_gate(result):
+                summary.rejected += 1
+                _set_status(conn, row["post_urn"], "rejected")
+                return True
+
+            job = _build_job(row, result, recruiter_emails.get(row["recruiter_slug"]))
+            promoted_jobs.append(job)
+            summary.promoted += 1
+            _set_status(conn, row["post_urn"], "promoted")
+        except Exception as exc2:  # noqa: BLE001 - one bad post must not stop the rest
+            logger.exception("Post %s: promotion failed", row["post_urn"])
+            summary.failed += 1
+            summary.errors.append(f"{row['post_urn']}: {exc2}")
+        return True
+
     try:
-        for row in rows:
-            summary.processed += 1
-            try:
-                if not row["post_text"] or not row["post_text"].strip():
-                    # Empty content (seen in real discovery-search results — e.g. a
-                    # company post with no body text). extract_post() would also
-                    # return None for this, but leaving the row 'pending' would
-                    # retry it forever for zero chance of ever succeeding. Reject
-                    # immediately instead.
-                    summary.rejected += 1
-                    _set_status(conn, row["post_urn"], "rejected")
-                    continue
-
-                result = extract_post(row["post_text"])
-                _store_extraction_result(conn, row["post_urn"], result)
-
-                if result is None:
-                    summary.failed += 1
-                    continue
-
-                if not _passes_gate(result):
-                    summary.rejected += 1
-                    _set_status(conn, row["post_urn"], "rejected")
-                    continue
-
-                job = _build_job(row, result, recruiter_emails.get(row["recruiter_slug"]))
-                promoted_jobs.append(job)
-                summary.promoted += 1
-                _set_status(conn, row["post_urn"], "promoted")
-            except ExtractorAuthError:
-                # A bad/missing key affects every remaining post identically —
-                # no point looping through the rest just to fail the same way.
-                logger.error("DeepSeek auth failed — aborting promotion run entirely")
-                summary.errors.append("DeepSeek auth failed")
-                summary.failed += 1
-                break
-            except Exception as exc:  # noqa: BLE001 - one bad post must not stop the rest
-                logger.exception("Post %s: promotion failed", row["post_urn"])
-                summary.failed += 1
-                summary.errors.append(f"{row['post_urn']}: {exc}")
+        if max_workers > 1:
+            with ThreadPoolExecutor(max_workers=max_workers) as pool:
+                futures = {pool.submit(_extract, row): row for row in rows}
+                for future in as_completed(futures):
+                    row, result, exc = future.result()
+                    if not _handle(row, result, exc):
+                        for f in futures:
+                            f.cancel()
+                        break
+        else:
+            for row in rows:
+                _, result, exc = _extract(row)
+                if not _handle(row, result, exc):
+                    break
     finally:
         conn.close()
 

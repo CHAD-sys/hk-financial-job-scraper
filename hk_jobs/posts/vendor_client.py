@@ -118,7 +118,7 @@ class ApifyClient:
             )
 
     def fetch_profile_posts(
-        self, profile_url: str, *, since_date: str | None = None, max_posts: int = 50
+        self, profile_url: str, *, since_date: str | None = None, max_posts: int = 20
     ) -> VendorResult:
         """
         Watchlist polling: posts from ONE profile, optionally since a date.
