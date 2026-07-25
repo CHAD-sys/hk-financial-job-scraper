@@ -1,7 +1,8 @@
 // API base. Empty (VITE_API_URL="") → relative "/api" calls, which the Vite dev
 // server proxies to the backend (see vite.config.ts). This lets a single tunnel
 // on :5173 serve both the UI and the API (same origin, no CORS). Set VITE_API_URL
-// to an absolute URL to point at a separately-hosted backend.
+// to an absolute URL to point at a separately-hosted backend (e.g. the deployed
+// Railway backend URL in production — no hardcoded prod URL).
 export const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
