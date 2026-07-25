@@ -509,3 +509,121 @@ recruiters:
     enabled: true
     added_by: manual
     notes: "Boss-supplied 2026-07-22. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  # ── Boss-supplied list (2026-07-24) ────────────────────────────────────────
+  # 13 profile URLs supplied directly, no name/agency/tier metadata attached.
+  # Same posture as the 2026-07-22 batch above: name inferred from the LinkedIn
+  # vanity-URL slug (best-effort readable guess, not confirmed), tier defaults
+  # to independent/agency=null rather than guessing an affiliation. None
+  # post-tested yet.
+  #
+  # NOTE: https://www.linkedin.com/in/becky-tsui/ from the supplied list was
+  # SKIPPED — it's already in this file as Becky Tsui (added 2026-07-22) above.
+
+  - name: Brendan Cheung
+    slug: brendan-cheung
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/brendan-cheung-79a02b181/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-24. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Emily Cheung
+    slug: emily-cheung
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/emily-cheung-oac/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-24. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Julia Annabella Davis
+    slug: julia-annabella-davis
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/juliaannabelladavis/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-24. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Karina Ng
+    slug: karina-ng
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/ng-karina-343570177/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-24. Name inferred from URL slug (surname-first order), unverified. Tier/agency unconfirmed."
+
+  - name: Luna Yu
+    slug: luna-yu
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/luna-yu-752b942a1/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-24. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Anson Tsang
+    slug: anson-tsang
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/anson-tsang-5a87361bb/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-24. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Sarah Chan
+    slug: sarah-chan
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/sarah-chan-341a46252/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-24. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Irene Yu
+    slug: irene-yu
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/irene-yu-1484b3b4/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-24. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Eunice Lee
+    slug: eunice-lee
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/eunicelee12/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-24. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Kelvin Au
+    slug: kelvin-au
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/kelvin-au-7264581ab/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-24. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Yannes Lee
+    slug: yannes-lee
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/yannes-leee/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-24. Name inferred from URL slug, unverified. Tier/agency unconfirmed."
+
+  - name: Hilary Choy
+    slug: hilary-choy
+    tier: independent
+    agency: null
+    profile_url: https://www.linkedin.com/in/choyhilary/
+    enabled: true
+    added_by: manual
+    notes: "Boss-supplied 2026-07-24. Name inferred from URL slug (surname-first order), unverified. Tier/agency unconfirmed."

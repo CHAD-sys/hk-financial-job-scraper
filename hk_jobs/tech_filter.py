@@ -33,7 +33,10 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-_MODEL = "deepseek-chat"
+# deepseek-chat/deepseek-reasoner retired 2026-07-24 (see hk_jobs/enrichers/deepseek.py's
+# changelog, which migrated production enrichment off them). This module's model was left
+# stale and started hard-failing every call the moment the cutoff hit.
+_MODEL = "deepseek-v4-flash"
 _API = "https://api.deepseek.com/chat/completions"
 _BATCH = 60
 

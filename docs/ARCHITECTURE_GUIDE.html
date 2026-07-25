@@ -1,0 +1,773 @@
+<title>HK Job-Market Platform — Architecture Field Guide</title>
+<style>
+  :root{
+    --paper:#F1F2ED;
+    --paper-raised:#FBFBF8;
+    --ink:#161B22;
+    --ink-soft:#4A5058;
+    --line:#D7D9D0;
+    --line-strong:#B9BCB1;
+    --brass:#8C6A22;
+    --brass-ink:#6E5219;
+    --steel:#2F5163;
+    --plum:#5C4763;
+    --good:#3D6E4A;
+    --warn:#8A6417;
+    --bad:#8C3B33;
+    --code-bg:#E7E7DF;
+    --shadow: 0 1px 2px rgba(22,27,34,.06), 0 8px 24px rgba(22,27,34,.05);
+    --serif: "Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+    --sans: -apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+    --mono: ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#0D1117;
+      --paper-raised:#141A21;
+      --ink:#E7E5DC;
+      --ink-soft:#A5ACB5;
+      --line:#262C34;
+      --line-strong:#39414B;
+      --brass:#D3A94C;
+      --brass-ink:#E7C578;
+      --steel:#6FA0B8;
+      --plum:#A98FB0;
+      --good:#5FA873;
+      --warn:#C99A3E;
+      --bad:#C97268;
+      --code-bg:#1A2028;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0D1117; --paper-raised:#141A21; --ink:#E7E5DC; --ink-soft:#A5ACB5;
+    --line:#262C34; --line-strong:#39414B; --brass:#D3A94C; --brass-ink:#E7C578;
+    --steel:#6FA0B8; --plum:#A98FB0; --good:#5FA873; --warn:#C99A3E; --bad:#C97268;
+    --code-bg:#1A2028; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"]{
+    --paper:#F1F2ED; --paper-raised:#FBFBF8; --ink:#161B22; --ink-soft:#4A5058;
+    --line:#D7D9D0; --line-strong:#B9BCB1; --brass:#8C6A22; --brass-ink:#6E5219;
+    --steel:#2F5163; --plum:#5C4763; --good:#3D6E4A; --warn:#8A6417; --bad:#8C3B33;
+    --code-bg:#E7E7DF; --shadow: 0 1px 2px rgba(22,27,34,.06), 0 8px 24px rgba(22,27,34,.05);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background: color-mix(in srgb, var(--brass) 35%, transparent); }
+
+  h1,h2,h3,h4{
+    font-family:var(--serif);
+    font-weight:600;
+    text-wrap:balance;
+    color:var(--ink);
+    line-height:1.2;
+  }
+  a{ color:var(--brass-ink); text-decoration-color: color-mix(in srgb, var(--brass) 50%, transparent); }
+  a:hover{ text-decoration-thickness:2px; }
+  code, .mono{ font-family:var(--mono); }
+
+  .skiplink{ position:absolute; left:-999px; }
+  .skiplink:focus{ left:8px; top:8px; background:var(--brass); color:#fff; padding:6px 10px; border-radius:4px; z-index:999; }
+  a:focus-visible, button:focus-visible, summary:focus-visible{
+    outline: 2px solid var(--brass); outline-offset: 2px;
+  }
+
+  /* ── Shell ─────────────────────────────────────────────────────── */
+  .shell{
+    display:grid;
+    grid-template-columns: 264px minmax(0,1fr);
+    max-width:1320px;
+    margin:0 auto;
+  }
+  @media (max-width: 920px){
+    .shell{ grid-template-columns: 1fr; }
+    nav.toc{ position:static; height:auto; border-right:none; border-bottom:1px solid var(--line); }
+  }
+
+  nav.toc{
+    position:sticky; top:0; align-self:start;
+    height:100vh; overflow-y:auto;
+    padding:2.25rem 1.25rem 2rem 1.75rem;
+    border-right:1px solid var(--line);
+  }
+  .toc-brand{
+    font-family:var(--serif); font-size:1.05rem; font-weight:700;
+    margin:0 0 .15rem; letter-spacing:.01em;
+  }
+  .toc-brand small{ display:block; font-family:var(--sans); font-weight:500; font-size:.72rem;
+    letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); margin-top:.3rem; }
+  .toc-list{ list-style:none; margin:1.6rem 0 0; padding:0; font-size:.87rem; }
+  .toc-list li{ margin:0; }
+  .toc-list a{
+    display:block; padding:.38rem 0 .38rem .1rem; color:var(--ink-soft);
+    text-decoration:none; border-left:2px solid transparent; padding-left:.7rem;
+    margin-left:-.7rem;
+  }
+  .toc-list a:hover{ color:var(--ink); border-left-color:var(--line-strong); }
+  .toc-num{ font-family:var(--mono); color:var(--line-strong); margin-right:.5em; font-size:.82em; }
+  .toc-sub{ list-style:none; margin:0 0 .5rem; padding-left:1.05rem; font-size:.82rem; }
+  .toc-sub a{ padding:.22rem 0; color:var(--ink-soft); }
+
+  main{ padding: 3rem clamp(1.25rem, 4vw, 4rem) 6rem; min-width:0; }
+  .measure{ max-width:70ch; }
+
+  header.cover{ padding-bottom:2.4rem; margin-bottom:2.6rem; border-bottom:1px solid var(--line); }
+  .eyebrow{
+    font-family:var(--mono); font-size:.72rem; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--brass-ink); margin:0 0 .9rem;
+  }
+  h1.title{ font-size:clamp(1.9rem,4vw,2.7rem); margin:0 0 .6rem; }
+  .subtitle{ font-size:1.05rem; color:var(--ink-soft); max-width:62ch; margin:0 0 1.6rem; }
+  .stat-strip{ display:flex; flex-wrap:wrap; gap:1.6rem 2.2rem; margin-top:1.6rem; }
+  .stat{ min-width:6rem; }
+  .stat .n{ font-family:var(--serif); font-size:1.5rem; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .stat .l{ font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-soft); }
+
+  section{ margin: 0 0 4rem; scroll-margin-top: 1.5rem; }
+  section h2{
+    font-size:1.5rem; margin:0 0 .3rem; display:flex; align-items:baseline; gap:.6rem;
+  }
+  section h2 .secnum{ font-family:var(--mono); font-size:.85rem; color:var(--brass-ink); }
+  .section-kicker{ font-size:.85rem; color:var(--ink-soft); margin:0 0 1.6rem; max-width:60ch; }
+  h3{ font-size:1.14rem; margin:2.1rem 0 .7rem; }
+  h4{ font-size:.98rem; margin:1.4rem 0 .5rem; font-family:var(--sans); font-weight:700; }
+  p{ margin:0 0 1rem; }
+  ul, ol{ margin:0 0 1rem; padding-left:1.3rem; }
+  li{ margin-bottom:.35rem; }
+
+  .rule{ border:none; border-top:1px solid var(--line); margin:2.6rem 0; }
+
+  /* ── Path chips / badges ──────────────────────────────────────── */
+  .path{
+    font-family:var(--mono); font-size:.86em; background:var(--code-bg);
+    padding:.08em .42em; border-radius:4px; white-space:nowrap;
+  }
+  .tag{
+    display:inline-flex; align-items:center; gap:.35em;
+    font-family:var(--mono); font-size:.7rem; letter-spacing:.03em;
+    padding:.16em .55em; border-radius:99px; border:1px solid var(--line-strong);
+    color:var(--ink-soft); text-transform:uppercase;
+  }
+  .tag.backend{ color:var(--steel); border-color:color-mix(in srgb, var(--steel) 45%, var(--line-strong)); }
+  .tag.frontend{ color:var(--plum); border-color:color-mix(in srgb, var(--plum) 45%, var(--line-strong)); }
+  .tag.data{ color:var(--brass-ink); border-color:color-mix(in srgb, var(--brass) 45%, var(--line-strong)); }
+  .tag.infra{ color:var(--ink-soft); }
+
+  /* ── Cards / grids ────────────────────────────────────────────── */
+  .card{
+    background:var(--paper-raised); border:1px solid var(--line); border-radius:10px;
+    padding:1.2rem 1.35rem; box-shadow:var(--shadow);
+  }
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:1.1rem; }
+  .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:1.1rem; }
+  @media (max-width:760px){ .grid2, .grid3{ grid-template-columns:1fr; } }
+
+  .card h4{ margin-top:0; display:flex; align-items:center; justify-content:space-between; gap:.6rem; }
+
+  /* ── Tables ───────────────────────────────────────────────────── */
+  .table-wrap{ overflow-x:auto; margin: 0 0 1.4rem; border:1px solid var(--line); border-radius:10px; }
+  table{ border-collapse:collapse; width:100%; font-size:.88rem; min-width:560px; }
+  thead th{
+    text-align:left; font-family:var(--sans); font-weight:700; font-size:.72rem;
+    text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft);
+    background:var(--code-bg); padding:.65rem .85rem; border-bottom:1px solid var(--line);
+    position:sticky; top:0;
+  }
+  tbody td{ padding:.62rem .85rem; border-bottom:1px solid var(--line); vertical-align:top; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background: color-mix(in srgb, var(--brass) 6%, transparent); }
+  td .path{ white-space:normal; }
+
+  /* ── Code ─────────────────────────────────────────────────────── */
+  pre.code{
+    background:var(--code-bg); border:1px solid var(--line); border-radius:8px;
+    padding:1rem 1.1rem; overflow-x:auto; font-family:var(--mono); font-size:.82rem;
+    line-height:1.55; margin:0 0 1.4rem;
+  }
+  pre.code .c{ color:var(--ink-soft); font-style:italic; }
+  pre.code .k{ color:var(--steel); }
+  pre.code .s{ color:var(--good); }
+
+  /* ── File tree ────────────────────────────────────────────────── */
+  .tree{ font-family:var(--mono); font-size:.83rem; line-height:1.85; }
+  .tree .dir{ color:var(--brass-ink); font-weight:700; }
+  .tree .note{ color:var(--ink-soft); font-family:var(--sans); font-style:italic; }
+  .tree .indent{ padding-left:1.4rem; border-left:1px dotted var(--line-strong); margin-left:.35rem; }
+
+  /* ── Pipeline diagram (custom, not mermaid) ──────────────────── */
+  .pipeline{
+    display:flex; flex-wrap:wrap; gap:0; align-items:stretch; margin: 0 0 1.6rem;
+    overflow-x:auto; padding-bottom:.4rem;
+  }
+  .pipe-step{
+    flex:1 1 150px; min-width:150px; background:var(--paper-raised); border:1px solid var(--line);
+    border-radius:10px; padding:.9rem 1rem; position:relative; box-shadow:var(--shadow);
+  }
+  .pipe-step + .pipe-step{ margin-left:1.6rem; }
+  .pipe-step + .pipe-step::before{
+    content:"→"; position:absolute; left:-1.5rem; top:50%; transform:translateY(-50%);
+    color:var(--brass-ink); font-size:1.1rem;
+  }
+  .pipe-step .k{ font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; color:var(--brass-ink); }
+  .pipe-step h5{ margin:.25rem 0 .3rem; font-family:var(--serif); font-size:1rem; }
+  .pipe-step p{ margin:0; font-size:.78rem; color:var(--ink-soft); }
+
+  .mermaid{ background:var(--paper-raised); border:1px solid var(--line); border-radius:10px; padding:1rem; }
+
+  footer.colophon{
+    margin-top:5rem; padding-top:1.6rem; border-top:1px solid var(--line);
+    font-size:.8rem; color:var(--ink-soft);
+  }
+
+  @media (prefers-reduced-motion: reduce){ *{ scroll-behavior:auto !important; } }
+  html{ scroll-behavior:smooth; }
+</style>
+
+<a class="skiplink" href="#overview">Skip to content</a>
+
+<div class="shell">
+  <nav class="toc" aria-label="Table of contents">
+    <p class="toc-brand">Architecture Field Guide
+      <small>hk-job-scraper</small>
+    </p>
+    <ul class="toc-list">
+      <li><a href="#overview"><span class="toc-num">00</span>Overview</a></li>
+      <li><a href="#shape"><span class="toc-num">01</span>The Shape of the System</a></li>
+      <li><a href="#backend-core"><span class="toc-num">02</span>Backend Core — hk_jobs/</a></li>
+      <li><a href="#adapters"><span class="toc-num">03</span>Adapters — the 7 Sources</a></li>
+      <li><a href="#enrichment"><span class="toc-num">04</span>AI Enrichment</a></li>
+      <li><a href="#posts"><span class="toc-num">05</span>Recruiter Posts (LinkedIn)</a></li>
+      <li><a href="#storage"><span class="toc-num">06</span>Storage &amp; Schema</a></li>
+      <li><a href="#webapp-backend"><span class="toc-num">07</span>webapp/backend — FastAPI</a></li>
+      <li><a href="#frontend"><span class="toc-num">08</span>webapp/frontend — React</a></li>
+      <li><a href="#delivery"><span class="toc-num">09</span>Other Delivery Surfaces</a></li>
+      <li><a href="#automation"><span class="toc-num">10</span>Daily Automation</a></li>
+      <li><a href="#tests"><span class="toc-num">11</span>Tests &amp; Scripts</a></li>
+      <li><a href="#filemap"><span class="toc-num">12</span>Full File Map</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <header class="cover" id="overview">
+      <p class="eyebrow">Generated from a live graphify knowledge graph + direct source read · 176 files, ~305k words</p>
+      <h1 class="title">HK Financial Job-Market Intelligence Platform</h1>
+      <p class="subtitle">
+        A field guide to what exists where — every file's job, how the backend pipeline and the
+        React web app actually connect, and why the codebase is shaped the way it is. Written to
+        teach, not just list.
+      </p>
+      <div class="stat-strip">
+        <div class="stat"><div class="n">7</div><div class="l">scrape sources</div></div>
+        <div class="stat"><div class="n">190+</div><div class="l">companies</div></div>
+        <div class="stat"><div class="n">5,000+</div><div class="l">active jobs</div></div>
+        <div class="stat"><div class="n">1</div><div class="l">SQLite DB</div></div>
+        <div class="stat"><div class="n">4</div><div class="l">delivery surfaces</div></div>
+      </div>
+    </header>
+
+    <!-- ── 00 OVERVIEW ─────────────────────────────────────────── -->
+    <section aria-labelledby="ov-h">
+      <h2 id="ov-h"><span class="secnum">00</span>What this project actually is</h2>
+      <p class="section-kicker">One sentence, then the honest complication.</p>
+      <div class="measure">
+        <p>
+          It is a <strong>daily-run Python backend</strong> that scrapes job postings from Hong Kong's
+          largest financial employers, enriches each one with AI, stores everything in a single SQLite
+          file, and then hands that data to <strong>four separate delivery surfaces</strong> — a React
+          web app, a read-only PocketBase mirror, PDF intelligence reports, and a daily email.
+        </p>
+        <p>
+          The project's own <span class="path">CLAUDE.md</span> still describes it as "scraping + enrichment
+          + storage backend only — no web UI." That was true when it was written. The codebase has since
+          grown a full <span class="path">webapp/</span> (FastAPI + React) on top of the same
+          <span class="path">jobs.db</span>, plus an entire second subsystem
+          (<span class="path">hk_jobs/posts/</span>) that watches LinkedIn recruiter posts through a paid
+          vendor API. Both are real, tested, and running — the docs just haven't caught up. Treat this
+          page, not the CLAUDE.md snapshot, as current.
+        </p>
+        <div class="grid3">
+          <div class="card">
+            <h4>Backend core <span class="tag backend">python</span></h4>
+            <p style="font-size:.85rem;color:var(--ink-soft);margin:0">
+              <span class="path">hk_jobs/</span> — scrape, enrich, store. Runs headless, once a day, via cron.
+            </p>
+          </div>
+          <div class="card">
+            <h4>Web app <span class="tag frontend">react + fastapi</span></h4>
+            <p style="font-size:.85rem;color:var(--ink-soft);margin:0">
+              <span class="path">webapp/</span> — a thin read-only API over the same
+              <span class="path">jobs.db</span>, and the React UI that calls it.
+            </p>
+          </div>
+          <div class="card">
+            <h4>Reports &amp; mirror <span class="tag data">delivery</span></h4>
+            <p style="font-size:.85rem;color:var(--ink-soft);margin:0">
+              <span class="path">scripts/</span>, <span class="path">pocketbase/</span> — PDFs, email,
+              and a stakeholder-facing PocketBase copy of the data.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 01 SHAPE ─────────────────────────────────────────────── -->
+    <section aria-labelledby="shape-h" id="shape">
+      <h2 id="shape-h"><span class="secnum">01</span>The shape of the system</h2>
+      <p class="section-kicker">
+        Nothing downstream of an adapter ever knows which website a job came from. That single rule is
+        what keeps 190+ companies and 7 wildly different sources manageable.
+      </p>
+
+      <pre class="mermaid">
+flowchart LR
+    CFG["companies.yaml\nrecruiters.yaml"] --> PIPE["pipeline.py\n(orchestrator)"]
+    PIPE --> A1["Workday adapter"]
+    PIPE --> A2["Eightfold adapter"]
+    PIPE --> A3["eFinancialCareers adapter"]
+    PIPE --> A4["JobsDB adapter"]
+    PIPE --> A5["Indeed adapter"]
+    PIPE --> A6["LinkedIn guest adapter"]
+    PIPE --> A7["Longtail LLM adapter"]
+    A1 & A2 & A3 & A4 & A5 & A6 & A7 --> JOB["canonical Job\n(schema.py)"]
+    JOB --> STORE["JobStore\n(storage.py)"]
+    STORE --> DB[("jobs.db\nSQLite")]
+    DB --> ENRICH["DeepSeek enrich()\nenrichment.py"]
+    ENRICH --> DB
+    DB --> API["FastAPI\nwebapp/backend/main.py"]
+    API --> REACT["React job board\nwebapp/frontend"]
+    DB --> PB["sync_pocketbase.py"] --> PBASE[("PocketBase\nread-only mirror")]
+    DB --> RPT["reports & scripts\n(PDF, CSV, weekly digest)"]
+    DB --> MAIL["notifications.py\ndaily email"]
+    VENDOR["Apify / HarvestAPI\n(paid, $30/mo cap)"] --> POSTS["hk_jobs/posts/\nRecruiter Posts pipeline"]
+    POSTS --> DB
+      </pre>
+
+      <h3>The daily pipeline, phase by phase</h3>
+      <div class="pipeline">
+        <div class="pipe-step"><span class="k">Phase 1</span><h5>Scrape</h5><p><span class="path">pipeline.py</span> — every enabled company, via its priority fallback chain.</p></div>
+        <div class="pipe-step"><span class="k">Phase 2</span><h5>Fetch descriptions</h5><p><span class="path">description_fetcher.py</span> — fills in missing full text via JSON/GraphQL/REST.</p></div>
+        <div class="pipe-step"><span class="k">Phase 3</span><h5>Enrich</h5><p><span class="path">enrichment.py</span> — one DeepSeek call per unenriched job.</p></div>
+        <div class="pipe-step"><span class="k">Phase 4</span><h5>Sync mirror</h5><p><span class="path">sync_pocketbase.py</span> — non-fatal copy into PocketBase.</p></div>
+        <div class="pipe-step"><span class="k">Phase 5</span><h5>Back up</h5><p><span class="path">backup.py</span> — 30-day rolling retention.</p></div>
+        <div class="pipe-step"><span class="k">Phase 6</span><h5>Notify</h5><p><span class="path">notifications.py</span> — daily summary email; failures alert immediately.</p></div>
+      </div>
+      <p style="font-size:.85rem;color:var(--ink-soft)">Driven by <span class="path">scripts/daily_run.sh</span>, ~2am HKT via cron. Every company fails independently — one broken adapter never stops the other 189.</p>
+    </section>
+
+    <!-- ── 02 BACKEND CORE ─────────────────────────────────────── -->
+    <section aria-labelledby="bc-h" id="backend-core">
+      <h2 id="bc-h"><span class="secnum">02</span>Backend core — <span class="path" style="font-size:.75em">hk_jobs/</span></h2>
+      <p class="section-kicker">The Python package everything else is built from. Runs with no UI — it's invoked from the CLI or cron, never imported by the web app directly (the web app only reads the SQLite file it produces).</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>File</th><th>Role</th><th>Key names</th></tr></thead>
+          <tbody>
+            <tr><td><span class="path">pipeline.py</span> <span class="tag infra">978 lines</span></td><td>Orchestrator. Reads <span class="path">companies.yaml</span>, runs each company's adapter chain, retries failures, prints the run report.</td><td class="mono" style="font-size:.8rem">run(), _run_company(), CompanyResult, main()</td></tr>
+            <tr><td><span class="path">schema.py</span></td><td>The canonical <code>Job</code> pydantic model every adapter must produce. Also JSONL read/write helpers.</td><td class="mono" style="font-size:.8rem">Job, dedup_hash(), jobs_to_jsonl()</td></tr>
+            <tr><td><span class="path">storage.py</span> <span class="tag infra">769 lines</span></td><td>All SQLite access. Upserts jobs, soft-deletes vanished postings, reconciles cross-posted duplicates across sources, computes market-signal flags.</td><td class="mono" style="font-size:.8rem">JobStore, reconcile_cross_posted()</td></tr>
+            <tr><td><span class="path">config.py</span></td><td>Loads and validates <span class="path">companies.yaml</span> (pydantic-checked, since it's hand-edited and full of guesses per the ATS table).</td><td></td></tr>
+            <tr><td><span class="path">description_fetcher.py</span></td><td>Second pass: fetches full job descriptions for rows an adapter only listed (listing-only sources like Indeed).</td><td></td></tr>
+            <tr><td><span class="path">enrich.py</span> / <span class="path">enrichment.py</span></td><td>Drive the DeepSeek enrichment call over unenriched rows (batching, retry, prompt versioning).</td><td class="mono" style="font-size:.8rem">enrich()</td></tr>
+            <tr><td><span class="path">enrichers/deepseek.py</span></td><td>The actual DeepSeek prompt + response parsing — seniority, skills, salary estimate, summary.</td><td></td></tr>
+            <tr><td><span class="path">salary_clamp.py</span></td><td>Caps AI-estimated salaries against real Hays/Adecco/PersolKelly anchor tables so estimates stay plausible.</td><td class="mono" style="font-size:.8rem">clamp_salary()</td></tr>
+            <tr><td><span class="path">salary_audit.py</span></td><td>Standalone agent that periodically re-checks past salary estimates for drift.</td><td></td></tr>
+            <tr><td><span class="path">analytics.py</span></td><td>Daily per-company snapshots, rolling averages, hiring-velocity trend detection.</td><td></td></tr>
+            <tr><td><span class="path">reports/weekly.py</span></td><td>Weekly digest generator (feeds the email + trend reports).</td><td></td></tr>
+            <tr><td><span class="path">tech_filter.py</span></td><td>Filters out tech-only roles that slip in through generic boards (this platform is finance-only).</td><td></td></tr>
+            <tr><td><span class="path">migrations.py</span></td><td>Hand-rolled SQLite schema migrations (no ORM — see Tech Stack note below).</td><td></td></tr>
+            <tr><td><span class="path">backup.py</span></td><td>Rolling 30-day <span class="path">jobs.db</span> backups into <span class="path">data/backups/</span>.</td><td></td></tr>
+            <tr><td><span class="path">sync_pocketbase.py</span></td><td>Pushes active rows into the PocketBase mirror. Non-fatal — a PocketBase outage doesn't fail the run.</td><td></td></tr>
+            <tr><td><span class="path">notifications.py</span></td><td>Sends the daily summary email; fires an immediate alert on any phase exception.</td><td></td></tr>
+            <tr><td><span class="path">http_utils.py</span></td><td>Shared retry/backoff wrapper around <code>httpx</code>, used by every adapter.</td><td></td></tr>
+            <tr><td><span class="path">llm_client.py</span></td><td>Thin shared client for DeepSeek calls (used by both enrichment and the longtail adapter).</td><td></td></tr>
+            <tr><td><span class="path">recruiters_config.py</span></td><td>Loads <span class="path">recruiters.yaml</span> — the watchlist for the Recruiter Posts subsystem.</td><td></td></tr>
+            <tr><td><span class="path">companies.yaml</span></td><td>The config: one entry per company — which ATS, tenant/site IDs, JobsDB slug, category. <em>Hand-verified guesses</em>, not ground truth — see the CLAUDE.md working agreement.</td><td></td></tr>
+            <tr><td><span class="path">companies_longtail.yaml</span></td><td>Separate config for boutique firms with no structured ATS feed — routed to the LLM extractor instead.</td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>The Job model — the contract every source must satisfy</h3>
+      <p>Defined once in <span class="path">hk_jobs/schema.py</span>. This is the single most important abstraction in the repo: adapters translate <em>into</em> it, everything downstream only ever reads <em>from</em> it.</p>
+      <pre class="code"><span class="c"># hk_jobs/schema.py — abbreviated</span>
+<span class="k">class</span> Job(BaseModel):
+    source: str          <span class="c"># "workday", "jobsdb_fallback", …</span>
+    source_id: str        <span class="c"># dedup key together with `source`</span>
+    company, company_slug, url, title
+    description_raw, description_clean
+    locations: list[str]
+    remote_type: Literal[<span class="s">"remote"</span>,<span class="s">"hybrid"</span>,<span class="s">"onsite"</span>] | None
+    seniority: Literal[<span class="s">"intern"</span>..<span class="s">"executive"</span>] | None
+    salary_min, salary_max, salary_currency
+    skills_required, skills_preferred
+    apply_url, cross_posted        <span class="c"># filled later by JobStore, not adapters</span>
+    board_signals: dict            <span class="c"># per-board extras: urgently_hiring, applicant_count…</span>
+    source_tier: str               <span class="c"># "mainstream" | "boutique" | "social"</span>
+
+    <span class="k">def</span> dedup_hash(self) -> str:
+        <span class="c"># sha256(company_slug + title.lower() + first_location)[:12]</span>
+        <span class="c"># catches the SAME vacancy posted on 2+ boards</span></pre>
+    </section>
+
+    <!-- ── 03 ADAPTERS ──────────────────────────────────────────── -->
+    <section aria-labelledby="ad-h" id="adapters">
+      <h2 id="ad-h"><span class="secnum">03</span>Adapters — <span class="path" style="font-size:.75em">hk_jobs/adapters/</span></h2>
+      <p class="section-kicker">
+        One file per source type. Every one implements <code>fetch_jobs() -&gt; list[Job]</code> against
+        <span class="path">base.py</span>'s <code>BaseAdapter</code>, and every one is wrapped in
+        <code>_safe_fetch()</code> so an exception logs and returns <code>[]</code> instead of killing the run.
+        Tried in this priority order per company.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Adapter</th><th>Reaches</th><th>How</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><span class="path">workday.py</span></td><td>Company's own Workday tenant</td><td>Direct JSON POST to <code>/wday/cxs/{tenant}/{site}/jobs</code> — no browser needed.</td></tr>
+            <tr><td>2</td><td><span class="path">eightfold.py</span></td><td>Company's own Eightfold AI tenant</td><td>Direct JSON GET, same idea as Workday.</td></tr>
+            <tr><td>3</td><td><span class="path">efc.py</span></td><td>eFinancialCareers</td><td>Finance-specialist board — first fallback for firms without their own ATS API.</td></tr>
+            <tr><td>4</td><td><span class="path">jobsdb.py</span></td><td>JobsDB HTML</td><td>Scrapes <span class="path">hk.jobsdb.com/{Company}-jobs</span>. <strong>Violates JobsDB ToS</strong> — flagged in code per CLAUDE.md.</td></tr>
+            <tr><td>5</td><td><span class="path">indeed.py</span></td><td>Indeed employer pages</td><td>Reads the embedded <code>mosaic-provider-jobcards</code> JSON, paginates. Listing-only — no detail fetch, so these rows lack full descriptions until Phase 2 fills what it can.</td></tr>
+            <tr><td>6</td><td><span class="path">linkedin.py</span></td><td>LinkedIn guest job search</td><td>No-login guest endpoint. Same ToS caveat as JobsDB/Indeed.</td></tr>
+            <tr><td>7</td><td><span class="path">longtail.py</span></td><td>Boutique firms with no structured feed</td><td>LLM-based extraction straight from the company's own careers HTML — the only adapter with <code>extraction_confidence</code> on its output.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size:.85rem;color:var(--ink-soft)">
+        A handful of firms (Goldman Sachs, JPMorgan, DBS) have almost no clean JobsDB presence, so
+        <span class="path">indeed.py</span> is their primary source rather than a fallback — same legal
+        posture, just promoted for those specific employers.
+      </p>
+    </section>
+
+    <!-- ── 04 ENRICHMENT ────────────────────────────────────────── -->
+    <section aria-labelledby="en-h" id="enrichment">
+      <h2 id="en-h"><span class="secnum">04</span>AI enrichment</h2>
+      <p class="section-kicker">One DeepSeek call per job, run in Phase 3, writing into a separate <span class="path">job_enrichments</span> table — the raw scraped row is never overwritten.</p>
+      <div class="grid2">
+        <div class="card">
+          <h4>What gets added</h4>
+          <ul style="margin:0;font-size:.88rem">
+            <li>Seniority (intern → executive)</li>
+            <li>Job category, remote type</li>
+            <li>Required skills (structured list)</li>
+            <li>Estimated HKD salary range + confidence</li>
+            <li><span class="path">description_summary</span> — ≤3 sentences for the job card</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Salary calibration</h4>
+          <p style="font-size:.88rem;margin:0">
+            <span class="path">salary_clamp.py</span>'s <code>clamp_salary()</code> is the #4 most-connected
+            function in the whole codebase (47 edges) — every estimate gets checked against real anchor
+            tables in <span class="path">salary_guidlines/</span> (Hays, Adecco, PersolKelly) before it's
+            trusted, so DeepSeek can't hallucinate a HK$2M graduate salary.
+          </p>
+        </div>
+      </div>
+      <p style="font-size:.85rem;color:var(--ink-soft)">Jobs with no description (mainly Indeed listing-only rows) get an empty summary string — never a hallucinated one, per the working agreement in CLAUDE.md.</p>
+    </section>
+
+    <!-- ── 05 POSTS / LINKEDIN ──────────────────────────────────── -->
+    <section aria-labelledby="po-h" id="posts">
+      <h2 id="po-h"><span class="secnum">05</span>Recruiter Posts — <span class="path" style="font-size:.75em">hk_jobs/posts/</span></h2>
+      <p class="section-kicker">
+        A second, parallel pipeline, deliberately separate from the adapters above. It surfaces live
+        mandates recruiters post on LinkedIn <em>before</em> they ever reach a job board — the "Secret
+        Market" / Recruiter Posts tab in the UI.
+      </p>
+      <div class="card" style="margin-bottom:1.4rem">
+        <h4 style="margin-top:0">The one deliberate exception to "no paid services"</h4>
+        <p style="font-size:.88rem;margin:0">
+          DIY LinkedIn scraping was evaluated and rejected (authwall, legal risk, anti-bot arms race — see
+          <span class="path">docs/PLAN_LINKEDIN_POSTS.md</span> §3). Instead this subsystem pays a
+          third-party vendor, <strong>Apify / HarvestAPI</strong>, to do the LinkedIn access — the repo's
+          own code never touches LinkedIn directly here. Hard-capped at <strong>$30/month</strong>,
+          enforced (not just logged) by <span class="path">budget.py</span> against a running
+          <span class="path">vendor_costs</span> ledger table.
+        </p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>File</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td><span class="path">vendor_client.py</span></td><td>Talks to Apify/HarvestAPI. The only file in the repo allowed to call a paid API.</td></tr>
+            <tr><td><span class="path">budget.py</span></td><td>Refuses new vendor calls once month-to-date spend hits the $30 cap.</td></tr>
+            <tr><td><span class="path">fetcher.py</span></td><td>Pulls raw posts for each watchlisted recruiter (<span class="path">recruiters.yaml</span>).</td></tr>
+            <tr><td><span class="path">extractor.py</span></td><td>DeepSeek pass that turns a free-text LinkedIn post into structured job fields.</td></tr>
+            <tr><td><span class="path">ghost_check.py</span></td><td>Cheap DeepSeek pass confirming a post is the <em>same real vacancy</em> as a listing already on a mainstream/boutique board — powers the "Verified" badge.</td></tr>
+            <tr><td><span class="path">promote.py</span></td><td>Promotes a qualifying post into the main <span class="path">jobs</span> table as a <code>source_tier='social'</code> row.</td></tr>
+            <tr><td><span class="path">email_harvest.py</span></td><td>Best-effort recruiter email discovery, attached as <code>board_signals.linkedin_posts.recruiter_email</code>.</td></tr>
+            <tr><td><span class="path">expiry.py</span></td><td>Age-based expiry for stale Secret Market posts (recruiter posts don't self-report "closed").</td></tr>
+            <tr><td><span class="path">store.py</span></td><td><code>PostStore</code> — the posts-side equivalent of <code>JobStore</code>; 2nd most-connected class in the graph (53 edges).</td></tr>
+            <tr><td><span class="path">metrics.py</span> / <span class="path">pilot_report.py</span></td><td>Daily metrics and the pilot-phase report used to evaluate the vendor bake-off.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── 06 STORAGE ───────────────────────────────────────────── -->
+    <section aria-labelledby="st-h" id="storage">
+      <h2 id="st-h"><span class="secnum">06</span>Storage &amp; schema — <span class="path" style="font-size:.75em">data/jobs.db</span></h2>
+      <p class="section-kicker">Plain <code>sqlite3</code> (no ORM), Postgres-compatible SQL by convention so a future migration is mechanical. One file, read by both the backend pipeline and the FastAPI app.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Table</th><th>Written by</th><th>Holds</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">jobs</td><td><span class="path">storage.py</span> <code>JobStore</code></td><td>Every scraped posting. Composite PK <code>(source, source_id)</code>. Soft-delete via <code>is_active</code> — never a hard delete. <code>is_primary</code> + <code>cross_posted</code> + <code>apply_url</code> handle the same vacancy appearing on 2+ boards. <code>grp_new</code>/<code>grp_urgent</code>/<code>grp_applicants</code> are precomputed cross-post-group signal flags for instant filtering.</td></tr>
+            <tr><td class="mono">job_enrichments</td><td><span class="path">enrichment.py</span></td><td>1:1 with <code>jobs</code> on <code>(source, source_id)</code>. Seniority, skills, salary estimate + confidence, AI summary. Separate table so raw data is never overwritten by AI output.</td></tr>
+            <tr><td class="mono">linkedin_posts</td><td><span class="path">posts/store.py</span></td><td>Raw + extracted Recruiter Posts before/after promotion into <code>jobs</code>.</td></tr>
+            <tr><td class="mono">company_metrics</td><td><span class="path">analytics.py</span></td><td>Daily per-company snapshots powering trend/velocity reports.</td></tr>
+            <tr><td class="mono">job_history</td><td><span class="path">storage.py</span></td><td>Change log — when a job appeared/disappeared.</td></tr>
+            <tr><td class="mono">vendor_costs</td><td><span class="path">posts/budget.py</span></td><td>The $30/month Apify spend ledger.</td></tr>
+            <tr><td class="mono">salary_audit_log</td><td><span class="path">salary_audit.py</span></td><td>History of salary-estimate drift checks.</td></tr>
+            <tr><td class="mono">recruiter_fetch_state</td><td><span class="path">posts/fetcher.py</span></td><td>Per-recruiter cursor/state for incremental LinkedIn fetches.</td></tr>
+            <tr><td class="mono">tech_title_cache</td><td><span class="path">tech_filter.py</span></td><td>Memoized tech-vs-finance title classification.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size:.85rem;color:var(--ink-soft)">See <span class="path">docs/DATA_MODEL.md</span> for the fully spelled-out schema doc.</p>
+    </section>
+
+    <!-- ── 07 WEBAPP BACKEND ────────────────────────────────────── -->
+    <section aria-labelledby="wb-h" id="webapp-backend">
+      <h2 id="wb-h"><span class="secnum">07</span><span class="path" style="font-size:.75em">webapp/backend/</span> — the FastAPI layer</h2>
+      <p class="section-kicker">
+        Deliberately tiny: <strong>one file</strong>, <span class="path">main.py</span> (777 lines) — no
+        ORM, no auth, <code>PRAGMA query_only=ON</code> enforced at the connection level. It is a
+        <em>read-only</em> window onto <span class="path">jobs.db</span>; nothing here ever writes.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Route</th><th>Returns</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">GET /api/jobs</td><td>Paginated, filtered, sorted job list. Filters: search, sector, company, seniority, remote type, skills, salary/experience range, tier (boutique/mainstream/social), <code>is_new</code>/<code>urgently_hiring</code>/<code>max_applicants</code> (board-signal filters), <code>hidden_only</code>, <code>verified_only</code>.</td></tr>
+            <tr><td class="mono">GET /api/jobs/{source}/{source_id}</td><td>Full job detail, including which other boards the same vacancy is listed on.</td></tr>
+            <tr><td class="mono">GET /api/filters</td><td>Distinct values + counts for every filterable field, to populate the sidebar.</td></tr>
+            <tr><td class="mono">GET /api/stats</td><td>Aggregate counts by sector/seniority/remote-type/tier, top skills, top companies.</td></tr>
+            <tr><td class="mono">GET /health</td><td>Liveness + resolved DB path.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h4>Two things worth understanding in depth</h4>
+      <p>
+        <strong>Sector is computed, not stored.</strong> There's no <code>sector</code> column — every
+        request classifies each row live via a SQL <code>CASE</code> built from hardcoded company-name
+        term lists (<code>_IB_TERMS</code>, <code>_INS_TERMS</code>, <code>_AM_TERMS</code>, etc. — Investment
+        Banking, Insurance, Asset Management, Professional Services, Digital Assets, else Banking).
+      </p>
+      <p>
+        <strong>Cross-posted jobs share signals.</strong> When the same vacancy sits on JobsDB <em>and</em>
+        Indeed, only one copy is shown (<code>is_primary=1</code>), but <code>/api/jobs</code> batch-fetches
+        every hidden copy's <span class="path">board_signals</span> so the single displayed card still shows
+        "urgently hiring" even if that flag only existed on the hidden Indeed copy.
+      </p>
+      <pre class="code"><span class="c">// webapp/frontend/src/api/client.ts — how the UI talks to it</span>
+API = import.meta.env.VITE_API_URL ?? <span class="s">'http://localhost:8000'</span>
+<span class="c">// dev: Vite proxies /api/* → :8000 (vite.config.ts), same-origin, no CORS</span></pre>
+    </section>
+
+    <!-- ── 08 FRONTEND ──────────────────────────────────────────── -->
+    <section aria-labelledby="fe-h" id="frontend">
+      <h2 id="fe-h"><span class="secnum">08</span><span class="path" style="font-size:.75em">webapp/frontend/</span> — the React app</h2>
+      <p class="section-kicker">
+        Vite + React 19 + TypeScript + Tailwind v4 (via <code>@tailwindcss/vite</code>, no config file needed).
+        <code>react-router-dom</code> v7 for routing. <code>oxlint</code> instead of ESLint. No state
+        library — just React state + two small hooks.
+      </p>
+
+      <h3>Routes — <span class="path">src/App.tsx</span></h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Path</th><th>Page</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">/</td><td><span class="path">LandingPage.tsx</span></td><td>Marketing/entry page.</td></tr>
+            <tr><td class="mono">/jobs</td><td><span class="path">JobBoardPage.tsx</span></td><td>The actual board — filters, cards, pagination. Where almost all the UI logic lives.</td></tr>
+            <tr><td class="mono">/saved</td><td><span class="path">SavedJobsPage.tsx</span></td><td>Locally-saved jobs (see <code>useSavedJobs</code> below).</td></tr>
+            <tr><td class="mono">/about</td><td><span class="path">AboutPage.tsx</span></td><td>Static about page.</td></tr>
+            <tr><td class="mono">*</td><td><span class="mono">→ /</span></td><td>Catch-all redirect.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Directory map</h3>
+      <div class="tree">
+        <div><span class="dir">webapp/frontend/src/</span></div>
+        <div class="indent">
+          <div><span class="dir">api/</span> <span class="note">client.ts — every fetch, all shared TS types, filter⇄URL serialisation</span></div>
+          <div><span class="dir">pages/</span> <span class="note">4 route components — see table above</span></div>
+          <div><span class="dir">components/</span></div>
+          <div class="indent">
+            <div>JobCard.tsx <span class="note">the repeating card — a "god node" community on its own in the graph</span></div>
+            <div>JobDetailModal.tsx <span class="note">expanded view: full description, salary, source badges</span></div>
+            <div>FilterBar.tsx / FilterPrimitives.tsx <span class="note">desktop filter sidebar + reusable filter controls</span></div>
+            <div>MobileFilterSheet.tsx <span class="note">same filters, bottom-sheet layout for small screens</span></div>
+            <div>MultiSelect.tsx <span class="note">generic multi-select dropdown used by several filters</span></div>
+            <div>SourceBadges.tsx <span class="note">renders "Listed on: JobsDB, Indeed, …" board tags</span></div>
+            <div>Pagination.tsx, SkeletonCard.tsx, EmptyState.tsx <span class="note">list-state plumbing</span></div>
+            <div>StatCard.tsx <span class="note">the number tiles (total jobs, top skill, etc.)</span></div>
+            <div>Nav.tsx <span class="note">top nav, shared across routes</span></div>
+            <div>Illustrations.tsx <span class="note">inline SVG illustrations for empty/landing states</span></div>
+          </div>
+          <div><span class="dir">hooks/</span></div>
+          <div class="indent">
+            <div>useSavedJobs.ts <span class="note">localStorage-backed saved-jobs list, no backend involved</span></div>
+            <div>useDebounce.ts <span class="note">debounces the search box before it hits <code>/api/jobs</code></span></div>
+            <div>useModalHistoryGuard.ts <span class="note">makes the job-detail modal respond correctly to browser Back</span></div>
+          </div>
+          <div><span class="dir">utils/format.ts</span> <span class="note">salary/date/number formatting shared across components</span></div>
+          <div>main.tsx <span class="note">React root + router mount</span></div>
+          <div>index.css <span class="note">Tailwind entry + design tokens</span></div>
+        </div>
+      </div>
+
+      <h3>How a filter change becomes a request</h3>
+      <p>
+        <span class="path">JobBoardPage.tsx</span> holds a <code>JobFilters</code> object (defined in
+        <span class="path">client.ts</span> as <code>DEFAULT_FILTERS</code>). Every filter interaction updates
+        that object, which is serialised to the URL query string via
+        <code>filtersToSearchParams()</code> — so a filtered view is always a shareable/bookmarkable link
+        — and deserialised back on load via <code>searchParamsToFilters()</code>. The object is then turned
+        into a FastAPI-compatible query string by <code>fetchJobs()</code> and sent to
+        <span class="mono">GET /api/jobs</span>.
+      </p>
+      <p>
+        The three tabs on the board (<strong>All / Exclusive / Recruiter Posts</strong>) are just the
+        <code>tier</code> filter: <code>boutique</code> = longtail/LLM-scraped firms, <code>mainstream</code>
+        = the 5 structured adapters, <code>social</code> = promoted Recruiter Posts.
+      </p>
+
+      <h3>Local design system</h3>
+      <p style="font-size:.9rem">
+        <span class="path">webapp/frontend/DESIGN.md</span> documents the app's own visual language, and
+        the frontend has two of its own project-scoped Claude Code skills:
+        <span class="path">.claude/skills/design-audit</span> and
+        <span class="path">.claude/skills/react-doctor</span> (lint/a11y/bundle/architecture triage) — both
+        loaded automatically the moment you touch a file under <span class="path">webapp/frontend/</span>.
+      </p>
+    </section>
+
+    <!-- ── 09 DELIVERY ──────────────────────────────────────────── -->
+    <section aria-labelledby="dl-h" id="delivery">
+      <h2 id="dl-h"><span class="secnum">09</span>The other delivery surfaces</h2>
+      <p class="section-kicker">The web app is one of four things this data feeds. The other three are older and simpler.</p>
+      <div class="grid2">
+        <div class="card">
+          <h4>PocketBase mirror <span class="tag data">read-only</span></h4>
+          <p style="font-size:.87rem;margin:0">
+            <span class="path">pocketbase/</span> — a self-contained Go binary + <span class="path">pb_migrations/</span>.
+            <span class="path">sync_pocketbase.py</span> pushes active jobs into it daily (Phase 4). Exists
+            for stakeholders who want a browsable admin UI without touching SQLite directly. Non-fatal if it's down.
+          </p>
+        </div>
+        <div class="card">
+          <h4>PDF intelligence reports <span class="tag data">scripts/</span></h4>
+          <p style="font-size:.87rem;margin:0">
+            <span class="path">generate_intelligence_report.py</span>, <span class="path">generate_full_report.py</span>,
+            <span class="path">generate_trend_report.py</span> → land in <span class="path">outputs/</span> and
+            <span class="path">data/</span>. Built on <span class="path">hk_jobs/analytics.py</span>'s snapshots.
+          </p>
+        </div>
+        <div class="card">
+          <h4>Daily email <span class="tag infra">notifications.py</span></h4>
+          <p style="font-size:.87rem;margin:0">Phase 6 of <span class="path">daily_run.sh</span> — summary of the run, plus immediate failure alerts.</p>
+        </div>
+        <div class="card">
+          <h4>CSV export <span class="tag data">scripts/export_jobs_csv.py</span></h4>
+          <p style="font-size:.87rem;margin:0">Flat <span class="path">jobs_export.csv</span> at repo root — ad-hoc analysis / handoff format.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 10 AUTOMATION ────────────────────────────────────────── -->
+    <section aria-labelledby="au-h" id="automation">
+      <h2 id="au-h"><span class="secnum">10</span>Daily automation &amp; operational scripts</h2>
+      <p class="section-kicker"><span class="path">scripts/</span> is the largest single folder in the repo by file count — most of it is one-off or periodic tooling around the core pipeline, not part of the daily run itself.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Script</th><th>When it runs</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">daily_run.sh</td><td>Cron, ~2am HKT — the 6-phase pipeline described in §01.</td></tr>
+            <tr><td class="mono">run_daily.sh</td><td>Manual/local equivalent of the above.</td></tr>
+            <tr><td class="mono">discover_companies.py</td><td>One-off: finds new candidate companies (feeds <span class="path">discovered_companies.csv</span>).</td></tr>
+            <tr><td class="mono">resolve_indeed_slugs.py / resolve_linkedin_ids.py</td><td>One-off: resolves employer slugs/IDs when onboarding a new company.</td></tr>
+            <tr><td class="mono">probe_indeed.py, try_*_live.py family</td><td>Manual live-connectivity checks per ATS type (Workday, Eightfold, JobsDB, LinkedIn Posts) for when the sandbox can't make live calls, per the CLAUDE.md working agreement.</td></tr>
+            <tr><td class="mono">build_merged_salary_anchors.py / apply_boutique_salary_discount.py / clamp_existing_salaries.py</td><td>Periodic: rebuild/apply the salary-anchor tables that <code>clamp_salary()</code> checks against.</td></tr>
+            <tr><td class="mono">reestimate_salaries.py</td><td>Periodic: re-run salary estimation after a prompt/model change.</td></tr>
+            <tr><td class="mono">remove_tech_roles.py</td><td>Periodic cleanup pass using <span class="path">tech_filter.py</span>.</td></tr>
+            <tr><td class="mono">fetch_linkedin_signals.py</td><td>Periodic: refresh board_signals for LinkedIn-sourced rows.</td></tr>
+            <tr><td class="mono">merge_indeed_entries.py</td><td>One-off migration/cleanup of duplicate Indeed rows.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── 11 TESTS ──────────────────────────────────────────────── -->
+    <section aria-labelledby="ts-h" id="tests">
+      <h2 id="ts-h"><span class="secnum">11</span>Tests</h2>
+      <p class="section-kicker"><span class="path">tests/</span>, pytest, one file per module — network-dependent adapter tests use recorded fixtures in <span class="path">tests/fixtures/</span>, never live calls (per project convention).</p>
+      <p style="font-size:.9rem">
+        Coverage roughly mirrors the backend map above: one <span class="path">test_*.py</span> per adapter
+        (<span class="path">test_workday.py</span>, <span class="path">test_jobsdb.py</span>,
+        <span class="path">test_indeed.py</span>, <span class="path">test_efc.py</span>,
+        <span class="path">test_eightfold.py</span>, <span class="path">test_linkedin.py</span>,
+        <span class="path">test_longtail.py</span>), plus <span class="path">test_storage.py</span>,
+        <span class="path">test_cross_posting.py</span>, <span class="path">test_salary_clamp.py</span>,
+        <span class="path">test_pipeline.py</span>, <span class="path">test_posts_pipeline.py</span>,
+        <span class="path">test_vendor_client.py</span>, <span class="path">test_email_harvest.py</span>,
+        <span class="path">test_ghost_check.py</span>, <span class="path">test_expiry.py</span>,
+        <span class="path">test_promote.py</span> and more. The frontend currently has no test files —
+        <span class="path">react-doctor</span> (its local skill) covers lint/a11y/architecture triage instead.
+      </p>
+    </section>
+
+    <!-- ── 12 FILE MAP ──────────────────────────────────────────── -->
+    <section aria-labelledby="fm-h" id="filemap">
+      <h2 id="fm-h"><span class="secnum">12</span>Full top-level file map</h2>
+      <p class="section-kicker">Everything at the repo root, for orientation.</p>
+      <div class="tree">
+        <div><span class="dir">hk-job-scraper/</span></div>
+        <div class="indent">
+          <div><span class="dir">hk_jobs/</span> <span class="note">backend package — §02–06</span></div>
+          <div class="indent">
+            <div><span class="dir">adapters/</span> <span class="note">the 7 source adapters — §03</span></div>
+            <div><span class="dir">posts/</span> <span class="note">Recruiter Posts / LinkedIn subsystem — §05</span></div>
+            <div><span class="dir">enrichers/</span> <span class="note">deepseek.py</span></div>
+            <div><span class="dir">reports/</span> <span class="note">weekly.py</span></div>
+          </div>
+          <div><span class="dir">webapp/</span></div>
+          <div class="indent">
+            <div><span class="dir">backend/</span> <span class="note">main.py — FastAPI, §07</span></div>
+            <div><span class="dir">frontend/</span> <span class="note">React app, §08</span></div>
+          </div>
+          <div><span class="dir">pocketbase/</span> <span class="note">stakeholder mirror binary + migrations</span></div>
+          <div><span class="dir">scripts/</span> <span class="note">automation + one-off tooling — §10</span></div>
+          <div><span class="dir">tests/</span> <span class="note">pytest suite — §11</span></div>
+          <div><span class="dir">data/</span> <span class="note">jobs.db (the database), backups/, generated PDFs</span></div>
+          <div><span class="dir">salary_guidlines/</span> <span class="note">Hays/Adecco/PersolKelly anchor tables + hk_salary_anchors.json</span></div>
+          <div><span class="dir">docs/</span> <span class="note">DATA_MODEL.md, PLAN_LINKEDIN_POSTS.md, BAKEOFF_RESULTS.md</span></div>
+          <div><span class="dir">screenshots/</span> <span class="note">UI screenshots used in README.md</span></div>
+          <div><span class="dir">outputs/</span> <span class="note">generated PDF reports</span></div>
+          <div><span class="dir">logs/</span> <span class="note">run logs, enrichment re-run logs</span></div>
+          <div>CLAUDE.md <span class="note">persistent project brief — read every session, now partly stale (see §00)</span></div>
+          <div>README.md <span class="note">the up-to-date, human-facing overview</span></div>
+          <div>pyproject.toml, requirements.txt <span class="note">Python 3.11+, httpx, selectolax, pydantic v2, PyYAML, pytest, ruff</span></div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="colophon">
+      Built by walking the actual source tree (not just the graphify graph, which was thin on this
+      question) — every file, class and route name on this page was read from the repo on 2026-07-23.
+    </footer>
+  </main>
+</div>

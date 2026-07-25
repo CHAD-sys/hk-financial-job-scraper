@@ -188,6 +188,14 @@ class EnrichmentPipeline:
                                 title=row["title"],
                                 source_tier=row["source_tier"],
                             )
+                            est_confidence = data.get("salary_estimated_confidence")
+                            if row["source"] == "linkedin_posts":
+                                # Recruiter posts: only ever show a salary the recruiter
+                                # actually disclosed (salary_hkd_min/max, detected from the
+                                # post text above) — never an AI guess. A post with no
+                                # figure stated should show no salary, not a fabricated one.
+                                est_salary_min = est_salary_max = None
+                                est_confidence = None
                             conn.execute(
                                 """
                                 INSERT INTO job_enrichments
@@ -231,7 +239,7 @@ class EnrichmentPipeline:
                                     _MODEL,
                                     est_salary_min,
                                     est_salary_max,
-                                    _norm_confidence(data.get("salary_estimated_confidence")),
+                                    _norm_confidence(est_confidence),
                                     _clean_summary(data.get("description_summary")),
                                     _clean_title_en(data.get("title_en")),
                                     PROMPT_VERSION,

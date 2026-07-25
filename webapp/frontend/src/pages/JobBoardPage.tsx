@@ -308,7 +308,7 @@ export default function JobBoardPage() {
             Posts tab. */}
         {activeFilters.tier !== 'social' && recruiterPosts && recruiterPosts.total > 0 && (
           <section
-            className="mb-4 sm:mb-6 rounded-xl p-4 sm:p-5"
+            className="hidden sm:block sm:mb-6 rounded-xl p-4 sm:p-5"
             style={{ backgroundColor: 'rgba(107,78,255,0.05)', border: '1px solid rgba(107,78,255,0.2)' }}
             aria-label="Recruiter Posts — hidden roles matching your filters"
           >

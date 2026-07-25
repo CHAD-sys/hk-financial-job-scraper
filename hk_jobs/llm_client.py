@@ -21,7 +21,10 @@ import httpx
 logger = logging.getLogger(__name__)
 
 _API_URL = "https://api.deepseek.com/chat/completions"
-_DEFAULT_MODEL = "deepseek-chat"
+# deepseek-chat/deepseek-reasoner retired 2026-07-24 (see hk_jobs/enrichers/deepseek.py's
+# changelog, which migrated production enrichment off them). This client's default was
+# left stale and started hard-failing every call the moment the cutoff hit.
+_DEFAULT_MODEL = "deepseek-v4-flash"
 
 
 class LLMClient:
