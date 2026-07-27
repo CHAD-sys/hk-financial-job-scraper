@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   ArrowRight, Star, Sparkles, ShieldCheck, Layers, Languages,
   Coins, Gauge, Radar, Building2, CalendarClock, Puzzle, EyeOff,
+  Send, MessageSquare, GraduationCap,
 } from 'lucide-react'
 import Nav from '../components/Nav'
 import { DataFlow, CoverageRadar, GrowthBars } from '../components/Illustrations'
@@ -22,18 +23,48 @@ const SOURCES = [
   { icon: Radar, title: 'Straight from the employer', body: 'We read jobs directly from applicant-tracking systems (Workday, Eightfold) — structured data at the source, not fragile page-scraping.' },
   { icon: Building2, title: 'Major public boards', body: 'Widely-listed roles are folded in and de-duplicated so nothing is counted twice.' },
   { icon: Star, title: 'Boutique careers pages', body: 'Our Exclusive track reads roles published on the official sites of specialist firms — hedge funds, family offices, brokerages — that never reach the aggregators.', accent: 'gold' as const },
-  { icon: EyeOff, title: 'Recruiter LinkedIn posts', body: 'Our Recruiter Posts track watches Hong Kong recruiters and headhunters on LinkedIn and extracts the roles they mention — mandates that never get formally posted anywhere.', accent: 'purple' as const },
+  { icon: EyeOff, title: 'Recruiter LinkedIn posts', body: 'Our Recruiter Posts track watches Hong Kong recruiters and headhunters on LinkedIn and extracts the roles they mention — mandates that never get formally posted anywhere. These are posts we read; recruiters do not publish them to us.', accent: 'purple' as const },
+  { icon: Send, title: 'Submitted directly to us', body: 'Recruiters and employers can send a mandate straight to the board. Every submission is read and approved by a person before it appears — nothing publishes automatically.' },
+]
+
+// The three things FinEx offers. The front page is a door onto each.
+const PRODUCTS = [
+  {
+    icon: Layers,
+    title: 'The careers index',
+    body: 'Every open finance role in Hong Kong we can find, collected daily, de-duplicated across sources and enriched with skills, seniority and a salary estimate.',
+    to: '/jobs',
+    cta: 'Browse roles',
+  },
+  {
+    icon: MessageSquare,
+    title: 'Executive career consultation',
+    body: 'Confidential one-to-one guidance for senior finance professionals weighing a move, a change of function, or the step up to the next seat. By enquiry.',
+    to: '/#consultation',
+    cta: 'Make an enquiry',
+  },
+  {
+    icon: GraduationCap,
+    title: 'Professional learning',
+    body: "Seminars, technical workshops and the Financial Executive Club's interview series with the executives running Hong Kong's financial institutions.",
+    to: '/#learning',
+    cta: 'Watch',
+  },
 ]
 
 export default function AboutPage() {
   const navigate = useNavigate()
-  const [roles, setRoles] = useState('2,400+')
-  const [sectors, setSectors] = useState('6')
+  // Exact figures, not rounded. The old "round down to the nearest 100 and add +"
+  // was defensive against over-claiming, but /api/stats already returns the
+  // de-duplicated count — so the precise number is both true and more credible
+  // than a marketing-shaped one. Empty until loaded rather than a stale default.
+  const [roles, setRoles] = useState('—')
+  const [sectors, setSectors] = useState('—')
   const [boutique, setBoutique] = useState<number | null>(null)
   const [social, setSocial] = useState<number | null>(null)
   useEffect(() => {
     fetchStats().then(s => {
-      setRoles((Math.floor(s.total_active_jobs / 100) * 100).toLocaleString() + '+')
+      setRoles(s.total_active_jobs.toLocaleString())
       setSectors(String(Object.keys(s.by_sector).length))
       setBoutique(s.by_source_tier?.boutique ?? null)
       setSocial(s.by_source_tier?.social ?? null)
@@ -68,6 +99,46 @@ export default function AboutPage() {
             </div>
             <div className="hidden lg:block">
               <DataFlow className="w-full h-auto" style={{ maxWidth: 520, marginLeft: 'auto' }} />
+            </div>
+          </div>
+        </section>
+
+        {/* ── What FinEx offers (three products) ───────────── */}
+        <section
+          aria-labelledby="products-heading"
+          style={{ borderBottom: '1px solid var(--color-border)' }}
+        >
+          <div className="mx-auto max-w-7xl px-6 lg:px-8 py-16">
+            <p className="text-xs font-semibold uppercase tracking-widest mb-2"
+               style={{ color: 'var(--color-gold)', letterSpacing: '0.12em' }}>
+              What we offer
+            </p>
+            <h2 id="products-heading" className="text-2xl lg:text-3xl font-bold tracking-tight mb-3"
+                style={{ fontFamily: 'var(--font-display)', color: 'var(--color-ink)', letterSpacing: '-0.02em' }}>
+              Three ways we work on a finance career
+            </h2>
+            <p className="max-w-2xl text-base leading-relaxed mb-8" style={{ color: 'var(--color-ink-muted)' }}>
+              The index is the part you can see from the outside. It sits alongside the
+              guidance and the learning that the Financial Executive Club has been doing
+              for years.
+            </p>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {PRODUCTS.map(({ icon: Icon, title, body, to, cta }) => (
+                <div key={title} className="flex flex-col rounded-xl p-6"
+                     style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)' }}>
+                  <span className="flex h-11 w-11 items-center justify-center rounded-lg mb-4"
+                        style={{ backgroundColor: 'var(--color-gold-light)', color: 'var(--color-gold)' }}>
+                    <Icon size={20} strokeWidth={1.8} />
+                  </span>
+                  <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--color-ink)' }}>{title}</h3>
+                  <p className="text-sm leading-relaxed grow" style={{ color: 'var(--color-ink-muted)' }}>{body}</p>
+                  <button type="button" onClick={() => navigate(to)}
+                          className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold cursor-pointer self-start"
+                          style={{ color: 'var(--color-blue)' }}>
+                    {cta} <ArrowRight size={14} strokeWidth={2} />
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -198,9 +269,16 @@ export default function AboutPage() {
             </div>
             <div className="flex items-start gap-3 mt-8 rounded-lg p-4" style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
               <ShieldCheck size={18} style={{ color: 'var(--color-gold)', marginTop: 1 }} />
+              {/* Scoped to the index on purpose. "No logins, no paywalls" was
+                  written when the board was the whole site; now that a paid
+                  consultation sits alongside it, an unqualified claim would
+                  read as a promise about the whole business. The board itself
+                  genuinely is free and account-free, and this says exactly that. */}
               <p className="text-sm leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
-                Everything is compiled from information employers publish on their own public pages &mdash;
-                no logins, no paywalls. Just organised, in one place.
+                Roles are compiled from information employers publish on their own public pages,
+                plus mandates sent to us directly. <strong style={{ color: 'var(--color-ink)' }}>The
+                index is free to browse and needs no account</strong> &mdash; no logins, no paywall
+                on any listing. Consultation is a paid service and is clearly marked as one.
               </p>
             </div>
           </div>
@@ -233,7 +311,7 @@ export default function AboutPage() {
         <div className="mx-auto max-w-7xl px-6 lg:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-3">
           <span className="text-sm font-semibold tracking-tight" style={{ fontFamily: 'var(--font-display)', color: 'var(--color-ink)' }}>
             FinEx <em className="not-italic" style={{ color: 'var(--color-gold)' }}>Careers</em>
-            <span className="text-xs font-normal ml-2" style={{ color: 'var(--color-ink-faint)' }}>&mdash; Hong Kong Financial Jobs Index</span>
+            <span className="text-xs font-normal ml-2" style={{ color: 'var(--color-ink-faint)' }}>&mdash; a Financial Executive Club platform</span>
           </span>
           <span className="text-xs" style={{ color: 'var(--color-ink-faint)' }}>Data refreshed daily from public postings.</span>
         </div>

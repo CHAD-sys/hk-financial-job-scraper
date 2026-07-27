@@ -24,8 +24,17 @@ export interface FeaturedVideo {
 
 export const CHANNEL_URL = 'https://www.youtube.com/@finexclubhq'
 
-/** Claimed on finexclub.org/about. Used as the credibility line instead of recency. */
-export const SUBSCRIBER_LINE = '50,000+ subscribers'
+/**
+ * The channel's real subscriber count, used as the credibility line instead of
+ * recency (see the note above about the newest upload).
+ *
+ * NOT the "over 50,000 subscribers" figure on finexclub.org/about — YouTube
+ * reports 49.4K, so that claim is currently an overstatement. This platform's
+ * whole argument is that its numbers are checkable; publishing a rounded-up
+ * marketing figure on the front page would undercut it for the sake of 600
+ * subscribers. Update when the channel actually crosses 50k.
+ */
+export const SUBSCRIBER_LINE = '49,400 subscribers'
 
 export const FEATURED_VIDEOS: FeaturedVideo[] = [
   {

@@ -17,6 +17,7 @@ import SkeletonCard from '../components/SkeletonCard'
 import EmptyState from '../components/EmptyState'
 import Pagination from '../components/Pagination'
 import JobDetailModal from '../components/JobDetailModal'
+import StatCard from '../components/StatCard'
 
 const PAGE_SIZE = 24
 const SORT_OPTIONS = [
@@ -254,6 +255,8 @@ export default function JobBoardPage() {
           })}
         </div>
 
+        <TierExplainer tier={activeFilters.tier} />
+
         {/* Results header. The count text is hidden below sm: — it's redundant
             with the "All jobs N" tab badge just above and was one of two
             stacked rows contributing to excess chrome above the fold. */}
@@ -371,6 +374,8 @@ export default function JobBoardPage() {
         {!loading && totalPages > 1 && (
           <Pagination page={page} totalPages={totalPages} onChange={setPage} />
         )}
+
+        <IndexStats boardTotal={boardTotal} filterData={filterData} />
       </main>
 
       {/* ── Job detail modal ────────────────────────────────── */}
@@ -383,5 +388,111 @@ export default function JobBoardPage() {
         />
       )}
     </div>
+  )
+}
+
+// ── Tier explainer ────────────────────────────────────────────────────────────
+
+/**
+ * What "Exclusive" and "Recruiter Posts" actually mean, shown only while that
+ * tab is active.
+ *
+ * The landing page used to carry two large callouts explaining these tiers; the
+ * portal rebuild moved that job here. It is deliberately NOT a copy of those
+ * callouts — the tabs above already sell the tiers. What was missing was the
+ * explanation of where the data comes from, which matters most at the moment
+ * someone switches to the tab and wonders what they are looking at.
+ */
+const TIER_NOTES: Partial<Record<TierTab, { title: string; body: string; colour: string }>> = {
+  boutique: {
+    title: 'Roles the major boards miss',
+    body:
+      'Openings at boutique and specialist firms — smaller institutions and niche players whose roles rarely reach the large aggregators. Read from each employer\'s own public hiring activity, then structured with AI.',
+    colour: 'var(--color-gold)',
+  },
+  social: {
+    title: 'Mandates that never reach a job board',
+    body:
+      'LinkedIn posts from recruiters and headhunters working Hong Kong finance — live mandates often shared with their network before, or instead of, a formal listing. Where a post also matches a listing already on the board we mark it Verified.',
+    colour: '#6B4EFF',
+  },
+}
+
+function TierExplainer({ tier }: { tier: TierTab }) {
+  const note = TIER_NOTES[tier]
+  if (!note) return null
+
+  return (
+    <div
+      className="mb-4 sm:mb-6 rounded-lg px-4 py-3"
+      style={{ backgroundColor: 'var(--color-surface-2)', borderLeft: `3px solid ${note.colour}` }}
+    >
+      <p className="text-sm font-semibold" style={{ color: 'var(--color-ink)' }}>
+        {note.title}
+      </p>
+      <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
+        {note.body}
+      </p>
+    </div>
+  )
+}
+
+// ── Index stats ───────────────────────────────────────────────────────────────
+
+/**
+ * The four stat cards that used to sit on the landing page.
+ *
+ * Placed at the foot of the board rather than above the filter bar: this page
+ * has an explicit, hard-won budget for above-the-fold chrome (see the comments
+ * on the tier tabs and results header), and four stat cards between the nav and
+ * the first job would spend all of it on something a browsing visitor did not
+ * come for. At the foot they still back the numbers up for anyone who scrolls.
+ */
+function IndexStats({
+  boardTotal,
+  filterData,
+}: {
+  boardTotal: number | null
+  filterData: FiltersResponse | null
+}) {
+  if (boardTotal == null) return null
+
+  const employers = filterData?.companies.length
+  const sectors = filterData?.sectors.length
+
+  return (
+    <section
+      aria-label="About this index"
+      className="mt-12 pt-8"
+      style={{ borderTop: '1px solid var(--color-border)' }}
+    >
+      <h2
+        className="mb-4 text-xs font-semibold uppercase"
+        style={{ color: 'var(--color-ink-faint)', letterSpacing: '0.14em' }}
+      >
+        About this index
+      </h2>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          value={boardTotal.toLocaleString()}
+          label="Active roles"
+          sub="Duplicates across sources already merged"
+        />
+        <StatCard
+          value={employers ? employers.toLocaleString() : '—'}
+          label="Employers"
+          sub="Banks, insurers, asset managers & more"
+        />
+        <StatCard
+          value={sectors ? String(sectors) : '—'}
+          label="Sectors"
+          sub="Banking · IB · Insurance · AM · Prof. services"
+        />
+        <StatCard value="Daily" label="Refreshed" sub="Collected and re-enriched every morning" />
+      </div>
+      <p className="mt-4 text-xs" style={{ color: 'var(--color-ink-faint)' }}>
+        Counts are live from the index and exclude roles suppressed as cross-posted duplicates.
+      </p>
+    </section>
   )
 }
