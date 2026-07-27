@@ -14,11 +14,14 @@ interface Props {
  * client-side navigation and LandingPage's useHashScroll() does the scrolling on
  * arrival.
  *
- * "Home" is deliberately absent — the wordmark is the home link, and dropping it
- * buys the width the two new products need.
+ * Home points at the portal ("Everything a finance career in Hong Kong needs").
+ * The wordmark also goes there, but an explicit Home is what most people look
+ * for, and the two hash links below make it genuinely useful: once you have
+ * scrolled to Consultation the URL is still `/`, so Home is the way back up.
  */
 
 const LINKS: { label: string; to: string }[] = [
+  { label: 'Home', to: '/' },
   { label: 'Careers', to: '/jobs' },
   { label: 'Consultation', to: '/#consultation' },
   { label: 'Learning', to: '/#learning' },
@@ -30,8 +33,14 @@ export default function Nav({ savedCount = 0 }: Props) {
   const navigate = useNavigate()
   const { pathname, hash } = useLocation()
 
-  const isActive = (to: string) =>
-    to.startsWith('/#') ? pathname === '/' && hash === to.slice(1) : pathname === to
+  // A hash link is active only when its fragment is the current one. Home is the
+  // portal with NO fragment — otherwise scrolling to Consultation (which leaves
+  // pathname as '/') would light up Home and Consultation at the same time.
+  const isActive = (to: string) => {
+    if (to.startsWith('/#')) return pathname === '/' && hash === to.slice(1)
+    if (to === '/') return pathname === '/' && !hash
+    return pathname === to
+  }
 
   return (
     <header
