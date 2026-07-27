@@ -1,6 +1,7 @@
 import { Briefcase, Bookmark, Menu, X } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { scrollToTop, scrollToHash } from '../utils/scroll'
 
 interface Props {
   savedCount?: number
@@ -42,6 +43,46 @@ export default function Nav({ savedCount = 0 }: Props) {
     return pathname === to
   }
 
+  /**
+   * Clicking a nav item for the page you are already on.
+   *
+   * React Router treats navigating to the current location as a no-op, so
+   * without this the link is dead: you are two screens down the job board,
+   * you press "Careers", and nothing at all happens. Every item now does the
+   * obvious thing instead — page links return you to the top, hash links
+   * re-scroll to their section.
+   */
+  const handleClick = (e: React.MouseEvent, to: string) => {
+    // Let the browser handle modified clicks (new tab, new window, download).
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
+
+    const isHashLink = to.startsWith('/#')
+    const targetPath = isHashLink ? '/' : to
+    if (pathname !== targetPath) return // ordinary navigation to another page
+
+    e.preventDefault()
+    setOpen(false)
+
+    if (isHashLink) {
+      const fragment = to.slice(1)
+      // Update the URL, then scroll ourselves rather than leaving it to
+      // useHashScroll. That hook exists for *arriving* at /#consultation from
+      // another route; relying on it here made the first click set the URL
+      // without moving the page, because its effect-and-rAF fires a beat after
+      // the click. Scrolling directly is immediate and does not depend on
+      // render timing. Also means a second click re-scrolls, which a
+      // hash-change-only listener never would.
+      if (hash !== fragment) navigate(to)
+      scrollToHash(fragment)
+      return
+    }
+
+    // A page link: drop any fragment so the URL matches where we end up, then
+    // go to the top.
+    if (hash) navigate(to, { replace: true })
+    scrollToTop()
+  }
+
   return (
     <header
       style={{ backgroundColor: 'var(--color-nav)', zIndex: 200 }}
@@ -53,7 +94,15 @@ export default function Nav({ savedCount = 0 }: Props) {
           {/* Wordmark */}
           <button
             type="button"
-            onClick={() => navigate('/')}
+            onClick={() => {
+              // Same rule as the Home link: already home means "take me to the top".
+              if (pathname === '/') {
+                if (hash) navigate('/', { replace: true })
+                scrollToTop()
+              } else {
+                navigate('/')
+              }
+            }}
             className="flex shrink-0 items-center gap-2.5 cursor-pointer"
             aria-label="FinEx Careers home"
           >
@@ -81,6 +130,7 @@ export default function Nav({ savedCount = 0 }: Props) {
               <Link
                 key={label}
                 to={to}
+                onClick={e => handleClick(e, to)}
                 className="text-sm font-medium no-underline transition-colors duration-150"
                 style={{ color: isActive(to) ? 'var(--color-ink-inverse)' : 'rgba(248,250,252,0.6)' }}
               >
@@ -93,6 +143,7 @@ export default function Nav({ savedCount = 0 }: Props) {
             {/* Employer CTA — quiet on purpose; candidates are the main audience */}
             <Link
               to="/post-a-role"
+              onClick={e => handleClick(e, '/post-a-role')}
               className="hidden lg:inline-flex min-h-9 items-center rounded px-3 py-1.5 text-sm font-medium no-underline"
               style={{
                 color: 'var(--color-ink-inverse)',
@@ -105,7 +156,7 @@ export default function Nav({ savedCount = 0 }: Props) {
             {/* Saved jobs */}
             <button
               type="button"
-              onClick={() => navigate('/saved')}
+              onClick={() => (pathname === '/saved' ? scrollToTop() : navigate('/saved'))}
               className="flex min-h-11 items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors duration-150 cursor-pointer"
               style={{
                 backgroundColor: pathname === '/saved' ? 'var(--color-gold)' : 'rgba(255,255,255,0.08)',
@@ -157,7 +208,10 @@ export default function Nav({ savedCount = 0 }: Props) {
               <Link
                 key={label}
                 to={to}
-                onClick={() => setOpen(false)}
+                onClick={e => {
+                  setOpen(false)
+                  handleClick(e, to)
+                }}
                 className="flex min-h-11 items-center text-sm font-medium no-underline"
                 style={{ color: 'rgba(248,250,252,0.8)' }}
               >

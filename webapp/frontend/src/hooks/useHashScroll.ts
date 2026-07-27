@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
+import { scrollToHash } from '../utils/scroll'
 
 /**
  * Scrolls to `location.hash` after a client-side navigation.
@@ -10,8 +11,7 @@ import { useLocation } from 'react-router-dom'
  * where the section went. This closes that gap.
  *
  * Runs on every hash change, not just mount, so clicking the same Nav item twice
- * works. Honours prefers-reduced-motion: `html { scroll-behavior: smooth }` in
- * index.css would otherwise animate a long jump for people who asked it not to.
+ * works. Reduced-motion handling lives in scrollToHash.
  */
 export default function useHashScroll() {
   const { hash } = useLocation()
@@ -22,19 +22,7 @@ export default function useHashScroll() {
     // The target is rendered in the same commit as this effect, but images and
     // fonts above it can still shift layout. A frame's delay lets that settle
     // so we land on the section rather than near it.
-    const raf = requestAnimationFrame(() => {
-      let el: Element | null = null
-      try {
-        el = document.querySelector(hash)
-      } catch {
-        return // malformed fragment, e.g. "#123" — not a valid selector
-      }
-      if (!el) return
-
-      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      el.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' })
-    })
-
+    const raf = requestAnimationFrame(() => scrollToHash(hash))
     return () => cancelAnimationFrame(raf)
   }, [hash])
 }
