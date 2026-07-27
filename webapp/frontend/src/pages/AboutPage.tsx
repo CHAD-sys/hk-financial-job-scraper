@@ -7,7 +7,9 @@ import {
 } from 'lucide-react'
 import Nav from '../components/Nav'
 import { DataFlow, CoverageRadar, GrowthBars } from '../components/Illustrations'
-import { fetchStats } from '../api/client'
+import PrivacyNotice from '../components/PrivacyNotice'
+import useHashScroll from '../hooks/useHashScroll'
+import { fetchStats, fetchFilters } from '../api/client'
 
 // What the single daily AI pass adds to every posting.
 const ENRICHMENTS = [
@@ -54,12 +56,16 @@ const PRODUCTS = [
 
 export default function AboutPage() {
   const navigate = useNavigate()
+  // So /about#privacy (linked from the portal footer) lands on the notice
+  // rather than at the top of the page.
+  useHashScroll()
   // Exact figures, not rounded. The old "round down to the nearest 100 and add +"
   // was defensive against over-claiming, but /api/stats already returns the
   // de-duplicated count — so the precise number is both true and more credible
   // than a marketing-shaped one. Empty until loaded rather than a stale default.
   const [roles, setRoles] = useState('—')
   const [sectors, setSectors] = useState('—')
+  const [employers, setEmployers] = useState('—')
   const [boutique, setBoutique] = useState<number | null>(null)
   const [social, setSocial] = useState<number | null>(null)
   useEffect(() => {
@@ -69,6 +75,9 @@ export default function AboutPage() {
       setBoutique(s.by_source_tier?.boutique ?? null)
       setSocial(s.by_source_tier?.social ?? null)
     }).catch(() => {})
+    // Employer count is not on /api/stats (top_companies is capped at 15), so it
+    // comes from the filters endpoint, which returns the full company list.
+    fetchFilters().then(f => setEmployers(f.companies.length.toLocaleString())).catch(() => {})
   }, [])
 
   return (
@@ -88,13 +97,13 @@ export default function AboutPage() {
               </p>
               <h1 id="about-heading" className="font-bold leading-[1.1] tracking-tight mb-5"
                   style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(2.1rem, 4.2vw, 3.25rem)', color: 'var(--color-ink-inverse)', letterSpacing: '-0.02em' }}>
-                Hong Kong&rsquo;s financial hiring,{' '}
-                <em className="not-italic" style={{ color: 'var(--color-gold)' }}>made legible</em>.
+                A finance career needs more than{' '}
+                <em className="not-italic" style={{ color: 'var(--color-gold)' }}>a job list</em>.
               </h1>
               <p className="max-w-xl text-lg leading-relaxed" style={{ color: 'rgba(248,250,252,0.72)' }}>
-                Openings are scattered across dozens of tracking systems, job boards and boutique
-                career pages &mdash; many written in Chinese, rarely in one place. FinEx reads them
-                all, every day, and turns the mess into a single structured index.
+                It needs to know what is open, what the move is worth, and who has done it before
+                you. The Financial Executive Club has been answering the last two for years. FinEx
+                Careers adds the first &mdash; and puts all three in one place.
               </p>
             </div>
             <div className="hidden lg:block">
@@ -219,9 +228,12 @@ export default function AboutPage() {
               firms are growing, which skills are rising, where salaries drift. That archive is the
               foundation for the trends and tips coming to this site.
             </p>
+            {/* All three figures are live. "100+ institutions" used to be hardcoded
+                here, sitting between two real numbers and contradicting them — the
+                actual count is well over double that. */}
             <p className="text-sm" style={{ color: 'var(--color-ink-faint)' }}>
               Covering <span style={{ color: 'var(--color-ink)', fontWeight: 600 }}>{roles}</span> active roles
-              across <span style={{ color: 'var(--color-ink)', fontWeight: 600 }}>100+</span> institutions
+              across <span style={{ color: 'var(--color-ink)', fontWeight: 600 }}>{employers}</span> employers
               and <span style={{ color: 'var(--color-ink)', fontWeight: 600 }}>{sectors}</span> sectors today.
             </p>
           </div>
@@ -269,34 +281,49 @@ export default function AboutPage() {
             </div>
             <div className="flex items-start gap-3 mt-8 rounded-lg p-4" style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
               <ShieldCheck size={18} style={{ color: 'var(--color-gold)', marginTop: 1 }} />
-              {/* Scoped to the index on purpose. "No logins, no paywalls" was
-                  written when the board was the whole site; now that a paid
-                  consultation sits alongside it, an unqualified claim would
-                  read as a promise about the whole business. The board itself
-                  genuinely is free and account-free, and this says exactly that. */}
+              {/* Sourcing + the free-to-browse promise. The data-protection half
+                  of what used to be here now lives in the privacy notice at the
+                  foot of the page, which is where a reader actually looks for it. */}
               <p className="text-sm leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
-                Roles are compiled from information employers publish on their own public pages,
-                plus mandates sent to us directly. <strong style={{ color: 'var(--color-ink)' }}>The
-                index is free to browse and needs no account</strong> &mdash; no logins, no paywall
-                on any listing. Consultation is a paid service and is clearly marked as one.
+                Roles are compiled from what employers publish on their own public pages, plus
+                mandates sent to us directly. <strong style={{ color: 'var(--color-ink)' }}>The
+                index is free to browse and needs no account</strong> &mdash; no paywall on any
+                listing. Consultation is a paid service and is marked as one.{' '}
+                <a href="#privacy" style={{ color: 'var(--color-blue)', fontWeight: 600 }}>
+                  What we do with your data
+                </a>
+                .
               </p>
             </div>
           </div>
         </section>
 
-        {/* ── Closing CTA (subtle, not a Home duplicate) ───── */}
+        {/* ── Closing CTA ──────────────────────────────────────
+            Offers all three products, not just the index. The old version
+            linked only to the board and the Exclusive tier, which left the two
+            newer products with no route out of this page. */}
         <section className="mx-auto max-w-7xl px-6 lg:px-8 py-14 flex flex-col sm:flex-row items-center justify-between gap-5"
                  style={{ borderTop: '1px solid var(--color-border)' }}>
           <p className="text-lg font-semibold" style={{ fontFamily: 'var(--font-display)', color: 'var(--color-ink)' }}>
-            See it in action.
+            Start wherever you are.
           </p>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
             <button type="button" onClick={() => navigate('/jobs')}
                     className="inline-flex items-center gap-2 rounded-md px-5 py-2.5 text-sm font-semibold cursor-pointer transition-colors duration-200"
                     style={{ backgroundColor: 'var(--color-ink)', color: 'var(--color-ink-inverse)' }}
                     onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-blue)')}
                     onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--color-ink)')}>
               Browse all roles <ArrowRight size={15} />
+            </button>
+            <button type="button" onClick={() => navigate('/#consultation')}
+                    className="inline-flex items-center gap-1.5 text-sm font-semibold cursor-pointer"
+                    style={{ color: 'var(--color-blue)' }}>
+              <MessageSquare size={14} strokeWidth={2} /> Talk to us
+            </button>
+            <button type="button" onClick={() => navigate('/#learning')}
+                    className="inline-flex items-center gap-1.5 text-sm font-semibold cursor-pointer"
+                    style={{ color: 'var(--color-blue)' }}>
+              <GraduationCap size={14} strokeWidth={2} /> Watch &amp; learn
             </button>
             <button type="button" onClick={() => navigate('/jobs?tier=boutique')}
                     className="inline-flex items-center gap-1.5 text-sm font-semibold cursor-pointer"
@@ -305,6 +332,8 @@ export default function AboutPage() {
             </button>
           </div>
         </section>
+
+        <PrivacyNotice />
       </main>
 
       <footer style={{ borderTop: '1px solid var(--color-border)' }}>

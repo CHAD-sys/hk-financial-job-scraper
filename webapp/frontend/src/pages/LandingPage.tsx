@@ -332,6 +332,7 @@ function LandingFooter() {
           <FooterLink to="/#learning">Learning</FooterLink>
           <FooterLink to="/post-a-role">Post a role</FooterLink>
           <FooterLink to="/about">About</FooterLink>
+          <FooterLink to="/about#privacy">Privacy</FooterLink>
         </nav>
 
         <p className="text-xs" style={{ color: 'var(--color-ink-faint)' }}>
