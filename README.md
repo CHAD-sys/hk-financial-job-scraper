@@ -399,6 +399,7 @@ hk-job-scraper/
 │   └── try_*_live.py            # Per-adapter live verification diagnostics
 ├── tests/                       # pytest — adapters, storage, schema, cross-posting
 ├── docs/PLAN_LINKEDIN_POSTS.md  # Recruiter Posts design history & decision log
+├── docs/MARKET_PANEL_ANALYSIS.html  # Panel analysis of the scraped data (2026-07-25)
 ├── salary_guidlines/            # Hays-derived salary calibration docs
 ├── outputs/                     # Generated reports (gitignored)
 ├── data/                        # gitignored — SQLite DB files

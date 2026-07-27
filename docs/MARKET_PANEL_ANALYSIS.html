@@ -1,0 +1,1302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Panel analysis of 13,504 Hong Kong finance postings: what the data supports, what it doesn't, and when to actually apply. Generated 2026-07-25.">
+<!--
+  Market panel analysis — standalone report.
+  Generated 2026-07-25 from a consistent snapshot of data/jobs.db plus the
+  archived snapshots in data/backups/. Self-contained: no external assets,
+  no network calls. Open it directly in a browser.
+  Analysis scripts that produced these figures are described in the methodology
+  footer at the end of the document.
+-->
+<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}img{max-width:100%}</style>
+</head>
+<body>
+<title>HK Financial Job Market — Panel Analysis</title>
+
+<style>
+:root {
+  --bg: #FFFDF9;
+  --surface: #FFFFFF;
+  --surface-2: #F7F4EE;
+  --ink: #0B1628;
+  --ink-muted: #4A5A70;
+  --ink-faint: #7C8B9E;
+  --rule: #E3DED4;
+  --rule-strong: #C9C2B4;
+
+  --s1: #2F5FD0;
+  --s2: #A87400;
+  --s3: #0F9B8E;
+  --pos: #2F5FD0;
+  --neg: #C2410C;
+
+  --good: #15803D;
+  --warn: #B45309;
+  --crit: #B91C1C;
+
+  --grid: #EBE6DC;
+  --tip-bg: #0B1628;
+  --tip-ink: #FFFDF9;
+
+  --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, 'Times New Roman', serif;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0B1628;
+    --surface: #101C2E;
+    --surface-2: #16233A;
+    --ink: #F2EFE9;
+    --ink-muted: #AFBCCC;
+    --ink-faint: #7E8CA0;
+    --rule: #24334B;
+    --rule-strong: #3A4B67;
+    --s1: #5285E8;
+    --s2: #B8860F;
+    --s3: #149E8D;
+    --pos: #5C8AEE;
+    --neg: #E2703A;
+    --good: #4ADE80;
+    --warn: #FBBF24;
+    --crit: #F87171;
+    --grid: #1D2B42;
+    --tip-bg: #F2EFE9;
+    --tip-ink: #0B1628;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0B1628; --surface: #101C2E; --surface-2: #16233A;
+  --ink: #F2EFE9; --ink-muted: #AFBCCC; --ink-faint: #7E8CA0;
+  --rule: #24334B; --rule-strong: #3A4B67;
+  --s1: #5285E8; --s2: #B8860F; --s3: #149E8D;
+  --pos: #5C8AEE; --neg: #E2703A;
+  --good: #4ADE80; --warn: #FBBF24; --crit: #F87171;
+  --grid: #1D2B42; --tip-bg: #F2EFE9; --tip-ink: #0B1628;
+}
+:root[data-theme="light"] {
+  --bg: #FFFDF9; --surface: #FFFFFF; --surface-2: #F7F4EE;
+  --ink: #0B1628; --ink-muted: #4A5A70; --ink-faint: #7C8B9E;
+  --rule: #E3DED4; --rule-strong: #C9C2B4;
+  --s1: #2F5FD0; --s2: #A87400; --s3: #0F9B8E;
+  --pos: #2F5FD0; --neg: #C2410C;
+  --good: #15803D; --warn: #B45309; --crit: #B91C1C;
+  --grid: #EBE6DC; --tip-bg: #0B1628; --tip-ink: #FFFDF9;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+.page { max-width: 1080px; margin: 0 auto; padding: 0 24px 96px; }
+.measure { max-width: 68ch; }
+
+/* ---------- masthead ---------- */
+.masthead { border-top: 3px solid var(--s2); padding-top: 20px; margin-top: 40px; }
+.kicker {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--s2);
+}
+h1 {
+  font-family: var(--font-display);
+  font-size: clamp(2.1rem, 4.6vw, 3.2rem);
+  line-height: 1.08; letter-spacing: -0.02em; font-weight: 700;
+  margin: 12px 0 0; text-wrap: balance;
+}
+.standfirst {
+  font-family: var(--font-display);
+  font-size: clamp(1.05rem, 1.9vw, 1.3rem);
+  line-height: 1.5; color: var(--ink-muted);
+  margin: 16px 0 0; max-width: 60ch;
+}
+.byline {
+  margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--rule);
+  display: flex; flex-wrap: wrap; gap: 8px 24px;
+  font-size: 12px; color: var(--ink-faint); font-family: var(--font-mono);
+}
+
+/* ---------- provenance tiles ---------- */
+.tiles {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 1px; background: var(--rule); border: 1px solid var(--rule);
+  margin: 32px 0 0; border-radius: 4px; overflow: hidden;
+}
+.tile { background: var(--surface); padding: 16px; }
+.tile .v {
+  font-family: var(--font-mono); font-size: 1.55rem; font-weight: 600;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.02em; display: block;
+}
+.tile .l {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--ink-faint); margin-top: 6px; display: block;
+}
+
+/* ---------- sections ---------- */
+section { margin-top: 72px; }
+.sec-head { border-bottom: 1px solid var(--rule-strong); padding-bottom: 10px; margin-bottom: 28px; }
+.sec-no {
+  font-family: var(--font-mono); font-size: 11px; color: var(--s2);
+  letter-spacing: 0.08em; font-weight: 600;
+}
+h2 {
+  font-family: var(--font-display); font-weight: 700;
+  font-size: clamp(1.5rem, 2.8vw, 2rem); line-height: 1.18;
+  letter-spacing: -0.02em; margin: 6px 0 0; text-wrap: balance;
+}
+h3 {
+  font-size: 1.05rem; font-weight: 650; margin: 40px 0 8px;
+  letter-spacing: -0.01em;
+}
+p { margin: 14px 0; }
+.lead { font-size: 1.06rem; }
+strong { font-weight: 650; }
+a { color: var(--s1); }
+:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; border-radius: 2px; }
+
+/* ---------- grade chips ---------- */
+.grade {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
+  padding: 4px 9px; border-radius: 3px; border: 1px solid currentColor;
+  font-family: var(--font-sans); white-space: nowrap;
+}
+.grade::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; flex: none;
+}
+.g-strong { color: var(--good); }
+.g-mod    { color: var(--warn); }
+.g-no     { color: var(--crit); }
+.g-art    { color: var(--ink-faint); }
+
+/* ---------- callout ---------- */
+.callout {
+  border-left: 3px solid var(--s2); background: var(--surface-2);
+  padding: 18px 22px; margin: 28px 0; border-radius: 0 4px 4px 0;
+}
+.callout p { margin: 8px 0; }
+.callout .ct {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--s2);
+}
+.callout.warn { border-left-color: var(--crit); }
+.callout.warn .ct { color: var(--crit); }
+
+/* ---------- figures ---------- */
+figure { margin: 32px 0; }
+.fig-cap {
+  font-size: 12.5px; color: var(--ink-muted); margin-top: 12px;
+  padding-top: 10px; border-top: 1px solid var(--rule); max-width: 76ch;
+}
+.fig-cap b { color: var(--ink); font-weight: 650; }
+.fig-title { font-size: 0.95rem; font-weight: 650; margin-bottom: 2px; }
+.fig-sub { font-size: 12.5px; color: var(--ink-faint); margin-bottom: 14px; }
+.chart-wrap { overflow-x: auto; }
+svg { display: block; max-width: 100%; height: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 14px; }
+.lg { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink-muted); }
+.sw { width: 14px; height: 3px; border-radius: 2px; flex: none; }
+.sw.box { height: 11px; width: 11px; border-radius: 2px; }
+
+/* ---------- tables ---------- */
+.tbl-wrap { overflow-x: auto; margin: 24px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 460px; }
+caption {
+  text-align: left; font-size: 12px; color: var(--ink-faint);
+  padding-bottom: 8px; font-style: italic;
+}
+th, td { padding: 9px 14px 9px 0; text-align: left; border-bottom: 1px solid var(--rule); }
+th {
+  font-size: 10px; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--ink-faint); font-weight: 650; border-bottom: 1px solid var(--rule-strong);
+}
+td.n, th.n { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+tbody tr:hover { background: var(--surface-2); }
+
+/* ---------- playbook ---------- */
+.rules { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; margin: 28px 0; }
+.rule-row { background: var(--surface); padding: 20px 22px; display: grid; grid-template-columns: 88px 1fr; gap: 20px; align-items: start; }
+.rule-row .when {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.04em; color: var(--s2); text-transform: uppercase;
+  padding-top: 3px; line-height: 1.5;
+}
+.rule-row .what { margin: 0; }
+.rule-row .what b { display: block; margin-bottom: 3px; }
+.rule-row .what span { color: var(--ink-muted); font-size: 14px; }
+@media (max-width: 560px) { .rule-row { grid-template-columns: 1fr; gap: 6px; } }
+
+/* ---------- fix list ---------- */
+ol.fixes { margin: 24px 0; padding-left: 0; list-style: none; counter-reset: fix; }
+ol.fixes li {
+  counter-increment: fix; position: relative; padding: 16px 0 16px 44px;
+  border-bottom: 1px solid var(--rule);
+}
+ol.fixes li::before {
+  content: counter(fix); position: absolute; left: 0; top: 16px;
+  font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+  color: var(--s2); border: 1px solid var(--rule-strong);
+  width: 26px; height: 26px; display: grid; place-items: center; border-radius: 3px;
+}
+ol.fixes li b { display: block; margin-bottom: 3px; }
+ol.fixes li span { color: var(--ink-muted); font-size: 14px; }
+
+/* ---------- tooltip ---------- */
+#tip {
+  position: fixed; pointer-events: none; opacity: 0; z-index: 100;
+  background: var(--tip-bg); color: var(--tip-ink);
+  font-family: var(--font-mono); font-size: 11.5px; line-height: 1.5;
+  padding: 8px 11px; border-radius: 4px; white-space: nowrap;
+  transition: opacity 120ms ease-out; box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+#tip.on { opacity: 1; }
+.hit { cursor: crosshair; }
+.mark { transition: opacity 120ms ease-out; }
+.mark:hover { opacity: 0.78; }
+
+footer {
+  margin-top: 80px; padding-top: 20px; border-top: 1px solid var(--rule);
+  font-size: 12px; color: var(--ink-faint); max-width: 68ch;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+</style>
+
+<div id="tip" role="status" aria-live="polite"></div>
+
+<div class="page">
+
+<header class="masthead">
+  <div class="kicker">FinEx Careers · Panel Analysis</div>
+  <h1>What 13,504 Hong Kong finance postings actually tell us</h1>
+  <p class="standfirst">
+    A seven-week panel of 196 employers, read the way a market-data desk would read it:
+    findings first, artefacts named, and the two most popular pieces of job-hunting
+    advice tested and rejected.
+  </p>
+  <div class="byline">
+    <span>Snapshot 2026-07-25 20:01 HKT</span>
+    <span>Panel 2026-06-01 → 2026-07-25</span>
+    <span>Source: jobs.db + 10 archived snapshots</span>
+  </div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><span class="v">13,504</span><span class="l">Postings observed</span></div>
+  <div class="tile"><span class="v">4,986</span><span class="l">Active rows</span></div>
+  <div class="tile"><span class="v">~3,611</span><span class="l">Distinct roles</span></div>
+  <div class="tile"><span class="v">196</span><span class="l">Employers</span></div>
+  <div class="tile"><span class="v">8</span><span class="l">Sources</span></div>
+  <div class="tile"><span class="v">33</span><span class="l">Scrape dates</span></div>
+</div>
+
+<!-- ============================================ VERDICT -->
+<section>
+  <div class="sec-head">
+    <div class="sec-no">FINDINGS</div>
+    <h2>The short version</h2>
+  </div>
+
+  <p class="lead measure">
+    This dataset is strong where people rarely look and weak exactly where the
+    tempting headline lives. The <strong>cross-section</strong> — what roles exist right
+    now, what they pay, what they ask for — is solid and worth building on. The
+    <strong>time series</strong> — who is hiring more this week than last — is not yet
+    trustworthy, and publishing a "who's hiring" leaderboard from it today would be
+    reporting scraper behaviour as market behaviour.
+  </p>
+
+  <div class="tbl-wrap">
+    <table>
+      <caption>Every claim in this report carries its evidential status. Nothing is asserted above its grade.</caption>
+      <thead>
+        <tr><th>Claim</th><th>Evidence</th><th style="width:130px">Status</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Listing churn measures board policy, not whether a role is filled</td>
+          <td>7-day closure 0.4% (Eightfold) to 76.9% (eFC), same follow-up window</td>
+          <td><span class="grade g-strong">Well supported</span></td>
+        </tr>
+        <tr>
+          <td>Employer-ATS roles stay open for weeks</td>
+          <td>Only 0.4–5.6% close within 7 days; 6.7–7.3% within 14</td>
+          <td><span class="grade g-strong">Well supported</span></td>
+        </tr>
+        <tr>
+          <td>New supply arrives on weekdays, 3.5&times; the weekend rate</td>
+          <td>8,923 weekday vs 1,018 weekend postings; holds in every source</td>
+          <td><span class="grade g-strong">Well supported</span></td>
+        </tr>
+        <tr>
+          <td>The visible board is ~28% smaller than its row count</td>
+          <td>1,375 of 4,986 active rows are suppressed duplicates</td>
+          <td><span class="grade g-strong">Well supported</span></td>
+        </tr>
+        <tr>
+          <td>Pay ladder separates cleanly by seniority</td>
+          <td>4,629 estimates, monotone bands, no overlap between rungs</td>
+          <td><span class="grade g-mod">Directional</span></td>
+        </tr>
+        <tr>
+          <td>"Apply within the hour or lose the job"</td>
+          <td>Age vs applicants: &rho;&nbsp;=&nbsp;0.029, t&nbsp;=&nbsp;0.76, n&nbsp;=&nbsp;665</td>
+          <td><span class="grade g-no">Not supported</span></td>
+        </tr>
+        <tr>
+          <td>"Thursday is the big posting day"</td>
+          <td>Real on JobsDB only (23.5%); absent on all employer-native feeds</td>
+          <td><span class="grade g-art">Artefact</span></td>
+        </tr>
+        <tr>
+          <td>Company-level hiring momentum</td>
+          <td>24.6% of observations are zero; 32.9% of firms swing &ge;50% daily</td>
+          <td><span class="grade g-no">Not usable</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================ 01 INTEGRITY -->
+<section>
+  <div class="sec-head">
+    <div class="sec-no">01 — INTEGRITY</div>
+    <h2>Start with what the panel cannot support</h2>
+  </div>
+
+  <p class="measure">
+    The obvious first question — <em>which banks are ramping up?</em> — is the one
+    question this panel currently answers worst. Three separate defects compound,
+    and each one alone would be enough to invalidate a trend claim.
+  </p>
+
+  <h3>Defect one: a quarter of all observations are zero</h3>
+  <p class="measure">
+    Across the 146-company stable window, <strong>323 of 1,314 company-days record
+    exactly zero jobs</strong>. These are not employers with an empty careers page —
+    they are adapter failures. AXA Hong Kong reads 44, 48, <em>0</em>, 53, <em>0</em>, 52, 47,
+    61, 62 on consecutive scrapes. Zurich reads 18, 20, <em>0</em>, 20, <em>0</em>, 20. A zero
+    followed by a full recovery is a fetch that failed, recorded as a fact.
+  </p>
+
+  <h3>Defect two: a pagination fingerprint</h3>
+  <p class="measure">
+    Counts cluster on <strong>exactly 10 and exactly 20</strong> far more than chance allows —
+    56 and 29 observations respectively, with 22 companies landing on those two values
+    repeatedly. Those are page sizes, not job counts. Goldman Sachs reads 59, 49, 10, 10,
+    18, 10, 36, 17, 10; Standard Chartered reads 45, 67, 10, 20, 72, 19, 45, 72, 10.
+    When a paginated fetch stops after page one, the panel records a collapse in hiring.
+  </p>
+
+  <h3>Defect three: the delta columns re-seed</h3>
+  <p class="measure">
+    <code>jobs_added</code> is meant to hold the day-over-day increase. In <strong>9.7% of
+    observations it instead equals the full job count</strong>, re-declaring every open role
+    as new. HKEX moved from 119 to 124 roles on 23 July and logged <code>jobs_added = 124</code>.
+    Summing that column across the window produces "HKEX added 244 roles" — an artefact
+    of the same five-role change counted twice over.
+  </p>
+
+  <div class="callout warn">
+    <div class="ct">Consequence</div>
+    <p>
+      The hiring-velocity and net-mover analyses were computed, inspected, and
+      <strong>discarded</strong>. They are not in this report. Until the zero-guard and
+      pagination fixes land, any company-level trend read from <code>job_history</code>
+      is measuring the scraper.
+    </p>
+  </div>
+
+  <figure>
+    <div class="fig-title">Where the panel breaks</div>
+    <div class="fig-sub">1,314 company-day observations by defect class · 146 companies · 16–25 July 2026</div>
+    <div class="chart-wrap"><div id="c-integrity"></div></div>
+    <figcaption class="fig-cap">
+      <b>Read:</b> just <b>55.9% of company-days survive as clean</b> — 580 of 1,314
+      observations carry at least one defect. Classes are assigned in priority order and
+      are mutually exclusive, so an observation that is both zero and re-seeded counts
+      once, as zero. Counted on its own without that priority rule, the re-seed defect
+      touches 128 observations (9.7%).
+    </figcaption>
+  </figure>
+
+  <h3>A fourth, milder caveat: the roster grew</h3>
+  <p class="measure">
+    The panel opens on 1 June tracking 28 companies and closes tracking 146. Total job
+    counts therefore rise for reasons that have nothing to do with the market. Every
+    time-based figure in this report is confined to the
+    <strong>stable-roster window of 16–25 July</strong>, where the roster is constant at 146 —
+    nine scrape dates, not the full seven weeks.
+  </p>
+</section>
+
+<!-- ============================================ 02 SURVIVAL -->
+<section>
+  <div class="sec-head">
+    <div class="sec-no">02 — TIME ON MARKET</div>
+    <h2>How long a posting actually stays open</h2>
+  </div>
+
+  <p class="measure">
+    Because <code>fetched_at</code> updates on every run, the last time a posting was seen
+    alive is recoverable, and the gap from <code>posted_at</code> gives its observed life.
+    That invites an obvious mistake, which this section makes and then corrects: the
+    sources have not been scraped for the same length of time.
+  </p>
+
+  <div class="callout warn">
+    <div class="ct">A correction, shown rather than hidden</div>
+    <p>
+      A first pass computed median observed life per source and reported 28 days for
+      employer ATS feeds against 2 days for eFinancialCareers. That comparison is
+      <strong>invalid</strong>. Workday and Eightfold have been scraped since 31 May — a
+      55-day window. eFinancialCareers has been scraped only since <strong>14 July, an
+      11-day window</strong>. A posting cannot be observed to live 28 days inside 11 days
+      of observation, so the only eFC postings that can appear "closed" are the
+      short-lived ones. The rest are still open and silently excluded.
+    </p>
+    <p>
+      The giveaway was sitting in the data: eFC currently has <strong>86 active listings
+      more than 30 days old</strong>, which no 2-day median can survive.
+    </p>
+  </div>
+
+  <p class="measure">
+    The fix is to measure every source the same way: take only postings with at least
+    seven full days of follow-up, and ask what share had disappeared by day seven.
+    That question is well defined for any source, whatever its window.
+  </p>
+
+  <figure>
+    <div class="fig-title">Share of postings gone within 7 days</div>
+    <div class="fig-sub">Identical 7-day follow-up for every source · each source restricted to its own valid observation period</div>
+    <div class="chart-wrap"><div id="c-closure"></div></div>
+    <figcaption class="fig-cap">
+      <b>Read:</b> measured identically, the spread is enormous and survives the
+      correction — <b>0.4% of Eightfold postings vanish within a week against 76.9% of
+      eFinancialCareers postings</b>. The employer-native ATS feeds barely move: at 14
+      days Eightfold is still only 7.3% and Workday 6.7%. Note the eFC sample is small
+      (n = 65) because its observation window is short; treat its level as indicative and
+      its rank as solid.
+    </figcaption>
+  </figure>
+
+  <h3>But "gone from the board" is not "role filled"</h3>
+  <p class="measure">
+    Before reading fast churn as fast hiring, one more test. For every eFC listing that
+    closed since 1 July, does the same employer still have an <em>identical</em> job title
+    live under a different listing ID? For <strong>29.2% of them it does</strong> — 81 of
+    277. HKEX and DBS rotate listing IDs constantly, cycling the same
+    <em>Treasures Relationship Manager</em> and <em>Post-Trade Systems</em> roles through
+    new IDs. Because that test requires an exact title match and only counts roles still
+    live today, 29.2% is a <strong>floor, not an estimate</strong>.
+  </p>
+
+  <div class="callout">
+    <div class="ct">The corrected finding</div>
+    <p>
+      <strong>Listing churn measures a board's hygiene, not whether a job was filled.</strong>
+      Each source's disappearance rate is mostly a property of its own policy: JobsDB
+      delists on a 30-day timer, eFinancialCareers rotates IDs, Indeed leaves dead
+      listings up for years. Only employer-ATS feeds track the actual role, and they say
+      finance roles stay open for <strong>weeks</strong> — under 6% close within a week.
+    </p>
+  </div>
+
+  <figure>
+    <div class="fig-title">Survival curves, employer ATS against JobsDB</div>
+    <div class="fig-sub">Both scraped since 31 May, so this comparison is like-for-like · share still open by day</div>
+    <div class="legend" id="lg-surv"></div>
+    <div class="chart-wrap"><div id="c-survival"></div></div>
+    <figcaption class="fig-cap">
+      <b>Read:</b> restricted to the two source classes with equally long observation, the
+      JobsDB curve does not decay — it <b>falls vertically to exactly zero at day 30</b>,
+      because JobsDB delists at 30 days. That is a retention policy rendered as a
+      survival curve. The ATS curve declines gradually and keeps going past day 30, which
+      is what a real hiring process looks like. eFinancialCareers and LinkedIn are
+      excluded here: their windows are too short to plot honestly at this scale.
+    </figcaption>
+  </figure>
+
+  <div class="tbl-wrap">
+    <table>
+      <caption>Why the windows differ: the date each adapter began recording. Any cross-source lifespan claim must respect the shortest window involved.</caption>
+      <thead>
+        <tr><th>Source</th><th class="n">Scraping since</th><th class="n">Window</th><th class="n">Closed by day 7</th><th class="n">n</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Eightfold</td><td class="n">31 May</td><td class="n">55 d</td><td class="n">0.4%</td><td class="n">237</td></tr>
+        <tr><td>Workday</td><td class="n">31 May</td><td class="n">55 d</td><td class="n">5.6%</td><td class="n">125</td></tr>
+        <tr><td>JobsDB</td><td class="n">31 May</td><td class="n">55 d</td><td class="n">24.4%</td><td class="n">4,653</td></tr>
+        <tr><td>LinkedIn</td><td class="n">15 July</td><td class="n">10 d</td><td class="n">39.8%</td><td class="n">211</td></tr>
+        <tr><td>eFinancialCareers</td><td class="n">14 July</td><td class="n">11 d</td><td class="n">76.9%</td><td class="n">65</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>How stale is the board right now</h3>
+  <figure>
+    <div class="fig-title">Age of currently-active listings</div>
+    <div class="fig-sub">4,852 active postings carrying a usable date · days since posted</div>
+    <div class="chart-wrap"><div id="c-fresh"></div></div>
+    <figcaption class="fig-cap">
+      <b>Read:</b> only 13.6% of the live board was posted in the last three days, while
+      <b>15.6% is more than two months old</b>. Since the employer-ATS evidence shows most
+      roles resolving well inside two months, a large share of that tail is likely filled
+      roles that no source has told us about. A default freshness filter on the job board
+      would improve perceived quality more than any new source would.
+    </figcaption>
+  </figure>
+</section>
+
+<!-- ============================================ 03 RHYTHM -->
+<section>
+  <div class="sec-head">
+    <div class="sec-no">03 — RHYTHM</div>
+    <h2>The weekly cycle, and the day that isn't real</h2>
+  </div>
+
+  <p class="measure">
+    Hong Kong finance posts on weekdays. Per weekday the panel sees
+    <strong>1,785 postings against 509 per weekend day</strong> — a 3.5&times; ratio that holds
+    across every source independently, including the employer ATS feeds where the
+    timestamp is written by the employer's own system. Eightfold recorded
+    <strong>zero</strong> weekend postings in the entire window.
+  </p>
+
+  <figure>
+    <div class="fig-title">Postings by day of week</div>
+    <div class="fig-sub">Five sources with reliable timestamps · from 1 May 2026 · n = 9,941</div>
+    <div class="chart-wrap"><div id="c-dow"></div></div>
+    <figcaption class="fig-cap">
+      <b>Read:</b> the weekday plateau is close to flat. Thursday leads at 21.9% of
+      weekday volume against a 20.0% uniform expectation — a spread of only 13.8%
+      between the best and worst weekday, against a weekend gap of 3.5&times;.
+    </figcaption>
+  </figure>
+
+  <h3>Testing the Thursday peak</h3>
+  <p class="measure">
+    A chi-square test against a uniform weekday distribution returns
+    <strong>&chi;&sup2; = 21.51 on 4 df</strong>, comfortably past the 9.49 critical value.
+    Statistically significant — and with 9,941 observations, almost any wobble would be.
+    So the real test is whether the effect replicates across independent sources. It does not.
+  </p>
+
+  <figure>
+    <div class="fig-title">Thursday's share of weekday postings, by source</div>
+    <div class="fig-sub">A genuine employer behaviour would appear in every feed · dashed line = 20% uniform expectation</div>
+    <div class="chart-wrap"><div id="c-thu"></div></div>
+    <figcaption class="fig-cap">
+      <b>Read:</b> the entire effect lives in JobsDB at 23.5%. On the three employer-native
+      feeds — LinkedIn 16.9%, Workday 17.2%, Eightfold 18.1% — Thursday is
+      <b>below</b> uniform. An effect that reverses sign when you change measuring
+      instrument is a property of the instrument. <b>Do not tell anyone to apply on a Thursday.</b>
+    </figcaption>
+  </figure>
+</section>
+
+<!-- ============================================ 04 MYTH -->
+<section>
+  <div class="sec-head">
+    <div class="sec-no">04 — NULL RESULT</div>
+    <h2>The "apply in the first hour" rule fails its test</h2>
+  </div>
+
+  <p class="measure">
+    The most repeated piece of job-hunting advice is that competition compounds fast, so
+    the earliest applicants win. The panel carries LinkedIn applicant counts for 665 live
+    postings with usable dates, which is enough to test it directly.
+  </p>
+
+  <figure>
+    <div class="fig-title">Applicant count against posting age</div>
+    <div class="fig-sub">665 active postings with a reported applicant count · bar height = mean applicants, label = sample size</div>
+    <div class="chart-wrap"><div id="c-appl"></div></div>
+    <figcaption class="fig-cap">
+      <b>Read:</b> the relationship is not monotone, and the correlation is effectively
+      nil — <b>Spearman &rho; = 0.029, t = 0.76</b>, nowhere near the 1.96 needed for
+      significance at the 5% level. Week-one postings average 37.5 applicants; month-two
+      postings average 46.2; the weeks-3–4 bucket is the crowded one. Any story you can
+      tell from this shape, you could tell from noise.
+    </figcaption>
+  </figure>
+
+  <div class="callout warn">
+    <div class="ct">What this does and doesn't mean</div>
+    <p>
+      It does <strong>not</strong> mean applying early is harmful. It means this dataset
+      provides <strong>no evidence</strong> that a same-day application beats a considered
+      one submitted three days later — and since under 6% of employer-ATS roles close
+      within a week, the time cost of a careful application is small.
+    </p>
+    <p>
+      One survivorship caveat, stated plainly: we only observe applicant counts on
+      postings still <em>open</em>. If heavily-applied roles close faster, the crowded
+      ones drop out of view and the true age-competition slope is partly hidden. The
+      honest conclusion is that the panel cannot support the urgency claim, not that
+      urgency has been disproven.
+    </p>
+  </div>
+</section>
+
+<!-- ============================================ 05 SIZE -->
+<section>
+  <div class="sec-head">
+    <div class="sec-no">05 — COVERAGE</div>
+    <h2>The board is smaller, and more fragmented, than it looks</h2>
+  </div>
+
+  <p class="measure">
+    Of 4,986 active rows, <strong>2,304 are flagged as cross-posted</strong> and 1,375 of
+    those are suppressed as non-primary duplicates. The board therefore represents
+    roughly <strong>3,611 distinct roles</strong> — a 28% gap between the row count and the
+    opportunity count.
+  </p>
+
+  <p class="measure">
+    Worth flagging for the engineering side: exact <code>dedup_hash</code> matching finds
+    only <strong>146</strong> jobs on two sources. The other ~2,150 cross-post detections come
+    entirely from the fuzzy title matcher. That matcher is carrying the whole feature, and
+    it has never been precision-audited against a labelled sample. If it over-merges, real
+    distinct roles are being hidden from users.
+  </p>
+
+  <figure>
+    <div class="fig-title">Roles found on exactly one source</div>
+    <div class="fig-sub">Active postings no other source carries · the case for keeping every adapter</div>
+    <div class="chart-wrap"><div id="c-excl"></div></div>
+    <figcaption class="fig-cap">
+      <b>Read:</b> every source is the sole home of a meaningful block of roles. Dropping
+      JobsDB would cost 1,715 roles nothing else covers; dropping the paid LinkedIn-posts
+      feed would cost 196. There is no single source that makes the others redundant,
+      which is the strongest available justification for the multi-adapter architecture.
+    </figcaption>
+  </figure>
+</section>
+
+<!-- ============================================ 06 MONEY -->
+<section>
+  <div class="sec-head">
+    <div class="sec-no">06 — COMPENSATION</div>
+    <h2>What the ladder pays, and what moves you up it</h2>
+  </div>
+
+  <div class="callout">
+    <div class="ct">Read this before the numbers</div>
+    <p>
+      These are <strong>model estimates, not advertised salaries</strong>. Of 9,057
+      estimates, just <strong>62 (0.7%) carry high confidence</strong>; 8,282 are medium and
+      713 low. They are calibrated against the Hays 2026 anchors and clamped by a
+      deterministic rule, so the <em>shape</em> is dependable and the <em>levels</em>
+      are indicative. Treat them as a ladder, not a quote.
+    </p>
+  </div>
+
+  <figure>
+    <div class="fig-title">Estimated monthly base by seniority</div>
+    <div class="fig-sub">HK$ per month · bar spans mean estimated minimum to mean estimated maximum · active postings</div>
+    <div class="chart-wrap"><div id="c-sal"></div></div>
+    <figcaption class="fig-cap">
+      <b>Read:</b> the rungs separate cleanly with no overlap between adjacent bands —
+      the single best evidence that the enrichment is behaving sensibly. The steepest
+      jump is mid to senior, where the floor rises <b>64%</b> from HK$34.9k to HK$57.3k.
+      That step, not the junior-to-mid one, is where compensation actually re-rates.
+    </figcaption>
+  </figure>
+
+  <figure>
+    <div class="fig-title">Skill premium over market median</div>
+    <div class="fig-sub">Median estimated midpoint for postings requiring each skill vs HK$43,000 market median · n &ge; 70</div>
+    <div class="chart-wrap"><div id="c-skill"></div></div>
+    <figcaption class="fig-cap">
+      <b>Read:</b> the premium skills are <b>mandate skills</b>, not tool skills.
+      Investment advisory, team leadership, strategic planning and portfolio management
+      all clear +39%, while the highest-<em>frequency</em> skills — regulatory compliance
+      (1,043 postings), relationship management (810) — sit at or near the median.
+      Ubiquity and premium are close to opposites here: what everyone must have prices
+      like a floor, not a differentiator.
+    </figcaption>
+  </figure>
+
+  <div class="tbl-wrap">
+    <table>
+      <caption>Most-demanded skills across 4,842 active postings with extracted requirements, after case normalisation.</caption>
+      <thead><tr><th>Skill</th><th class="n">Postings</th><th class="n">Share</th><th>Premium band</th></tr></thead>
+      <tbody>
+        <tr><td>Regulatory compliance</td><td class="n">1,043</td><td class="n">21.5%</td><td>At median</td></tr>
+        <tr><td>Stakeholder management</td><td class="n">869</td><td class="n">17.9%</td><td>+23%</td></tr>
+        <tr><td>Relationship management</td><td class="n">810</td><td class="n">16.7%</td><td>At median</td></tr>
+        <tr><td>Risk management</td><td class="n">780</td><td class="n">16.1%</td><td>+22%</td></tr>
+        <tr><td>Project management</td><td class="n">640</td><td class="n">13.2%</td><td>At median</td></tr>
+        <tr><td>Wealth management</td><td class="n">322</td><td class="n">6.6%</td><td>Below median</td></tr>
+        <tr><td>Team leadership</td><td class="n">320</td><td class="n">6.6%</td><td>+49%</td></tr>
+        <tr><td>Portfolio management</td><td class="n">211</td><td class="n">4.4%</td><td>+40%</td></tr>
+        <tr><td>Investment advisory</td><td class="n">75</td><td class="n">1.5%</td><td>+74%</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="measure" style="font-size:14px;color:var(--ink-muted)">
+    A data-quality note that matters for the product: the enricher does not normalise
+    casing, so <em>Stakeholder Management</em>, <em>Stakeholder management</em> and
+    <em>stakeholder management</em> were stored as three separate skills.
+    <strong>2,549 skill labels collapse into fewer canonical terms</strong> once folded.
+    Every skill figure above is post-normalisation; the raw table in the database is not.
+  </p>
+</section>
+
+<!-- ============================================ 07 HIDDEN -->
+<section>
+  <div class="sec-head">
+    <div class="sec-no">07 — SECRET MARKET</div>
+    <h2>The recruiter channel is working, and it is nearly free</h2>
+  </div>
+
+  <p class="measure">
+    The paid LinkedIn recruiter-post channel has ingested 578 posts and promoted
+    <strong>196 into live roles, 100% of which appear on no other source</strong>. Cost to
+    date is <strong>US$4.21 against the US$30 monthly cap</strong> — 14% of budget for
+    roughly 4% of the active board, in the segment least visible to candidates using
+    public boards.
+  </p>
+
+  <div class="tiles" style="margin-top:24px">
+    <div class="tile"><span class="v">578</span><span class="l">Posts ingested</span></div>
+    <div class="tile"><span class="v">196</span><span class="l">Promoted to roles</span></div>
+    <div class="tile"><span class="v">100%</span><span class="l">Found nowhere else</span></div>
+    <div class="tile"><span class="v">$4.21</span><span class="l">Spend of $30 cap</span></div>
+  </div>
+
+  <p class="measure" style="margin-top:24px">
+    On unit economics this is the best-performing source in the system: about
+    <strong>2 US cents per exclusive role</strong>. The constraint on scaling it is not
+    budget — 86% of the cap is unused — but watchlist coverage. The last run polled 59
+    recruiters and 8 of them failed.
+  </p>
+</section>
+
+<!-- ============================================ 08 PLAYBOOK -->
+<section>
+  <div class="sec-head">
+    <div class="sec-no">08 — APPLICATION</div>
+    <h2>So when is the best time to apply?</h2>
+  </div>
+
+  <p class="lead measure">
+    "When" turns out to be the wrong axis almost entirely. The panel finds no measurable
+    timing effect on competition, and the apparent urgency differences between sources
+    dissolve into listing-hygiene policies once measured properly. What is left is a
+    short, unglamorous list.
+  </p>
+
+  <div class="rules">
+    <div class="rule-row">
+      <div class="when">Employer<br>ATS</div>
+      <p class="what"><b>You have weeks. Use them on quality.</b>
+      <span>Under 6% of Workday and Eightfold postings close within a week, and under 8%
+      within two. HSBC, AIA, Bank of China and the other ATS employers are not going to
+      fill the role before you finish writing. This is the only source class whose dates
+      track the actual job.</span></p>
+    </div>
+    <div class="rule-row">
+      <div class="when">Aggregator<br>boards</div>
+      <p class="what"><b>Never read urgency into a disappearance.</b>
+      <span>A JobsDB listing dies on a 30-day timer; an eFinancialCareers listing rotates
+      its ID with the role still open at least 29% of the time; Indeed leaves dead
+      listings up for years. A vanished listing is weak evidence that a role is gone.</span></p>
+    </div>
+    <div class="rule-row">
+      <div class="when">eFC<br>specifically</div>
+      <p class="what"><b>If a listing vanishes, search the employer again.</b>
+      <span>Roughly a third of eFC closures reappear under a new ID within days — the
+      same HKEX and DBS roles cycling. Losing the link is not losing the opportunity.</span></p>
+    </div>
+    <div class="rule-row">
+      <div class="when">Any<br>source</div>
+      <p class="what"><b>Check on weekdays; skip the weekend refresh.</b>
+      <span>New supply runs 3.5&times; higher per weekday, and Monday through Friday are
+      statistically indistinguishable from each other. There is no magic day, and no
+      evidence that applying within the hour helps.</span></p>
+    </div>
+    <div class="rule-row">
+      <div class="when">60-day<br>tail</div>
+      <p class="what"><b>Treat listings over two months old with suspicion.</b>
+      <span>15.6% of the live board is 60-plus days old. On employer-ATS evidence most
+      roles resolve well inside that, so much of the tail is filled roles nobody
+      retracted.</span></p>
+    </div>
+  </div>
+
+  <p class="measure">
+    The one place urgency and value genuinely coincide is the recruiter channel: those
+    196 roles are, by construction, invisible to everyone applying through public boards.
+  </p>
+</section>
+
+<!-- ============================================ 09 FIXES -->
+<section>
+  <div class="sec-head">
+    <div class="sec-no">09 — NEXT</div>
+    <h2>What would make the next report stronger</h2>
+  </div>
+
+  <p class="measure">
+    Ranked by how much analytical capability each unlocks per unit of work. The first two
+    convert an unusable time series into a usable one.
+  </p>
+
+  <ol class="fixes">
+    <li><b>Never write a zero on a failed fetch.</b>
+      <span>Have the adapter raise rather than return an empty list, and record the
+      company-day as <em>missing</em> instead of <em>zero</em>. This alone repairs 24.6% of
+      observations and is the single highest-value change on this list.</span></li>
+    <li><b>Assert full pagination before persisting.</b>
+      <span>If a fetch returns exactly one page for a company that historically returns
+      several, treat it as a partial failure. The 10-and-20 spike disappears and the
+      volatile-company share should fall well below 32.9%.</span></li>
+    <li><b>Fix the <code>jobs_added</code> re-seed.</b>
+      <span>Compute the delta against the previous observation for that company; never
+      fall back to the full count when a prior row exists. Removes the 9.7% corruption
+      and makes net-mover analysis possible.</span></li>
+    <li><b>Add a <code>first_seen_at</code> column, and record each adapter's start date.</b>
+      <span>Posting lifespan is currently reconstructed from <code>posted_at</code>, which
+      relies on source-supplied dates of wildly varying quality — and nothing in the schema
+      records how long each source has been observed. That omission is exactly what
+      produced the retracted 2-day figure in section 02. A first-seen timestamp we control,
+      plus a per-adapter start date, makes lifespan analysis exact and makes the
+      window trap impossible to fall into twice.</span></li>
+    <li><b>Detect re-listings, don't count them as closures.</b>
+      <span>At least 29.2% of eFinancialCareers closures are the same role under a new ID.
+      Users currently see those as expired. Matching on employer plus normalised title at
+      write time would keep the role alive in the product and stop the churn metrics from
+      overstating turnover.</span></li>
+    <li><b>Normalise skill casing at write time.</b>
+      <span>2,549 labels currently fragment across capitalisation variants, which
+      understates every skill frequency in the product's own filters.</span></li>
+    <li><b>Precision-audit the fuzzy cross-post matcher.</b>
+      <span>It is responsible for ~2,150 of 2,304 merge decisions and has no measured
+      precision. Label 200 pairs by hand and find out whether it is hiding real roles.</span></li>
+    <li><b>Capture applicant counts longitudinally.</b>
+      <span>The urgency question stays unanswerable while we only see applicant counts on
+      still-open roles. Snapshotting the count per job per day would resolve it in a
+      month and turn the null result above into a real finding either way.</span></li>
+  </ol>
+</section>
+
+<footer>
+  <p>
+    Analysis computed against a consistent snapshot of <code>jobs.db</code> taken
+    2026-07-25 20:01 HKT while the daily pipeline was mid-run, plus the 10 archived
+    database snapshots in <code>data/backups/</code>. Statistical tests: Pearson
+    chi-square for weekday uniformity, Spearman rank correlation with t-approximation for
+    age against applicants. Closure rates use a fixed 7-day (or 14-day) follow-up horizon
+    with each source restricted to the period since its adapter began recording, which is
+    the correction described in section 02; the earlier median-life comparison across
+    sources is withdrawn and shown there rather than removed. Salary figures are model
+    estimates, not advertised compensation.
+  </p>
+</footer>
+
+</div>
+
+<script>
+"use strict";
+
+const DATA = {
+  integrity: [
+    { label: "Clean",                 value: 734, pct: 55.9, tone: "ok"   },
+    { label: "Zero (fetch failed)",   value: 323, pct: 24.6, tone: "bad"  },
+    { label: "Re-seeded delta",       value: 108, pct: 8.2,  tone: "warn" },
+    { label: "Pagination cap (10/20)", value: 85, pct: 6.5,  tone: "warn" },
+    { label: "Swing ≥50%",            value: 64,  pct: 4.9,  tone: "warn" }
+  ],
+  survival: {
+    ats:    [99.6,98.8,98.4,97.9,97.1,96.3,95.9,95.1,94.7,93.8,93.4,93.4,92.6,90.5,85.6,81.1,78.6,76.1,74.9,74.5,74.1,72.0,68.3,64.2,61.7,58.8,56.0,52.3,49.0,46.9,42.0,39.5,34.6,32.9,32.1,30.9,29.2,28.0,25.9,23.9,22.6,22.2,21.4,20.6,19.8,17.7,17.3,16.0,15.2,13.6,12.8,12.3,11.5,8.6,8.6,8.6,7.8,6.2,6.2,5.8,3.7],
+    efc:    [71.1,57.2,46.3,39.2,31.8,22.8,14.8,14.8,14.1,13.5,13.5,13.2,13.2,12.9,12.5,11.9,10.9,10.9,10.3,10.0,10.0,9.0,9.0,8.7,8.7,8.4,8.4,8.0,7.4,6.4,5.8,5.8,5.5,5.1,4.5,3.9,3.9,3.9,3.5,3.5,3.5,3.5,2.9,2.9,2.6,2.3,2.3,2.3,1.9,1.9,1.9,1.9,1.9,1.9,1.6,1.6,1.6,1.3,1.3,1.0,1.0],
+    jobsdb: [95.5,92.6,90.7,88.0,83.6,81.3,78.6,76.6,75.9,73.3,70.7,68.7,67.1,65.4,64.2,63.1,61.4,58.7,56.5,54.4,52.6,50.5,48.8,46.4,43.4,40.4,38.7,34.9,30.1,16.6,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
+  },
+  freshness: [
+    { label: "0–3 days",   value: 658,  pct: 13.6 },
+    { label: "4–7 days",   value: 910,  pct: 18.8 },
+    { label: "8–14 days",  value: 666,  pct: 13.7 },
+    { label: "15–30 days", value: 1177, pct: 24.3 },
+    { label: "31–60 days", value: 682,  pct: 14.1 },
+    { label: "60+ days",        value: 759,  pct: 15.6 }
+  ],
+  dow: [
+    { day: "Mon", value: 1738, weekend: false },
+    { day: "Tue", value: 1710, weekend: false },
+    { day: "Wed", value: 1757, weekend: false },
+    { day: "Thu", value: 1956, weekend: false },
+    { day: "Fri", value: 1762, weekend: false },
+    { day: "Sat", value: 783,  weekend: true  },
+    { day: "Sun", value: 235,  weekend: true  }
+  ],
+  thursday: [
+    { src: "JobsDB",            pct: 23.5, n: 6166, native: false },
+    { src: "eFinancialCareers", pct: 20.9, n: 978,  native: false },
+    { src: "Eightfold",         pct: 18.1, n: 371,  native: true  },
+    { src: "Workday",           pct: 17.2, n: 192,  native: true  },
+    { src: "LinkedIn",          pct: 16.9, n: 1216, native: true  }
+  ],
+  closure7: [
+    { src: "eFinancialCareers", pct: 76.9, n: 65,   d14: null, native: false },
+    { src: "LinkedIn",          pct: 39.8, n: 211,  d14: null, native: false },
+    { src: "JobsDB",            pct: 24.4, n: 4653, d14: 38.2, native: false },
+    { src: "Workday",           pct: 5.6,  n: 125,  d14: 6.7,  native: true  },
+    { src: "Eightfold",         pct: 0.4,  n: 237,  d14: 7.3,  native: true  }
+  ],
+  applicants: [
+    { bucket: "Week 1",    mean: 37.5, n: 144 },
+    { bucket: "Week 2",    mean: 39.8, n: 125 },
+    { bucket: "Weeks 3–4", mean: 51.0, n: 211 },
+    { bucket: "Month 2+",  mean: 46.2, n: 288 }
+  ],
+  exclusive: [
+    { src: "JobsDB",            n: 1715 },
+    { src: "Indeed",            n: 803  },
+    { src: "eFinancialCareers", n: 698  },
+    { src: "LinkedIn",          n: 597  },
+    { src: "Eightfold",         n: 321  },
+    { src: "LinkedIn posts",    n: 196  },
+    { src: "Workday",           n: 158  },
+    { src: "Longtail",          n: 147  }
+  ],
+  salary: [
+    { level: "Junior", min: 18445, max: 25516,  n: 786  },
+    { level: "Mid",    min: 34869, max: 48914,  n: 2147 },
+    { level: "Senior", min: 57256, max: 76842,  n: 1513 },
+    { level: "Lead",   min: 85243, max: 116063, n: 183  }
+  ],
+  skills: [
+    { skill: "Investment advisory",   lift: 74.4, n: 75  },
+    { skill: "Team leadership",       lift: 48.5, n: 306 },
+    { skill: "Strategic planning",    lift: 45.6, n: 160 },
+    { skill: "Portfolio management",  lift: 39.5, n: 200 },
+    { skill: "Fixed income",          lift: 32.0, n: 70  },
+    { skill: "Market analysis",       lift: 29.9, n: 102 },
+    { skill: "Quantitative analysis", lift: 27.3, n: 74  },
+    { skill: "Stakeholder mgmt",      lift: 23.3, n: 832 },
+    { skill: "Credit analysis",       lift: 22.1, n: 184 },
+    { skill: "Corporate banking",     lift: 22.1, n: 79  }
+  ]
+};
+
+/* ---------- tooltip ---------- */
+const tip = document.getElementById("tip");
+function showTip(evt, html) {
+  tip.innerHTML = html;
+  tip.classList.add("on");
+  const pad = 14, r = tip.getBoundingClientRect();
+  let x = evt.clientX + pad, y = evt.clientY - r.height - pad;
+  if (x + r.width > window.innerWidth - 8) x = evt.clientX - r.width - pad;
+  if (y < 8) y = evt.clientY + pad;
+  tip.style.left = x + "px";
+  tip.style.top = y + "px";
+}
+function hideTip() { tip.classList.remove("on"); }
+
+const NS = "http://www.w3.org/2000/svg";
+const el = (n, a = {}) => {
+  const e = document.createElementNS(NS, n);
+  for (const k in a) e.setAttribute(k, a[k]);
+  return e;
+};
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fmt = n => n.toLocaleString("en-US");
+
+function svgRoot(host, w, h) {
+  host.innerHTML = "";
+  const s = el("svg", {
+    viewBox: `0 0 ${w} ${h}`, width: w, height: h,
+    role: "img", "font-family": "var(--font-sans)"
+  });
+  host.appendChild(s);
+  return s;
+}
+function txt(parent, x, y, s, o = {}) {
+  const t = el("text", {
+    x, y, fill: o.fill || css("--ink-muted"),
+    "font-size": o.size || 11.5, "text-anchor": o.anchor || "start",
+    "font-weight": o.weight || 400,
+    "font-family": o.mono ? "var(--font-mono)" : "var(--font-sans)"
+  });
+  if (o.mono) t.setAttribute("style", "font-variant-numeric:tabular-nums");
+  if (o.spacing) t.setAttribute("letter-spacing", o.spacing);
+  t.textContent = s;
+  parent.appendChild(t);
+  return t;
+}
+
+/* ---------- 1. integrity bars ---------- */
+function drawIntegrity() {
+  const tones = { ok: css("--s1"), warn: css("--s2"), bad: css("--neg") };
+  hbars("c-integrity", DATA.integrity.map(d => ({
+    label: d.label, value: d.value, valueLabel: d.pct + "%",
+    emph: d.tone === "bad", color: tones[d.tone],
+    tip: `<b>${d.label}</b><br>${fmt(d.value)} company-days · ${d.pct}%`
+  })), { labelW: 190, rowH: 36 });
+}
+
+/* ---------- 2. survival lines ---------- */
+function drawSurvival() {
+  const host = document.getElementById("c-survival");
+  const W = 940, H = 380, m = { t: 16, r: 28, b: 44, l: 46 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const s = svgRoot(host, W, H);
+  const maxD = 60;
+  const X = d => m.l + (d / maxD) * iw;
+  const Y = p => m.t + (1 - p / 100) * ih;
+
+  [0, 25, 50, 75, 100].forEach(p => {
+    s.appendChild(el("line", { x1: m.l, y1: Y(p), x2: m.l + iw, y2: Y(p),
+      stroke: css("--grid"), "stroke-width": 1 }));
+    txt(s, m.l - 10, Y(p) + 4, p + "%", { anchor: "end", size: 11, mono: true, fill: css("--ink-faint") });
+  });
+  [0, 7, 14, 30, 45, 60].forEach(d => {
+    txt(s, X(d), m.t + ih + 20, d, { anchor: "middle", size: 11, mono: true, fill: css("--ink-faint") });
+  });
+  txt(s, m.l + iw / 2, m.t + ih + 38, "days since posted",
+    { anchor: "middle", size: 11, fill: css("--ink-faint") });
+
+  // Only the two source classes observed since 31 May are plotted — eFC and
+  // LinkedIn have ~10-day windows and cannot be drawn honestly on a 60-day axis.
+  // Labels are anchored along each line where the two are clearly separated.
+  const series = [
+    { key: "ats",    name: "Employer ATS", color: css("--s1"), note: "gradual decline",    at: 38, dy: -14 },
+    { key: "jobsdb", name: "JobsDB",       color: css("--s2"), note: "delisted at day 30", at: 17, dy: -14 }
+  ];
+
+  series.forEach(sr => {
+    const pts = DATA.survival[sr.key];
+    const d = pts.map((p, i) => `${i === 0 ? "M" : "L"}${X(i).toFixed(1)},${Y(p).toFixed(1)}`).join("");
+    s.appendChild(el("path", { d, fill: "none", stroke: sr.color,
+      "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    const lx = X(sr.at), ly = Y(pts[sr.at]) + sr.dy;
+    txt(s, lx + 9, ly, sr.name, { size: 12, weight: 650, fill: sr.color });
+    txt(s, lx + 9, ly + 14, sr.note, { size: 10.5, fill: css("--ink-faint") });
+    s.appendChild(el("circle", { cx: lx, cy: Y(pts[sr.at]), r: 3.5,
+      fill: sr.color, stroke: css("--bg"), "stroke-width": 2 }));
+  });
+
+  // legend
+  const lg = document.getElementById("lg-surv");
+  lg.innerHTML = series.map(sr =>
+    `<span class="lg"><span class="sw" style="background:${sr.color}"></span>${sr.name}</span>`).join("");
+
+  // crosshair
+  const cross = el("line", { y1: m.t, y2: m.t + ih, stroke: css("--rule-strong"),
+    "stroke-width": 1, opacity: 0 });
+  s.appendChild(cross);
+  const dots = series.map(sr => {
+    const c = el("circle", { r: 4.5, fill: sr.color, stroke: css("--bg"),
+      "stroke-width": 2, opacity: 0 });
+    s.appendChild(c); return c;
+  });
+  const hit = el("rect", { x: m.l, y: m.t, width: iw, height: ih, fill: "transparent", class: "hit" });
+  s.appendChild(hit);
+  hit.addEventListener("mousemove", e => {
+    const bb = s.getBoundingClientRect();
+    const px = (e.clientX - bb.left) * (W / bb.width);
+    let day = Math.round(((px - m.l) / iw) * maxD);
+    day = Math.max(0, Math.min(maxD, day));
+    cross.setAttribute("x1", X(day)); cross.setAttribute("x2", X(day));
+    cross.setAttribute("opacity", 1);
+    let rows = "";
+    series.forEach((sr, i) => {
+      const v = DATA.survival[sr.key][day];
+      dots[i].setAttribute("cx", X(day));
+      dots[i].setAttribute("cy", Y(v));
+      dots[i].setAttribute("opacity", 1);
+      rows += `<br>${sr.name}: ${v.toFixed(1)}% open`;
+    });
+    showTip(e, `<b>Day ${day}</b>${rows}`);
+  });
+  hit.addEventListener("mouseleave", () => {
+    hideTip(); cross.setAttribute("opacity", 0);
+    dots.forEach(d => d.setAttribute("opacity", 0));
+  });
+}
+
+/* ---------- generic horizontal bars ---------- */
+function hbars(hostId, rows, opt) {
+  const host = document.getElementById(hostId);
+  const W = 940, rowH = opt.rowH || 34;
+  const m = { t: 8, r: 70, b: opt.refLine != null ? 26 : 8, l: opt.labelW || 170 };
+  const H = m.t + rows.length * rowH + m.b;
+  const iw = W - m.l - m.r;
+  const s = svgRoot(host, W, H);
+  const max = Math.max(...rows.map(r => r.value));
+  rows.forEach((r, i) => {
+    const y = m.t + i * rowH;
+    const bh = rowH - 12;
+    const w = Math.max((r.value / max) * iw, 2);
+    txt(s, m.l - 12, y + bh / 2 + 4, r.label,
+      { anchor: "end", size: 12, fill: css("--ink"), weight: r.emph ? 650 : 400 });
+    const rect = el("rect", { x: m.l, y, width: w, height: bh, rx: 3,
+      fill: r.color || css("--s1"), class: "mark" });
+    rect.addEventListener("mousemove", e => showTip(e, r.tip));
+    rect.addEventListener("mouseleave", hideTip);
+    s.appendChild(rect);
+    txt(s, m.l + w + 10, y + bh / 2 + 4, r.valueLabel,
+      { size: 11.5, mono: true, weight: 600, fill: css("--ink") });
+  });
+  if (opt.refLine != null) {
+    const x = m.l + (opt.refLine / max) * iw;
+    s.appendChild(el("line", { x1: x, y1: m.t - 2, x2: x, y2: H - m.b + 4,
+      stroke: css("--ink-faint"), "stroke-width": 1.5, "stroke-dasharray": "4 4" }));
+    txt(s, x, H - 6, opt.refLabel,
+      { size: 10.5, anchor: "middle", fill: css("--ink-faint") });
+  }
+}
+
+/* ---------- generic vertical bars ---------- */
+function vbars(hostId, rows, opt) {
+  const host = document.getElementById(hostId);
+  const W = 940, H = opt.h || 300, m = { t: 24, r: 12, b: 56, l: 52 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const s = svgRoot(host, W, H);
+  const max = Math.max(...rows.map(r => r.value)) * 1.12;
+  const step = iw / rows.length, bw = Math.min(step - 14, 84);
+
+  (opt.ticks || [0, max]).forEach(t => {
+    const y = m.t + ih - (t / max) * ih;
+    s.appendChild(el("line", { x1: m.l, y1: y, x2: m.l + iw, y2: y,
+      stroke: css("--grid"), "stroke-width": 1 }));
+    txt(s, m.l - 10, y + 4, opt.tickFmt ? opt.tickFmt(t) : fmt(t),
+      { anchor: "end", size: 11, mono: true, fill: css("--ink-faint") });
+  });
+
+  rows.forEach((r, i) => {
+    const x = m.l + i * step + (step - bw) / 2;
+    const h = Math.max((r.value / max) * ih, 2);
+    const y = m.t + ih - h;
+    const rect = el("rect", { x, y, width: bw, height: h, rx: 3,
+      fill: r.color || css("--s1"), class: "mark" });
+    rect.addEventListener("mousemove", e => showTip(e, r.tip));
+    rect.addEventListener("mouseleave", hideTip);
+    s.appendChild(rect);
+    txt(s, x + bw / 2, y - 8, r.valueLabel,
+      { anchor: "middle", size: 12, mono: true, weight: 600, fill: css("--ink") });
+    txt(s, x + bw / 2, m.t + ih + 20, r.label,
+      { anchor: "middle", size: 11.5, fill: css("--ink") });
+    if (r.sub) txt(s, x + bw / 2, m.t + ih + 36, r.sub,
+      { anchor: "middle", size: 10.5, mono: true, fill: css("--ink-faint") });
+  });
+}
+
+/* ---------- 5. salary range bars ---------- */
+function drawSalary() {
+  const host = document.getElementById("c-sal");
+  const W = 940, rowH = 56, m = { t: 26, r: 24, b: 30, l: 82 };
+  const rows = DATA.salary;
+  const H = m.t + rows.length * rowH + m.b;
+  const iw = W - m.l - m.r;
+  const s = svgRoot(host, W, H);
+  const max = 125000;
+  const X = v => m.l + (v / max) * iw;
+
+  [0, 25000, 50000, 75000, 100000, 125000].forEach(t => {
+    s.appendChild(el("line", { x1: X(t), y1: m.t - 10, x2: X(t), y2: m.t + rows.length * rowH - 8,
+      stroke: css("--grid"), "stroke-width": 1 }));
+    txt(s, X(t), m.t + rows.length * rowH + 12, t === 0 ? "0" : (t / 1000) + "k",
+      { anchor: "middle", size: 11, mono: true, fill: css("--ink-faint") });
+  });
+
+  rows.forEach((r, i) => {
+    const y = m.t + i * rowH, bh = 22;
+    txt(s, m.l - 14, y + bh / 2 + 4, r.level,
+      { anchor: "end", size: 13, weight: 650, fill: css("--ink") });
+    const rect = el("rect", { x: X(r.min), y, width: X(r.max) - X(r.min), height: bh, rx: 3,
+      fill: css("--s1"), class: "mark" });
+    rect.addEventListener("mousemove", e => showTip(e,
+      `<b>${r.level}</b><br>HK$${fmt(r.min)} – ${fmt(r.max)} / month<br>n = ${fmt(r.n)} postings`));
+    rect.addEventListener("mouseleave", hideTip);
+    s.appendChild(rect);
+    txt(s, X(r.min) + 8, y + bh / 2 + 4, (r.min / 1000).toFixed(1) + "k",
+      { size: 11, mono: true, weight: 600, fill: "#FFFFFF" });
+    txt(s, X(r.max) + 10, y + bh / 2 + 4,
+      (r.max / 1000).toFixed(1) + "k", { size: 11.5, mono: true, weight: 600, fill: css("--ink") });
+    txt(s, m.l - 14, y + bh + 18, "n = " + fmt(r.n),
+      { anchor: "end", size: 10.5, mono: true, fill: css("--ink-faint") });
+  });
+}
+
+/* ---------- build ---------- */
+function buildAll() {
+  drawIntegrity();
+  drawSurvival();
+  drawSalary();
+
+  hbars("c-closure", DATA.closure7.map(d => ({
+    label: d.src, value: d.pct, valueLabel: d.pct + "%",
+    emph: d.native, color: d.native ? css("--s3") : css("--s2"),
+    tip: `<b>${d.src}</b><br>${d.pct}% gone within 7 days<br>n = ${fmt(d.n)}` +
+         (d.d14 != null ? `<br>${d.d14}% within 14 days` : "<br>14-day figure: window too short")
+  })), { labelW: 170, rowH: 38 });
+
+  hbars("c-fresh", DATA.freshness.map((d, i) => ({
+    label: d.label, value: d.value, valueLabel: d.pct + "%",
+    emph: i === 5,
+    color: i === 5 ? css("--neg") : (i <= 1 ? css("--s1") : css("--s3")),
+    tip: `<b>${d.label}</b><br>${fmt(d.value)} listings · ${d.pct}%`
+  })), { labelW: 110, rowH: 36 });
+
+  vbars("c-dow", DATA.dow.map(d => ({
+    label: d.day, value: d.value, valueLabel: fmt(d.value),
+    color: d.weekend ? css("--s2") : css("--s1"),
+    tip: `<b>${d.day}</b><br>${fmt(d.value)} postings`
+  })), { h: 290, ticks: [0, 500, 1000, 1500, 2000], tickFmt: t => fmt(t) });
+
+  hbars("c-thu", DATA.thursday.map(d => ({
+    label: d.src, value: d.pct, valueLabel: d.pct + "%",
+    emph: d.native,
+    color: d.native ? css("--s3") : css("--s2"),
+    tip: `<b>${d.src}</b><br>Thursday = ${d.pct}% of weekday postings<br>n = ${fmt(d.n)} weekday postings`
+  })), { labelW: 170, rowH: 38, refLine: 20, refLabel: "20% uniform" });
+
+  vbars("c-appl", DATA.applicants.map(d => ({
+    label: d.bucket, value: d.mean, valueLabel: d.mean.toFixed(1),
+    sub: "n = " + d.n, color: css("--s1"),
+    tip: `<b>${d.bucket}</b><br>mean ${d.mean} applicants<br>n = ${d.n} postings`
+  })), { h: 280, ticks: [0, 20, 40, 60], tickFmt: t => t });
+
+  hbars("c-excl", DATA.exclusive.map(d => ({
+    label: d.src, value: d.n, valueLabel: fmt(d.n),
+    color: css("--s1"),
+    tip: `<b>${d.src}</b><br>${fmt(d.n)} roles found on no other source`
+  })), { labelW: 170, rowH: 34 });
+
+  hbars("c-skill", DATA.skills.map(d => ({
+    label: d.skill, value: d.lift, valueLabel: "+" + d.lift + "%",
+    color: d.lift >= 39 ? css("--s1") : css("--s3"),
+    tip: `<b>${d.skill}</b><br>+${d.lift}% vs HK$43,000 median<br>n = ${fmt(d.n)} postings`
+  })), { labelW: 180, rowH: 34 });
+}
+
+buildAll();
+
+// Re-render on theme change so chart colours follow the tokens.
+const mo = new MutationObserver(buildAll);
+mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+if (window.matchMedia) {
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  if (mq.addEventListener) mq.addEventListener("change", buildAll);
+}
+window.addEventListener("resize", () => { hideTip(); });
+</script>
+</body>
+</html>
