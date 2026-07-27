@@ -1,81 +1,67 @@
-import { ArrowRight, ChevronRight, TrendingUp, Shield, Cpu, Star, EyeOff } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { ArrowUpRight, Briefcase } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import Nav from '../components/Nav'
-import StatCard from '../components/StatCard'
-import { SkylineTrend } from '../components/Illustrations'
-import { fetchStats } from '../api/client'
+import ProductDoor from '../components/ProductDoor'
+import VideoFacade from '../components/VideoFacade'
+import EnquiryForm from '../components/EnquiryForm'
+import useHashScroll from '../hooks/useHashScroll'
+import { fetchStats, fetchFilters } from '../api/client'
+import { FEATURED_VIDEOS, CHANNEL_URL, SUBSCRIBER_LINE } from '../content/featuredVideos'
 
-const TRUST_BADGES = [
-  { icon: TrendingUp, text: 'Live market data' },
-  { icon: Shield,     text: 'Verified institutions only' },
-  { icon: Cpu,        text: 'AI-supported job data' },
-]
+const CONSULTING_URL = 'https://www.finexclub.org/consulting'
 
+/**
+ * The portal.
+ *
+ * `/` is no longer a job-board landing page. FinEx offers three things —
+ * opportunities, guidance, and learning — and this page is three doors onto
+ * them. The board is still the traffic engine and still leads, but it is one
+ * door of three rather than the whole site.
+ *
+ * Consultation and Learning are sections on this same page (no new routes), so
+ * the doors for those scroll rather than navigate.
+ */
 export default function LandingPage() {
-  // Live figures from the API so the hero stats never go stale.
-  const [roles, setRoles] = useState('2,400+')
-  const [sectors, setSectors] = useState('5')
-  useEffect(() => {
-    fetchStats()
-      .then(s => {
-        // Round DOWN to the nearest 100 and add "+", so the figure never over-claims
-        // and stays stable as the daily count drifts (e.g. 2,935 → "2,900+", 2,451 → "2,400+").
-        setRoles((Math.floor(s.total_active_jobs / 100) * 100).toLocaleString() + '+')
-        setSectors(String(Object.keys(s.by_sector).length))
-      })
-      .catch(() => {}) // keep the conservative fallbacks on error
-  }, [])
-
-  const stats = [
-    { value: roles,   label: 'Active Roles', sub: 'Updated daily' },
-    { value: '100+',  label: 'Institutions', sub: 'Banks, insurers, asset managers & more' },
-    { value: sectors, label: 'Sectors',      sub: 'Banking · IB · Insurance · AM · Prof. Services' },
-    { value: '100%',  label: 'AI-Supported', sub: 'Skills, seniority & salary signals' },
-  ]
+  useHashScroll()
 
   return (
     <div style={{ backgroundColor: 'var(--color-bg)', minHeight: '100dvh' }}>
       <Nav />
-
       <main id="main-content">
-        <HeroSection roles={roles} />
-
-        {/* ── Stat Cards ────────────────────────────────────── */}
-        <section
-          aria-label="Platform statistics"
-          style={{ backgroundColor: 'var(--color-surface-2)', borderBottom: '1px solid var(--color-border)' }}
-        >
-          <div className="mx-auto max-w-7xl px-6 lg:px-8 py-12">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {stats.map(s => (
-                <StatCard key={s.label} value={s.value} label={s.label} sub={s.sub} />
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <ExclusiveCallout />
-        <RecruiterPostsCallout />
-        <MethodologyStripe />
+        <PortalHero />
+        <ConsultationSection />
+        <LearningSection />
+        <PostRoleStripe />
       </main>
-
       <LandingFooter />
     </div>
   )
 }
 
-// ── Hero: headline, CTAs, trust badges, skyline art ───────────────────────────
+// ── Hero + the three doors ────────────────────────────────────────────────────
 
-function HeroSection({ roles }: { roles: string }) {
-  const navigate = useNavigate()
+function PortalHero() {
+  // Live figures, so the board door never advertises a number we can't back.
+  // Both fall back to nothing rather than to a guess — an empty slot is honest,
+  // a stale hardcoded figure is not.
+  const [roles, setRoles] = useState<number | null>(null)
+  const [employers, setEmployers] = useState<number | null>(null)
+
+  useEffect(() => {
+    fetchStats().then(s => setRoles(s.total_active_jobs)).catch(() => {})
+    fetchFilters().then(f => setEmployers(f.companies.length)).catch(() => {})
+  }, [])
+
+  const boardFigure =
+    roles === null
+      ? null
+      : `${roles.toLocaleString()} live roles${employers ? ` · ${employers} employers` : ''}`
+
   return (
-    <section
-      aria-labelledby="hero-heading"
-      className="relative overflow-hidden"
-      style={{ borderBottom: '1px solid var(--color-border)' }}
-    >
-      {/* Subtle grid texture */}
+    <section aria-labelledby="portal-heading" className="relative overflow-hidden">
+      {/* Grid texture + gold top rule, carried over from the previous hero —
+          the identity stays even though the structure is entirely new. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0"
@@ -86,287 +72,236 @@ function HeroSection({ roles }: { roles: string }) {
           opacity: 0.45,
         }}
       />
+      <div aria-hidden="true" className="absolute inset-x-0 top-0 h-0.5" style={{ backgroundColor: 'var(--color-gold)' }} />
 
-      {/* Gold top rule — FT accent line */}
-      <div
-        aria-hidden="true"
-        className="absolute top-0 inset-x-0 h-0.5"
-        style={{ backgroundColor: 'var(--color-gold)' }}
-      />
+      <div className="relative mx-auto max-w-7xl px-6 lg:px-8 pt-14 pb-16 sm:pt-20 lg:pt-24">
+        <span
+          className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase"
+          style={{
+            backgroundColor: 'var(--color-gold-light)',
+            color: 'var(--color-gold)',
+            border: '1px solid var(--color-gold)',
+            letterSpacing: '0.14em',
+          }}
+        >
+          Hong Kong · Financial Executive Club
+        </span>
 
-      <div className="relative mx-auto max-w-7xl px-6 lg:px-8 pt-12 pb-10 sm:pt-20 sm:pb-16 lg:pt-28 lg:pb-24">
-        <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-10 lg:gap-8 items-center">
-        <div>
+        <h1
+          id="portal-heading"
+          className="mt-8 max-w-4xl leading-[1.06] tracking-tight"
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 'clamp(2.5rem, 5.2vw, 4rem)',
+            fontWeight: 700,
+            color: 'var(--color-ink)',
+            letterSpacing: '-0.025em',
+          }}
+        >
+          Everything a finance career in{' '}
+          <em className="not-italic" style={{ color: 'var(--color-gold)' }}>Hong Kong</em> needs.
+        </h1>
 
-        {/* Eyebrow */}
-        <div className="flex items-center gap-2 mb-8">
+        <p className="mt-6 max-w-2xl text-lg leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
+          Every open role in the market, refreshed daily. Confidential guidance from people
+          who have done the job. And a learning library built on the desks that matter.
+        </p>
+
+        {/* The doors are the call to action — there is no separate CTA button. */}
+        <div className="mt-14 grid gap-5 lg:grid-cols-3">
+          <ProductDoor
+            index="01"
+            eyebrow="Careers"
+            title="Every finance role in Hong Kong"
+            description="Openings from across the market — banks, insurers, asset managers and boutiques — collected daily, de-duplicated, and enriched with skills, seniority and salary signals."
+            figure={boardFigure}
+            href="/jobs"
+          />
+          <ProductDoor
+            index="02"
+            eyebrow="Consultation"
+            title="Executive career consultation"
+            description="Confidential one-to-one guidance for senior finance professionals weighing a move, a change of function, or the step up to the next seat."
+            figure="By enquiry"
+            href="#consultation"
+          />
+          <ProductDoor
+            index="03"
+            eyebrow="Professional L&D"
+            title="Learning from the people running the market"
+            description="Seminars, technical workshops and the Club's interview series with the executives actually running Hong Kong's financial institutions."
+            figure={SUBSCRIBER_LINE}
+            href="#learning"
+          />
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ── 02 · Executive Career Consultation ────────────────────────────────────────
+
+function ConsultationSection() {
+  return (
+    <section
+      id="consultation"
+      aria-labelledby="consultation-heading"
+      className="scroll-mt-20"
+      style={{ backgroundColor: 'var(--color-surface-2)', borderTop: '1px solid var(--color-border)' }}
+    >
+      <div className="mx-auto max-w-7xl px-6 lg:px-8 py-16 lg:py-20">
+        {/* items-start: without it the grid stretches the form column to the
+            text column's height, which leaves the short success card as a tall
+            mostly-empty box after submitting. */}
+        <div className="grid items-start gap-12 lg:grid-cols-[1fr_1fr] lg:gap-16">
+          <div>
+            <span
+              className="text-xs font-semibold uppercase"
+              style={{ color: 'var(--color-gold)', letterSpacing: '0.14em' }}
+            >
+              02 · Executive Career Consultation
+            </span>
+
+            <h2
+              id="consultation-heading"
+              className="mt-3 text-3xl lg:text-4xl tracking-tight"
+              style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--color-ink)', letterSpacing: '-0.025em' }}
+            >
+              The conversation before the decision
+            </h2>
+
+            <div className="mt-5 space-y-4 text-base leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
+              <p>
+                Senior moves in Hong Kong finance are rarely decided on a job description.
+                They turn on what a desk is really being built for, who you would answer to,
+                and whether the mandate survives the next budget.
+              </p>
+              <p>
+                We sit down with a small number of senior professionals each month — one to one,
+                in confidence — to work through exactly that. Not CV formatting. The judgement
+                calls: whether to move, where the function is heading, and what the seat you are
+                being offered is actually worth.
+              </p>
+              <p style={{ color: 'var(--color-ink)' }}>
+                Tell us what you are weighing up. We read every enquiry personally.
+              </p>
+            </div>
+
+            <a
+              href={CONSULTING_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-8 inline-flex items-center gap-1.5 text-sm font-semibold"
+              style={{ color: 'var(--color-blue)' }}
+            >
+              FinEx Consulting — our institutional advisory practice
+              <ArrowUpRight size={15} strokeWidth={2} />
+            </a>
+          </div>
+
+          <EnquiryForm />
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ── 03 · Professional L&D ─────────────────────────────────────────────────────
+
+function LearningSection() {
+  return (
+    <section
+      id="learning"
+      aria-labelledby="learning-heading"
+      className="scroll-mt-20"
+      style={{ borderTop: '1px solid var(--color-border)' }}
+    >
+      <div className="mx-auto max-w-7xl px-6 lg:px-8 py-16 lg:py-20">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-2xl">
+            <span
+              className="text-xs font-semibold uppercase"
+              style={{ color: 'var(--color-gold)', letterSpacing: '0.14em' }}
+            >
+              03 · Professional L&amp;D
+            </span>
+            <h2
+              id="learning-heading"
+              className="mt-3 text-3xl lg:text-4xl tracking-tight"
+              style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--color-ink)', letterSpacing: '-0.025em' }}
+            >
+              Learning from the people running the market
+            </h2>
+            <p className="mt-4 text-base leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
+              The Club's channel bridges academic theory and how the work is actually done —
+              markets, tokenisation, AI in finance, and the committees driving each.
+            </p>
+          </div>
+
           <span
-            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-widest"
-            style={{
-              backgroundColor: 'var(--color-gold-light)',
-              color: 'var(--color-gold)',
-              border: '1px solid var(--color-gold)',
-            }}
+            className="shrink-0 text-sm font-semibold tabular-nums"
+            style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink)' }}
           >
-            Hong Kong · 2026
+            {SUBSCRIBER_LINE}
           </span>
         </div>
 
-        <div className="max-w-4xl">
-          {/* Headline */}
-          <h1
-            id="hero-heading"
-            className="leading-[1.08] tracking-tight mb-6"
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 'clamp(2.75rem, 5.5vw, 4.25rem)',
-              fontWeight: 700,
-              color: 'var(--color-ink)',
-              letterSpacing: '-0.02em',
-            }}
-          >
-            Hong Kong's financial{' '}
-            <em
-              className="not-italic"
-              style={{ color: 'var(--color-gold)' }}
-            >
-              talent market
-            </em>
-            ,<br className="hidden sm:block" /> in one place.
-          </h1>
-
-          {/* Subhead */}
-          <p
-            className="max-w-2xl mb-10 text-lg leading-relaxed"
-            style={{ color: 'var(--color-ink-muted)' }}
-          >
-            A curated, AI-supported index of {roles} open roles across leading institutions —
-            investment banks, asset managers, fintechs and insurers. Built for investors,
-            operators, and talent navigating the city's capital markets.
-          </p>
-
-          {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <button
-              type="button"
-              onClick={() => navigate('/jobs')}
-              className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded px-6 py-3 text-sm font-semibold transition-all duration-200 cursor-pointer"
-              style={{ backgroundColor: 'var(--color-ink)', color: 'var(--color-ink-inverse)' }}
-              onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-blue)')}
-              onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-ink)')}
-            >
-              Explore all roles
-              <ArrowRight size={16} strokeWidth={2} />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => navigate('/jobs?tier=boutique')}
-              className="w-full sm:w-auto justify-center inline-flex items-center gap-1.5 rounded px-5 py-3 text-sm font-semibold transition-all duration-200 cursor-pointer"
-              style={{ color: 'var(--color-gold)', border: '1px solid var(--color-gold)', backgroundColor: 'var(--color-gold-light)' }}
-              onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#F6E7BE')}
-              onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-gold-light)')}
-            >
-              <Star size={14} strokeWidth={2} fill="currentColor" />
-              See Exclusive roles
-              <ChevronRight size={14} strokeWidth={2} />
-            </button>
-          </div>
-
-          {/* Trust badges */}
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mt-10">
-            {TRUST_BADGES.map(({ icon: Icon, text }) => (
-              <div
-                key={text}
-                className="flex items-center gap-2"
-                style={{ color: 'var(--color-ink-faint)' }}
-              >
-                <Icon size={14} strokeWidth={1.5} />
-                <span className="text-xs font-medium">{text}</span>
-              </div>
-            ))}
-          </div>
+        <div className="mt-10 grid gap-x-6 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
+          {FEATURED_VIDEOS.map(v => (
+            <VideoFacade key={v.id} video={v} />
+          ))}
         </div>
-        </div>{/* text column */}
 
-        {/* Hero illustration — crafted SVG, decorative */}
-        <div className="hidden lg:flex justify-end" aria-hidden="true">
-          <SkylineTrend className="w-full h-auto" style={{ maxWidth: 520 }} />
-        </div>
-        </div>{/* hero grid */}
-      </div>
-    </section>
-  )
-}
-
-// ── Exclusive listings callout ────────────────────────────────────────────────
-
-function ExclusiveCallout() {
-  const navigate = useNavigate()
-  return (
-    <section
-      aria-labelledby="exclusive-heading"
-      style={{ borderBottom: '1px solid var(--color-border)' }}
-    >
-      <div className="mx-auto max-w-7xl px-6 lg:px-8 py-14">
-        <div
-          className="rounded-xl p-8 lg:p-10 flex flex-col lg:flex-row lg:items-center gap-8"
-          style={{
-            backgroundColor: 'var(--color-surface)',
-            border: '1px solid var(--color-gold)',
-            boxShadow: 'var(--shadow-card)',
-          }}
-        >
-          <div className="min-w-0 flex-1">
-            <span
-              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-widest mb-4"
-              style={{
-                backgroundColor: 'var(--color-gold-light)',
-                color: 'var(--color-gold)',
-                border: '1px solid var(--color-gold)',
-              }}
-            >
-              <Star size={13} strokeWidth={2} fill="currentColor" aria-hidden="true" />
-              Exclusive
-            </span>
-            <h2
-              id="exclusive-heading"
-              className="text-2xl lg:text-3xl font-bold tracking-tight mb-3"
-              style={{ fontFamily: 'var(--font-display)', color: 'var(--color-ink)', letterSpacing: '-0.02em' }}
-            >
-              Roles you won't find on the major job boards
-            </h2>
-            <p
-              className="max-w-2xl text-base leading-relaxed"
-              style={{ color: 'var(--color-ink-muted)' }}
-            >
-              Alongside mainstream listings, we surface openings from{' '}
-              <span style={{ color: 'var(--color-ink)', fontWeight: 600 }}>boutique and specialist financial firms</span>{' '}
-              — smaller institutions and niche players whose roles rarely reach the large
-              aggregators. Every exclusive role is read from the employer's own public hiring
-              activity, then structured and translated with AI, so you see openings the big
-              boards miss.
-            </p>
-          </div>
-
-          <div className="flex-shrink-0">
-            <button
-              type="button"
-              onClick={() => navigate('/jobs?tier=boutique')}
-              className="inline-flex items-center gap-2 rounded px-6 py-3 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap"
-              style={{ backgroundColor: 'var(--color-gold)', color: 'var(--color-ink-inverse)' }}
-              onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.opacity = '0.9')}
-              onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.opacity = '1')}
-            >
-              <Star size={15} strokeWidth={2} fill="currentColor" aria-hidden="true" />
-              View Exclusive roles
-              <ArrowRight size={16} strokeWidth={2} />
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ── Recruiter Posts callout ───────────────────────────────────────────────────
-
-function RecruiterPostsCallout() {
-  const navigate = useNavigate()
-  return (
-    <section
-      aria-labelledby="recruiter-posts-heading"
-      style={{ borderBottom: '1px solid var(--color-border)' }}
-    >
-      <div className="mx-auto max-w-7xl px-6 lg:px-8 py-14">
-        <div
-          className="rounded-xl p-8 lg:p-10 flex flex-col lg:flex-row lg:items-center gap-8"
-          style={{
-            backgroundColor: 'var(--color-surface)',
-            border: '1px solid #6B4EFF',
-            boxShadow: 'var(--shadow-card)',
-          }}
-        >
-          <div className="min-w-0 flex-1">
-            <span
-              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-widest mb-4"
-              style={{
-                backgroundColor: 'rgba(107,78,255,0.1)',
-                color: '#6B4EFF',
-                border: '1px solid #6B4EFF',
-              }}
-            >
-              <EyeOff size={13} strokeWidth={2} aria-hidden="true" />
-              Recruiter Posts
-            </span>
-            <h2
-              id="recruiter-posts-heading"
-              className="text-2xl lg:text-3xl font-bold tracking-tight mb-3"
-              style={{ fontFamily: 'var(--font-display)', color: 'var(--color-ink)', letterSpacing: '-0.02em' }}
-            >
-              Mandates that never make it to a job board
-            </h2>
-            <p
-              className="max-w-2xl text-base leading-relaxed"
-              style={{ color: 'var(--color-ink-muted)' }}
-            >
-              We track LinkedIn posts from recruiters and headhunters working Hong Kong's
-              financial sector — live mandates they're hiring for right now, often shared with
-              their network before (or instead of) a formal listing. Each post is read and
-              structured with AI. Where a role also turns out to match a listing already on the
-              public board, we mark it{' '}
-              <span style={{ color: '#15803D', fontWeight: 600 }}>Verified</span>{' '}
-              — confirmed as a real, currently-open vacancy rather than an unconfirmed claim.
-            </p>
-          </div>
-
-          <div className="flex-shrink-0">
-            <button
-              type="button"
-              onClick={() => navigate('/jobs?tier=social')}
-              className="inline-flex items-center gap-2 rounded px-6 py-3 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap"
-              style={{ backgroundColor: '#6B4EFF', color: '#fff' }}
-              onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.opacity = '0.9')}
-              onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.opacity = '1')}
-            >
-              <EyeOff size={15} strokeWidth={2} aria-hidden="true" />
-              View Recruiter Posts
-              <ArrowRight size={16} strokeWidth={2} />
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ── Thin institutional stripe ─────────────────────────────────────────────────
-
-function MethodologyStripe() {
-  return (
-    <section
-      aria-label="Data freshness note"
-      className="py-5"
-      style={{ borderBottom: '1px solid var(--color-border)' }}
-    >
-      <div className="mx-auto max-w-7xl px-6 lg:px-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <p
-          className="text-sm"
-          style={{ color: 'var(--color-ink-muted)' }}
-        >
-          Data refreshed daily from public postings. Enriched with AI-derived skills,
-          seniority classification, and compensation signals.
-        </p>
         <a
-          href="#"
-          className="text-sm font-medium whitespace-nowrap flex items-center gap-1 cursor-pointer transition-colors duration-150"
-          style={{ color: 'var(--color-gold)' }}
-          onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-blue)')}
-          onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-gold)')}
+          href={CHANNEL_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-10 inline-flex items-center gap-1.5 text-sm font-semibold"
+          style={{ color: 'var(--color-blue)' }}
         >
-          Read the methodology
-          <ChevronRight size={14} strokeWidth={2} />
+          Visit the channel
+          <ArrowUpRight size={15} strokeWidth={2} />
         </a>
+      </div>
+    </section>
+  )
+}
+
+// ── Employer stripe ───────────────────────────────────────────────────────────
+
+/**
+ * The only thing on this page addressed to employers rather than candidates, so
+ * it is a thin band rather than a fourth door — the portal is three doors and
+ * adding a fourth for a different audience would blunt all of them.
+ */
+function PostRoleStripe() {
+  return (
+    <section
+      aria-labelledby="post-role-heading"
+      style={{ backgroundColor: 'var(--color-nav)', borderTop: '1px solid var(--color-border)' }}
+    >
+      <div className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-10 sm:flex-row sm:items-center sm:justify-between lg:px-8">
+        <div>
+          <h2
+            id="post-role-heading"
+            className="text-xl tracking-tight"
+            style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--color-ink-inverse)' }}
+          >
+            Hiring in Hong Kong finance?
+          </h2>
+          <p className="mt-1.5 text-sm" style={{ color: 'rgba(248,250,252,0.7)' }}>
+            Recruiters and employers can put a mandate in front of this audience directly.
+            Every submission is reviewed before it appears.
+          </p>
+        </div>
+        <Link
+          to="/post-a-role"
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded px-6 py-3 text-sm font-semibold no-underline"
+          style={{ backgroundColor: 'var(--color-gold)', color: '#fff' }}
+        >
+          <Briefcase size={15} strokeWidth={2} />
+          Post a role
+        </Link>
       </div>
     </section>
   )
@@ -376,11 +311,8 @@ function MethodologyStripe() {
 
 function LandingFooter() {
   return (
-    <footer
-      className="mt-auto"
-      style={{ borderTop: '1px solid var(--color-border)' }}
-    >
-      <div className="mx-auto max-w-7xl px-6 lg:px-8 py-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+    <footer style={{ borderTop: '1px solid var(--color-border)' }}>
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-10 sm:flex-row sm:items-center sm:justify-between lg:px-8">
         <div className="flex items-center gap-2">
           <span
             className="text-sm font-semibold tracking-tight"
@@ -388,39 +320,36 @@ function LandingFooter() {
           >
             FinEx <em className="not-italic" style={{ color: 'var(--color-gold)' }}>Careers</em>
           </span>
-          <span
-            className="text-xs"
-            style={{ color: 'var(--color-ink-faint)' }}
-          >
-            — Hong Kong Financial Jobs Index
+          <span className="text-xs" style={{ color: 'var(--color-ink-faint)' }}>
+            — a Financial Executive Club platform
           </span>
         </div>
 
-        <nav
-          className="flex flex-wrap gap-x-6 gap-y-2"
-          aria-label="Footer navigation"
-        >
-          {['Browse', 'Companies', 'Sectors', 'API', 'About'].map(label => (
-            <a
-              key={label}
-              href="#"
-              className="text-xs font-medium transition-colors duration-150 cursor-pointer"
-              style={{ color: 'var(--color-ink-faint)' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-ink-muted)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-ink-faint)')}
-            >
-              {label}
-            </a>
-          ))}
+        {/* Real destinations only. The previous footer linked five dead "#"s. */}
+        <nav className="flex flex-wrap gap-x-6 gap-y-2" aria-label="Footer navigation">
+          <FooterLink to="/jobs">Browse roles</FooterLink>
+          <FooterLink to="/#consultation">Consultation</FooterLink>
+          <FooterLink to="/#learning">Learning</FooterLink>
+          <FooterLink to="/post-a-role">Post a role</FooterLink>
+          <FooterLink to="/about">About</FooterLink>
         </nav>
 
-        <p
-          className="text-xs"
-          style={{ color: 'var(--color-ink-faint)' }}
-        >
+        <p className="text-xs" style={{ color: 'var(--color-ink-faint)' }}>
           © 2026 FinEx Careers. For informational use only.
         </p>
       </div>
     </footer>
+  )
+}
+
+function FooterLink({ to, children }: { to: string; children: React.ReactNode }) {
+  return (
+    <Link
+      to={to}
+      className="text-xs font-medium no-underline"
+      style={{ color: 'var(--color-ink-faint)' }}
+    >
+      {children}
+    </Link>
   )
 }

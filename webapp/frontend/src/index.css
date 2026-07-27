@@ -77,6 +77,79 @@ button, a, input, select, [role="button"], [role="tab"] {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+  /* The rule above kills animations but not scrolling — `html` above sets
+     scroll-behavior: smooth, which would still animate every anchor jump on the
+     portal for someone who asked it not to. */
+  html { scroll-behavior: auto; }
+}
+
+/* ── Portal doors (landing page) ───────────────────────────────────── */
+.product-door {
+  transition: box-shadow 220ms var(--ease-out-expo),
+              transform 220ms var(--ease-out-expo),
+              border-color 220ms;
+}
+.product-door:hover {
+  box-shadow: var(--shadow-raised);
+  border-color: var(--color-border-strong) !important;
+  transform: translateY(-3px);
+}
+.product-door:active { transform: translateY(-1px); }
+.product-door .door-arrow { transition: transform 220ms var(--ease-out-expo); }
+.product-door:hover .door-arrow { transform: translateX(4px); }
+
+/* ── Video facades (Professional L&D) ──────────────────────────────── */
+.video-facade img { transition: transform 320ms var(--ease-out-expo); }
+.video-facade:hover img { transform: scale(1.035); }
+.video-play { transition: transform 200ms var(--ease-out-expo); }
+.video-facade:hover .video-play { transform: translate(-50%, -50%) scale(1.08); }
+
+/* ── Form controls (enquiry + post-a-role) ─────────────────────────── */
+.finex-input {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--color-ink);
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.375rem;
+  transition: border-color 150ms, box-shadow 150ms;
+}
+.finex-input::placeholder { color: var(--color-ink-faint); }
+.finex-input:hover { border-color: var(--color-ink-faint); }
+.finex-input:focus {
+  outline: none;
+  border-color: var(--color-blue);
+  box-shadow: 0 0 0 3px var(--color-blue-light);
+}
+/* :user-invalid, not :invalid — :invalid matches an empty required field the
+   moment it renders, which paints every field red before the visitor has typed
+   anything. :user-invalid only matches after they have interacted with it. */
+.finex-input:user-invalid {
+  border-color: var(--color-destructive);
+}
+.finex-input:user-invalid:focus {
+  box-shadow: 0 0 0 3px rgb(220 38 38 / 0.15);
+}
+/* select needs its own arrow once the native appearance is normalised */
+select.finex-input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2.25rem;
+}
+
+/* Honeypot: off-screen rather than display:none — some bots skip hidden inputs
+   but happily fill positioned ones. Never focusable, never announced. */
+.honeypot {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
 }
 
 /* ── Segmented tier tabs (All / Exclusive / Mainstream …) ─────── */

@@ -198,6 +198,78 @@ export async function fetchStats(): Promise<StatsResponse> {
   return res.json()
 }
 
+// ── Write endpoints ───────────────────────────────────────────────────────────
+// The only two POSTs in the app. Both are moderated//relayed by the backend and
+// neither writes anything a visitor can read back, so there is no auth here.
+
+/** Career stages offered on the consultation form. Must match the backend enum. */
+export const CAREER_STAGES = [
+  '3–8 years',
+  '8–15 years',
+  '15+ years',
+  'C-suite / board',
+] as const
+
+export interface EnquiryPayload {
+  name: string
+  email: string
+  career_stage: string
+  message: string
+  /** Honeypot. Always sent, always empty for a human. */
+  website: string
+}
+
+export interface RolePayload {
+  contact_name: string
+  contact_email: string
+  company: string
+  title: string
+  location: string
+  employment_type: string
+  salary_range: string
+  description: string
+  apply_url: string
+  /** Honeypot. */
+  website: string
+}
+
+/**
+ * Shared POST helper. Surfaces the backend's `detail` string as the thrown
+ * message so forms can show a real reason (rate limit, validation) rather than
+ * a generic failure.
+ */
+async function postJson(path: string, body: unknown): Promise<{ ok: boolean }> {
+  const res = await fetch(`${API}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+  if (!res.ok) {
+    let detail = ''
+    try {
+      const j = await res.json()
+      detail = typeof j?.detail === 'string' ? j.detail : ''
+    } catch {
+      // non-JSON error body — fall through to the generic message
+    }
+    if (res.status === 429) {
+      throw new Error(detail || 'Too many submissions. Please try again later.')
+    }
+    throw new Error(detail || `Submission failed (${res.status}).`)
+  }
+
+  return res.json()
+}
+
+export function submitEnquiry(payload: EnquiryPayload): Promise<{ ok: boolean }> {
+  return postJson('/api/contact', payload)
+}
+
+export function submitRole(payload: RolePayload): Promise<{ ok: boolean }> {
+  return postJson('/api/post-role', payload)
+}
+
 // ── URL serialisation ─────────────────────────────────────────────────────────
 
 export function filtersToSearchParams(

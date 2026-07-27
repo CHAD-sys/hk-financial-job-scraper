@@ -3,6 +3,7 @@ import LandingPage from './pages/LandingPage'
 import JobBoardPage from './pages/JobBoardPage'
 import SavedJobsPage from './pages/SavedJobsPage'
 import AboutPage from './pages/AboutPage'
+import PostRolePage from './pages/PostRolePage'
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
         <Route path="/about" element={<AboutPage />} />
         <Route path="/jobs" element={<JobBoardPage />} />
         <Route path="/saved" element={<SavedJobsPage />} />
+        <Route path="/post-a-role" element={<PostRolePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

@@ -1,21 +1,34 @@
 """
 FinEx Careers — FastAPI backend
-Read-only access to jobs.db (SQLite).
+
+Read access to jobs.db (SQLite), plus two write endpoints that do not touch the
+database at all: /api/contact (consultation enquiries) and /api/post-role
+(recruiter role submissions). Both persist to an append-only JSONL queue and
+email a notification; neither publishes anything without human review.
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import math
 import os
 import re
 import sqlite3
+import threading
+import time
+from collections import defaultdict
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field, field_validator
+
+from mailer import send_mail
+
+logger = logging.getLogger(__name__)
 
 # ── DB path ───────────────────────────────────────────────────────────────────
 # Configurable for deployment (e.g. a Railway volume mounted at /data). Defaults to
@@ -465,7 +478,9 @@ _allow_origins = ["*"] if _cors == "*" else [o.strip() for o in _cors.split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allow_origins,
-    allow_methods=["GET"],
+    # POST is required by /api/contact and /api/post-role — without it the
+    # browser blocks the preflight and the forms fail before reaching FastAPI.
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -792,6 +807,183 @@ def get_stats():
         top_companies=top_companies,
         internship_count=intern_count,
     )
+
+
+# ── Write endpoints ───────────────────────────────────────────────────────────
+#
+# The only two POSTs in the app. Neither writes to jobs.db: a consultation
+# enquiry is not job data, and a submitted role must be reviewed by a person
+# before it can appear on the board. Both append to a JSONL queue on disk first
+# (durable) and then email a notification (best-effort) — so a mail outage
+# delays the alert but never loses the submission.
+
+SUBMISSIONS_DIR = Path(os.environ.get("SUBMISSIONS_DIR", str(DB_PATH.parent))).resolve()
+
+# Rate limiting is in-memory and therefore per-process: it resets on deploy and
+# does not span replicas. Adequate for a single instance at current traffic;
+# move to Redis or a proxy-level limit before scaling out.
+_RATE_LIMIT = int(os.environ.get("SUBMIT_RATE_LIMIT", "3"))
+_RATE_WINDOW_S = 3600
+_rate_log: dict[str, list[float]] = defaultdict(list)
+_rate_lock = threading.Lock()
+
+
+def _client_ip(request: Request) -> str:
+    """Left-most X-Forwarded-For entry when behind a proxy (Railway), else peer."""
+    fwd = request.headers.get("x-forwarded-for", "")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _rate_limited(key: str) -> bool:
+    now = time.time()
+    with _rate_lock:
+        hits = [t for t in _rate_log[key] if now - t < _RATE_WINDOW_S]
+        if len(hits) >= _RATE_LIMIT:
+            _rate_log[key] = hits
+            return True
+        hits.append(now)
+        _rate_log[key] = hits
+        return False
+
+
+def _persist(kind: str, payload: dict) -> bool:
+    """Append one submission to data/{kind}.jsonl. Returns False if it could not
+    be written — the only condition under which a submission is actually lost."""
+    try:
+        SUBMISSIONS_DIR.mkdir(parents=True, exist_ok=True)
+        record = {"received_at": datetime.now(timezone.utc).isoformat(), **payload}
+        with open(SUBMISSIONS_DIR / f"{kind}.jsonl", "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+        return True
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Could not persist %s submission: %s", kind, exc)
+        return False
+
+
+CAREER_STAGES = {"3–8 years", "8–15 years", "15+ years", "C-suite / board"}
+EMPLOYMENT_TYPES = {"Full-time", "Contract", "Part-time", "Internship"}
+
+
+class EnquiryIn(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    email: EmailStr
+    career_stage: str = Field(max_length=40)
+    message: str = Field(min_length=1, max_length=5000)
+    # Honeypot. Named to look like a field worth filling; a human never sees it.
+    website: str = ""
+
+    @field_validator("career_stage")
+    @classmethod
+    def _known_stage(cls, v: str) -> str:
+        if v not in CAREER_STAGES:
+            raise ValueError("unknown career stage")
+        return v
+
+
+class RoleIn(BaseModel):
+    contact_name: str = Field(min_length=1, max_length=100)
+    contact_email: EmailStr
+    company: str = Field(min_length=1, max_length=150)
+    title: str = Field(min_length=1, max_length=200)
+    location: str = Field(min_length=1, max_length=120)
+    employment_type: str = Field(max_length=40)
+    salary_range: str = Field(default="", max_length=100)
+    description: str = Field(min_length=1, max_length=20000)
+    apply_url: str = Field(min_length=1, max_length=500)
+    website: str = ""
+
+    @field_validator("employment_type")
+    @classmethod
+    def _known_type(cls, v: str) -> str:
+        if v not in EMPLOYMENT_TYPES:
+            raise ValueError("unknown employment type")
+        return v
+
+    @field_validator("apply_url")
+    @classmethod
+    def _http_url(cls, v: str) -> str:
+        # Blocks javascript:, data: and mailto: — this URL is rendered as a link
+        # on the board once approved.
+        if not v.startswith(("http://", "https://")):
+            raise ValueError("apply_url must start with http:// or https://")
+        return v
+
+
+class SubmitResponse(BaseModel):
+    ok: bool
+
+
+@app.post("/api/contact", response_model=SubmitResponse, tags=["submit"])
+def submit_enquiry(payload: EnquiryIn, request: Request):
+    """Executive Career Consultation enquiry → JSONL queue + email notification."""
+    # A filled honeypot means a bot. Return the same 200 a human gets: telling it
+    # that it was detected only helps the next attempt.
+    if payload.website.strip():
+        logger.info("Honeypot triggered on /api/contact from %s", _client_ip(request))
+        return SubmitResponse(ok=True)
+
+    if _rate_limited(f"contact:{_client_ip(request)}"):
+        raise HTTPException(429, "Too many enquiries from this address. Please try again later.")
+
+    data = payload.model_dump(exclude={"website"})
+    stored = _persist("enquiries", data)
+
+    body = (
+        f"New consultation enquiry\n\n"
+        f"Name:         {data['name']}\n"
+        f"Email:        {data['email']}\n"
+        f"Career stage: {data['career_stage']}\n\n"
+        f"{data['message']}\n"
+    )
+    sent = send_mail(f"Consultation enquiry — {data['name']}", body, reply_to=str(data["email"]))
+
+    if not stored and not sent:
+        raise HTTPException(500, "We could not record your enquiry. Please try again.")
+    return SubmitResponse(ok=True)
+
+
+@app.post("/api/post-role", response_model=SubmitResponse, tags=["submit"])
+def submit_role(payload: RoleIn, request: Request):
+    """
+    Recruiter/employer role submission → JSONL moderation queue + email.
+
+    Note this is NOT the board's Recruiter Posts tier, which is scraped LinkedIn
+    activity. This is a direct submission channel, and nothing submitted here
+    reaches the board until a human approves it.
+    """
+    if payload.website.strip():
+        logger.info("Honeypot triggered on /api/post-role from %s", _client_ip(request))
+        return SubmitResponse(ok=True)
+
+    if _rate_limited(f"role:{_client_ip(request)}"):
+        raise HTTPException(429, "Too many submissions from this address. Please try again later.")
+
+    data = payload.model_dump(exclude={"website"})
+    data["status"] = "pending"  # never anything else at rest; approval is manual
+    stored = _persist("submitted_roles", data)
+
+    body = (
+        f"New role submitted for review\n\n"
+        f"Title:      {data['title']}\n"
+        f"Company:    {data['company']}\n"
+        f"Location:   {data['location']}\n"
+        f"Type:       {data['employment_type']}\n"
+        f"Salary:     {data['salary_range'] or '—'}\n"
+        f"Apply URL:  {data['apply_url']}\n\n"
+        f"Submitted by {data['contact_name']} <{data['contact_email']}>\n\n"
+        f"--- Description ---\n{data['description']}\n"
+    )
+    sent = send_mail(
+        f"Role submission — {data['title']} @ {data['company']}",
+        body,
+        reply_to=str(data["contact_email"]),
+    )
+
+    if not stored and not sent:
+        raise HTTPException(500, "We could not record your submission. Please try again.")
+    return SubmitResponse(ok=True)
 
 
 # ── Health check ──────────────────────────────────────────────────────────────
