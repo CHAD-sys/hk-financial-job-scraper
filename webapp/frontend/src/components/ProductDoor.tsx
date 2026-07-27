@@ -2,6 +2,17 @@ import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { ReactNode } from 'react'
 
+// Module scope, not rebuilt per render: these depend on no props or state, and a
+// fresh object every render defeats memoisation downstream for no benefit.
+const DOOR_CLASS =
+  'product-door relative flex flex-col h-full p-7 lg:p-8 rounded-xl text-left no-underline'
+
+const DOOR_STYLE = {
+  backgroundColor: 'var(--color-surface)',
+  border: '1px solid var(--color-border)',
+  boxShadow: 'var(--shadow-card)',
+} as const
+
 interface Props {
   /** "01" / "02" / "03" — editorial numbering, decorative. */
   index: string
@@ -79,24 +90,16 @@ export default function ProductDoor({ index, eyebrow, title, description, figure
     </>
   )
 
-  const className =
-    'product-door relative flex flex-col h-full p-7 lg:p-8 rounded-xl text-left no-underline'
-  const style = {
-    backgroundColor: 'var(--color-surface)',
-    border: '1px solid var(--color-border)',
-    boxShadow: 'var(--shadow-card)',
-  } as const
-
   if (isAnchor) {
     return (
-      <a href={href} className={className} style={style}>
+      <a href={href} className={DOOR_CLASS} style={DOOR_STYLE}>
         {body}
       </a>
     )
   }
 
   return (
-    <Link to={href} className={className} style={style}>
+    <Link to={href} className={DOOR_CLASS} style={DOOR_STYLE}>
       {body}
     </Link>
   )

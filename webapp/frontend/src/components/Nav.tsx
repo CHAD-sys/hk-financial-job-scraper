@@ -97,7 +97,7 @@ export default function Nav({ savedCount = 0 }: Props) {
             <button
               type="button"
               onClick={() => navigate('/saved')}
-              className="flex min-h-11 items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-all duration-150 cursor-pointer"
+              className="flex min-h-11 items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors duration-150 cursor-pointer"
               style={{
                 backgroundColor: pathname === '/saved' ? 'var(--color-gold)' : 'rgba(255,255,255,0.08)',
                 color: 'var(--color-ink-inverse)',
