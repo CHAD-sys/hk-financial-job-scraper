@@ -69,6 +69,9 @@ def send_mail(subject: str, body_text: str, reply_to: str | None = None) -> bool
             srv.starttls()
             srv.login(SMTP_USER, SMTP_PASS)
             srv.send_message(msg)
+        # Logged on success as well as failure: "no error in the log" is weak
+        # evidence that mail is flowing, and this whole class of bug is silent.
+        logger.info("Sent %r to %s", msg["Subject"], RECIPIENT)
         return True
     except Exception as exc:  # noqa: BLE001 - never let mail failure break a request
         logger.error("Failed to send %r: %s", subject, exc)

@@ -18,6 +18,7 @@ import sqlite3
 import threading
 import time
 from collections import defaultdict
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -26,9 +27,28 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-from mailer import send_mail
+# Logging first, so that everything below — including the env load — is visible.
+# uvicorn configures its own loggers and installs no root handler, so without
+# this the application's INFO records are discarded entirely and only WARNING and
+# above surface via logging's last-resort handler. That is why a *failed* send
+# was visible but a successful one was not, which is exactly backwards for
+# answering "did the email go out?".
+logging.basicConfig(
+    level=os.environ.get("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
+)
 
 logger = logging.getLogger(__name__)
+
+from env_file import load_env_file  # noqa: E402 — must import after logging setup
+
+# MUST run before the module-level os.environ reads below (DB_PATH, CORS_ORIGINS,
+# SUBMISSIONS_DIR) and before importing mailer, which reads its SMTP settings at
+# import time. uvicorn does not source config/api_keys.env the way daily_run.sh
+# does, so without this the backend starts with no credentials at all.
+load_env_file()
+
+from mailer import RECIPIENT, SMTP_USER, send_mail  # noqa: E402 — see above
 
 # ── DB path ───────────────────────────────────────────────────────────────────
 # Configurable for deployment (e.g. a Railway volume mounted at /data). Defaults to
@@ -465,10 +485,32 @@ def _build_where(
 
 # ── App ────────────────────────────────────────────────────────────────────────
 
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """
+    Report the configuration that otherwise fails silently.
+
+    A missing SMTP setup breaks no request — submissions are still queued and
+    still return 200 — so the only symptom is mail that never arrives. Saying so
+    at boot, loudly, is what turns that into a five-second diagnosis.
+    """
+    if SMTP_USER:
+        logger.info("Email configured — enquiries will be sent to %s", RECIPIENT)
+    else:
+        logger.warning(
+            "SMTP_USER/SMTP_PASS are not set. Submissions will still be queued to %s "
+            "but NO email will be sent. Locally: check config/api_keys.env. "
+            "In production: set them in the platform environment.",
+            SUBMISSIONS_DIR,
+        )
+    yield
+
+
 app = FastAPI(
     title="FinEx Careers API",
     description="Read-only API for Hong Kong financial job listings.",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # CORS origins are configurable for deployment via CORS_ORIGINS (comma-separated,
@@ -990,4 +1032,20 @@ def submit_role(payload: RoleIn, request: Request):
 
 @app.get("/health", tags=["meta"])
 def health():
-    return {"status": "ok", "db": str(DB_PATH)}
+    """
+    Liveness plus the two bits of configuration that fail silently.
+
+    `email` is reported because a misconfigured mailer does not break any
+    request — submissions are still queued and still return 200 — so without
+    surfacing it here the only symptom is an email that never arrives, which is
+    exactly how this went unnoticed once already.
+    """
+    return {
+        "status": "ok",
+        "db": str(DB_PATH),
+        "email": "configured" if SMTP_USER else "NOT CONFIGURED — enquiries queue but no mail is sent",
+        "enquiry_recipient": RECIPIENT if SMTP_USER else None,
+        "submissions_dir": str(SUBMISSIONS_DIR),
+    }
+
+
