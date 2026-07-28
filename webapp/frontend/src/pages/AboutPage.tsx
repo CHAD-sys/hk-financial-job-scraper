@@ -49,7 +49,7 @@ const PRODUCTS = [
     icon: GraduationCap,
     title: 'Professional learning',
     body: "Seminars, technical workshops and the Financial Executive Club's interview series with the executives running Hong Kong's financial institutions.",
-    to: '/#learning',
+    to: '/learning',
     cta: 'Watch',
   },
 ]
@@ -320,7 +320,7 @@ export default function AboutPage() {
                     style={{ color: 'var(--color-blue)' }}>
               <MessageSquare size={14} strokeWidth={2} /> Talk to us
             </button>
-            <button type="button" onClick={() => navigate('/#learning')}
+            <button type="button" onClick={() => navigate('/learning')}
                     className="inline-flex items-center gap-1.5 text-sm font-semibold cursor-pointer"
                     style={{ color: 'var(--color-blue)' }}>
               <GraduationCap size={14} strokeWidth={2} /> Watch &amp; learn

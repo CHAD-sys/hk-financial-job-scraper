@@ -3,13 +3,17 @@ import { ArrowUpRight, Briefcase } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import Nav from '../components/Nav'
 import ProductDoor from '../components/ProductDoor'
-import VideoFacade from '../components/VideoFacade'
 import EnquiryForm from '../components/EnquiryForm'
 import useHashScroll from '../hooks/useHashScroll'
 import { fetchStats, fetchFilters } from '../api/client'
-import { FEATURED_VIDEOS, CHANNEL_URL, SUBSCRIBER_LINE } from '../content/featuredVideos'
+import { SUBSCRIBER_LINE } from '../content/featuredVideos'
 
 const CONSULTING_URL = 'https://www.finexclub.org/consulting'
+
+/** One of the three named offerings inside the hero's positioning statement. */
+function Pillar({ children }: { children: React.ReactNode }) {
+  return <span style={{ color: 'var(--color-ink)', fontWeight: 500 }}>{children}</span>
+}
 
 /**
  * The portal.
@@ -19,8 +23,8 @@ const CONSULTING_URL = 'https://www.finexclub.org/consulting'
  * them. The board is still the traffic engine and still leads, but it is one
  * door of three rather than the whole site.
  *
- * Consultation and Learning are sections on this same page (no new routes), so
- * the doors for those scroll rather than navigate.
+ * Consultation is a section on this same page, so its door scrolls. Careers and
+ * Learning are real pages (/jobs, /learning), so theirs navigate.
  */
 export default function LandingPage() {
   useHashScroll()
@@ -31,7 +35,6 @@ export default function LandingPage() {
       <main id="main-content">
         <PortalHero />
         <ConsultationSection />
-        <LearningSection />
         <PostRoleStripe />
       </main>
       <LandingFooter />
@@ -87,9 +90,17 @@ function PortalHero() {
           Hong Kong · Financial Executive Club
         </span>
 
+        {/* The positioning statement is carried across the heading and the lead below
+            it rather than crammed into one <h1>. Set as a single 150-character
+            headline it had to drop to ~28px to fit a phone, which put the display
+            serif at body-text scale and cost the hero the thing that makes it read
+            as premium — large type. Split, the claim keeps the full display scale
+            and the enumeration becomes the lead, which is where a list belongs.
+            The three named pillars are also, in order, the three doors below, so
+            the sentence now resolves into the page instead of just sitting on it. */}
         <h1
           id="portal-heading"
-          className="mt-8 max-w-4xl leading-[1.06] tracking-tight"
+          className="mt-8 max-w-4xl leading-[1.06] tracking-tight text-balance"
           style={{
             fontFamily: 'var(--font-display)',
             fontSize: 'clamp(2.5rem, 5.2vw, 4rem)',
@@ -98,13 +109,23 @@ function PortalHero() {
             letterSpacing: '-0.025em',
           }}
         >
-          Everything a finance career in{' '}
-          <em className="not-italic" style={{ color: 'var(--color-gold)' }}>Hong Kong</em> needs.
+          <em className="not-italic" style={{ color: 'var(--color-gold)' }}>Asia&rsquo;s 1st</em>{' '}
+          Premier Career Centre
         </h1>
 
-        <p className="mt-6 max-w-2xl text-lg leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
-          Every open role in the market, refreshed daily. Confidential guidance from people
-          who have done the job. And a learning library built on the desks that matter.
+        {/* Pillar names sit at ink weight against muted connective text, so the
+            three-part structure is visible at a glance without a bullet list —
+            purely a visual weight change, so <span> not <strong> (nothing here is
+            more important to a screen reader than the rest of the sentence). */}
+        <p
+          className="mt-6 max-w-3xl leading-relaxed"
+          style={{ fontSize: 'clamp(1.0625rem, 1.5vw, 1.25rem)', color: 'var(--color-ink-muted)' }}
+        >
+          Seamlessly integrating{' '}
+          <Pillar>AI Job Acquisition</Pillar>,{' '}
+          <Pillar>Career Consultation</Pillar>,{' '}
+          <Pillar>Learning and Professional Development</Pillar>{' '}
+          &mdash; under one roof.
         </p>
 
         {/* The doors are the call to action — there is no separate CTA button. */}
@@ -131,7 +152,7 @@ function PortalHero() {
             title="Learning from the people running the market"
             description="Seminars, technical workshops and the Club's interview series with the executives actually running Hong Kong's financial institutions."
             figure={SUBSCRIBER_LINE}
-            href="#learning"
+            href="/learning"
           />
         </div>
       </div>
@@ -206,67 +227,6 @@ function ConsultationSection() {
   )
 }
 
-// ── 03 · Professional L&D ─────────────────────────────────────────────────────
-
-function LearningSection() {
-  return (
-    <section
-      id="learning"
-      aria-labelledby="learning-heading"
-      className="scroll-mt-20"
-      style={{ borderTop: '1px solid var(--color-border)' }}
-    >
-      <div className="mx-auto max-w-7xl px-6 lg:px-8 py-16 lg:py-20">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="max-w-2xl">
-            <span
-              className="text-xs font-semibold uppercase"
-              style={{ color: 'var(--color-gold)', letterSpacing: '0.14em' }}
-            >
-              03 · Professional L&amp;D
-            </span>
-            <h2
-              id="learning-heading"
-              className="mt-3 text-3xl lg:text-4xl tracking-tight"
-              style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--color-ink)', letterSpacing: '-0.025em' }}
-            >
-              Learning from the people running the market
-            </h2>
-            <p className="mt-4 text-base leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
-              The Club's channel bridges academic theory and how the work is actually done —
-              markets, tokenisation, AI in finance, and the committees driving each.
-            </p>
-          </div>
-
-          <span
-            className="shrink-0 text-sm font-semibold tabular-nums"
-            style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink)' }}
-          >
-            {SUBSCRIBER_LINE}
-          </span>
-        </div>
-
-        <div className="mt-10 grid gap-x-6 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURED_VIDEOS.map(v => (
-            <VideoFacade key={v.id} video={v} />
-          ))}
-        </div>
-
-        <a
-          href={CHANNEL_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-10 inline-flex items-center gap-1.5 text-sm font-semibold"
-          style={{ color: 'var(--color-blue)' }}
-        >
-          Visit the channel
-          <ArrowUpRight size={15} strokeWidth={2} />
-        </a>
-      </div>
-    </section>
-  )
-}
-
 // ── Employer stripe ───────────────────────────────────────────────────────────
 
 /**
@@ -329,7 +289,7 @@ function LandingFooter() {
         <nav className="flex flex-wrap gap-x-6 gap-y-2" aria-label="Footer navigation">
           <FooterLink to="/jobs">Browse roles</FooterLink>
           <FooterLink to="/#consultation">Consultation</FooterLink>
-          <FooterLink to="/#learning">Learning</FooterLink>
+          <FooterLink to="/learning">Learning</FooterLink>
           <FooterLink to="/post-a-role">Post a role</FooterLink>
           <FooterLink to="/about">About</FooterLink>
           <FooterLink to="/about#privacy">Privacy</FooterLink>

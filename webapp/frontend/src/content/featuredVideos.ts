@@ -1,22 +1,25 @@
-// Featured videos for the Professional L&D section on the landing page.
+// Featured videos for the Learning page (/learning).
 //
-// Deliberately a hardcoded array, not a YouTube API call. Rationale:
-//   - no API key to manage, no quota to exhaust, no failure mode at runtime
-//   - the channel's *latest* six videos are four parts of one gold series
-//     posted the same day plus a CNY gathering, which reads as a dead channel;
-//     these six are hand-picked for topical range instead
-//   - publish dates are deliberately not shown anywhere (newest upload is
-//     2026-03-21), so the section doesn't advertise its own staleness
+// These are the first six videos, in order, from the Club's own curated shelf at
+// finexclub.org/onlineplatform — not the YouTube channel's latest uploads. That
+// distinction matters: the channel's most recent six are four parts of one gold
+// series posted the same day plus a CNY gathering, which reads as a dead channel.
+// The Club has already done the curation on its own site, so we mirror that order
+// rather than re-curating or calling the YouTube API (no key, no quota, no runtime
+// failure mode).
 //
-// Swapping the featured set is a one-line edit here. The ideal replacements are
-// six Mastermind Roundtable episodes — the Club's flagship interview series,
-// named on finexclub.org/education — which are older than the 15 videos the
-// channel's RSS feed exposes and so weren't visible when this list was built.
+// IDs were read from the embedded iframes on that page, each bound to the title
+// printed beside it, so the pairing is the site's own rather than inferred from
+// ordering. Publish dates are deliberately not shown anywhere — the shelf is
+// curated, not a feed, and dates would only advertise staleness.
+//
+// Titles are kept as the Club publishes them, including the Chinese-language
+// ones. Translating them would misrepresent what a viewer actually gets.
 
 export interface FeaturedVideo {
   /** 11-character YouTube video ID, from the watch URL. */
   id: string
-  /** Display title. Cleaned of hashtags and "Part N:" noise, still recognisable. */
+  /** Display title, as published by the Club. */
   title: string
   /** Two- or three-word topic tag, used as the card eyebrow. */
   topic: string
@@ -24,8 +27,11 @@ export interface FeaturedVideo {
 
 export const CHANNEL_URL = 'https://www.youtube.com/@finexclubhq'
 
+/** The Club's own curated shelf these six are mirrored from. */
+export const PLATFORM_URL = 'https://www.finexclub.org/onlineplatform'
+
 /**
- * Credibility line for the L&D section, used instead of recency (see the note
+ * Credibility line for the Learning page, used instead of recency (see the note
  * above about the newest upload being months old).
  *
  * This is the Club's own stated figure, matching finexclub.org/about ("over
@@ -37,34 +43,34 @@ export const SUBSCRIBER_LINE = '50,000+ subscribers'
 
 export const FEATURED_VIDEOS: FeaturedVideo[] = [
   {
-    id: 'qovCchwibjI',
-    title: 'The Gold & Silver Rally — catalysts and trends to watch',
-    topic: 'Precious metals',
-  },
-  {
-    id: 'alQ0eelrn1E',
-    title: 'Fed rate policy 2026 — gold sensitivity and allocation',
-    topic: 'Rates & macro',
-  },
-  {
-    id: 'FAD997mf050',
-    title: "Hong Kong's gold hub strategy — tokenised gold and blockchain trades",
-    topic: 'Tokenisation',
-  },
-  {
     id: '6di-kHFF1lM',
-    title: 'Breaking down the AI reality — and confronting the threats',
+    title: 'Break down the AI Reality and Confront the Threats',
     topic: 'AI & technology',
   },
   {
-    id: 'smQFHpX06B8',
-    title: 'Inside the Private Markets Committee',
+    id: 'Mc6Pc0GlpMI',
+    title: 'Cambridge Professor on Climate Change and Sustainability Strategies',
+    topic: 'Sustainability',
+  },
+  {
+    id: 'x1q7-q1Ebnc',
+    title: 'Banking Model and Fintech, Supply Chains, Global Trade Corridors, Advice to Young Bankers',
+    topic: 'Banking & trade',
+  },
+  {
+    id: 'SWVGD9z4iAI',
+    title: '私募MD暢談私募股權和私募債Private Equity的投資策略與Private Credit在資產配置的市場價值',
     topic: 'Private markets',
   },
   {
-    id: 'F5y2IZW0Myc',
-    title: 'Inside the Fintech & DeFi Committee',
-    topic: 'Fintech & DeFi',
+    id: 'iZ1EyIODvaA',
+    title: 'Web3.0大時代，正確認識穩定幣、央行數字貨幣、代幣化存款',
+    topic: 'Digital assets',
+  },
+  {
+    id: 'ZJp5UK1wog0',
+    title: 'APAC CEO Talk: Asset Servicing前世今生及歷史性時刻',
+    topic: 'Asset servicing',
   },
 ]
 

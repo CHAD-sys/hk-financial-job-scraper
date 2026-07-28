@@ -10,12 +10,12 @@ interface Props {
 /**
  * Primary navigation.
  *
- * Consultation and Learning are sections on `/`, not routes, so they are hash
- * links. From `/` the browser scrolls natively; from any other route this is a
- * client-side navigation and LandingPage's useHashScroll() does the scrolling on
- * arrival.
+ * Consultation is a section on `/`, not a route, so it is a hash link. From `/`
+ * the browser scrolls natively; from any other route this is a client-side
+ * navigation and LandingPage's useHashScroll() does the scrolling on arrival.
+ * Careers and Learning are real pages (/jobs, /learning) and navigate normally.
  *
- * Home points at the portal ("Everything a finance career in Hong Kong needs").
+ * Home points at the portal (the "Asia's 1st Premier Career Centre" statement).
  * The wordmark also goes there, but an explicit Home is what most people look
  * for, and the two hash links below make it genuinely useful: once you have
  * scrolled to Consultation the URL is still `/`, so Home is the way back up.
@@ -25,7 +25,7 @@ const LINKS: { label: string; to: string }[] = [
   { label: 'Home', to: '/' },
   { label: 'Careers', to: '/jobs' },
   { label: 'Consultation', to: '/#consultation' },
-  { label: 'Learning', to: '/#learning' },
+  { label: 'Learning', to: '/learning' },
   { label: 'About', to: '/about' },
 ]
 
