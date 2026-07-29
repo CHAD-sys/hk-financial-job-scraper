@@ -10,9 +10,9 @@
     "semantic_hash": "28a8e0fdaad12ed0d58370486b99c693"
   },
   "hk_jobs/adapters/__init__.py": {
-    "mtime": 1785359614.1072955,
-    "ast_hash": "98b4c94bbf3c119a757eaa71b82fe668",
-    "semantic_hash": ""
+    "mtime": 1784123581.2587123,
+    "ast_hash": "f8689dddeb0e5c1f4dbbf46762d6b121",
+    "semantic_hash": "f8689dddeb0e5c1f4dbbf46762d6b121"
   },
   "hk_jobs/adapters/base.py": {
     "mtime": 1780045894.342151,
@@ -45,9 +45,9 @@
     "semantic_hash": "25237fa17ec22c82ca10a4d517a25893"
   },
   "hk_jobs/config.py": {
-    "mtime": 1785359614.1080005,
-    "ast_hash": "bc9877daa0ddb84245a45a2464ade81f",
-    "semantic_hash": ""
+    "mtime": 1784123581.2597888,
+    "ast_hash": "d9dff24766949826b729a68c18eb8feb",
+    "semantic_hash": "d9dff24766949826b729a68c18eb8feb"
   },
   "hk_jobs/description_fetcher.py": {
     "mtime": 1784806744.024364,
@@ -65,12 +65,12 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "hk_jobs/enrichers/deepseek.py": {
-    "mtime": 1785254269.6393886,
+    "mtime": 1784806744.0251276,
     "ast_hash": "ee7562b1bfb811c4cbaa0b2d7370b65e",
     "semantic_hash": "ee7562b1bfb811c4cbaa0b2d7370b65e"
   },
   "hk_jobs/enrichment.py": {
-    "mtime": 1785254269.6397939,
+    "mtime": 1784927027.663998,
     "ast_hash": "ae43ef708bba52bc9a5a63977969f412",
     "semantic_hash": "ae43ef708bba52bc9a5a63977969f412"
   },
@@ -265,9 +265,9 @@
     "semantic_hash": "8d01465b7554df0ee297c7e335aea866"
   },
   "hk_jobs/companies.yaml": {
-    "mtime": 1785362165.6887894,
-    "ast_hash": "8a7f6656e5549e985bc69316821312c1",
-    "semantic_hash": ""
+    "mtime": 1784147307.155219,
+    "ast_hash": "c9c15fcbdde33239ecbc6a19ba26dd21",
+    "semantic_hash": "c9c15fcbdde33239ecbc6a19ba26dd21"
   },
   "requirements.txt": {
     "mtime": 1780572810.3042157,
@@ -680,12 +680,12 @@
     "semantic_hash": "98a407512b4b530e14570774a65d3c67"
   },
   "hk_jobs/salary_clamp.py": {
-    "mtime": 1785254269.640039,
+    "mtime": 1784806744.0386682,
     "ast_hash": "5275b02257a7f9d700d10e4dbdbc3864",
     "semantic_hash": "5275b02257a7f9d700d10e4dbdbc3864"
   },
   "salary_guidlines/hk_salary_anchors.json": {
-    "mtime": 1785254269.6403146,
+    "mtime": 1784806744.0406697,
     "ast_hash": "493fc1ab7b3bb53234ad8c1a4dbf2e18",
     "semantic_hash": "493fc1ab7b3bb53234ad8c1a4dbf2e18"
   },
@@ -705,7 +705,7 @@
     "semantic_hash": "78b9bc8668bc05f88b38ce1c9649d373"
   },
   "tests/test_salary_clamp.py": {
-    "mtime": 1785254269.640602,
+    "mtime": 1784806744.0585754,
     "ast_hash": "05dfcc5bd72ff8b9764928665c62cb68",
     "semantic_hash": "05dfcc5bd72ff8b9764928665c62cb68"
   },
@@ -1032,31 +1032,6 @@
   "docs/HK_MARKET_REPORT.html": {
     "mtime": 1785236702.9705784,
     "ast_hash": "ac449cacfc9a06d5822baf3bc1a162ca",
-    "semantic_hash": ""
-  },
-  "hk_jobs/adapters/successfactors.py": {
-    "mtime": 1785361821.1171348,
-    "ast_hash": "ec228005a4dd7ff286e5c03e852d53f5",
-    "semantic_hash": ""
-  },
-  "tests/test_successfactors.py": {
-    "mtime": 1785361861.4302442,
-    "ast_hash": "398374b8d56811079b351706f5ee892b",
-    "semantic_hash": ""
-  },
-  "tests/fixtures/successfactors/detail.html": {
-    "mtime": 1785359499.2229211,
-    "ast_hash": "a0ccac501d45fab01d696d8a7c476f15",
-    "semantic_hash": ""
-  },
-  "tests/fixtures/successfactors/listing_page1.html": {
-    "mtime": 1785359499.220588,
-    "ast_hash": "2ad1f59ee2f7b94a69a6d998ba02677f",
-    "semantic_hash": ""
-  },
-  "tests/fixtures/successfactors/listing_page2.html": {
-    "mtime": 1785359499.2209995,
-    "ast_hash": "5dfa5c98e965a2b148192c9ec493869e",
     "semantic_hash": ""
   }
 }
