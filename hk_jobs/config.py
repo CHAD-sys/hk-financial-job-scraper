@@ -33,6 +33,7 @@ _REQUIRED_CONFIG_KEYS: dict[str, list[str]] = {
     "linkedin": ["linkedin_company_id"],
     "longtail": ["careers_url"],
     "efinancialcareers": ["efc_employer"],
+    "successfactors": ["sf_host"],
 }
 
 # Top-level entry keys that are NOT adapter config. Everything else at the top

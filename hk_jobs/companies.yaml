@@ -1691,3 +1691,66 @@ companies:
       max_pages: 8
       source_tier: boutique          # boutique firm, though scraped via LinkedIn
       category: "Insurance Company"
+
+  # ── SAP SuccessFactors ─────────────────────────────────────────────────────
+  # First SuccessFactors source in the project. CLAUDE.md's ATS table has always
+  # named SuccessFactors, but no adapter existed until 2026-07-29.
+  #
+  # This is the employer's OWN careers site (first-party, no login, no authwall)
+  # — the clean-path posture of Workday/Eightfold, NOT the JobsDB/Indeed one.
+  #
+  # CONFIRMED 2026-07-29 against https://careers.hkjc.com/search/ :
+  #   RMK signature params (createNewAlert / locationsearch / optionsFacetsDD_*),
+  #   tr.data-row rows, /job/{slug}/{id}/ links, ?startrow= pagination (25/page).
+  #
+  # facility_allowlist is doing real work here. RMK's `q=` is a FULL-TEXT match,
+  # not a department filter: q=Finance returned 44 rows of which only 9 were in
+  # the Finance facility — 21 were "Charities and Community" grant-making roles
+  # that merely mention the word "finance" in their body text.
+  #
+  # Facility split observed 2026-07-29 (44 rows total):
+  #   21  Charities and Community          9  Finance
+  #    4  Membership and Customer Excellence
+  #    3  Transformation Office            3  Strategic Projects
+  #    2  Information Technology           2  Racing
+  #
+  # To widen coverage, add facilities to the list below (e.g. Strategic Projects
+  # and Transformation Office are corporate-finance adjacent: project risk,
+  # business performance, corporate strategy & business planning — +6 roles).
+  # Delete the key entirely to ingest all 44.
+  - name: Hong Kong Jockey Club
+    slug: hkjc
+    adapter: successfactors
+    enabled: true
+    config:
+      sf_host: careers.hkjc.com
+      # Empty search_query = paginate the WHOLE listing (321 postings / 13 pages)
+      # and filter on the facility column below. Do NOT put "Finance" here:
+      # RMK's q= is full-text, so it both over-matches (44 rows, 35 irrelevant)
+      # and can silently MISS a Finance-facility role that never says "finance".
+      search_query: ""
+      # 321 postings = 13 pages of 25. 15 leaves headroom; the adapter logs a
+      # loud TRUNCATED warning if the cap is ever actually hit.
+      max_pages: 15
+      # Owner decision 2026-07-29: the finance FUNCTION, not just the Finance
+      # department. Counts are as at 2026-07-29 (321 postings site-wide).
+      facility_allowlist:
+        - Finance                       #  9
+        - Audit                         #  1  (Senior Manager, Audit)
+      #
+      # "Projects and Risk Management" (9) was tried and REMOVED. The name reads
+      # like financial risk; the actual roles are construction and facilities
+      # risk — Civil Technician, Facility Technician, Senior Security Officer,
+      # Safety and Health Management Staff, Assistant Facilities Management
+      # Officer, Manager VIP Services. DeepSeek categorised 7 of the 9 as
+      # Operations/Engineering/Other. Only "Senior Manager, Enterprise Risk
+      # Management" and (arguably) "Compliance - General Pre AE" belong on a
+      # finance board, and 2 good rows do not pay for 7 wrong ones. Do not
+      # re-add this department without title-level filtering.
+      #
+      # Also excluded as general-management rather than finance:
+      # Strategic Projects (8), Transformation Office (3). Everything else on
+      # the site is Racing, Charities, IT, Property, Membership, Sports,
+      # Security, People & OD.
+      fetch_details: true
+      category: "Racing, Wagering & Charities (in-house finance function)"
