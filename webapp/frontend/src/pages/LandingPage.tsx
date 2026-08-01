@@ -167,7 +167,7 @@ function ConsultationSection() {
     <section
       id="consultation"
       aria-labelledby="consultation-heading"
-      className="scroll-mt-20"
+      className="scroll-mt-20 lg:scroll-mt-26"
       style={{ backgroundColor: 'var(--color-surface-2)', borderTop: '1px solid var(--color-border)' }}
     >
       <div className="mx-auto max-w-7xl px-6 lg:px-8 py-16 lg:py-20">

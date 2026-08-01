@@ -197,7 +197,7 @@ export default function PrivacyNotice() {
     <section
       id="privacy"
       aria-labelledby="privacy-heading"
-      className="scroll-mt-20"
+      className="scroll-mt-20 lg:scroll-mt-26"
       style={{
         backgroundColor: 'var(--color-surface-2)',
         borderTop: '1px solid var(--color-border)',

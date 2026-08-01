@@ -76,7 +76,7 @@ export default function LearningPage() {
  */
 function LearningHero() {
   return (
-    <section aria-labelledby="learning-heading" style={{ backgroundColor: 'var(--color-nav)' }}>
+    <section aria-labelledby="learning-heading" style={{ backgroundColor: 'var(--color-masthead)' }}>
       <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-20">
         <p
           className="text-xs font-semibold uppercase"

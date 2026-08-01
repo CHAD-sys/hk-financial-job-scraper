@@ -1,4 +1,4 @@
-import { Briefcase, Bookmark, Menu, X } from 'lucide-react'
+import { Briefcase, Bookmark, Menu, X, ArrowUpRight } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { scrollToTop, scrollToHash } from '../utils/scroll'
@@ -19,13 +19,20 @@ interface Props {
  * The wordmark also goes there, but an explicit Home is what most people look
  * for, and the two hash links below make it genuinely useful: once you have
  * scrolled to Consultation the URL is still `/`, so Home is the way back up.
+ *
+ * Six items plus the right-hand cluster (Post a role, Saved) no longer fit one
+ * desktop row, so on lg+ the bar splits in two: a slim utility strip carrying
+ * identity and actions, and a full-width nav row below it. Nothing is hidden
+ * behind an overflow menu — a link the user cannot see is a link they will not
+ * click. Mobile keeps its single row and flat menu.
  */
 
-const LINKS: { label: string; to: string }[] = [
+const LINKS: { label: string; to: string; external?: boolean }[] = [
   { label: 'Home', to: '/' },
   { label: 'Careers', to: '/jobs' },
   { label: 'Consultation', to: '/#consultation' },
   { label: 'Learning', to: '/learning' },
+  { label: 'Market Research', to: 'https://www.finexclub.org/research', external: true },
   { label: 'About', to: '/about' },
 ]
 
@@ -83,115 +90,159 @@ export default function Nav({ savedCount = 0 }: Props) {
     scrollToTop()
   }
 
+  const wordmark = (
+    <button
+      type="button"
+      onClick={() => {
+        // Same rule as the Home link: already home means "take me to the top".
+        if (pathname === '/') {
+          if (hash) navigate('/', { replace: true })
+          scrollToTop()
+        } else {
+          navigate('/')
+        }
+      }}
+      className="flex shrink-0 items-center gap-2.5 cursor-pointer"
+      aria-label="FinEx Careers home"
+    >
+      <span
+        className="flex h-8 w-8 items-center justify-center rounded"
+        style={{ backgroundColor: 'var(--color-gold)' }}
+      >
+        <Briefcase size={16} color="#fff" strokeWidth={2} />
+      </span>
+      <span
+        className="text-lg font-semibold tracking-tight select-none"
+        style={{ fontFamily: 'var(--font-display)', color: 'var(--color-ink-inverse)' }}
+      >
+        FinEx{' '}
+        <em className="not-italic" style={{ color: 'var(--color-gold)', fontStyle: 'italic' }}>
+          Careers
+        </em>
+      </span>
+    </button>
+  )
+
   return (
     <header
       style={{ backgroundColor: 'var(--color-nav)', zIndex: 200 }}
       className="sticky top-0 w-full border-b border-white/10"
     >
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between gap-4">
+      {/* ── Desktop: two tiers ──────────────────────────────────────────────
+          The row splits by *kind* rather than hiding links in an overflow
+          menu: identity and actions sit on a slim utility strip, and the nav
+          gets a full-width row to itself. Everything stays visible, and the
+          active page earns a real underline rather than a shift in text
+          colour alone. */}
+      <div className="hidden lg:block">
+        <div className="mx-auto max-w-7xl px-8">
+          <div className="flex h-11 items-center justify-between gap-4">
+            {wordmark}
 
-          {/* Wordmark */}
-          <button
-            type="button"
-            onClick={() => {
-              // Same rule as the Home link: already home means "take me to the top".
-              if (pathname === '/') {
-                if (hash) navigate('/', { replace: true })
-                scrollToTop()
-              } else {
-                navigate('/')
-              }
-            }}
-            className="flex shrink-0 items-center gap-2.5 cursor-pointer"
-            aria-label="FinEx Careers home"
-          >
-            <span
-              className="flex h-8 w-8 items-center justify-center rounded"
-              style={{ backgroundColor: 'var(--color-gold)' }}
-            >
-              <Briefcase size={16} color="#fff" strokeWidth={2} />
-            </span>
-            <span
-              className="text-lg font-semibold tracking-tight select-none"
-              style={{ fontFamily: 'var(--font-display)', color: 'var(--color-ink-inverse)' }}
-            >
-              FinEx{' '}
-              <em className="not-italic" style={{ color: 'var(--color-gold)', fontStyle: 'italic' }}>
-                Careers
-              </em>
-            </span>
-          </button>
-
-          {/* Desktop nav. Breaks at lg, not md — five items plus the right-hand
-              cluster crowd badly between 768px and 1024px. */}
-          <nav className="hidden lg:flex items-center gap-6" aria-label="Primary navigation">
-            {LINKS.map(({ label, to }) => (
+            <div className="flex shrink-0 items-center gap-3">
+              {/* Employer CTA — quiet on purpose; candidates are the main audience */}
               <Link
-                key={label}
-                to={to}
-                onClick={e => handleClick(e, to)}
-                className="text-sm font-medium no-underline transition-colors duration-150"
-                style={{ color: isActive(to) ? 'var(--color-ink-inverse)' : 'rgba(248,250,252,0.6)' }}
+                to="/post-a-role"
+                onClick={e => handleClick(e, '/post-a-role')}
+                className="inline-flex min-h-9 items-center rounded px-3 py-1.5 text-sm font-medium no-underline"
+                style={{
+                  color: 'var(--color-ink-inverse)',
+                  border: '1px solid rgba(255,255,255,0.25)',
+                }}
               >
-                {label}
+                Post a role
               </Link>
-            ))}
-          </nav>
 
-          <div className="flex shrink-0 items-center gap-3">
-            {/* Employer CTA — quiet on purpose; candidates are the main audience */}
-            <Link
-              to="/post-a-role"
-              onClick={e => handleClick(e, '/post-a-role')}
-              className="hidden lg:inline-flex min-h-9 items-center rounded px-3 py-1.5 text-sm font-medium no-underline"
-              style={{
-                color: 'var(--color-ink-inverse)',
-                border: '1px solid rgba(255,255,255,0.25)',
-              }}
-            >
-              Post a role
-            </Link>
+              <SavedButton
+                count={savedCount}
+                active={pathname === '/saved'}
+                compact
+                onClick={() => (pathname === '/saved' ? scrollToTop() : navigate('/saved'))}
+              />
 
-            {/* Saved jobs */}
-            <button
-              type="button"
-              onClick={() => (pathname === '/saved' ? scrollToTop() : navigate('/saved'))}
-              className="flex min-h-11 items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors duration-150 cursor-pointer"
-              style={{
-                backgroundColor: pathname === '/saved' ? 'var(--color-gold)' : 'rgba(255,255,255,0.08)',
-                color: 'var(--color-ink-inverse)',
-                border: '1px solid rgba(255,255,255,0.12)',
-              }}
-              aria-label={`Saved jobs (${savedCount})`}
-            >
-              <Bookmark size={14} strokeWidth={1.8} fill={savedCount > 0 ? 'currentColor' : 'none'} />
-              <span className="max-[400px]:hidden">Saved</span>
-              {savedCount > 0 && (
-                <span
-                  className="flex h-4 w-4 items-center justify-center rounded-full text-xs font-bold"
-                  style={{ backgroundColor: 'var(--color-gold)', color: '#fff' }}
-                >
-                  {savedCount}
-                </span>
+              {/* Reserved: sign-in lands here when accounts ship. Deliberately
+                  renders nothing — a button that does not work is worse than
+                  none. Keeping the slot means the Nav does not need
+                  re-composition. */}
+            </div>
+          </div>
+        </div>
+
+        {/* One tonal step lighter than the utility strip above. Two dark
+            surfaces of the same value separated by a hairline read as one
+            muddy block; lightening the raised tier is how dark themes express
+            stacking. Dark page heroes share --color-masthead so the nav row
+            and the hero below it form one continuous band. */}
+        <div
+          className="border-t border-white/10"
+          style={{ backgroundColor: 'var(--color-masthead)' }}
+        >
+          <div className="mx-auto max-w-7xl px-8">
+            {/* items-stretch, not items-center: each link fills the row so its
+                underline lands on the bar's bottom edge. */}
+            <nav className="flex h-11 items-stretch gap-8 xl:gap-10" aria-label="Primary navigation">
+              {LINKS.map(({ label, to, external }) =>
+                external ? (
+                  <a
+                    key={label}
+                    href={to}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-sm font-medium no-underline transition-colors duration-150"
+                    style={{
+                      color: 'rgba(248,250,252,0.6)',
+                      borderBottom: '2px solid transparent',
+                    }}
+                  >
+                    {label}
+                    <ArrowUpRight size={13} strokeWidth={2} aria-hidden="true" />
+                  </a>
+                ) : (
+                  <Link
+                    key={label}
+                    to={to}
+                    onClick={e => handleClick(e, to)}
+                    className="flex items-center text-sm font-medium no-underline transition-colors duration-150"
+                    style={{
+                      color: isActive(to) ? 'var(--color-ink-inverse)' : 'rgba(248,250,252,0.6)',
+                      // gold-star, not gold: DESIGN.md flags the darker gold as
+                      // illegible on the navy bar.
+                      borderBottom: `2px solid ${isActive(to) ? 'var(--color-gold-star)' : 'transparent'}`,
+                    }}
+                  >
+                    {label}
+                  </Link>
+                ),
               )}
-            </button>
+            </nav>
+          </div>
+        </div>
+      </div>
 
-            {/* Reserved: sign-in lands here when accounts ship. Deliberately
-                renders nothing — a button that does not work is worse than none.
-                Keeping the slot means the Nav does not need re-composition. */}
+      {/* ── Mobile: one row ──────────────────────────────────────────────── */}
+      <div className="lg:hidden">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="flex h-16 items-center justify-between gap-4">
+            {wordmark}
 
-            {/* Mobile toggle */}
-            <button
-              type="button"
-              className="lg:hidden flex min-h-11 min-w-11 items-center justify-center rounded cursor-pointer"
-              style={{ color: 'var(--color-ink-inverse)' }}
-              onClick={() => setOpen(o => !o)}
-              aria-label="Toggle menu"
-              aria-expanded={open}
-            >
-              {open ? <X size={20} /> : <Menu size={20} />}
-            </button>
+            <div className="flex shrink-0 items-center gap-3">
+              <SavedButton
+                count={savedCount}
+                active={pathname === '/saved'}
+                onClick={() => (pathname === '/saved' ? scrollToTop() : navigate('/saved'))}
+              />
+
+              <button
+                type="button"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded cursor-pointer"
+                style={{ color: 'var(--color-ink-inverse)' }}
+                onClick={() => setOpen(o => !o)}
+                aria-label="Toggle menu"
+                aria-expanded={open}
+              >
+                {open ? <X size={20} /> : <Menu size={20} />}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -203,8 +254,24 @@ export default function Nav({ savedCount = 0 }: Props) {
           style={{ backgroundColor: 'var(--color-nav)' }}
           aria-label="Mobile navigation"
         >
-          {[...LINKS, { label: 'Saved roles', to: '/saved' }, { label: 'Post a role', to: '/post-a-role' }].map(
-            ({ label, to }) => (
+          {[
+            ...LINKS,
+            { label: 'Saved roles', to: '/saved' },
+            { label: 'Post a role', to: '/post-a-role' },
+          ].map(({ label, to, external }) =>
+            external ? (
+              <a
+                key={label}
+                href={to}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setOpen(false)}
+                className="flex min-h-11 items-center text-sm font-medium no-underline"
+                style={{ color: 'rgba(248,250,252,0.8)' }}
+              >
+                {label}
+              </a>
+            ) : (
               <Link
                 key={label}
                 to={to}
@@ -222,5 +289,49 @@ export default function Nav({ savedCount = 0 }: Props) {
         </nav>
       )}
     </header>
+  )
+}
+
+/**
+ * Saved-jobs button. Shared by both bars, which need different heights: the
+ * desktop utility strip is short and mouse-driven, the mobile row has to keep
+ * a 44px touch target.
+ */
+function SavedButton({
+  count,
+  active,
+  compact = false,
+  onClick,
+}: {
+  count: number
+  active: boolean
+  compact?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors duration-150 cursor-pointer ${
+        compact ? 'min-h-9' : 'min-h-11'
+      }`}
+      style={{
+        backgroundColor: active ? 'var(--color-gold)' : 'rgba(255,255,255,0.08)',
+        color: 'var(--color-ink-inverse)',
+        border: '1px solid rgba(255,255,255,0.12)',
+      }}
+      aria-label={`Saved jobs (${count})`}
+    >
+      <Bookmark size={14} strokeWidth={1.8} fill={count > 0 ? 'currentColor' : 'none'} />
+      <span className="max-[400px]:hidden">Saved</span>
+      {count > 0 && (
+        <span
+          className="flex h-4 w-4 items-center justify-center rounded-full text-xs font-bold"
+          style={{ backgroundColor: 'var(--color-gold)', color: '#fff' }}
+        >
+          {count}
+        </span>
+      )}
+    </button>
   )
 }

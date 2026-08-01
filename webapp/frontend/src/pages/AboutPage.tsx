@@ -87,7 +87,7 @@ export default function AboutPage() {
 
         {/* ── Hero: the mission (DataFlow art, distinct from Home) ── */}
         <section className="relative overflow-hidden"
-                 style={{ backgroundColor: 'var(--color-nav)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}
+                 style={{ backgroundColor: 'var(--color-masthead)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}
                  aria-labelledby="about-heading">
           <div aria-hidden="true" className="absolute top-0 inset-x-0 h-0.5" style={{ backgroundColor: 'var(--color-gold)' }} />
           <div className="relative mx-auto max-w-7xl px-6 lg:px-8 py-16 lg:py-20 grid lg:grid-cols-2 gap-10 items-center">

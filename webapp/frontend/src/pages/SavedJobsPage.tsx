@@ -19,7 +19,7 @@ export default function SavedJobsPage() {
       {/* Header */}
       <section
         style={{
-          backgroundColor: 'var(--color-nav)',
+          backgroundColor: 'var(--color-masthead)',
           borderBottom: '1px solid rgba(255,255,255,0.08)',
         }}
       >

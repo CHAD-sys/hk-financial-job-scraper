@@ -24,15 +24,26 @@
 /** How long to wait before deciding a smooth scroll never started. */
 const SMOOTH_CHECK_MS = 250
 
+/** Breathing room between the sticky nav and the heading it scrolls to. */
+const NAV_BREATHING_PX = 16
+
 /**
- * Clearance above a scrolled-to section: the sticky nav is 64px (--nav-height)
- * plus 16px of breathing room, matching the `scroll-mt-20` on the sections.
+ * Clearance above a scrolled-to section: the sticky nav's height plus a little
+ * air, matching the `scroll-mt-*` on the sections.
+ *
+ * Read from --nav-height at call time rather than hardcoded, because the nav is
+ * 64px on mobile but 88px at lg where it splits into two tiers. Baking in one
+ * number leaves the heading tucked under the bar on the other breakpoint.
  *
  * Needed explicitly because scroll-margin-top is only honoured by
  * scrollIntoView() and anchor navigation — window.scrollTo ignores it, and the
  * nav would otherwise sit on top of the section heading.
  */
-const NAV_CLEARANCE_PX = 80
+function navClearancePx(): number {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue('--nav-height')
+  const height = Number.parseFloat(raw)
+  return (Number.isFinite(height) ? height : 64) + NAV_BREATHING_PX
+}
 
 export function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -86,7 +97,7 @@ export function scrollToHash(hash: string): boolean {
   // Same reliability problem as above, so this goes through scrollWindowTo
   // rather than el.scrollIntoView() — which means compensating for the sticky
   // nav ourselves, since window.scrollTo ignores scroll-margin-top.
-  const top = el.getBoundingClientRect().top + window.scrollY - NAV_CLEARANCE_PX
+  const top = el.getBoundingClientRect().top + window.scrollY - navClearancePx()
   scrollWindowTo(Math.max(0, top))
   return true
 }
