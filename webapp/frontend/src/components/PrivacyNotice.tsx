@@ -12,17 +12,18 @@ import { ShieldCheck } from 'lucide-react'
  *    is the hard part — but a solicitor should read it before launch.
  *
  * 2. ACCOUNTS_LIVE below controls whether this notice describes the account
- *    system. Accounts do NOT exist yet (they are a separate ~5-day item). The
- *    owner asked for the notice to be written as though they do, so it defaults
- *    to true. Be aware that DPP1 requires a data user to state the purposes for
- *    which data is ACTUALLY collected: a notice describing account processing
- *    that does not happen is itself inaccurate. Flip this to false to publish a
- *    notice matching today's reality, and back to true the day accounts ship.
+ *    system. Accounts do NOT exist yet, so it is false: DPP1 requires a data
+ *    user to state the purposes for which data is ACTUALLY collected, and a
+ *    notice telling visitors we hold their name, email and a password hash when
+ *    we hold none of it is itself inaccurate. Set it back to true the day
+ *    accounts ship — and rewrite the account clauses at the same time, since
+ *    they were drafted before the build and still describe things v1 does not do
+ *    (see docs/PLAN_ACCOUNTS.md §7).
  */
-const ACCOUNTS_LIVE = true
+const ACCOUNTS_LIVE = false
 
 const LAST_UPDATED = '27 July 2026'
-const CONTACT_EMAIL = 'mohamedaminechahid@gmail.com'
+const CONTACT_EMAIL = 'amine@finexclub.org'
 
 interface Clause {
   n: string

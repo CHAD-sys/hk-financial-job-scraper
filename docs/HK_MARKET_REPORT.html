@@ -1,0 +1,1144 @@
+<title>Hong Kong Finance Job Market — Evidence Report</title>
+
+<style>
+/* ============================================================
+   HK Finance Market Report
+   Palette: stone ground, teal-slate accent, sienna reserved for
+   "not reportable" flags only, deep green for verified measures.
+   Print-first: A4 margins, no page-breaks inside finding panels.
+   ============================================================ */
+
+:root {
+  --paper:        #F5F4F1;
+  --panel:        #FFFFFF;
+  --ink:          #1A1C20;
+  --ink-2:        #3F464C;
+  --ink-3:        #6B7378;   /* neutral, biased teal */
+  --rule:         #DCDAD4;
+  --rule-2:       #ECEAE5;
+
+  --accent:       #1F4E5F;   /* deep teal-slate */
+  --accent-soft:  #E2ECEF;
+  --verified:     #2E6B4F;   /* deep green  — measured */
+  --verified-soft:#E4EEE8;
+  --caution:      #8A6A1F;   /* ochre       — adjusted */
+  --caution-soft: #F2EBD9;
+  --flag:         #B4552D;   /* sienna      — not reportable */
+  --flag-soft:    #F6E7DF;
+
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --sans:  system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --mono:  ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  --measure: 68ch;
+  --rail: 12rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #101317; --panel: #171B20;
+    --ink: #E7E5E0; --ink-2: #B3B9BE; --ink-3: #838B91;
+    --rule: #2A3138; --rule-2: #21272D;
+    --accent: #6FB0C6; --accent-soft: #16303A;
+    --verified: #63B189; --verified-soft: #14291F;
+    --caution: #C9A659; --caution-soft: #2A2312;
+    --flag: #D98157; --flag-soft: #2E1A11;
+  }
+}
+/* explicit theme classes so the viewer's toggle wins in both directions */
+:root[data-theme="dark"] {
+  --paper: #101317; --panel: #171B20;
+  --ink: #E7E5E0; --ink-2: #B3B9BE; --ink-3: #838B91;
+  --rule: #2A3138; --rule-2: #21272D;
+  --accent: #6FB0C6; --accent-soft: #16303A;
+  --verified: #63B189; --verified-soft: #14291F;
+  --caution: #C9A659; --caution-soft: #2A2312;
+  --flag: #D98157; --flag-soft: #2E1A11;
+}
+:root[data-theme="light"] {
+  --paper: #F5F4F1; --panel: #FFFFFF;
+  --ink: #1A1C20; --ink-2: #3F464C; --ink-3: #6B7378;
+  --rule: #DCDAD4; --rule-2: #ECEAE5;
+  --accent: #1F4E5F; --accent-soft: #E2ECEF;
+  --verified: #2E6B4F; --verified-soft: #E4EEE8;
+  --caution: #8A6A1F; --caution-soft: #F2EBD9;
+  --flag: #B4552D; --flag-soft: #F6E7DF;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: calc(var(--measure) + var(--rail) + 5rem);
+  margin: 0 auto;
+  padding: 0 1.5rem 6rem;
+}
+
+/* ---------- masthead ---------- */
+.masthead {
+  border-bottom: 2px solid var(--ink);
+  padding: 3.5rem 0 1.25rem;
+  margin-bottom: 2.5rem;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: .69rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1.1rem;
+}
+h1 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(2.1rem, 5.2vw, 3.35rem);
+  line-height: 1.08;
+  letter-spacing: -.018em;
+  text-wrap: balance;
+  margin: 0 0 .85rem;
+}
+.standfirst {
+  font-family: var(--serif);
+  font-size: clamp(1.02rem, 2.1vw, 1.2rem);
+  line-height: 1.55;
+  color: var(--ink-2);
+  max-width: 62ch;
+  margin: 0 0 1.6rem;
+}
+.byline {
+  display: flex; flex-wrap: wrap; gap: .45rem 1.6rem;
+  font-family: var(--mono); font-size: .72rem;
+  color: var(--ink-3); letter-spacing: .02em;
+}
+.byline b { color: var(--ink-2); font-weight: 600; }
+
+/* ---------- layout: narrative + margin rail ---------- */
+.row { display: grid; gap: 2rem; align-items: start; }
+@media (min-width: 900px) {
+  .row { grid-template-columns: var(--rail) minmax(0, var(--measure)); }
+  .rail { position: sticky; top: 1.5rem; }
+}
+.rail {
+  font-family: var(--mono);
+  font-size: .68rem;
+  line-height: 1.55;
+  color: var(--ink-3);
+  border-top: 1px solid var(--rule);
+  padding-top: .55rem;
+}
+.rail b { display: block; color: var(--ink-2); font-weight: 600; letter-spacing: .04em; }
+.rail p { margin: .5rem 0 0; }
+
+section { margin: 0 0 3.4rem; }
+
+h2 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(1.45rem, 3.1vw, 1.95rem);
+  line-height: 1.18;
+  letter-spacing: -.012em;
+  text-wrap: balance;
+  margin: 0 0 .3rem;
+}
+.sectnum {
+  font-family: var(--mono); font-size: .68rem; letter-spacing: .13em;
+  color: var(--accent); text-transform: uppercase; display: block; margin-bottom: .55rem;
+}
+h3 {
+  font-family: var(--sans); font-weight: 650; font-size: .93rem;
+  letter-spacing: .01em; margin: 2rem 0 .55rem;
+}
+p { margin: 0 0 1.05rem; max-width: var(--measure); }
+strong { font-weight: 650; }
+a { color: var(--accent); }
+
+.lede { font-size: 1.05rem; color: var(--ink-2); }
+
+/* ---------- evidence grade ---------- */
+.grade {
+  display: inline-flex; align-items: center; gap: .42rem;
+  font-family: var(--mono); font-size: .64rem; font-weight: 600;
+  letter-spacing: .1em; text-transform: uppercase;
+  padding: .2rem .5rem; border-radius: 2px; white-space: nowrap;
+}
+.grade::before { content: ""; width: .46rem; height: .46rem; border-radius: 50%; }
+.g-measured  { color: var(--verified); background: var(--verified-soft); }
+.g-measured::before  { background: var(--verified); }
+.g-adjusted  { color: var(--caution);  background: var(--caution-soft); }
+.g-adjusted::before  { background: var(--caution); }
+.g-flag      { color: var(--flag);     background: var(--flag-soft); }
+.g-flag::before      { background: var(--flag); }
+
+/* ---------- panels ---------- */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent);
+  padding: 1.35rem 1.5rem 1.5rem;
+  margin: 1.5rem 0;
+  break-inside: avoid; page-break-inside: avoid;
+}
+.panel.is-flag { border-left-color: var(--flag); }
+.panel.is-measured { border-left-color: var(--verified); }
+.panel-head {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  justify-content: space-between; gap: .6rem; margin-bottom: 1rem;
+}
+.panel-title {
+  font-family: var(--sans); font-weight: 650; font-size: .95rem; margin: 0;
+}
+.panel-note {
+  font-family: var(--mono); font-size: .68rem; color: var(--ink-3);
+  margin: .9rem 0 0; line-height: 1.5;
+}
+
+/* ---------- metric strip ---------- */
+.metrics {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: 1px; background: var(--rule); border: 1px solid var(--rule);
+  margin: 1.5rem 0; break-inside: avoid;
+}
+.metric { background: var(--panel); padding: .95rem 1rem; }
+.metric .v {
+  font-family: var(--mono); font-size: 1.5rem; font-weight: 600;
+  letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+  display: block; line-height: 1.15; color: var(--ink);
+}
+.metric .k {
+  font-family: var(--mono); font-size: .64rem; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--ink-3); display: block; margin-top: .35rem;
+}
+.metric .s { font-size: .72rem; color: var(--ink-3); display: block; margin-top: .2rem; }
+
+/* ---------- tables ---------- */
+.tw { overflow-x: auto; margin: 1.2rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: .84rem; min-width: 30rem; }
+caption {
+  text-align: left; font-family: var(--mono); font-size: .68rem;
+  letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3);
+  padding-bottom: .6rem;
+}
+th, td { padding: .48rem .65rem; text-align: right; border-bottom: 1px solid var(--rule-2); }
+th:first-child, td:first-child { text-align: left; }
+thead th {
+  font-family: var(--mono); font-size: .65rem; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--ink-3); font-weight: 600;
+  border-bottom: 1px solid var(--rule);
+}
+tbody tr:last-child td { border-bottom: none; }
+td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+td.pos { color: var(--verified); }
+td.neg { color: var(--flag); }
+tfoot td {
+  border-top: 1px solid var(--rule); border-bottom: none;
+  font-family: var(--mono); font-size: .7rem; color: var(--ink-3);
+}
+
+/* ---------- charts ---------- */
+figure { margin: 1.5rem 0; break-inside: avoid; page-break-inside: avoid; }
+figure svg { display: block; width: 100%; height: auto; overflow: visible; }
+figcaption {
+  font-family: var(--mono); font-size: .68rem; color: var(--ink-3);
+  line-height: 1.5; margin-top: .7rem; max-width: var(--measure);
+}
+.svg-label { font-family: var(--mono); font-size: 10px; fill: var(--ink-3); }
+.svg-value { font-family: var(--mono); font-size: 10px; fill: var(--ink-2); font-weight: 600; }
+.svg-axis  { stroke: var(--rule); stroke-width: 1; }
+.svg-name  { font-family: var(--sans); font-size: 11px; fill: var(--ink); }
+
+/* ---------- callout ---------- */
+.callout {
+  border-top: 2px solid var(--flag);
+  background: var(--flag-soft);
+  padding: 1.15rem 1.3rem;
+  margin: 1.6rem 0;
+  break-inside: avoid;
+}
+.callout.is-good { border-top-color: var(--verified); background: var(--verified-soft); }
+.callout p { margin: 0; font-size: .92rem; }
+.callout p + p { margin-top: .7rem; }
+.callout .lab {
+  font-family: var(--mono); font-size: .64rem; letter-spacing: .11em;
+  text-transform: uppercase; color: var(--flag); display: block; margin-bottom: .5rem;
+  font-weight: 600;
+}
+.callout.is-good .lab { color: var(--verified); }
+
+/* ---------- lists ---------- */
+ul.clean { list-style: none; padding: 0; margin: 1rem 0; max-width: var(--measure); }
+ul.clean li {
+  padding: .6rem 0 .6rem 1.5rem; border-bottom: 1px solid var(--rule-2);
+  position: relative; font-size: .92rem;
+}
+ul.clean li::before {
+  content: ""; position: absolute; left: 0; top: 1.1rem;
+  width: .5rem; height: 1px; background: var(--accent);
+}
+ul.clean li:last-child { border-bottom: none; }
+
+/* ---------- footer ---------- */
+.foot {
+  border-top: 2px solid var(--ink); margin-top: 4rem; padding-top: 1.2rem;
+  font-family: var(--mono); font-size: .69rem; color: var(--ink-3); line-height: 1.6;
+}
+
+/* ---------- print / PDF ---------- */
+@page { size: A4; margin: 16mm 14mm; }
+@media print {
+  :root {
+    --paper: #FFFFFF; --panel: #FFFFFF;
+    --ink: #14161A; --ink-2: #3A4047; --ink-3: #5E666C;
+    --rule: #C9C6C0; --rule-2: #E2DFDA;
+    --accent: #1B4553; --accent-soft: #E6EEF1;
+    --verified: #275C44; --verified-soft: #E6EFE9;
+    --caution: #7A5D1B; --caution-soft: #F3ECDC;
+    --flag: #9E4826; --flag-soft: #F7E9E1;
+  }
+  body { background: #fff; font-size: 10.5pt; line-height: 1.5; }
+  .wrap { max-width: none; padding: 0; }
+  .rail { position: static; }
+  .row { grid-template-columns: 1fr; gap: .75rem; }
+  .rail { border-top: none; border-left: 2px solid var(--rule); padding: .25rem 0 .25rem .7rem; }
+  h1 { font-size: 26pt; }
+  h2 { font-size: 15pt; }
+  section { margin-bottom: 1.6rem; }
+  .masthead { padding-top: 0; }
+  section, figure, .panel, .metrics, .callout, .tw { break-inside: avoid; }
+  h2, h3 { break-after: avoid; page-break-after: avoid; }
+  .pagebreak { break-before: page; page-break-before: always; }
+  a { color: var(--ink); text-decoration: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Labour-market evidence note &middot; Hong Kong financial services</p>
+  <h1>What 13,518 job listings can — and cannot — tell us about the Hong Kong finance market</h1>
+  <p class="standfirst">
+    A structural read of the live Hong Kong financial-services vacancy pool, built from
+    eight scraped sources over eight weeks. Roughly half the interesting questions turn
+    out to be unanswerable with this data. This note is explicit about which half.
+  </p>
+  <div class="byline">
+    <span><b>Compiled</b> 28 July 2026</span>
+    <span><b>Corpus</b> 13,518 listings &middot; 4,996 live</span>
+    <span><b>Observation</b> 31 May – 26 July 2026</span>
+    <span><b>Basis</b> jobs.db + 10 dated snapshots</span>
+  </div>
+</header>
+
+<!-- ============================================================ -->
+<section class="row">
+  <aside class="rail">
+    <b>Read first</b>
+    <p>Every source and every derived field switched on at a different date. Nothing here is a like-for-like series unless it says so.</p>
+  </aside>
+  <div>
+    <span class="sectnum">01 / Instrumentation</span>
+    <h2>The measuring instrument changed more than the market did</h2>
+
+    <p class="lede">
+      This dataset was not collected by a stable instrument pointed at a moving market.
+      It was collected by an instrument that was itself under construction throughout the
+      observation window. Eight scrapers came online across eight weeks; the pay estimator
+      was rewritten once; three enrichment fields did not exist for the first month.
+    </p>
+
+    <p>
+      That ordering matters because almost every naive question — "is hiring up?", "are
+      salaries rising?", "which employers are growing?" — produces an answer dominated by
+      when a scraper was switched on rather than by anything happening in Hong Kong. The
+      table below is therefore the most important table in this note.
+    </p>
+
+    <div class="tw">
+      <table>
+        <caption>Source onboarding — first and last listing observed</caption>
+        <thead>
+          <tr><th>Source</th><th>First seen</th><th>Listings</th><th>Live now</th><th>Days in window</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>JobsDB</td><td class="num">31 May</td><td class="num">6,862</td><td class="num">1,735</td><td class="num">57</td></tr>
+          <tr><td>Eightfold ATS</td><td class="num">31 May</td><td class="num">578</td><td class="num">320</td><td class="num">57</td></tr>
+          <tr><td>Workday ATS</td><td class="num">31 May</td><td class="num">323</td><td class="num">160</td><td class="num">57</td></tr>
+          <tr><td>Indeed</td><td class="num">2 Jul</td><td class="num">2,128</td><td class="num">970</td><td class="num">25</td></tr>
+          <tr><td>Longtail (LLM)</td><td class="num">6 Jul</td><td class="num">339</td><td class="num">147</td><td class="num">21</td></tr>
+          <tr><td>eFinancialCareers</td><td class="num">14 Jul</td><td class="num">1,163</td><td class="num">849</td><td class="num">13</td></tr>
+          <tr><td>LinkedIn</td><td class="num">15 Jul</td><td class="num">1,546</td><td class="num">618</td><td class="num">11</td></tr>
+          <tr><td>Recruiter posts</td><td class="num">22 Jul</td><td class="num">579</td><td class="num">197</td><td class="num">4</td></tr>
+        </tbody>
+        <tfoot>
+          <tr><td colspan="5">The three oldest sources cover the full window. The five newest cover between 4 and 25 days.</td></tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <p>
+      Derived fields have their own switch-on dates, independent of the scrapers.
+      Salary estimates first appear <strong>26 June</strong>; condensed descriptions
+      <strong>30 June</strong>; English title translations <strong>13 July</strong>;
+      salary tiering <strong>21 July</strong>. Any chart of a derived field that
+      crosses its own switch-on date is measuring deployment, not Hong Kong.
+    </p>
+
+    <div class="callout">
+      <span class="lab">Disqualified before analysis</span>
+      <p>
+        The daily company-count panel — the obvious basis for a hiring-trend chart —
+        cannot support one. Across 55 calendar days it recorded only 34 runs. The company
+        roster grew from 28 to 146 mid-series. 23 of the 34 runs covered fewer than half
+        the roster, one covered a single company. And <strong>21.3% of all 2,315
+        company-days are literal zeros</strong>, which conflate "this employer posted
+        nothing" with "the scraper failed" — the two are indistinguishable in storage.
+      </p>
+      <p>
+        Any growth rate computed on this panel would mostly be reporting roster expansion.
+        No such rate appears in this note.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="row pagebreak">
+  <aside class="rail">
+    <b>Basis</b>
+    <p>4,996 live listings, 162 employer slugs, snapshot of 26 July 2026.</p>
+    <p><b>Grade</b><br>Measured — direct count, no modelling.</p>
+  </aside>
+  <div>
+    <span class="sectnum">02 / The pool</span>
+    <h2>What is actually open right now</h2>
+
+    <p>
+      Stripped of every longitudinal claim, the cross-section is solid. These are counts of
+      live listings on a single date, and they do not depend on a stable observation window.
+    </p>
+
+    <div class="metrics">
+      <div class="metric"><span class="v">4,996</span><span class="k">Live listings</span></div>
+      <div class="metric"><span class="v">3,612</span><span class="k">After dedup</span><span class="s">distinct roles</span></div>
+      <div class="metric"><span class="v">162</span><span class="k">Employers</span></div>
+      <div class="metric"><span class="v">46.2%</span><span class="k">Cross-posted</span><span class="s">on 2+ boards</span></div>
+      <div class="metric"><span class="v">87.6%</span><span class="k">Full description</span></div>
+    </div>
+
+    <p>
+      The dedup figure is the one worth internalising. Of 4,996 live listings only
+      <strong>3,612 are distinct roles</strong>: 27.7% of the pool is the same job
+      advertised on more than one board. A naive union of these sources counts 1.38
+      listings for every real vacancy, so any headcount taken this way overstates demand
+      by nearly 40%.
+    </p>
+
+    <h3>What each source uniquely contributes</h3>
+    <p>
+      "Unique share" is the proportion of a source's live listings that are not duplicated
+      elsewhere in the corpus. It separates sources that add roles from sources that
+      mostly re-advertise them.
+    </p>
+
+    <div class="tw">
+      <table>
+        <caption>Source distinctiveness and description coverage, live listings</caption>
+        <thead>
+          <tr><th>Source</th><th>Live</th><th>Unique</th><th>Has description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Recruiter posts</td><td class="num">197</td><td class="num">100.0%</td><td class="num">100.0%</td></tr>
+          <tr><td>Longtail (LLM)</td><td class="num">147</td><td class="num">100.0%</td><td class="num">66.0%</td></tr>
+          <tr><td>Workday ATS</td><td class="num">160</td><td class="num">98.8%</td><td class="num">100.0%</td></tr>
+          <tr><td>JobsDB</td><td class="num">1,735</td><td class="num">95.3%</td><td class="num">99.1%</td></tr>
+          <tr><td>Eightfold ATS</td><td class="num">320</td><td class="num">93.8%</td><td class="num">99.7%</td></tr>
+          <tr><td>LinkedIn</td><td class="num">618</td><td class="num">56.3%</td><td class="num">100.0%</td></tr>
+          <tr><td>eFinancialCareers</td><td class="num">849</td><td class="num">45.0%</td><td class="num">100.0%</td></tr>
+          <tr><td>Indeed</td><td class="num">970</td><td class="num">44.0%</td><td class="num">43.0%</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      Indeed is the weakest contributor on both axes: 56% of what it returns already exists
+      elsewhere, and it carries no description for more than half its listings — a
+      consequence of it being a listing-only adapter with no per-role detail fetch. The
+      aggregators (Indeed, eFinancialCareers, LinkedIn) duplicate heavily; the direct
+      employer systems and the recruiter channel almost never do.
+    </p>
+
+    <div class="callout">
+      <span class="lab">A statistic that looks like a market fact but isn't</span>
+      <p>
+        17.9% of live listings disclose a salary. That number is <strong>entirely an
+        artefact of source mix</strong>: eFinancialCareers discloses on 100% of its 849
+        listings, recruiter posts on 22%, and <em>every other source on exactly 0%</em>.
+      </p>
+      <p>
+        Hong Kong pay disclosure is not 18% — it is a property of which board you read.
+        Reweighting the source mix would move the "disclosure rate" anywhere between 0% and
+        100% without a single employer changing behaviour.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="row pagebreak">
+  <aside class="rail">
+    <b>Basis</b>
+    <p>4,724 live listings priced under a single estimator regime (v10, 21 July).</p>
+    <p><b>Units</b><br>HK$ per month, base. Midpoint of an estimated band.</p>
+    <p><b>Grade</b><br>Adjusted — model output, not disclosed pay.</p>
+  </aside>
+  <div>
+    <span class="sectnum">03 / Pay structure</span>
+    <h2>The seniority ladder is the market's dominant axis</h2>
+
+    <p>
+      Because only eFinancialCareers discloses pay, a market-wide salary picture has to come
+      from model estimates. Those estimates are calibrated against published Hong Kong
+      salary guides and clamped to them. Everything in this section is restricted to the
+      <strong>4,724 listings priced under one estimator version</strong>, so the comparison
+      is internally consistent even though the level carries model error.
+    </p>
+
+    <figure>
+      <svg viewBox="0 0 640 210" role="img" aria-label="Median estimated monthly pay by seniority: junior HK$20,500; mid HK$40,000; senior HK$62,625; lead HK$100,000">
+        <line class="svg-axis" x1="92" y1="8" x2="92" y2="186" />
+        <!-- scale: 0 - 110000 over 500px -->
+        <g>
+          <rect x="92" y="18"  width="93"  height="26" fill="var(--accent)" opacity=".38" />
+          <text class="svg-name"  x="86" y="35" text-anchor="end">Junior</text>
+          <text class="svg-value" x="193" y="35">20,500</text>
+          <text class="svg-label" x="250" y="35">n = 806</text>
+        </g>
+        <g>
+          <rect x="92" y="60"  width="182" height="26" fill="var(--accent)" opacity=".55" />
+          <text class="svg-name"  x="86" y="77" text-anchor="end">Mid</text>
+          <text class="svg-value" x="282" y="77">40,000</text>
+          <text class="svg-label" x="339" y="77">n = 2,210</text>
+        </g>
+        <g>
+          <rect x="92" y="102" width="285" height="26" fill="var(--accent)" opacity=".76" />
+          <text class="svg-name"  x="86" y="119" text-anchor="end">Senior</text>
+          <text class="svg-value" x="385" y="119">62,625</text>
+          <text class="svg-label" x="442" y="119">n = 1,529</text>
+        </g>
+        <g>
+          <rect x="92" y="144" width="455" height="26" fill="var(--accent)" />
+          <text class="svg-name"  x="86" y="161" text-anchor="end">Lead</text>
+          <text class="svg-value" x="555" y="161">100,000</text>
+          <text class="svg-label" x="92" y="196">HK$ / month, median of estimated band midpoint</text>
+        </g>
+      </svg>
+      <figcaption>
+        Each step up the ladder is worth more than the last in absolute terms: +95% junior
+        to mid, +57% mid to senior, +60% senior to lead. A lead role pays 4.9&times; a
+        junior one.
+      </figcaption>
+    </figure>
+
+    <p>
+      The overall median sits at <strong>HK$42,500/month</strong>, with an interquartile
+      range of HK$30,000–60,500 and a 90th percentile of HK$76,000. The distribution is
+      strongly right-skewed, which is why every figure in this note is a median rather
+      than a mean.
+    </p>
+
+    <h3>By function</h3>
+
+    <div class="tw">
+      <table>
+        <caption>Median estimated monthly pay by job family, with bootstrap 95% interval</caption>
+        <thead>
+          <tr><th>Function</th><th>n</th><th>Median</th><th>95% CI</th><th>IQR</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Engineering</td><td class="num">422</td><td class="num">55,250</td><td class="num">52,500–59,750</td><td class="num">42,500–71,344</td></tr>
+          <tr><td>Finance</td><td class="num">1,518</td><td class="num">48,500</td><td class="num">46,875–50,250</td><td class="num">37,500–68,375</td></tr>
+          <tr><td>Sales</td><td class="num">521</td><td class="num">45,000</td><td class="num">45,000–47,500</td><td class="num">35,000–62,500</td></tr>
+          <tr><td>Other</td><td class="num">639</td><td class="num">43,000</td><td class="num">42,500–45,000</td><td class="num">35,500–62,500</td></tr>
+          <tr><td>Insurance</td><td class="num">31</td><td class="num">41,500</td><td class="num">35,000–45,000</td><td class="num">32,000–45,000</td></tr>
+          <tr><td>Operations</td><td class="num">1,464</td><td class="num">37,000</td><td class="num">35,000–37,500</td><td class="num">24,000–47,500</td></tr>
+          <tr><td>HR</td><td class="num">116</td><td class="num">33,750</td><td class="num">28,500–37,500</td><td class="num">21,375–40,250</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      Engineering out-earning Finance is the counterintuitive result here, and it is a real
+      feature of the pool rather than a coding artefact: the surviving engineering roles in
+      a finance-only corpus are quantitative and platform roles inside banks, not general
+      IT — a hard tech filter removes the latter from the board.
+    </p>
+
+    <h3>By desk</h3>
+    <p>
+      Where the estimator could assign a desk tier, the classic front-to-back gradient is
+      clean and large.
+    </p>
+
+    <figure>
+      <svg viewBox="0 0 640 250" role="img" aria-label="Median pay by desk tier from front office HK$67,500 down to back office operations HK$27,125">
+        <line class="svg-axis" x1="215" y1="8" x2="215" y2="226" />
+        <g>
+          <rect x="215" y="14"  width="378" height="22" fill="var(--accent)" />
+          <text class="svg-name" x="209" y="29" text-anchor="end">Front office</text>
+          <text class="svg-value" x="601" y="29">67,500</text>
+        </g>
+        <g>
+          <rect x="215" y="46"  width="252" height="22" fill="var(--accent)" opacity=".72" />
+          <text class="svg-name" x="209" y="61" text-anchor="end">Insurance</text>
+          <text class="svg-value" x="475" y="61">45,000</text>
+        </g>
+        <g>
+          <rect x="215" y="78"  width="251" height="22" fill="var(--accent)" opacity=".68" />
+          <text class="svg-name" x="209" y="93" text-anchor="end">Corporate banking</text>
+          <text class="svg-value" x="474" y="93">44,750</text>
+        </g>
+        <g>
+          <rect x="215" y="110" width="246" height="22" fill="var(--accent)" opacity=".64" />
+          <text class="svg-name" x="209" y="125" text-anchor="end">Middle office</text>
+          <text class="svg-value" x="469" y="125">44,000</text>
+        </g>
+        <g>
+          <rect x="215" y="142" width="231" height="22" fill="var(--accent)" opacity=".58" />
+          <text class="svg-name" x="209" y="157" text-anchor="end">Retail banking</text>
+          <text class="svg-value" x="454" y="157">41,250</text>
+        </g>
+        <g>
+          <rect x="215" y="174" width="224" height="22" fill="var(--accent)" opacity=".52" />
+          <text class="svg-name" x="209" y="189" text-anchor="end">Corp. finance &amp; acct.</text>
+          <text class="svg-value" x="447" y="189">40,000</text>
+        </g>
+        <g>
+          <rect x="215" y="206" width="152" height="22" fill="var(--accent)" opacity=".36" />
+          <text class="svg-name" x="209" y="221" text-anchor="end">Back office / ops</text>
+          <text class="svg-value" x="375" y="221">27,125</text>
+        </g>
+      </svg>
+      <figcaption>
+        Desk tier assigned for 1,125 of 4,724 priced listings. Front office pays 2.5&times;
+        back office at the median. Tiering only exists for listings enriched after 21 July,
+        so these n's are smaller than the function table above.
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="row pagebreak">
+  <aside class="rail">
+    <b>Method</b>
+    <p>Skill labels case-normalised, then premia computed by direct standardisation to the population seniority mix.</p>
+    <p><b>Why</b><br>Raw premia mostly measure who holds the skill, not what it earns.</p>
+  </aside>
+  <div>
+    <span class="sectnum">04 / Skills</span>
+    <h2>Most of the apparent skill premium is just seniority wearing a different hat</h2>
+
+    <p>
+      Comparing pay for listings that require a skill against those that don't is the
+      standard move, and it is badly misleading. Senior roles list more skills and pay more,
+      so any skill that skews senior inherits a premium it did not earn.
+    </p>
+
+    <p>
+      Correcting for that is straightforward: compute the median within each seniority
+      band, then reweight to the overall seniority mix. The correction is not a rounding
+      adjustment — across the 20 skills large enough to test, it moves the median premium
+      from <strong>+2.6% to &minus;2.2%</strong>. The typical "valuable" skill turns out to
+      be worth nothing once you compare like with like.
+    </p>
+
+    <p>
+      One preliminary fix was needed first. Skill labels arrive case-fragmented —
+      "Team Leadership", "Team leadership" and "team leadership" were stored as three
+      separate skills with three different premia (+41%, +47%, +53%). Normalising collapsed
+      14,270 raw label strings into 10,914 distinct skills and roughly tripled the sample
+      behind the common ones.
+    </p>
+
+    <div class="tw">
+      <table>
+        <caption>Pay premium before and after adjusting for seniority mix &middot; n &ge; 60</caption>
+        <thead>
+          <tr><th>Skill</th><th>n</th><th>Raw</th><th>Adjusted</th><th>Senior-held</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Private Banking</td><td class="num">65</td><td class="num">+41.2%</td><td class="num pos">+40.7%</td><td class="num">50.8%</td></tr>
+          <tr><td>Investment Advisory</td><td class="num">77</td><td class="num">+76.5%</td><td class="num pos">+37.9%</td><td class="num">51.9%</td></tr>
+          <tr><td>Quantitative Analysis</td><td class="num">77</td><td class="num">+28.2%</td><td class="num pos">+26.7%</td><td class="num">31.2%</td></tr>
+          <tr><td>Financial Modeling</td><td class="num">149</td><td class="num">+21.2%</td><td class="num pos">+24.1%</td><td class="num">24.2%</td></tr>
+          <tr><td>Derivatives</td><td class="num">64</td><td class="num">+41.2%</td><td class="num pos">+22.4%</td><td class="num">42.2%</td></tr>
+          <tr><td>CFA</td><td class="num">62</td><td class="num">+38.5%</td><td class="num pos">+14.6%</td><td class="num">62.9%</td></tr>
+          <tr><td>Wealth Management</td><td class="num">321</td><td class="num">+11.8%</td><td class="num pos">+13.9%</td><td class="num">34.0%</td></tr>
+          <tr><td>Team Leadership</td><td class="num">303</td><td class="num">+47.1%</td><td class="num pos">+13.8%</td><td class="num">73.3%</td></tr>
+          <tr><td>Portfolio Management</td><td class="num">203</td><td class="num">+41.2%</td><td class="num pos">+12.3%</td><td class="num">55.2%</td></tr>
+          <tr><td>Client Relationship Mgmt</td><td class="num">516</td><td class="num">+11.8%</td><td class="num pos">+12.1%</td><td class="num">36.6%</td></tr>
+          <tr><td>Risk Management</td><td class="num">541</td><td class="num">+17.6%</td><td class="num">+5.2%</td><td class="num">41.6%</td></tr>
+          <tr><td>Stakeholder Management</td><td class="num">826</td><td class="num">+27.8%</td><td class="num">+4.7%</td><td class="num">55.3%</td></tr>
+          <tr><td>Project Management</td><td class="num">634</td><td class="num">+11.8%</td><td class="num">+1.4%</td><td class="num">45.0%</td></tr>
+          <tr><td>Regulatory Compliance</td><td class="num">744</td><td class="num">+0.0%</td><td class="num">+0.1%</td><td class="num">43.4%</td></tr>
+          <tr><td>Data Analysis</td><td class="num">321</td><td class="num">&minus;5.9%</td><td class="num neg">&minus;7.0%</td><td class="num">28.7%</td></tr>
+          <tr><td>Customer Service</td><td class="num">274</td><td class="num">&minus;44.3%</td><td class="num neg">&minus;30.8%</td><td class="num">12.4%</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout is-good">
+      <span class="lab">The three findings that survive adjustment</span>
+      <p>
+        <strong>Private Banking is a genuine function premium.</strong> +41% raw, +41%
+        adjusted — it barely moves, because the skill is split evenly across seniority
+        bands. Someone is paying for the book of clients, not the years served.
+      </p>
+      <p>
+        <strong>Financial Modeling and Quantitative Analysis pay early.</strong> Both hold
+        their premium (+24%, +27%) while being held disproportionately by <em>junior</em>
+        staff — only 24% and 31% senior-held respectively. These are the rare skills that
+        pay before you are promoted.
+      </p>
+      <p>
+        <strong>Regulatory Compliance is pure table stakes.</strong> It is the second
+        most-demanded skill in the corpus, appearing in 744 listings, and it commands a
+        premium of <strong>+0.1%</strong>. In Hong Kong finance, compliance is the price of
+        entry, not a differentiator.
+      </p>
+    </div>
+
+    <p>
+      The mirror image is Team Leadership: +47% raw collapsing to +14% adjusted, with 73% of
+      its listings senior. Roughly two-thirds of what looked like a leadership premium was
+      simply the observation that senior people manage teams.
+    </p>
+
+    <p class="panel-note">
+      These are descriptive associations, not causal returns. Skills co-occur with function
+      and employer as well as seniority; the adjustment removes one confounder, not all of
+      them. Read them as "what listings requiring this skill pay", never as "what learning
+      this skill would earn you".
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="row pagebreak">
+  <aside class="rail">
+    <b>Natural experiment</b>
+    <p>7,925 listings priced by both the old and new estimator, matched on identity.</p>
+    <p><b>Snapshots</b><br>21 July 12:52 vs 23 July 17:32.</p>
+  </aside>
+  <div>
+    <span class="sectnum">05 / Model risk</span>
+    <h2>When the estimator was rewritten, the market "lost" 16% of its pay overnight</h2>
+
+    <p>
+      On 21 July the pay estimator was re-run against a merged three-source salary
+      reference. Dated database snapshots taken either side of that run allow the same
+      7,925 listings to be compared under both regimes — the listings did not change, only
+      the model did.
+    </p>
+
+    <div class="metrics">
+      <div class="metric"><span class="v">55.1%</span><span class="k">Estimates changed</span><span class="s">4,365 of 7,925</span></div>
+      <div class="metric"><span class="v">&minus;16.0%</span><span class="k">Median shift</span><span class="s">62,500 → 52,500</span></div>
+      <div class="metric"><span class="v">21.6%</span><span class="k">Median move</span><span class="s">absolute, changed only</span></div>
+      <div class="metric"><span class="v">3.3:1</span><span class="k">Down vs up</span><span class="s">3,345 vs 1,020</span></div>
+    </div>
+
+    <p>
+      A prompt revision moved the median estimated salary by <strong>HK$10,000 a
+      month</strong> — larger than most of the function gaps in section 03, and larger than
+      any plausible eight-week market move. The revision was deliberate and corrective: the
+      earlier estimator was running hot against published Hong Kong benchmarks, and the
+      3.3-to-1 ratio of downward to upward revisions is what a recalibration looks like.
+    </p>
+
+    <div class="callout">
+      <span class="lab">Consequence for any pay time series</span>
+      <p>
+        A chart of "average advertised salary over time" drawn across 21 July would show a
+        16% collapse. It would be entirely an artefact of the estimator. This is the single
+        largest movement anywhere in the dataset, and the market did not produce it.
+      </p>
+      <p>
+        It also bounds the confidence available on levels: two defensible calibrations of
+        the same listings disagree by 16% at the median and by 21.6% for the typical
+        revised role. Treat all pay figures in section 03 as ordinally reliable — the
+        rankings are stable — and as approximate in level.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="row pagebreak">
+  <aside class="rail">
+    <b>Test</b>
+    <p>Job-level presence across 10 dated snapshots, 14–25 July.</p>
+    <p><b>Grade</b><br>Not reportable — instrument noise exceeds signal.</p>
+  </aside>
+  <div>
+    <span class="sectnum">06 / A negative result</span>
+    <h2>Listing survival cannot be measured yet, and here is the proof</h2>
+
+    <p>
+      How long does a Hong Kong finance role stay open? The dated snapshots appear to answer
+      this: track each listing until it disappears. Done naively, that yields a median
+      open-duration of two days, which would be a remarkable finding.
+    </p>
+
+    <p>
+      It is an artefact. The test that breaks it is <strong>resurrection</strong> — checking
+      whether listings that disappear ever come back.
+    </p>
+
+    <div class="panel is-flag">
+      <div class="panel-head">
+        <p class="panel-title">Resurrection test</p>
+        <span class="grade g-flag">Not reportable</span>
+      </div>
+      <div class="metrics" style="margin:0">
+        <div class="metric"><span class="v">8,187</span><span class="k">Listings tracked</span></div>
+        <div class="metric"><span class="v">1,533</span><span class="k">Came back</span><span class="s">after vanishing</span></div>
+        <div class="metric"><span class="v">18.7%</span><span class="k">Resurrection rate</span></div>
+        <div class="metric"><span class="v">3,768</span><span class="k">Gap days</span></div>
+      </div>
+      <p class="panel-note">
+        Nearly one listing in five disappears from a snapshot and reappears in a later one.
+        Since a genuinely closed vacancy does not reopen, "absent" cannot be read as
+        "closed" — it frequently means the scraper missed it.
+      </p>
+    </div>
+
+    <p>
+      The day-to-day churn confirms it. The share of live listings vanishing between
+      consecutive runs swings from <strong>3.2% to 19.4%</strong>, a six-fold range across
+      adjacent days. Real vacancy closure does not behave that way; scrape completeness does.
+    </p>
+
+    <figure>
+      <svg viewBox="0 0 640 160" role="img" aria-label="Share of listings vanishing between consecutive snapshots, ranging 3.2% to 19.4%">
+        <line class="svg-axis" x1="46" y1="126" x2="620" y2="126" />
+        <line class="svg-axis" x1="46" y1="10" x2="46" y2="126" />
+        <text class="svg-label" x="40" y="16" text-anchor="end">20%</text>
+        <text class="svg-label" x="40" y="72" text-anchor="end">10%</text>
+        <text class="svg-label" x="40" y="130" text-anchor="end">0</text>
+        <g fill="var(--flag)" opacity=".78">
+          <rect x="70"  y="107" width="42" height="19" />
+          <rect x="132" y="30"  width="42" height="96" />
+          <rect x="194" y="32"  width="42" height="94" />
+          <rect x="256" y="56"  width="42" height="70" />
+          <rect x="318" y="76"  width="42" height="50" />
+          <rect x="380" y="66"  width="42" height="60" />
+          <rect x="442" y="14"  width="42" height="112" />
+          <rect x="504" y="65"  width="42" height="61" />
+          <rect x="566" y="72"  width="42" height="54" />
+        </g>
+        <g class="svg-label" text-anchor="middle">
+          <text x="91"  y="141">16th</text>
+          <text x="153" y="141">17th</text>
+          <text x="215" y="141">18th</text>
+          <text x="277" y="141">19th</text>
+          <text x="339" y="141">20th</text>
+          <text x="401" y="141">21st</text>
+          <text x="463" y="141">23rd</text>
+          <text x="525" y="141">24th</text>
+          <text x="587" y="141">25th</text>
+        </g>
+        <g class="svg-value" text-anchor="middle">
+          <text x="91"  y="102">3.2</text>
+          <text x="153" y="25">16.5</text>
+          <text x="215" y="27">16.2</text>
+          <text x="277" y="51">12.1</text>
+          <text x="339" y="71">8.6</text>
+          <text x="401" y="61">10.4</text>
+          <text x="463" y="9">19.4</text>
+          <text x="525" y="60">10.5</text>
+          <text x="587" y="67">9.4</text>
+        </g>
+      </svg>
+      <figcaption>
+        Share of live listings absent from the next snapshot, July 2026. The 19.4% spike on
+        the 23rd follows a two-day gap in snapshots, not a wave of hiring freezes.
+      </figcaption>
+    </figure>
+
+    <p>
+      Closure rates, time-to-fill and hiring velocity are therefore all withheld. They
+      become measurable once the pipeline distinguishes "scrape returned nothing" from
+      "employer posted nothing" — a change to how failures are recorded, not more data.
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="row pagebreak">
+  <aside class="rail">
+    <b>Basis</b>
+    <p>4,832 live listings carrying a source-reported posting date.</p>
+    <p><b>Why this works</b><br>The date comes from the employer's own listing, so our scrape gaps cannot distort it.</p>
+  </aside>
+  <div>
+    <span class="sectnum">07 / Listing age</span>
+    <h2>Half the market turns over inside a fortnight — and a tenth never turns over at all</h2>
+
+    <p>
+      One longitudinal question does survive, because it does not depend on our observation
+      schedule at all. Each listing carries the date the employer posted it. The age
+      distribution of the live pool is therefore measurable from a single snapshot.
+    </p>
+
+    <figure>
+      <svg viewBox="0 0 640 200" role="img" aria-label="Age distribution of live listings: 1551 under 7 days, falling to 292 over 180 days">
+        <line class="svg-axis" x1="46" y1="150" x2="620" y2="150" />
+        <g>
+          <rect x="60"  y="27"  width="66" height="123" fill="var(--accent)" />
+          <rect x="140" y="97"  width="66" height="53"  fill="var(--accent)" opacity=".8" />
+          <rect x="220" y="46"  width="66" height="104" fill="var(--accent)" opacity=".8" />
+          <rect x="300" y="107" width="66" height="43"  fill="var(--accent)" opacity=".6" />
+          <rect x="380" y="130" width="66" height="20"  fill="var(--accent)" opacity=".45" />
+          <rect x="460" y="132" width="66" height="18"  fill="var(--flag)"   opacity=".6" />
+          <rect x="540" y="127" width="66" height="23"  fill="var(--flag)"   opacity=".75" />
+        </g>
+        <g class="svg-value" text-anchor="middle">
+          <text x="93"  y="21">1,551</text>
+          <text x="173" y="91">670</text>
+          <text x="253" y="40">1,307</text>
+          <text x="333" y="101">544</text>
+          <text x="413" y="124">247</text>
+          <text x="493" y="126">221</text>
+          <text x="573" y="121">292</text>
+        </g>
+        <g class="svg-label" text-anchor="middle">
+          <text x="93"  y="166">0–7d</text>
+          <text x="173" y="166">7–14d</text>
+          <text x="253" y="166">14–30d</text>
+          <text x="333" y="166">30–60d</text>
+          <text x="413" y="166">60–90d</text>
+          <text x="493" y="166">90–180d</text>
+          <text x="573" y="166">180d+</text>
+        </g>
+        <line x1="446" y1="14" x2="446" y2="158" stroke="var(--flag)" stroke-width="1" stroke-dasharray="3 3" />
+        <text class="svg-label" x="452" y="186" fill="var(--flag)">the stale tail — 10.6% of the live pool</text>
+      </svg>
+      <figcaption>
+        Age of live listings at 26 July 2026, from the employer's own posted date.
+        n = 4,832; a further 134 live listings carry no posting date and are excluded.
+      </figcaption>
+    </figure>
+
+    <p>
+      The median live listing is <strong>16 days old</strong>, with a quartile at five days
+      and three-quarters of the pool under a month. That is a market that moves briskly at
+      the centre.
+    </p>
+
+    <p>
+      The tail is the interesting part. <strong>10.6% of live listings are more than 90 days
+      old</strong> and 1.9% are more than a year old, the oldest dating from 2019. These are
+      not necessarily open jobs. A listing this stale is usually one of three things: an
+      evergreen pipeline advert that is never intended to close, a role filled long ago
+      whose posting was never taken down, or a board that does not expire listings. All
+      three inflate any headline count of "open roles" in Hong Kong finance — including the
+      4,996 at the top of this note.
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="row pagebreak">
+  <aside class="rail">
+    <b>Basis</b>
+    <p>1,815 recruiter posts from 45 tracked recruiters, 22–25 July.</p>
+    <p><b>Caveat</b><br>Four days of data. Composition only; no rates.</p>
+  </aside>
+  <div>
+    <span class="sectnum">08 / The hidden market</span>
+    <h2>Five in six recruiter-advertised roles never name the employer</h2>
+
+    <p>
+      Alongside the job boards, the pipeline reads public hiring posts by Hong Kong finance
+      recruiters. This channel is small and very new — four days of collection — so only its
+      composition is reported, never a rate or a trend.
+    </p>
+
+    <div class="metrics">
+      <div class="metric"><span class="v">1,815</span><span class="k">Posts read</span><span class="s">45 recruiters</span></div>
+      <div class="metric"><span class="v">579</span><span class="k">Yielded a role</span><span class="s">31.9% of posts</span></div>
+      <div class="metric"><span class="v">83.1%</span><span class="k">Employer withheld</span></div>
+      <div class="metric"><span class="v">100%</span><span class="k">Not on any board</span></div>
+    </div>
+
+    <p>
+      Two things stand out. First, this channel is <strong>fully disjoint from the job
+      boards</strong> — not one of its 197 live roles appears in the other seven sources.
+      Whatever it represents, it is genuinely additional supply rather than a re-advertisement.
+    </p>
+
+    <p>
+      Second, <strong>83.1% of these roles are advertised without naming the employer</strong>
+      — "Confidential via —" and a recruiter's name. That is the defining property of the
+      channel, and it is the mechanical reason this segment is invisible in conventional
+      job-market statistics: employer-keyed analysis simply cannot see it. It also means
+      the channel cannot be joined to the main corpus by employer, so cross-channel pay or
+      demand comparisons are not available.
+    </p>
+
+    <p>
+      Two-thirds of recruiter posts contain no extractable role at all — they are
+      commentary, congratulations and market chatter. A 31.9% yield is the realistic
+      signal density of this source, and it should not be mistaken for a hiring indicator.
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="row pagebreak">
+  <aside class="rail">
+    <b>Grade</b>
+    <p>Reported with a health warning; employer labels are known to be contaminated.</p>
+  </aside>
+  <div>
+    <span class="sectnum">09 / Employers</span>
+    <h2>Concentration is real, but the employer labels are not clean</h2>
+
+    <p>
+      The live pool is moderately concentrated: the top five employers hold
+      <strong>33.7%</strong> of listings and the top ten hold <strong>47.8%</strong>, across
+      162 employers. The Herfindahl index of 370 indicates a competitive market with a few
+      dominant recruiters of scale — consistent with Hong Kong's retail-banking and
+      insurance giants running continuous large-volume hiring.
+    </p>
+
+    <div class="tw">
+      <table>
+        <caption>Largest employers by live listing count</caption>
+        <thead><tr><th>Employer</th><th>Live listings</th><th>Share</th></tr></thead>
+        <tbody>
+          <tr><td>Bank of China (Hong Kong)</td><td class="num">569</td><td class="num">11.4%</td></tr>
+          <tr><td>HSBC Hong Kong</td><td class="num">422</td><td class="num">8.4%</td></tr>
+          <tr><td>DBS Bank (Hong Kong)</td><td class="num">255</td><td class="num">5.1%</td></tr>
+          <tr><td>Citi</td><td class="num">251</td><td class="num">5.0%</td></tr>
+          <tr><td>AIA International</td><td class="num">188</td><td class="num">3.8%</td></tr>
+          <tr><td>Hong Kong Exchanges &amp; Clearing</td><td class="num">172</td><td class="num">3.4%</td></tr>
+          <tr><td>AXA Hong Kong and Macau</td><td class="num">168</td><td class="num">3.4%</td></tr>
+          <tr><td>Deloitte</td><td class="num">130</td><td class="num">2.6%</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <span class="lab">Why this table carries a warning</span>
+      <p>
+        162 employer keys carry <strong>239 distinct name strings</strong>. 58 of them
+        (35.8%) hold more than one name, and the worst holds seven. Some of that is benign
+        —&nbsp;"PIMCO", "Pimco" and "PIMCO Hong Kong" are one firm.
+      </p>
+      <p>
+        Some of it is not. The <em>zurich-hk</em> key contains listings labelled "UBS AG";
+        <em>bochk</em> contains "OCBC Bank (Hong Kong) Limited". These are
+        <strong>mis-attributed listings</strong> — an aggregator advertiser field being read
+        as the employer. Counts for individual firms therefore carry an unquantified error
+        in both directions, and the ranking above should be read as indicative of scale
+        only, not as an audited league table.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="row pagebreak">
+  <aside class="rail">
+    <b>Standing limitations</b>
+    <p>What would have to change before the withheld questions become answerable.</p>
+  </aside>
+  <div>
+    <span class="sectnum">10 / Limitations</span>
+    <h2>What this data cannot tell us</h2>
+
+    <p>
+      Stated plainly, so that none of the figures above are over-read.
+    </p>
+
+    <ul class="clean">
+      <li>
+        <b>It cannot tell us whether hiring is rising or falling.</b> The company roster
+        grew from 28 to 146 during the window and 21.3% of company-days are unresolved
+        zeros. No growth rate is recoverable, and the eight-week span would be too short
+        for a seasonal read even if the panel were clean.
+      </li>
+      <li>
+        <b>It cannot tell us how long roles stay open.</b> The 18.7% resurrection rate means
+        disappearance does not imply closure. Time-to-fill, closure rate and hiring velocity
+        are all unavailable until scrape failures are recorded distinctly from genuine zeros.
+      </li>
+      <li>
+        <b>It cannot tell us what anyone is actually paid.</b> 82% of listings disclose no
+        salary; the rest are model estimates calibrated to published guides. The 21 July
+        recalibration moved the median 16%, which bounds how much confidence the levels
+        deserve. Advertised pay is also not realised pay — it excludes bonus, which in Hong
+        Kong front-office roles is a large share of total compensation.
+      </li>
+      <li>
+        <b>It cannot tell us what a skill is worth to a person.</b> The adjusted premia
+        control for seniority only. Function, employer and unobserved candidate quality all
+        remain confounded, and listings describe employer requirements rather than returns
+        to training.
+      </li>
+      <li>
+        <b>It cannot be read as the Hong Kong finance market.</b> It is the subset that is
+        publicly advertised on eight specific channels and matched to a configured employer
+        list. Roles filled by internal transfer, executive search or direct referral never
+        enter — and section 08 suggests that hidden segment is substantial.
+      </li>
+      <li>
+        <b>Employer-level counts carry unquantified attribution error.</b> 35.8% of employer
+        keys hold multiple name strings and some contain a different institution's listings
+        outright.
+      </li>
+      <li>
+        <b>Two of the eight sources are collected in breach of site terms.</b> The JobsDB and
+        Indeed adapters are prototype-grade and would need a licensed feed or explicit
+        permission before any of this is published externally.
+      </li>
+    </ul>
+
+    <h3>What would unlock the withheld analysis</h3>
+    <p>
+      In priority order: record adapter failure distinctly from a genuine zero, so the panel
+      stops conflating them; freeze the employer roster and the estimator version for a
+      continuous 60-day run; deduplicate employer names against a canonical register; and
+      version every derived field so that a series can be restricted to one regime
+      automatically. None of these require more data — only that the instrument stop
+      changing while it is being read.
+    </p>
+  </div>
+</section>
+
+<footer class="foot">
+  <p>
+    Hong Kong Finance Job Market — Evidence Note &middot; compiled 28 July 2026 from
+    <span style="font-family:var(--mono)">data/jobs.db</span> (13,518 listings) and ten dated
+    snapshots spanning 14–25 July 2026. Pay figures are modelled estimates in HK$ per month,
+    restricted to a single estimator regime. Medians throughout; intervals are percentile
+    bootstrap, 2,000 resamples. Figures marked <span class="grade g-flag">Not reportable</span>
+    are withheld deliberately and the reason is stated in place.
+  </p>
+</footer>
+
+</div>
