@@ -198,6 +198,53 @@ select.finex-input {
 }
 .filter-pill:active { transform: scale(0.96); }
 
+/* ── TEMPORARY UI EXPERIMENT: search-engine hero ────────────────
+   The hero sits on --color-masthead navy, so its focus and hover states
+   cannot reuse --color-ring (navy on navy is invisible). They key off
+   gold and translucent white instead — the only two things that read
+   against that background. */
+
+/* The search field is the one primary affordance on the discover screen,
+   so its focus ring is deliberately the loudest in the app. */
+.search-hero-field:focus-within {
+  border-color: var(--color-gold-star) !important;
+  box-shadow: var(--shadow-float), 0 0 0 4px rgb(224 161 6 / 0.32) !important;
+}
+.search-hero-field {
+  transition: box-shadow 200ms var(--ease-out-expo), border-color 200ms;
+}
+
+/* Popular queries, sector chips, and the back-to-search button. */
+.hero-chip {
+  transition: background-color 150ms, border-color 150ms, color 150ms, transform 120ms;
+}
+.hero-chip:hover {
+  background-color: rgb(255 255 255 / 0.16) !important;
+  border-color: rgb(255 255 255 / 0.34) !important;
+  color: #F8FAFC !important;
+}
+.hero-chip:focus-visible {
+  outline: 2px solid var(--color-gold-star);
+  outline-offset: 2px;
+}
+.hero-chip:active { transform: scale(0.97); }
+
+.hero-underline {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: rgb(248 250 252 / 0.3);
+  transition: color 150ms, text-decoration-color 150ms;
+}
+.hero-underline:hover {
+  color: #F8FAFC !important;
+  text-decoration-color: var(--color-gold-star);
+}
+.hero-underline:focus-visible {
+  outline: 2px solid var(--color-gold-star);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
 /* ── Job card press feedback (touch has no hover) ──────────────── */
 .job-card {
   transition: box-shadow 200ms, border-color 200ms, transform 200ms var(--ease-out-expo);
