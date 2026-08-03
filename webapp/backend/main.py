@@ -56,6 +56,7 @@ from mailer import RECIPIENT, SMTP_USER, send_mail  # noqa: E402
 # its docstring for why "browsing is filtered, addressing is not".
 import job_read  # noqa: E402
 from job_read import (  # noqa: E402
+    BOARD_WHERE,
     INTERNSHIP_COND,
     SECTOR_SQL,
     JobDetail,
@@ -276,7 +277,7 @@ def get_filters():
             NameCount(name=r["company"], count=r["cnt"])
             for r in conn.execute(
                 "SELECT j.company, COUNT(*) AS cnt FROM jobs j"
-                " WHERE j.is_active=1 AND j.is_primary=1 GROUP BY j.company ORDER BY cnt DESC",
+                f" WHERE {BOARD_WHERE} GROUP BY j.company ORDER BY cnt DESC",
             ).fetchall()
         ]
 
@@ -287,7 +288,7 @@ def get_filters():
               SELECT ({SECTOR_SQL}) AS sector
               FROM jobs j
               LEFT JOIN job_enrichments e ON j.source=e.source AND j.source_id=e.source_id
-              WHERE j.is_active=1 AND j.is_primary=1
+              WHERE {BOARD_WHERE}
             ) sub GROUP BY sector ORDER BY cnt DESC
             """
         ).fetchall()
@@ -295,12 +296,12 @@ def get_filters():
 
         # Top 100 skills
         skills_raw = conn.execute(
-            """
+            f"""
             SELECT LOWER(sk.value) AS skill, COUNT(*) AS cnt
             FROM jobs j
             JOIN job_enrichments e ON j.source=e.source AND j.source_id=e.source_id
             JOIN json_each(e.required_skills) sk
-            WHERE j.is_active=1 AND j.is_primary=1
+            WHERE {BOARD_WHERE}
               AND e.required_skills IS NOT NULL
               AND e.required_skills != '[]'
             GROUP BY LOWER(sk.value)
@@ -315,7 +316,7 @@ def get_filters():
             r[0] for r in conn.execute(
                 "SELECT DISTINCT e.seniority FROM job_enrichments e"
                 " JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-                " WHERE j.is_active=1 AND j.is_primary=1 AND e.seniority IS NOT NULL ORDER BY e.seniority"
+                f" WHERE {BOARD_WHERE} AND e.seniority IS NOT NULL ORDER BY e.seniority"
             ).fetchall()
         ]
 
@@ -324,7 +325,7 @@ def get_filters():
             r[0] for r in conn.execute(
                 "SELECT DISTINCT e.remote_type FROM job_enrichments e"
                 " JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-                " WHERE j.is_active=1 AND j.is_primary=1 AND e.remote_type IS NOT NULL ORDER BY e.remote_type"
+                f" WHERE {BOARD_WHERE} AND e.remote_type IS NOT NULL ORDER BY e.remote_type"
             ).fetchall()
         ]
 
@@ -332,14 +333,14 @@ def get_filters():
         sal = conn.execute(
             "SELECT MIN(e.salary_hkd_min), MAX(e.salary_hkd_max)"
             " FROM job_enrichments e JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-            " WHERE j.is_active=1 AND j.is_primary=1"
+            f" WHERE {BOARD_WHERE}"
         ).fetchone()
 
         # Experience range
         exp = conn.execute(
             "SELECT MIN(e.years_experience_required), MAX(e.years_experience_required)"
             " FROM job_enrichments e JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-            " WHERE j.is_active=1 AND j.is_primary=1"
+            f" WHERE {BOARD_WHERE}"
         ).fetchone()
 
     return FiltersResponse(
@@ -359,7 +360,7 @@ def get_filters():
 def get_stats():
     with get_db() as conn:
         total = conn.execute(
-            "SELECT COUNT(*) FROM jobs WHERE is_active=1 AND is_primary=1"
+            f"SELECT COUNT(*) FROM jobs j WHERE {BOARD_WHERE}"
         ).fetchone()[0]
 
         # By sector
@@ -369,7 +370,7 @@ def get_stats():
               SELECT ({SECTOR_SQL}) AS sector
               FROM jobs j
               LEFT JOIN job_enrichments e ON j.source=e.source AND j.source_id=e.source_id
-              WHERE j.is_active=1 AND j.is_primary=1
+              WHERE {BOARD_WHERE}
             ) sub GROUP BY sector ORDER BY cnt DESC
             """
         ).fetchall()
@@ -379,7 +380,7 @@ def get_stats():
         sen_raw = conn.execute(
             "SELECT e.seniority, COUNT(*) AS cnt"
             " FROM job_enrichments e JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-            " WHERE j.is_active=1 AND j.is_primary=1 AND e.seniority IS NOT NULL"
+            f" WHERE {BOARD_WHERE} AND e.seniority IS NOT NULL"
             " GROUP BY e.seniority ORDER BY cnt DESC"
         ).fetchall()
         by_seniority = {r["seniority"]: r["cnt"] for r in sen_raw}
@@ -388,7 +389,7 @@ def get_stats():
         rem_raw = conn.execute(
             "SELECT e.remote_type, COUNT(*) AS cnt"
             " FROM job_enrichments e JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-            " WHERE j.is_active=1 AND j.is_primary=1 AND e.remote_type IS NOT NULL"
+            f" WHERE {BOARD_WHERE} AND e.remote_type IS NOT NULL"
             " GROUP BY e.remote_type ORDER BY cnt DESC"
         ).fetchall()
         by_remote_type = {r["remote_type"]: r["cnt"] for r in rem_raw}
@@ -396,18 +397,18 @@ def get_stats():
         # By source tier (powers the All / Exclusive / Mainstream tabs)
         tier_raw = conn.execute(
             "SELECT COALESCE(source_tier, 'mainstream') AS tier, COUNT(*) AS cnt"
-            " FROM jobs WHERE is_active=1 AND is_primary=1 GROUP BY tier"
+            f" FROM jobs j WHERE {BOARD_WHERE} GROUP BY tier"
         ).fetchall()
         by_source_tier = {r["tier"]: r["cnt"] for r in tier_raw}
 
         # Top 15 skills
         skills_raw = conn.execute(
-            """
+            f"""
             SELECT LOWER(sk.value) AS skill, COUNT(*) AS cnt
             FROM jobs j
             JOIN job_enrichments e ON j.source=e.source AND j.source_id=e.source_id
             JOIN json_each(e.required_skills) sk
-            WHERE j.is_active=1 AND j.is_primary=1
+            WHERE {BOARD_WHERE}
               AND e.required_skills IS NOT NULL
               AND e.required_skills != '[]'
             GROUP BY LOWER(sk.value)
@@ -420,13 +421,13 @@ def get_stats():
         # Top 15 companies
         comp_raw = conn.execute(
             "SELECT j.company, COUNT(*) AS cnt FROM jobs j"
-            " WHERE j.is_active=1 AND j.is_primary=1 GROUP BY j.company ORDER BY cnt DESC LIMIT 15"
+            f" WHERE {BOARD_WHERE} GROUP BY j.company ORDER BY cnt DESC LIMIT 15"
         ).fetchall()
         top_companies = [NameCount(name=r["company"], count=r["cnt"]) for r in comp_raw]
 
         # Internship count
         intern_count = conn.execute(
-            f"SELECT COUNT(*) FROM jobs j WHERE j.is_active=1 AND j.is_primary=1 AND {INTERNSHIP_COND}"
+            f"SELECT COUNT(*) FROM jobs j WHERE {BOARD_WHERE} AND {INTERNSHIP_COND}"
         ).fetchone()[0]
 
     return StatsResponse(

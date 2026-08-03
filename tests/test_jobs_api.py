@@ -344,3 +344,29 @@ def test_detail_reaches_a_closed_role_and_says_so(client):
 def test_the_board_never_returns_a_closed_role(client):
     """The other half of the rule: browsing stays filtered."""
     assert all(j["closed"] is False for j in _get(client, page_size=100)["jobs"])
+
+
+# ── The aggregates agree with the board ───────────────────────────────────────
+
+def test_stats_and_jobs_agree_on_what_is_open(client):
+    """
+    /api/stats and /api/jobs used to spell the visibility rule out separately —
+    sixteen hand-typed copies across /api/filters and /api/stats — so they could
+    drift on what an open Role is and nothing would fail. They read one constant
+    now; this pins them together so a future edit to one has to move the other.
+    """
+    stats_total = client.get("/api/stats").json()["total_active_jobs"]
+    jobs_total = _get(client, page_size=1)["total"]
+    assert stats_total == jobs_total
+
+
+def test_filters_lists_only_sectors_that_are_open(client):
+    """Every sector the filter bar offers must return at least one Role — an
+    option that yields nothing is the visible symptom of the two disagreeing."""
+    for sector in client.get("/api/filters").json()["sectors"]:
+        assert _get(client, sectors=[sector["name"]], page_size=1)["total"] == sector["count"]
+
+
+def test_stats_counts_internships_the_same_way_the_filter_does(client):
+    stats = client.get("/api/stats").json()
+    assert stats["internship_count"] == _get(client, is_internship=True, page_size=1)["total"]

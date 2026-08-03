@@ -96,6 +96,13 @@ _VISIBILITY_SQL: dict[Visibility, Optional[str]] = {
     Visibility.ADDRESSABLE: None,
 }
 
+#: The BOARD rule as a bare SQL fragment, for aggregate queries that build their
+#: own SELECT and so cannot go through `list_jobs` — /api/filters and /api/stats
+#: are nine hand-written GROUP BYs between them. They used to spell the predicate
+#: out sixteen times, which is how /api/stats and /api/jobs could come to disagree
+#: about what an open Role is. Expects the jobs table aliased as `j`.
+BOARD_WHERE = _VISIBILITY_SQL[Visibility.BOARD]
+
 
 class Sort(str, Enum):
     NEWEST = "newest"
