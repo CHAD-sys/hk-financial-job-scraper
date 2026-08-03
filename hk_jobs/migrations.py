@@ -615,3 +615,45 @@ def migrate_to_phase_28(db_path: str) -> None:
             logger.debug("Phase 28 migration: email columns already exist")
     finally:
         conn.close()
+
+
+def migrate_to_phase_29(db_path: str) -> None:
+    """
+    Restamp enrichments whose version string only changed SHAPE, not meaning.
+
+    `PROMPT_VERSION` used to be a hand-edited constant. It is now derived from
+    the model, the prompt text, the anchor calibration and the clamp's constants
+    (see `hk_jobs.salary.version`) — so the string changed for every row even
+    though none of those inputs did.
+
+    Without this, the first run after that change would find ~5,000 active rows
+    whose stored version no longer matches, decide they are stale, and re-pay
+    DeepSeek to reproduce estimates that are already correct.
+
+    Only rows stamped with the exact old tag are touched, and only when the
+    derived version still contains that tag — i.e. when the manual part has not
+    itself moved on. Anything else is genuinely stale and should re-enrich.
+    """
+    from hk_jobs.enrichers.deepseek import PROMPT_VERSION
+    from hk_jobs.salary import MANUAL_TAG
+
+    if not PROMPT_VERSION.startswith(MANUAL_TAG + "+"):
+        logger.debug("Phase 29: manual tag has moved on; leaving stored versions alone.")
+        return
+
+    conn = sqlite3.connect(db_path)
+    try:
+        with conn:
+            cur = conn.execute(
+                "UPDATE job_enrichments SET prompt_version = ? WHERE prompt_version = ?",
+                (PROMPT_VERSION, MANUAL_TAG),
+            )
+        if cur.rowcount:
+            logger.info(
+                "Phase 29 migration: restamped %s enrichment(s) from the bare tag to the "
+                "derived version — same inputs, so no re-enrichment needed.", cur.rowcount,
+            )
+        else:
+            logger.debug("Phase 29 migration: nothing to restamp.")
+    finally:
+        conn.close()

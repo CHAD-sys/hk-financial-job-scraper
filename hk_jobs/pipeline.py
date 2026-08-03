@@ -786,6 +786,7 @@ def main(argv: list[str] | None = None) -> None:
             migrate_to_phase_24,
             migrate_to_phase_25,
             migrate_to_phase_26,
+            migrate_to_phase_29,
         )
         Path(args.db).parent.mkdir(parents=True, exist_ok=True)
         migrate_to_phase_11(args.db)
@@ -804,6 +805,9 @@ def main(argv: list[str] | None = None) -> None:
         migrate_to_phase_24(args.db)
         migrate_to_phase_25(args.db)
         migrate_to_phase_26(args.db)
+        # Restamps enrichments whose version string changed shape but not meaning,
+        # so a derived PROMPT_VERSION does not re-pay for ~5,000 correct estimates.
+        migrate_to_phase_29(args.db)
 
     # --weekly-report: send Monday trend report email (no scraping).
     if getattr(args, "weekly_report", False):
