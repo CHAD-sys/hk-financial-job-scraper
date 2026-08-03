@@ -4,6 +4,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import Nav from '../components/Nav'
 import { deleteAccount } from '../api/client'
 import { useAuth } from '../auth/useAuth'
+import { useSavedRoles } from '../savedRoles/useSavedRoles'
 
 type DeleteStage = 'idle' | 'confirming' | 'deleting' | 'error'
 
@@ -20,6 +21,7 @@ const CONFIRM_WORD = 'DELETE'
  */
 export default function AccountPage() {
   const { seeker, loading, logout, refresh } = useAuth()
+  const { count } = useSavedRoles()
   const navigate = useNavigate()
   const [stage, setStage] = useState<DeleteStage>('idle')
   const [confirmText, setConfirmText] = useState('')
