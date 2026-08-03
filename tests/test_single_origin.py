@@ -21,9 +21,9 @@ jobs.db, so this file is hermetic and runs anywhere. It holds exactly the
 columns /api/jobs reads — enough to prove the route still reaches SQLite and
 returns rows.
 
-The builders used to live in this file and were imported by other test modules.
-They now live in `support.py`; the aliases below keep the old names working for
-anything still reaching for them.
+The builders live in `support.py`. Each test builds its own app through
+`create_app`, so "a differently configured app" is a function call rather than a
+re-import.
 """
 
 from __future__ import annotations
@@ -31,35 +31,25 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from .support import (
-    BACKEND,
-    INDEX_MARKER,
-    import_main as _import_main,
-    make_bundle as _make_bundle,
-    make_jobs_db as _make_db,
-)
-
-__all__ = ["BACKEND", "INDEX_MARKER", "_import_main", "_make_bundle", "_make_db"]
+from .support import INDEX_MARKER, make_app, make_bundle, make_jobs_db
 
 
 @pytest.fixture()
-def client(tmp_path, monkeypatch):
+def client(tmp_path):
     """The deployed shape: API + a built bundle, one origin."""
     db = tmp_path / "jobs.db"
-    _make_db(db)
+    make_jobs_db(db)
     dist = tmp_path / "dist"
-    _make_bundle(dist)
-    main = _import_main(monkeypatch, db, dist, tmp_path)
-    return TestClient(main.app)
+    make_bundle(dist)
+    return TestClient(make_app(db, dist, tmp_path))
 
 
 @pytest.fixture()
-def api_only_client(tmp_path, monkeypatch):
+def api_only_client(tmp_path):
     """Backend-only local dev: nothing has been built, dist/ does not exist."""
     db = tmp_path / "jobs.db"
-    _make_db(db)
-    main = _import_main(monkeypatch, db, tmp_path / "nope" / "dist", tmp_path)
-    return TestClient(main.app)
+    make_jobs_db(db)
+    return TestClient(make_app(db, tmp_path / "nope" / "dist", tmp_path))
 
 
 # ── The API must not be shadowed ──────────────────────────────────────────────

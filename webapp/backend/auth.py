@@ -101,7 +101,18 @@ _hasher = PasswordHasher()
 # has no password because it is Google-only) as for one that does. Without it,
 # login response time answers "does this address have an account?" — undoing the
 # non-enumerable responses decision 15 buys at the HTTP layer.
-_DUMMY_HASH = _hasher.hash("finex-careers-dummy-password-for-constant-time-login")
+#
+# Computed on first use, not at import. At import it cost a full Argon2id hash —
+# 64 MiB and ~100 ms — on every process start, and on every test that
+# re-imported this module, which the old app-less test setup did per fixture.
+_dummy_hash: str | None = None
+
+
+def _dummy() -> str:
+    global _dummy_hash
+    if _dummy_hash is None:
+        _dummy_hash = _hasher.hash("finex-careers-dummy-password-for-constant-time-login")
+    return _dummy_hash
 
 
 class AuthError(Exception):
@@ -140,13 +151,13 @@ def verify_password(password_hash: str | None, password: str) -> bool:
     `password_hash` is None for a Seeker who signed up with Google and has never
     set a password. That case still performs a dummy verification before
     returning False, so it costs the same wall-clock time as a real wrong
-    password — see _DUMMY_HASH.
+    password — see _dummy().
 
     Callers should pass None (rather than skipping the call) when the address has
     no account at all, for the same timing reason.
     """
     if password_hash is None:
-        _safe_verify(_DUMMY_HASH, password)  # burn the same time, then refuse
+        _safe_verify(_dummy(), password)  # burn the same time, then refuse
         return False
     return _safe_verify(password_hash, password)
 

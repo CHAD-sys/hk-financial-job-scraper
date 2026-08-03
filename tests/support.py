@@ -20,7 +20,6 @@ the fixtures do not cover (a second database, an odd bundle layout).
 
 from __future__ import annotations
 
-import importlib
 import json
 import sqlite3
 import sys
@@ -186,19 +185,30 @@ def make_bundle(dist: Path) -> None:
     (dist / "favicon.svg").write_text("<svg/>", encoding="utf-8")
 
 
-def import_main(monkeypatch, db: Path, dist: Path, submissions: Path):
-    """
-    Fresh app per test.
+if str(BACKEND) not in sys.path:
+    sys.path.insert(0, str(BACKEND))
 
-    Module-level config (DB_PATH, FRONTEND_DIST) and the static mount are all
-    decided at import time, so a reimport is the only way to exercise a different
-    configuration. This is friction worth naming rather than hiding: an app
-    factory would make it a function call.
+
+def make_app(db: Path, dist: Path | None = None, submissions: Path | None = None, **over):
     """
-    monkeypatch.setenv("JOBS_DB_PATH", str(db))
-    monkeypatch.setenv("FRONTEND_DIST", str(dist))
-    monkeypatch.setenv("SUBMISSIONS_DIR", str(submissions))
-    monkeypatch.syspath_prepend(str(BACKEND))
-    for mod in ("main", "mailer"):
-        sys.modules.pop(mod, None)
-    return importlib.import_module("main")
+    An app configured for one test.
+
+    This used to delete `main` and `mailer` from `sys.modules` and re-import
+    them, because every piece of configuration was read from the environment
+    while the module was being imported — so a re-import was the only way to
+    exercise a different database. It also re-ran a network download and a
+    64 MiB Argon2 hash on every call.
+
+    It is a function call now. `create_app` takes the configuration; nothing is
+    global, so two apps with two different databases can exist at once and a
+    test never touches `os.environ` at all.
+    """
+    from main import create_app  # imported here so a collection-time import cannot fail
+    from settings import Settings
+
+    return create_app(Settings(
+        jobs_db=db,
+        frontend_dist=dist if dist is not None else Path("/nonexistent/dist"),
+        submissions_dir=submissions,
+        **over,
+    ))

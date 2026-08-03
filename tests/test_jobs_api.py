@@ -27,7 +27,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from .support import enrichment, import_main, job, make_bundle, make_jobs_db, signals
+from .support import enrichment, job, make_app, make_bundle, make_jobs_db, signals
 
 # Companies chosen so SECTOR_SQL puts each in a different bucket.
 BANKING = "HSBC"
@@ -109,13 +109,13 @@ def _seed():
 
 
 @pytest.fixture()
-def client(tmp_path, monkeypatch):
+def client(tmp_path):
     db = tmp_path / "jobs.db"
     jobs, enrichments = _seed()
     make_jobs_db(db, jobs=jobs, enrichments=enrichments)
     dist = tmp_path / "dist"
     make_bundle(dist)
-    return TestClient(import_main(monkeypatch, db, dist, tmp_path).app)
+    return TestClient(make_app(db, dist, tmp_path))
 
 
 def _ids(body) -> list[str]:

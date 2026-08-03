@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi import APIRouter, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -42,10 +42,10 @@ logger = logging.getLogger(__name__)
 
 from env_file import load_env_file  # noqa: E402 — must import after logging setup
 
-# MUST run before the module-level os.environ reads below (DB_PATH, CORS_ORIGINS,
-# SUBMISSIONS_DIR) and before importing mailer, which reads its SMTP settings at
-# import time. uvicorn does not source config/api_keys.env the way daily_run.sh
-# does, so without this the backend starts with no credentials at all.
+# MUST run before Settings.from_env() below, and before importing mailer, which
+# reads its SMTP settings at import time. uvicorn does not source
+# config/api_keys.env the way daily_run.sh does, so without this the backend
+# starts with no credentials at all.
 load_env_file()
 
 import mailer  # noqa: E402 — see above
@@ -55,6 +55,7 @@ from mailer import RECIPIENT, SMTP_USER, send_mail  # noqa: E402
 # filtered, sorted, counted and shaped for the wire lives in this module — see
 # its docstring for why "browsing is filtered, addressing is not".
 import job_read  # noqa: E402
+from settings import Settings  # noqa: E402
 from job_read import (  # noqa: E402
     BOARD_WHERE,
     INTERNSHIP_COND,
@@ -67,32 +68,41 @@ from job_read import (  # noqa: E402
     Visibility,
 )
 
-# ── DB path ───────────────────────────────────────────────────────────────────
-# Configurable for deployment (e.g. a Railway volume mounted at /data). Defaults to
-# the repo's local data/jobs.db for development. If the DB isn't present and
-# DB_SEED_URL is set, download it once on first boot — lets a temporary demo seed a
-# volume with no manual upload step. The DB itself is never committed to git.
+# ── Per-request dependencies ──────────────────────────────────────────────────
+#
+# Every route reaches its configuration through the app it is serving, never
+# through a module global. That is what lets a test build a second app with a
+# different database instead of deleting this module from sys.modules and
+# re-importing it.
 
-DB_PATH = Path(
-    os.environ.get("JOBS_DB_PATH", str(Path(__file__).parent.parent.parent / "data" / "jobs.db"))
-).resolve()
+router = APIRouter()
 
 
-def _seed_db_if_missing() -> None:
-    seed_url = os.environ.get("DB_SEED_URL", "").strip()
-    if DB_PATH.exists() or not seed_url:
+def cfg(request: Request) -> Settings:
+    """This app's settings."""
+    return request.app.state.settings
+
+
+def _seed_db_if_missing(settings: Settings) -> None:
+    """
+    Download the database once, if a seed URL is configured and it is absent.
+
+    Called from the lifespan rather than at import: a slow or hanging download
+    should delay startup visibly, not silently block `import main` — including
+    inside a test process that inherited DB_SEED_URL from the developer's env
+    file.
+    """
+    if settings.jobs_db.exists() or not settings.db_seed_url:
         return
     import urllib.request
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    tmp = DB_PATH.with_name(DB_PATH.name + ".downloading")
-    urllib.request.urlretrieve(seed_url, tmp)  # noqa: S310 — operator-provided URL
-    tmp.replace(DB_PATH)
+    logger.info("Seeding %s from %s", settings.jobs_db, settings.db_seed_url)
+    settings.jobs_db.parent.mkdir(parents=True, exist_ok=True)
+    tmp = settings.jobs_db.with_name(settings.jobs_db.name + ".downloading")
+    urllib.request.urlretrieve(settings.db_seed_url, tmp)  # noqa: S310 — operator-provided URL
+    tmp.replace(settings.jobs_db)
 
 
-_seed_db_if_missing()
-
-
-def get_db() -> sqlite3.Connection:
+def get_db(request: Request) -> sqlite3.Connection:
     """
     A read-only connection to jobs.db.
 
@@ -100,7 +110,7 @@ def get_db() -> sqlite3.Connection:
     path needs — they are requirements of that module, so it owns them rather
     than this file remembering to repeat them.
     """
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn = sqlite3.connect(cfg(request).jobs_db, check_same_thread=False)
     job_read.prepare(conn)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA query_only=ON")
@@ -147,15 +157,24 @@ class StatsResponse(BaseModel):
 
 # ── App ────────────────────────────────────────────────────────────────────────
 
-@asynccontextmanager
-async def lifespan(_: FastAPI):
-    """
-    Report the configuration that otherwise fails silently.
 
-    A missing SMTP setup breaks no request — submissions are still queued and
-    still return 200 — so the only symptom is mail that never arrives. Saying so
-    at boot, loudly, is what turns that into a five-second diagnosis.
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     """
+    Everything that must happen once, at startup — not at import.
+
+    Seeding the database lives here because it is a network download: at import
+    it blocked `import main`, which meant any process that merely imported this
+    module (a test, a REPL, a linter) could start pulling a 100 MB file.
+
+    The SMTP warning is here for a different reason: a missing mail setup breaks
+    no request — submissions are still queued and still return 200 — so the only
+    symptom is mail that never arrives. Saying so at boot, loudly, is what turns
+    that into a five-second diagnosis.
+    """
+    settings: Settings = app.state.settings
+    _seed_db_if_missing(settings)
+
     if SMTP_USER:
         logger.info("Email configured — enquiries will be sent to %s", RECIPIENT)
     else:
@@ -163,39 +182,28 @@ async def lifespan(_: FastAPI):
             "SMTP_USER/SMTP_PASS are not set. Submissions will still be queued to %s "
             "but NO email will be sent. Locally: check config/api_keys.env. "
             "In production: set them in the platform environment.",
-            SUBMISSIONS_DIR,
+            settings.submissions_dir,
+        )
+
+    if not settings.frontend_present():
+        # Not fatal, by design: the API has to boot for backend-only local
+        # development (and for a deploy whose build step failed, where a working
+        # /api and a 404 UI is a far better failure than a service that will not
+        # start at all).
+        logger.warning(
+            "No frontend bundle at %s — serving the API only. "
+            "Build it with `npm run build` in webapp/frontend, or point FRONTEND_DIST "
+            "at an existing dist/ directory.",
+            settings.frontend_dist,
         )
     yield
 
 
-app = FastAPI(
-    title="FinEx Careers API",
-    description="Read-only API for Hong Kong financial job listings.",
-    version="1.0.0",
-    lifespan=lifespan,
-)
-
-# CORS origins are configurable for deployment via CORS_ORIGINS (comma-separated,
-# or "*" for a public demo with no logins). Defaults to the local Vite dev server.
-_cors = os.environ.get("CORS_ORIGINS", "http://localhost:5173").strip()
-_allow_origins = ["*"] if _cors == "*" else [o.strip() for o in _cors.split(",") if o.strip()]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_allow_origins,
-    # POST is required by /api/contact and /api/post-role — without it the
-    # browser blocks the preflight and the forms fail before reaching FastAPI.
-    # DELETE joins the list for the account endpoints (unsave a Role, delete an
-    # account). At one origin CORS is inert, but a dev frontend pointed at an
-    # absolute API URL still preflights, and a missing method fails there only.
-    allow_methods=["GET", "POST", "DELETE"],
-    allow_headers=["*"],
-)
-
-
 # ── /api/jobs ─────────────────────────────────────────────────────────────────
 
-@app.get("/api/jobs", response_model=JobListResponse, tags=["jobs"])
+@router.get("/api/jobs", response_model=JobListResponse, tags=["jobs"])
 def list_jobs(
+    request: Request,
     search: Optional[str] = Query(None, description="Full-text search on title + company"),
     sectors: list[str] = Query(default=[], description="Filter by sector(s)"),
     companies: list[str] = Query(default=[], description="Filter by company name(s)"),
@@ -240,7 +248,7 @@ def list_jobs(
         max_applicants=max_applicants, hidden_only=hidden_only,
         verified_only=verified_only,
     )
-    with get_db() as conn:
+    with get_db(request) as conn:
         return job_read.list_jobs(
             conn, filters, sort=sort, page=page, page_size=page_size,
             visibility=Visibility.BOARD,
@@ -249,8 +257,8 @@ def list_jobs(
 
 # ── /api/jobs/{source}/{source_id} ────────────────────────────────────────────
 
-@app.get("/api/jobs/{source}/{source_id}", response_model=JobDetail, tags=["jobs"])
-def get_job(source: str, source_id: str):
+@router.get("/api/jobs/{source}/{source_id}", response_model=JobDetail, tags=["jobs"])
+def get_job(source: str, source_id: str, request: Request):
     """
     One Role, addressed by reference.
 
@@ -260,7 +268,7 @@ def get_job(source: str, source_id: str):
     reconciliation; requiring is_active would break every Saved Role the moment
     the vacancy closed, which is precisely when a Seeker wants to look at it.
     """
-    with get_db() as conn:
+    with get_db(request) as conn:
         detail = job_read.get_job(conn, source, source_id, visibility=Visibility.ADDRESSABLE)
     if detail is None:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -269,9 +277,9 @@ def get_job(source: str, source_id: str):
 
 # ── /api/filters ──────────────────────────────────────────────────────────────
 
-@app.get("/api/filters", response_model=FiltersResponse, tags=["meta"])
-def get_filters():
-    with get_db() as conn:
+@router.get("/api/filters", response_model=FiltersResponse, tags=["meta"])
+def get_filters(request: Request):
+    with get_db(request) as conn:
         # Companies with count
         companies = [
             NameCount(name=r["company"], count=r["cnt"])
@@ -356,9 +364,9 @@ def get_filters():
 
 # ── /api/stats ────────────────────────────────────────────────────────────────
 
-@app.get("/api/stats", response_model=StatsResponse, tags=["meta"])
-def get_stats():
-    with get_db() as conn:
+@router.get("/api/stats", response_model=StatsResponse, tags=["meta"])
+def get_stats(request: Request):
+    with get_db(request) as conn:
         total = conn.execute(
             f"SELECT COUNT(*) FROM jobs j WHERE {BOARD_WHERE}"
         ).fetchone()[0]
@@ -450,15 +458,13 @@ def get_stats():
 # (durable) and then email a notification (best-effort) — so a mail outage
 # delays the alert but never loses the submission.
 
-SUBMISSIONS_DIR = Path(os.environ.get("SUBMISSIONS_DIR", str(DB_PATH.parent))).resolve()
-
-# Rate limiting is in-memory and therefore per-process: it resets on deploy and
-# does not span replicas. Adequate for a single instance at current traffic;
-# move to Redis or a proxy-level limit before scaling out.
-_RATE_LIMIT = int(os.environ.get("SUBMIT_RATE_LIMIT", "3"))
+# Rate limiting is in-memory and therefore per-app: it resets on deploy and does
+# not span replicas. Adequate for a single instance at current traffic; move to
+# Redis or a proxy-level limit before scaling out.
+#
+# The window and the log live on the app rather than on this module, so two apps
+# in one process (which is what the tests now build) do not share a budget.
 _RATE_WINDOW_S = 3600
-_rate_log: dict[str, list[float]] = defaultdict(list)
-_rate_lock = threading.Lock()
 
 
 def _client_ip(request: Request) -> str:
@@ -469,25 +475,32 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def _rate_limited(key: str) -> bool:
+def _rate_limited(request: Request, key: str) -> bool:
+    return _limit(request, key, limit=cfg(request).submit_rate_limit, window_s=_RATE_WINDOW_S)
+
+
+def _limit(request: Request, key: str, *, limit: int, window_s: int) -> bool:
+    """Sliding window over this app's rate log."""
     now = time.time()
-    with _rate_lock:
-        hits = [t for t in _rate_log[key] if now - t < _RATE_WINDOW_S]
-        if len(hits) >= _RATE_LIMIT:
-            _rate_log[key] = hits
+    state = request.app.state
+    with state.rate_lock:
+        hits = [t for t in state.rate_log[key] if now - t < window_s]
+        if len(hits) >= limit:
+            state.rate_log[key] = hits
             return True
         hits.append(now)
-        _rate_log[key] = hits
+        state.rate_log[key] = hits
         return False
 
 
-def _persist(kind: str, payload: dict) -> bool:
+def _persist(request: Request, kind: str, payload: dict) -> bool:
     """Append one submission to data/{kind}.jsonl. Returns False if it could not
     be written — the only condition under which a submission is actually lost."""
+    submissions = cfg(request).submissions_dir
     try:
-        SUBMISSIONS_DIR.mkdir(parents=True, exist_ok=True)
+        submissions.mkdir(parents=True, exist_ok=True)
         record = {"received_at": datetime.now(timezone.utc).isoformat(), **payload}
-        with open(SUBMISSIONS_DIR / f"{kind}.jsonl", "a", encoding="utf-8") as fh:
+        with open(submissions / f"{kind}.jsonl", "a", encoding="utf-8") as fh:
             fh.write(json.dumps(record, ensure_ascii=False) + "\n")
         return True
     except Exception as exc:  # noqa: BLE001
@@ -548,7 +561,7 @@ class SubmitResponse(BaseModel):
     ok: bool
 
 
-@app.post("/api/contact", response_model=SubmitResponse, tags=["submit"])
+@router.post("/api/contact", response_model=SubmitResponse, tags=["submit"])
 def submit_enquiry(payload: EnquiryIn, request: Request):
     """Executive Career Consultation enquiry → JSONL queue + email notification."""
     # A filled honeypot means a bot. Return the same 200 a human gets: telling it
@@ -557,11 +570,11 @@ def submit_enquiry(payload: EnquiryIn, request: Request):
         logger.info("Honeypot triggered on /api/contact from %s", _client_ip(request))
         return SubmitResponse(ok=True)
 
-    if _rate_limited(f"contact:{_client_ip(request)}"):
+    if _rate_limited(request, f"contact:{_client_ip(request)}"):
         raise HTTPException(429, "Too many enquiries from this address. Please try again later.")
 
     data = payload.model_dump(exclude={"website"})
-    stored = _persist("enquiries", data)
+    stored = _persist(request, "enquiries", data)
 
     body = (
         f"New consultation enquiry\n\n"
@@ -577,7 +590,7 @@ def submit_enquiry(payload: EnquiryIn, request: Request):
     return SubmitResponse(ok=True)
 
 
-@app.post("/api/post-role", response_model=SubmitResponse, tags=["submit"])
+@router.post("/api/post-role", response_model=SubmitResponse, tags=["submit"])
 def submit_role(payload: RoleIn, request: Request):
     """
     Recruiter/employer role submission → JSONL moderation queue + email.
@@ -590,12 +603,12 @@ def submit_role(payload: RoleIn, request: Request):
         logger.info("Honeypot triggered on /api/post-role from %s", _client_ip(request))
         return SubmitResponse(ok=True)
 
-    if _rate_limited(f"role:{_client_ip(request)}"):
+    if _rate_limited(request, f"role:{_client_ip(request)}"):
         raise HTTPException(429, "Too many submissions from this address. Please try again later.")
 
     data = payload.model_dump(exclude={"website"})
     data["status"] = "pending"  # never anything else at rest; approval is manual
-    stored = _persist("submitted_roles", data)
+    stored = _persist(request, "submitted_roles", data)
 
     body = (
         f"New role submitted for review\n\n"
@@ -621,8 +634,8 @@ def submit_role(payload: RoleIn, request: Request):
 
 # ── Health check ──────────────────────────────────────────────────────────────
 
-@app.get("/health", tags=["meta"])
-def health():
+@router.get("/health", tags=["meta"])
+def health(request: Request):
     """
     Liveness plus the two bits of configuration that fail silently.
 
@@ -631,13 +644,14 @@ def health():
     surfacing it here the only symptom is an email that never arrives, which is
     exactly how this went unnoticed once already.
     """
+    settings = cfg(request)
     return {
         "status": "ok",
-        "db": str(DB_PATH),
+        "db": str(settings.jobs_db),
         "email": "configured" if SMTP_USER else "NOT CONFIGURED — enquiries queue but no mail is sent",
         "enquiry_recipient": RECIPIENT if SMTP_USER else None,
-        "submissions_dir": str(SUBMISSIONS_DIR),
-        "frontend": str(FRONTEND_DIST) if _frontend_present()
+        "submissions_dir": str(settings.submissions_dir),
+        "frontend": str(settings.frontend_dist) if settings.frontend_present()
                     else "NOT BUILT — API only, no UI served",
     }
 
@@ -657,13 +671,7 @@ import seekers_store  # noqa: E402
 
 SESSION_COOKIE = "finex_session"
 
-# Secure cookies require HTTPS, which localhost is not. Default to secure and let
-# local dev opt out explicitly, so the safe setting is the one you get by
-# forgetting to configure anything.
-_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "1") != "0"
-
-
-def _set_session_cookie(response: Response, raw_token: str) -> None:
+def _set_session_cookie(request: Request, response: Response, raw_token: str) -> None:
     """
     Attach the session cookie.
 
@@ -678,7 +686,7 @@ def _set_session_cookie(response: Response, raw_token: str) -> None:
         raw_token,
         max_age=int(auth.SESSION_TTL.total_seconds()),
         httponly=True,          # unreadable to JS, so XSS cannot exfiltrate it
-        secure=_COOKIE_SECURE,
+        secure=cfg(request).cookie_secure,
         samesite="lax",
         path="/",
     )
@@ -718,25 +726,17 @@ def _require_seeker(request: Request) -> dict:
     return seeker
 
 
-def _auth_rate_limited(key: str, *, limit: int, window_s: int) -> bool:
+def _auth_rate_limited(request: Request, key: str, *, limit: int, window_s: int) -> bool:
     """
-    Sliding-window limiter sharing _rate_log/_rate_lock with the submit endpoints,
-    but with per-call limits — 3-per-hour is right for a contact form and would
-    lock a Seeker out of their own account after three password typos.
+    The same sliding window as the submit endpoints, with per-call limits —
+    3-per-hour is right for a contact form and would lock a Seeker out of their
+    own account after three password typos.
 
     Same known weakness as the original: in-memory, so it resets on restart and
-    does not survive multiple replicas. Accepted for now (PLAN_ACCOUNTS §5);
-    it needs to be persistent before anyone pays us.
+    does not survive multiple replicas. Accepted for now (PLAN_ACCOUNTS §5); it
+    needs to be persistent before anyone pays us.
     """
-    now = time.time()
-    with _rate_lock:
-        hits = [t for t in _rate_log[key] if now - t < window_s]
-        if len(hits) >= limit:
-            _rate_log[key] = hits
-            return True
-        hits.append(now)
-        _rate_log[key] = hits
-        return False
+    return _limit(request, key, limit=limit, window_s=window_s)
 
 
 def _send_seeker_mail(to: str, subject: str, body: str) -> bool:
@@ -797,7 +797,7 @@ def _seeker_out(row: dict) -> SeekerOut:
     )
 
 
-@app.post("/api/auth/register", response_model=SeekerOut, status_code=201, tags=["auth"])
+@router.post("/api/auth/register", response_model=SeekerOut, status_code=201, tags=["auth"])
 def register(payload: RegisterIn, request: Request, response: Response):
     """
     Create a Seeker and sign them straight in.
@@ -821,8 +821,8 @@ def register(payload: RegisterIn, request: Request, response: Response):
 
     # Per-EMAIL first: the target is the constant in an inbox-bombing attempt,
     # the source IP is not.
-    if _auth_rate_limited(f"reg:email:{email}", limit=3, window_s=3600) or \
-       _auth_rate_limited(f"reg:ip:{ip}", limit=10, window_s=3600):
+    if _auth_rate_limited(request, f"reg:email:{email}", limit=3, window_s=3600) or \
+       _auth_rate_limited(request, f"reg:ip:{ip}", limit=10, window_s=3600):
         raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
 
     store = seekers_store.get_store()
@@ -845,7 +845,7 @@ def register(payload: RegisterIn, request: Request, response: Response):
         return SeekerOut(id="", email=email, display_name="", email_verified=False)
 
     store.log_event("seeker.registered", seeker_id=seeker_id)
-    _set_session_cookie(response, auth.issue_session(store, seeker_id,
+    _set_session_cookie(request, response, auth.issue_session(store, seeker_id,
                                                      user_agent=request.headers.get("user-agent")))
     raw_token = auth.issue_email_token(store, seeker_id, purpose="verify")
     _send_seeker_mail(
@@ -863,7 +863,7 @@ def _verify_url(request: Request, raw_token: str) -> str:
     return f"{base}/verify?token={raw_token}"
 
 
-@app.post("/api/auth/login", response_model=SeekerOut, tags=["auth"])
+@router.post("/api/auth/login", response_model=SeekerOut, tags=["auth"])
 def login(payload: LoginIn, request: Request, response: Response):
     """
     Sign in. One failure message for every cause — wrong password, no such
@@ -872,8 +872,8 @@ def login(payload: LoginIn, request: Request, response: Response):
     """
     email = seekers_store.normalise_email(payload.email)
     ip = _client_ip(request)
-    if _auth_rate_limited(f"login:email:{email}", limit=10, window_s=900) or \
-       _auth_rate_limited(f"login:ip:{ip}", limit=30, window_s=900):
+    if _auth_rate_limited(request, f"login:email:{email}", limit=10, window_s=900) or \
+       _auth_rate_limited(request, f"login:ip:{ip}", limit=30, window_s=900):
         raise HTTPException(status_code=429,
                             detail="Too many attempts. Try again in a few minutes.")
 
@@ -887,12 +887,12 @@ def login(payload: LoginIn, request: Request, response: Response):
 
     store.touch_last_login(row["id"])
     store.log_event("seeker.login", seeker_id=row["id"])
-    _set_session_cookie(response, auth.issue_session(store, row["id"],
+    _set_session_cookie(request, response, auth.issue_session(store, row["id"],
                                                      user_agent=request.headers.get("user-agent")))
     return _seeker_out(store.get_seeker(row["id"]))
 
 
-@app.post("/api/auth/logout", status_code=204, tags=["auth"])
+@router.post("/api/auth/logout", status_code=204, tags=["auth"])
 def logout(request: Request, response: Response):
     """Always 204. Logging out of a session you don't have is not an error."""
     auth.revoke_session(seekers_store.get_store(), request.cookies.get(SESSION_COOKIE))
@@ -900,12 +900,12 @@ def logout(request: Request, response: Response):
     return Response(status_code=204)
 
 
-@app.get("/api/auth/me", response_model=SeekerOut, tags=["auth"])
+@router.get("/api/auth/me", response_model=SeekerOut, tags=["auth"])
 def whoami(request: Request):
     return _seeker_out(_require_seeker(request))
 
 
-@app.get("/api/me/saved", response_model=list[JobSummary], tags=["saved"])
+@router.get("/api/me/saved", response_model=list[JobSummary], tags=["saved"])
 def list_saved(request: Request):
     """
     The Seeker's saved Roles, resolved against jobs.db at read time.
@@ -929,7 +929,7 @@ def list_saved(request: Request):
         return []
 
     pairs = [(r["source"], r["source_id"]) for r in refs]
-    conn = get_db()
+    conn = get_db(request)
     try:
         # Order is the Seeker's newest-first save order, preserved by jobs_by_refs.
         saved = job_read.jobs_by_refs(conn, pairs, visibility=Visibility.ADDRESSABLE)
@@ -944,7 +944,7 @@ def list_saved(request: Request):
     return saved
 
 
-@app.post("/api/me/saved", status_code=204, tags=["saved"])
+@router.post("/api/me/saved", status_code=204, tags=["saved"])
 def save_role(payload: SaveRoleIn, request: Request):
     seeker = _require_seeker(request)
     store = seekers_store.get_store()
@@ -953,7 +953,7 @@ def save_role(payload: SaveRoleIn, request: Request):
     return Response(status_code=204)
 
 
-@app.delete("/api/me/saved/{source}/{source_id}", status_code=204, tags=["saved"])
+@router.delete("/api/me/saved/{source}/{source_id}", status_code=204, tags=["saved"])
 def unsave_role(source: str, source_id: str, request: Request):
     """204 whether or not it was saved — unsaving twice is not an error."""
     seeker = _require_seeker(request)
@@ -961,7 +961,7 @@ def unsave_role(source: str, source_id: str, request: Request):
     return Response(status_code=204)
 
 
-@app.post("/api/me/saved/merge", tags=["saved"])
+@router.post("/api/me/saved/merge", tags=["saved"])
 def merge_saved(payload: MergeSavedIn, request: Request):
     """
     Lift the browser's localStorage saves into the account on first sign-in
@@ -977,7 +977,7 @@ def merge_saved(payload: MergeSavedIn, request: Request):
     return {"merged": added, "submitted": len(payload.roles)}
 
 
-@app.delete("/api/me", status_code=204, tags=["auth"])
+@router.delete("/api/me", status_code=204, tags=["auth"])
 def delete_account(request: Request, response: Response):
     """
     Really delete the account (ADR 0007) — rows gone, every session revoked.
@@ -994,43 +994,29 @@ def delete_account(request: Request, response: Response):
     return Response(status_code=204)
 
 
-# ── The frontend (single origin) ──────────────────────────────────────────────
-# This service serves the built React bundle as well as the API, so the UI and
-# the API share ONE origin. That is not a tidiness preference, it is forced:
-# `up.railway.app` is on the Public Suffix List, so `finex-careers.up.railway.app`
-# and `backend-production-….up.railway.app` are different *sites*, not sibling
-# subdomains. A browser refuses a Domain cookie whose value is a public suffix, so
-# there is no shared parent to scope a session cookie to; `SameSite=Lax` is never
-# sent cross-site, and `SameSite=None` is blocked by Safari's ITP. Two URLs simply
-# cannot share a login. One origin can. See docs/adr/0005.
-#
-# EVERYTHING BELOW MUST STAY AT THE BOTTOM OF THIS FILE. Starlette matches routes
-# in registration order, and the catch-all matches every path — declared any
-# earlier it would swallow /api/* and /health before they were ever reached.
-
-# Where the built bundle lives. Overridable because the deploy may copy dist/
-# somewhere else entirely (e.g. a Docker image that has no webapp/frontend tree);
-# the default is the path a developer gets from `npm run build` in the repo.
-FRONTEND_DIST = Path(
-    os.environ.get("FRONTEND_DIST", str(Path(__file__).parent.parent / "frontend" / "dist"))
-).resolve()
-
-_INDEX_HTML = FRONTEND_DIST / "index.html"
+# ── The factory ───────────────────────────────────────────────────────────────
 
 
-def _frontend_present() -> bool:
-    """True only when there is an actual bundle to serve, not just a directory."""
-    return _INDEX_HTML.is_file()
+def _mount_frontend(app: FastAPI, settings: Settings) -> None:
+    """
+    Serve the built React bundle from this same service (ADR 0005).
 
+    Registered LAST, and only when a bundle exists. FastAPI matches routes in
+    registration order and the catch-all matches every path — declared any
+    earlier it would swallow /api/* and /health before they were ever reached.
+    """
+    if not settings.frontend_present():
+        return
 
-if _frontend_present():
+    dist = settings.frontend_dist
+
     # Vite emits hashed filenames under assets/ (app-a1b2c3.js), so those files are
     # immutable: a change produces a new name. Safe to cache hard. Mounting the
     # directory also means Starlette, not us, resolves the path — which is what
     # keeps `/assets/../../etc/passwd` from being a file read.
-    _assets = FRONTEND_DIST / "assets"
-    if _assets.is_dir():
-        app.mount("/assets", StaticFiles(directory=_assets), name="assets")
+    assets = dist / "assets"
+    if assets.is_dir():
+        app.mount("/assets", StaticFiles(directory=assets), name="assets")
 
     @app.get("/{full_path:path}", include_in_schema=False)
     def spa_fallback(full_path: str):
@@ -1055,24 +1041,57 @@ if _frontend_present():
         # anything later dropped into frontend/public/ — are served as themselves.
         # resolve() + is_relative_to() rejects any ../ that escapes the bundle.
         if full_path:
-            candidate = (FRONTEND_DIST / full_path).resolve()
-            if candidate.is_relative_to(FRONTEND_DIST) and candidate.is_file():
+            candidate = (dist / full_path).resolve()
+            if candidate.is_relative_to(dist) and candidate.is_file():
                 return FileResponse(candidate)
 
         # index.html is the one file that must NOT be cached: it is what points at
         # the current hashed bundle, so a stale copy pins a returning visitor to a
         # deleted JS file and the app boots to a blank page.
-        return FileResponse(_INDEX_HTML, headers={"Cache-Control": "no-cache"})
+        return FileResponse(settings.index_html, headers={"Cache-Control": "no-cache"})
 
-else:
-    # Not fatal, by design: the API has to boot for backend-only local development
-    # (and for a deploy whose build step failed, where a working /api and a 404 UI
-    # is a far better failure than a service that will not start at all).
-    logger.warning(
-        "No frontend bundle at %s — serving the API only. "
-        "Build it with `npm run build` in webapp/frontend, or point FRONTEND_DIST "
-        "at an existing dist/ directory.",
-        FRONTEND_DIST,
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    """
+    Build an app from an explicit configuration.
+
+    This is the seam the module used to lack. Everything that varies between a
+    production process, a local dev process and a test now varies HERE, as an
+    argument — rather than being read from the environment while the module was
+    being imported, which made `sys.modules.pop("main")` the only way to
+    reconfigure anything.
+    """
+    settings = settings or Settings.from_env()
+
+    app = FastAPI(
+        title="FinEx Careers API",
+        description="Read-only API for Hong Kong financial job listings.",
+        version="1.0.0",
+        lifespan=lifespan,
+    )
+    app.state.settings = settings
+    # Per-app, so two apps in one process (which is what the tests build) cannot
+    # share a rate-limit budget.
+    app.state.rate_log = defaultdict(list)
+    app.state.rate_lock = threading.Lock()
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(settings.cors_origins),
+        # POST is required by /api/contact and /api/post-role — without it the
+        # browser blocks the preflight and the forms fail before reaching FastAPI.
+        # DELETE joins the list for the account endpoints (unsave a Role, delete an
+        # account). At one origin CORS is inert, but a dev frontend pointed at an
+        # absolute API URL still preflights, and a missing method fails there only.
+        allow_methods=["GET", "POST", "DELETE"],
+        allow_headers=["*"],
     )
 
+    app.include_router(router)
+    _mount_frontend(app, settings)
+    return app
 
+
+# The process-wide app, for `uvicorn main:app` (Procfile, railway.json). One
+# ordinary caller of the factory, not a special case.
+app = create_app()

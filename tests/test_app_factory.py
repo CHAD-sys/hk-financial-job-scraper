@@ -1,0 +1,138 @@
+"""
+The app factory.
+
+These pin the property the backend did not have before: an app's configuration
+is an argument, not something the module reads from the environment while it is
+being imported. Two apps with two different databases can exist in one process,
+which is the whole reason the tests no longer delete `main` from `sys.modules`
+and re-execute it.
+"""
+
+from __future__ import annotations
+
+import sys
+
+import pytest
+from fastapi.testclient import TestClient
+
+from .support import BACKEND, job, make_app, make_bundle, make_jobs_db
+
+if str(BACKEND) not in sys.path:
+    sys.path.insert(0, str(BACKEND))
+
+from settings import Settings  # noqa: E402
+
+
+def _db(tmp_path, name: str, company: str):
+    path = tmp_path / f"{name}.db"
+    make_jobs_db(path, jobs=[job(source="workday", source_id=name, company=company,
+                                 title=f"{name} Role", posted_at="2026-07-01")])
+    return path
+
+
+# ── The seam ──────────────────────────────────────────────────────────────────
+
+def test_two_apps_can_serve_two_databases_at_once(tmp_path):
+    """
+    Impossible before: the database path was a module-level constant resolved at
+    import, so a process had exactly one, and a second configuration meant
+    re-executing the module.
+    """
+    first = TestClient(make_app(_db(tmp_path, "first", "HSBC")))
+    second = TestClient(make_app(_db(tmp_path, "second", "AIA")))
+
+    assert first.get("/api/jobs").json()["jobs"][0]["company"] == "HSBC"
+    assert second.get("/api/jobs").json()["jobs"][0]["company"] == "AIA"
+    # And the first is still itself — building the second did not reconfigure it.
+    assert first.get("/api/jobs").json()["jobs"][0]["company"] == "HSBC"
+
+
+def test_settings_are_reachable_from_a_request(tmp_path):
+    db = _db(tmp_path, "cfg", "HSBC")
+    body = TestClient(make_app(db, submissions=tmp_path)).get("/health").json()
+    assert body["db"] == str(db.resolve())
+    assert body["submissions_dir"] == str(tmp_path.resolve())
+
+
+def test_rate_limit_budgets_are_per_app(tmp_path):
+    """
+    The rate log used to be one module-level dict, so every app in the process
+    shared a budget — and in a test run that meant one test could exhaust
+    another's. Each app owns its own now.
+    """
+    payload = {"name": "A", "email": "a@example.com", "career_stage": "3–8 years",
+               "message": "x" * 30, "website": ""}
+    busy = TestClient(make_app(_db(tmp_path, "busy", "HSBC"), submissions=tmp_path / "busy"))
+    fresh = TestClient(make_app(_db(tmp_path, "fresh", "HSBC"), submissions=tmp_path / "fresh"))
+
+    codes = [busy.post("/api/contact", json=payload).status_code for _ in range(6)]
+    assert 429 in codes, "the limiter should have engaged on the busy app"
+    assert fresh.post("/api/contact", json=payload).status_code == 200
+
+
+# ── Nothing happens at import ─────────────────────────────────────────────────
+
+def test_building_an_app_does_not_touch_the_database(tmp_path):
+    """
+    create_app must not open, create or download anything. The seed download in
+    particular used to run at import, so merely importing this module could
+    start pulling a 100 MB file.
+    """
+    missing = tmp_path / "nothing" / "jobs.db"
+    make_app(missing)
+    assert not missing.exists()
+
+
+def test_a_seed_url_is_fetched_at_startup_and_not_before(tmp_path, monkeypatch):
+    """
+    A configured seed URL is the lifespan's business, not the constructor's.
+
+    This is the one that used to bite hardest: the download ran at import, so a
+    test process that inherited DB_SEED_URL from the developer's env file would
+    start pulling a 100 MB database just by importing the module.
+    """
+    import main
+
+    seeded: list[Settings] = []
+    monkeypatch.setattr(main, "_seed_db_if_missing", seeded.append)
+
+    app = main.create_app(Settings(jobs_db=tmp_path / "absent.db",
+                                   db_seed_url="https://example.test/seed.db"))
+    assert seeded == [], "constructing the app must not fetch anything"
+
+    with TestClient(app):        # entering the context runs the lifespan
+        pass
+    assert [s.db_seed_url for s in seeded] == ["https://example.test/seed.db"]
+
+
+# ── The module-level app ──────────────────────────────────────────────────────
+
+def test_module_level_app_still_exists_for_uvicorn():
+    """
+    Procfile and railway.json both run `uvicorn main:app`. The factory is the
+    seam; this is one ordinary caller of it, and deleting it would break the
+    deploy without breaking a single test.
+    """
+    import main
+    assert isinstance(main.app, type(main.create_app(Settings())))
+    assert main.app.state.settings is not None
+
+
+def test_the_frontend_mount_is_decided_per_app(tmp_path):
+    """Route registration used to depend on the filesystem AT IMPORT."""
+    db = _db(tmp_path, "spa", "HSBC")
+    dist = tmp_path / "dist"
+    make_bundle(dist)
+
+    with_ui = TestClient(make_app(db, dist, tmp_path))
+    without_ui = TestClient(make_app(db, tmp_path / "no-such-dist", tmp_path))
+
+    assert with_ui.get("/jobs").status_code == 200     # SPA catch-all serves index.html
+    assert without_ui.get("/jobs").status_code == 404  # nothing to serve
+    assert without_ui.get("/api/jobs").status_code == 200
+
+
+@pytest.mark.parametrize("secure", [True, False])
+def test_cookie_policy_comes_from_settings(tmp_path, secure):
+    app = make_app(_db(tmp_path, f"cookie{secure}", "HSBC"), cookie_secure=secure)
+    assert app.state.settings.cookie_secure is secure

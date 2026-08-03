@@ -25,26 +25,32 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from .support import import_main as _import_main, make_bundle as _make_bundle, make_jobs_db as _make_db
+from .support import make_app, make_bundle, make_jobs_db
 
 GOOD = {"email": "seeker@example.com", "password": "correct-horse-battery", "display_name": "Ada"}
 
 
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
+    import seekers_store
+
     db = tmp_path / "jobs.db"
-    _make_db(db)
+    make_jobs_db(db)
     dist = tmp_path / "dist"
-    _make_bundle(dist)
-    # Explicit override, so a test can never touch a real seekers.db.
+    make_bundle(dist)
+
+    # Explicit override, so a test can never touch a real seekers.db. Still an
+    # env var because the seeker store is a process-wide singleton — the one
+    # piece of state create_app does not yet own.
     monkeypatch.setenv("SEEKERS_DB_PATH", str(tmp_path / "seekers.db"))
+    # reset_store() has existed since the store was written, documented "for
+    # tests and for a config reload", with zero callers: the tests deleted the
+    # module from sys.modules and re-executed it instead, which also re-ran
+    # auth.py's import-time Argon2 hash on every fixture.
+    seekers_store.reset_store()
+
     # Cookies over http in the test client: Secure cookies would never be stored.
-    monkeypatch.setenv("SESSION_COOKIE_SECURE", "0")
-    import sys
-    for mod in ("seekers_store", "auth"):
-        sys.modules.pop(mod, None)
-    main = _import_main(monkeypatch, db, dist, tmp_path)
-    return TestClient(main.app)
+    return TestClient(make_app(db, dist, tmp_path, cookie_secure=False))
 
 
 def _register(client, **over):
