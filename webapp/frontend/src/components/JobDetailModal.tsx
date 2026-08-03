@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   X, Bookmark, ExternalLink, MapPin, Briefcase,
   GraduationCap, DollarSign, Tag, Calendar, MessageCircle, UserRound, EyeOff, Mail, ShieldCheck,
+  Archive,
 } from 'lucide-react'
 import type { Job, JobDetail, LinkedInPostSignals } from '../api/client'
 import { fetchJobDetail } from '../api/client'
@@ -154,7 +155,7 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
           </div>
         </div>
 
-        <ApplyFooter job={job} />
+        {job.closed ? <ClosedFooter job={job} /> : <ApplyFooter job={job} />}
       </div>
     </dialog>
   )
@@ -579,6 +580,51 @@ function ApplyFooter({ job }: { job: Job }) {
       <p className="text-center text-xs mt-2" style={{ color: 'var(--color-ink-faint)' }}>
         Opens the employer's careers page in a new tab
       </p>
+    </div>
+  )
+}
+
+/**
+ * The footer for a Role that has closed.
+ *
+ * Replaces the apply CTA rather than disabling it: a greyed-out button still
+ * reads as "try again later", and the honest message is that there is nothing to
+ * try. The original link stays available underneath, because a Seeker looking at
+ * a closed Role is usually checking what they applied to.
+ */
+function ClosedFooter({ job }: { job: Job }) {
+  return (
+    <div
+      className="flex-shrink-0 px-6 py-4"
+      style={{ borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-2)' }}
+    >
+      <div
+        className="flex w-full items-center justify-center gap-2 rounded py-3 text-sm font-semibold"
+        style={{
+          backgroundColor: 'var(--color-surface)',
+          border: '1px solid var(--color-border-strong)',
+          color: 'var(--color-ink-muted)',
+        }}
+      >
+        <Archive size={15} strokeWidth={2} aria-hidden="true" />
+        No longer accepting applications
+      </div>
+      <p className="text-center text-xs mt-2" style={{ color: 'var(--color-ink-faint)' }}>
+        This Role has closed since it was posted. It stays in your Saved Roles so
+        you can look back at what you applied to.
+      </p>
+      {job.url && (
+        <a
+          href={job.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-2 flex items-center justify-center gap-1.5 text-xs font-medium"
+          style={{ color: 'var(--color-ink-faint)' }}
+        >
+          View the original listing
+          <ExternalLink size={12} strokeWidth={2} />
+        </a>
+      )}
     </div>
   )
 }

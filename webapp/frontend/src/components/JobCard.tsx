@@ -1,4 +1,4 @@
-import { Bookmark, MapPin, Clock, Star, Flame, Sparkles, Repeat2, Users, EyeOff, UserRound, Mail, ShieldCheck } from 'lucide-react'
+import { Bookmark, MapPin, Clock, Star, Flame, Sparkles, Repeat2, Users, EyeOff, UserRound, Mail, ShieldCheck, Archive } from 'lucide-react'
 import type { Job, LinkedInPostSignals } from '../api/client'
 import {
   formatSalary, formatEstimatedSalary, timeAgo, monogram,
@@ -24,16 +24,21 @@ export default function JobCard({ job, saved, onToggleSave, onClick }: Props) {
 
   return (
     <article
+      // Still a card, still clickable when closed. Soft-delete keeps the row
+      // precisely so a Seeker can revisit a vacancy they applied to after it
+      // closed — greying it out and then refusing to open it would defeat the
+      // reason the Role is still here at all.
+      data-closed={job.closed || undefined}
       className="job-card relative flex flex-col gap-3 rounded-lg p-5 cursor-pointer transition-all duration-200 group"
       style={{
-        backgroundColor: 'var(--color-surface)',
+        backgroundColor: job.closed ? 'var(--color-surface-2)' : 'var(--color-surface)',
         border: '1px solid var(--color-border)',
         boxShadow: 'var(--shadow-card)',
       }}
       onMouseEnter={e => {
         const el = e.currentTarget as HTMLElement
         el.style.boxShadow = 'var(--shadow-raised)'
-        el.style.borderColor = sectorColor.accent
+        el.style.borderColor = job.closed ? 'var(--color-border-strong)' : sectorColor.accent
         el.style.transform = 'translateY(-2px)'
       }}
       onMouseLeave={e => {
@@ -43,10 +48,14 @@ export default function JobCard({ job, saved, onToggleSave, onClick }: Props) {
         el.style.transform = 'translateY(0)'
       }}
     >
-      {/* Sector accent bar */}
+      {/* Sector accent bar. Neutral once closed — the sector is still true, but
+          the card should not read as a live opening. */}
       <div
         className="absolute top-0 left-0 right-0 rounded-t-lg"
-        style={{ height: '2px', backgroundColor: sectorColor.accent }}
+        style={{
+          height: '2px',
+          backgroundColor: job.closed ? 'var(--color-border-strong)' : sectorColor.accent,
+        }}
         aria-hidden="true"
       />
 
@@ -122,8 +131,9 @@ function CardHeader({
           >
             {job.company}
           </p>
-          {/* Sector label + Exclusive badge */}
+          {/* Closed + sector label + tier badges */}
           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+            {job.closed && <ClosedBadge />}
             <span
               className="inline-block text-xs font-medium rounded-sm px-1.5 py-0.5"
               style={{
@@ -457,5 +467,39 @@ function CardFooter({ job }: { job: Job }) {
         {timeAgo(job.posted_at)}
       </span>
     </div>
+  )
+}
+
+
+// ── Closed ────────────────────────────────────────────────────────────────────
+
+/**
+ * A Role that is no longer open.
+ *
+ * Sits FIRST in the badge row, ahead of the sector and tier chips, so it is read
+ * before anything that describes the Role as if it were still available.
+ *
+ * It was briefly pinned to the card's top-right corner instead, which put it on
+ * top of both the company name and the save button — the corner is already
+ * spoken for.
+ *
+ * Deliberately not colour-only: the word "Closed" carries the meaning and the
+ * grey only reinforces it.
+ */
+function ClosedBadge() {
+  return (
+    <span
+      className="inline-flex flex-shrink-0 items-center gap-0.5 whitespace-nowrap rounded-sm px-1.5 py-0.5 font-semibold"
+      style={{
+        backgroundColor: 'var(--color-ink-muted)',
+        color: 'var(--color-ink-inverse)',
+        fontSize: '12px',
+        letterSpacing: '0.04em',
+      }}
+      title="This Role has closed. It stays saved so you can look back at what you applied to."
+    >
+      <Archive size={10} strokeWidth={2} aria-hidden="true" />
+      Closed
+    </span>
   )
 }

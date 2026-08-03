@@ -88,6 +88,18 @@ export interface Job {
   url: string
   is_internship: boolean
   description_excerpt: string
+  /**
+   * The vacancy is no longer open.
+   *
+   * Only ever true for a Role reached by reference — a Saved Role, or a detail
+   * URL. The board never returns one, because browsing is filtered and
+   * addressing is not (see webapp/backend/job_read.py).
+   *
+   * This is the field that makes a Saved Role worth having: the server resolves
+   * the reference against jobs.db on every read, so a Role that closed since it
+   * was saved says so, instead of showing an apply button into a void.
+   */
+  closed: boolean
   // Market signals by board, e.g. { indeed: { urgently_hiring, applicant_count, new_job }, linkedin: { reposted } }
   board_signals: Record<string, Record<string, unknown>>
 }
