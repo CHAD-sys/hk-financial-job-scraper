@@ -23,8 +23,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 # Logging first, so that everything below — including the env load — is visible.
@@ -48,7 +50,8 @@ from env_file import load_env_file  # noqa: E402 — must import after logging s
 # does, so without this the backend starts with no credentials at all.
 load_env_file()
 
-from mailer import RECIPIENT, SMTP_USER, send_mail  # noqa: E402 — see above
+import mailer  # noqa: E402 — see above
+from mailer import RECIPIENT, SMTP_USER, send_mail  # noqa: E402
 
 # ── DB path ───────────────────────────────────────────────────────────────────
 # Configurable for deployment (e.g. a Railway volume mounted at /data). Defaults to
@@ -522,7 +525,10 @@ app.add_middleware(
     allow_origins=_allow_origins,
     # POST is required by /api/contact and /api/post-role — without it the
     # browser blocks the preflight and the forms fail before reaching FastAPI.
-    allow_methods=["GET", "POST"],
+    # DELETE joins the list for the account endpoints (unsave a Role, delete an
+    # account). At one origin CORS is inert, but a dev frontend pointed at an
+    # absolute API URL still preflights, and a missing method fails there only.
+    allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
 
@@ -1046,6 +1052,433 @@ def health():
         "email": "configured" if SMTP_USER else "NOT CONFIGURED — enquiries queue but no mail is sent",
         "enquiry_recipient": RECIPIENT if SMTP_USER else None,
         "submissions_dir": str(SUBMISSIONS_DIR),
+        "frontend": str(FRONTEND_DIST) if _frontend_present()
+                    else "NOT BUILT — API only, no UI served",
     }
+
+
+# ── Seeker accounts ───────────────────────────────────────────────────────────
+# Phase 2 of docs/PLAN_ACCOUNTS.md. The crypto, sessions and storage all live in
+# auth.py / seekers_store.py; this section is only the HTTP surface over them.
+#
+# Vocabulary note (CONTEXT.md): the account holder is a *Seeker*, never a "user".
+#
+# Nothing here gates anything. Per ADR 0002 the board stays fully public — these
+# endpoints add capability for signed-in Seekers and take nothing away from
+# anonymous ones. Do not "protect" any /api/jobs route with these dependencies.
+
+import auth  # noqa: E402 — same local-module convention as mailer/env_file above
+import seekers_store  # noqa: E402
+
+SESSION_COOKIE = "finex_session"
+
+# Secure cookies require HTTPS, which localhost is not. Default to secure and let
+# local dev opt out explicitly, so the safe setting is the one you get by
+# forgetting to configure anything.
+_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "1") != "0"
+
+
+def _set_session_cookie(response: Response, raw_token: str) -> None:
+    """
+    Attach the session cookie.
+
+    SameSite=Lax works here *only* because this service also serves the frontend
+    (ADR 0005). If the UI were ever split back onto its own Railway domain, Lax
+    would silently stop being sent — `up.railway.app` is a public suffix, so the
+    two hosts are different sites — and every request would arrive anonymous with
+    no error anywhere. Read ADR 0005 before changing the topology.
+    """
+    response.set_cookie(
+        SESSION_COOKIE,
+        raw_token,
+        max_age=int(auth.SESSION_TTL.total_seconds()),
+        httponly=True,          # unreadable to JS, so XSS cannot exfiltrate it
+        secure=_COOKIE_SECURE,
+        samesite="lax",
+        path="/",
+    )
+
+
+def _clear_session_cookie(response: Response) -> None:
+    response.delete_cookie(SESSION_COOKIE, path="/", samesite="lax")
+
+
+def _current_seeker(request: Request) -> Optional[dict]:
+    """
+    The signed-in Seeker's row, or None. Never raises — anonymous is a normal
+    state on this API, not an error, because nothing here is gated (ADR 0002).
+
+    auth.verify_session() deliberately returns only a seeker_id and collapses
+    every failure to None — unknown token, expired token, token belonging to a
+    Seeker who has since deleted their account. We do the row lookup, and treat a
+    missing row the same way: a valid-looking session for a Seeker who no longer
+    exists is simply not signed in.
+    """
+    raw = request.cookies.get(SESSION_COOKIE)
+    if not raw:
+        return None
+    try:
+        store = seekers_store.get_store()
+        seeker_id = auth.verify_session(store, raw)
+        return store.get_seeker(seeker_id) if seeker_id else None
+    except Exception:  # noqa: BLE001 — a bad cookie is anonymous, not a 500
+        logger.warning("Session verification failed", exc_info=True)
+        return None
+
+
+def _require_seeker(request: Request) -> dict:
+    seeker = _current_seeker(request)
+    if seeker is None:
+        raise HTTPException(status_code=401, detail="Not signed in")
+    return seeker
+
+
+def _auth_rate_limited(key: str, *, limit: int, window_s: int) -> bool:
+    """
+    Sliding-window limiter sharing _rate_log/_rate_lock with the submit endpoints,
+    but with per-call limits — 3-per-hour is right for a contact form and would
+    lock a Seeker out of their own account after three password typos.
+
+    Same known weakness as the original: in-memory, so it resets on restart and
+    does not survive multiple replicas. Accepted for now (PLAN_ACCOUNTS §5);
+    it needs to be persistent before anyone pays us.
+    """
+    now = time.time()
+    with _rate_lock:
+        hits = [t for t in _rate_log[key] if now - t < window_s]
+        if len(hits) >= limit:
+            _rate_log[key] = hits
+            return True
+        hits.append(now)
+        _rate_log[key] = hits
+        return False
+
+
+def _send_seeker_mail(to: str, subject: str, body: str) -> bool:
+    """
+    Mail *to a Seeker*, at an address they typed.
+
+    This is deliberately not mailer.send_mail(), which sends only to a hardcoded
+    RECIPIENT precisely so that endpoint cannot become an open relay. Accounts
+    invert that direction, which is why the rate limits above key on the target
+    email and not only on the caller's IP: without that, anyone could point our
+    sending reputation at a stranger's inbox.
+
+    Returns False when outbound mail is not configured yet (ADR 0009 — pending
+    the amine@finexclub.org mailbox password). Registration must still succeed in
+    that state: the Seeker gets an account, just no verification mail.
+    """
+    if not mailer.SEEKER_MAIL_READY:
+        logger.warning("Seeker mail not configured — not sending %r to %s", subject, to)
+        return False
+    return mailer.send_to(to, subject, body)
+
+
+class RegisterIn(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=200)
+    display_name: str = Field(default="", max_length=100)
+    # Honeypot, matching /api/contact and /api/post-role. A human never sees it.
+    website: str = ""
+
+
+class LoginIn(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=1, max_length=200)
+
+
+class SeekerOut(BaseModel):
+    id: str
+    email: str
+    display_name: str
+    email_verified: bool
+
+
+class SaveRoleIn(BaseModel):
+    source: str = Field(min_length=1, max_length=50)
+    source_id: str = Field(min_length=1, max_length=200)
+
+
+class MergeSavedIn(BaseModel):
+    roles: list[SaveRoleIn] = Field(default_factory=list, max_length=500)
+
+
+def _seeker_out(row: dict) -> SeekerOut:
+    return SeekerOut(
+        id=row["id"],
+        email=row["email"],
+        display_name=row.get("display_name") or "",
+        email_verified=bool(row.get("email_verified")),
+    )
+
+
+@app.post("/api/auth/register", response_model=SeekerOut, status_code=201, tags=["auth"])
+def register(payload: RegisterIn, request: Request, response: Response):
+    """
+    Create a Seeker and sign them straight in.
+
+    Two behaviours that look like bugs and are not:
+
+    1. A filled honeypot returns the same 201 shape a human gets. Telling a bot
+       it was detected only teaches it what to change.
+    2. Registering an address that already exists ALSO returns success, and mails
+       the existing owner "someone tried to register" instead. Any observable
+       difference here turns this endpoint into an oracle for who has an account.
+       The caller is not signed in in that case, which is invisible to an
+       attacker but obvious to the real owner.
+    """
+    email = seekers_store.normalise_email(payload.email)
+    ip = _client_ip(request)
+
+    if payload.website:
+        logger.info("Honeypot triggered on /api/auth/register from %s", ip)
+        return SeekerOut(id="", email=email, display_name="", email_verified=False)
+
+    # Per-EMAIL first: the target is the constant in an inbox-bombing attempt,
+    # the source IP is not.
+    if _auth_rate_limited(f"reg:email:{email}", limit=3, window_s=3600) or \
+       _auth_rate_limited(f"reg:ip:{ip}", limit=10, window_s=3600):
+        raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
+
+    store = seekers_store.get_store()
+    try:
+        seeker_id = store.create_seeker(
+            email,
+            password_hash=auth.hash_password(payload.password),
+            display_name=payload.display_name.strip(),
+        )
+    except seekers_store.EmailAlreadyRegistered:
+        store.log_event("seeker.register_existing", seeker_id=None)
+        _send_seeker_mail(
+            email,
+            "Someone tried to register with your email",
+            "Someone just tried to create a FinEx Careers account with this address.\n"
+            "You already have one, so nothing changed. If this was you, sign in "
+            "instead — or reset your password if you've forgotten it.\n\n"
+            "If it wasn't you, you can ignore this message.",
+        )
+        return SeekerOut(id="", email=email, display_name="", email_verified=False)
+
+    store.log_event("seeker.registered", seeker_id=seeker_id)
+    _set_session_cookie(response, auth.issue_session(store, seeker_id,
+                                                     user_agent=request.headers.get("user-agent")))
+    raw_token = auth.issue_email_token(store, seeker_id, purpose="verify")
+    _send_seeker_mail(
+        email,
+        "Confirm your email — FinEx Careers",
+        f"Welcome to FinEx Careers.\n\nConfirm this address to finish setting up "
+        f"your account:\n\n{_verify_url(request, raw_token)}\n\n"
+        f"This link works once and expires in an hour.",
+    )
+    return _seeker_out(store.get_seeker(seeker_id))
+
+
+def _verify_url(request: Request, raw_token: str) -> str:
+    base = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
+    return f"{base}/verify?token={raw_token}"
+
+
+@app.post("/api/auth/login", response_model=SeekerOut, tags=["auth"])
+def login(payload: LoginIn, request: Request, response: Response):
+    """
+    Sign in. One failure message for every cause — wrong password, no such
+    account, Google-only account with no password set — because distinguishing
+    them is the same oracle problem as register.
+    """
+    email = seekers_store.normalise_email(payload.email)
+    ip = _client_ip(request)
+    if _auth_rate_limited(f"login:email:{email}", limit=10, window_s=900) or \
+       _auth_rate_limited(f"login:ip:{ip}", limit=30, window_s=900):
+        raise HTTPException(status_code=429,
+                            detail="Too many attempts. Try again in a few minutes.")
+
+    store = seekers_store.get_store()
+    row = store.get_seeker_by_email(email)
+    # verify_password() hashes against a dummy when the row is absent, so the
+    # response time does not reveal whether the address exists.
+    if not auth.verify_password(row["password_hash"] if row else None, payload.password):
+        store.log_event("seeker.login_failed", seeker_id=row["id"] if row else None)
+        raise HTTPException(status_code=401, detail="Email or password is incorrect")
+
+    store.touch_last_login(row["id"])
+    store.log_event("seeker.login", seeker_id=row["id"])
+    _set_session_cookie(response, auth.issue_session(store, row["id"],
+                                                     user_agent=request.headers.get("user-agent")))
+    return _seeker_out(store.get_seeker(row["id"]))
+
+
+@app.post("/api/auth/logout", status_code=204, tags=["auth"])
+def logout(request: Request, response: Response):
+    """Always 204. Logging out of a session you don't have is not an error."""
+    auth.revoke_session(seekers_store.get_store(), request.cookies.get(SESSION_COOKIE))
+    _clear_session_cookie(response)
+    return Response(status_code=204)
+
+
+@app.get("/api/auth/me", response_model=SeekerOut, tags=["auth"])
+def whoami(request: Request):
+    return _seeker_out(_require_seeker(request))
+
+
+@app.get("/api/me/saved", response_model=list[JobSummary], tags=["saved"])
+def list_saved(request: Request):
+    """
+    The Seeker's saved Roles, resolved against jobs.db at read time.
+
+    seekers.db stores references only — (source, source_id) — never a copy of the
+    Role. That is the fix for the bug this feature inherited: useSavedJobs.ts
+    keeps whole Job objects in localStorage, so a save is a frozen snapshot and a
+    role that closed months ago still displays as live. Joining at read time
+    means a Saved Role is always current, by construction.
+    """
+    seeker = _require_seeker(request)
+    refs = seekers_store.get_store().list_saved_roles(seeker["id"])
+    if not refs:
+        return []
+
+    pairs = [(r["source"], r["source_id"]) for r in refs]
+    clause = " OR ".join(["(j.source = ? AND j.source_id = ?)"] * len(pairs))
+    params = [value for pair in pairs for value in pair]
+    conn = get_db()
+    try:
+        rows = conn.execute(f"{BASE_SELECT} WHERE {clause}", params).fetchall()
+    finally:
+        conn.close()
+
+    # Preserve the Seeker's newest-first save order, not the database's.
+    by_key = {(r["source"], r["source_id"]): r for r in rows}
+    return [_row_to_summary(by_key[p]) for p in pairs if p in by_key]
+
+
+@app.post("/api/me/saved", status_code=204, tags=["saved"])
+def save_role(payload: SaveRoleIn, request: Request):
+    seeker = _require_seeker(request)
+    store = seekers_store.get_store()
+    store.save_role(seeker["id"], payload.source, payload.source_id)
+    store.log_event("role.saved", seeker_id=seeker["id"])
+    return Response(status_code=204)
+
+
+@app.delete("/api/me/saved/{source}/{source_id}", status_code=204, tags=["saved"])
+def unsave_role(source: str, source_id: str, request: Request):
+    """204 whether or not it was saved — unsaving twice is not an error."""
+    seeker = _require_seeker(request)
+    seekers_store.get_store().unsave_role(seeker["id"], source, source_id)
+    return Response(status_code=204)
+
+
+@app.post("/api/me/saved/merge", tags=["saved"])
+def merge_saved(payload: MergeSavedIn, request: Request):
+    """
+    Lift the browser's localStorage saves into the account on first sign-in
+    (decision 14). A union, never a replace, and idempotent — so a client that
+    retries, or a Seeker who signs in on a second device with its own local
+    saves, keeps everything rather than losing a set.
+    """
+    seeker = _require_seeker(request)
+    store = seekers_store.get_store()
+    added = store.merge_saved_roles(seeker["id"], [(r.source, r.source_id) for r in payload.roles])
+    if added:
+        store.log_event("saved.migrated", seeker_id=seeker["id"])
+    return {"merged": added, "submitted": len(payload.roles)}
+
+
+@app.delete("/api/me", status_code=204, tags=["auth"])
+def delete_account(request: Request, response: Response):
+    """
+    Really delete the account (ADR 0007) — rows gone, every session revoked.
+
+    CLAUDE.md's "soft-delete only, never hard-delete" governs Roles, so that a
+    Seeker can revisit a job they applied to after it closed. It does not extend
+    to the Seeker's own account: flipping a flag while telling someone their data
+    is gone turns an ordinary privacy question into a serious complaint.
+    """
+    seeker = _require_seeker(request)
+    seekers_store.get_store().delete_seeker(seeker["id"])
+    _clear_session_cookie(response)
+    logger.info("Seeker %s deleted their account", seeker["id"])
+    return Response(status_code=204)
+
+
+# ── The frontend (single origin) ──────────────────────────────────────────────
+# This service serves the built React bundle as well as the API, so the UI and
+# the API share ONE origin. That is not a tidiness preference, it is forced:
+# `up.railway.app` is on the Public Suffix List, so `finex-careers.up.railway.app`
+# and `backend-production-….up.railway.app` are different *sites*, not sibling
+# subdomains. A browser refuses a Domain cookie whose value is a public suffix, so
+# there is no shared parent to scope a session cookie to; `SameSite=Lax` is never
+# sent cross-site, and `SameSite=None` is blocked by Safari's ITP. Two URLs simply
+# cannot share a login. One origin can. See docs/adr/0005.
+#
+# EVERYTHING BELOW MUST STAY AT THE BOTTOM OF THIS FILE. Starlette matches routes
+# in registration order, and the catch-all matches every path — declared any
+# earlier it would swallow /api/* and /health before they were ever reached.
+
+# Where the built bundle lives. Overridable because the deploy may copy dist/
+# somewhere else entirely (e.g. a Docker image that has no webapp/frontend tree);
+# the default is the path a developer gets from `npm run build` in the repo.
+FRONTEND_DIST = Path(
+    os.environ.get("FRONTEND_DIST", str(Path(__file__).parent.parent / "frontend" / "dist"))
+).resolve()
+
+_INDEX_HTML = FRONTEND_DIST / "index.html"
+
+
+def _frontend_present() -> bool:
+    """True only when there is an actual bundle to serve, not just a directory."""
+    return _INDEX_HTML.is_file()
+
+
+if _frontend_present():
+    # Vite emits hashed filenames under assets/ (app-a1b2c3.js), so those files are
+    # immutable: a change produces a new name. Safe to cache hard. Mounting the
+    # directory also means Starlette, not us, resolves the path — which is what
+    # keeps `/assets/../../etc/passwd` from being a file read.
+    _assets = FRONTEND_DIST / "assets"
+    if _assets.is_dir():
+        app.mount("/assets", StaticFiles(directory=_assets), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def spa_fallback(full_path: str):
+        """
+        Serve index.html for anything that is not an API path.
+
+        The React app routes on the client: /jobs, /saved, /about, /learning and
+        /post-a-role exist only in the browser's router, not on disk. A hard
+        refresh (or a pasted link) asks THIS server for them, so without this
+        route every one of them 404s — the classic single-page-app deploy bug.
+
+        The /api and /health guards matter even though those routes are declared
+        above and win on registration order: they win only for paths that EXIST.
+        Without the guard, a typo'd or retired endpoint like /api/jobz would fall
+        through to here and answer 200 with a page of HTML, so a broken frontend
+        fetch would surface as a JSON parse error rather than an honest 404.
+        """
+        if full_path == "api" or full_path.startswith("api/") or full_path == "health":
+            raise HTTPException(status_code=404, detail="Not found")
+
+        # Real files at the root of the bundle — favicon.svg, icons.svg, and
+        # anything later dropped into frontend/public/ — are served as themselves.
+        # resolve() + is_relative_to() rejects any ../ that escapes the bundle.
+        if full_path:
+            candidate = (FRONTEND_DIST / full_path).resolve()
+            if candidate.is_relative_to(FRONTEND_DIST) and candidate.is_file():
+                return FileResponse(candidate)
+
+        # index.html is the one file that must NOT be cached: it is what points at
+        # the current hashed bundle, so a stale copy pins a returning visitor to a
+        # deleted JS file and the app boots to a blank page.
+        return FileResponse(_INDEX_HTML, headers={"Cache-Control": "no-cache"})
+
+else:
+    # Not fatal, by design: the API has to boot for backend-only local development
+    # (and for a deploy whose build step failed, where a working /api and a 404 UI
+    # is a far better failure than a service that will not start at all).
+    logger.warning(
+        "No frontend bundle at %s — serving the API only. "
+        "Build it with `npm run build` in webapp/frontend, or point FRONTEND_DIST "
+        "at an existing dist/ directory.",
+        FRONTEND_DIST,
+    )
 
 

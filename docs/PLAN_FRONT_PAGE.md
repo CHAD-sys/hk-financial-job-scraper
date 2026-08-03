@@ -84,7 +84,7 @@ Every decision below was made deliberately. Do not silently reverse one.
 | 9 | Enquiry form, not `mailto:` | mailto silently fails for webmail users |
 | 10 | Form: name / email / career stage / message + honeypot | Short enough to complete, one field to triage on |
 | 11 | Career stage: 3–8 / 8–15 / 15+ / C-suite | Follows the executive framing |
-| 12 | Recipient hardcoded to `mohamedaminechahid@gmail.com` | "For now". Never taken from the request — header-injection defence |
+| 12 | Recipient hardcoded to `amine@finexclub.org` | Never taken from the request — header-injection defence. (Was `mohamedaminechahid@gmail.com` until 2026-07-30; overridable via `ENQUIRY_EMAIL`) |
 | 13 | Consultation links to `finexclub.org/consulting` | Owner decision. Labelled honestly — see §5.2 |
 | 14 | L&D: 6 hand-picked videos, dates hidden | The 6 *latest* are 4 parts of one series + a party, newest 4 months old |
 | 15 | Click-to-load video facades | A real iframe costs ~1MB of YouTube JS and sets cookies before consent |

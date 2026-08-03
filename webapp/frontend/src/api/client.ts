@@ -1,9 +1,67 @@
-// API base. Empty (VITE_API_URL="") → relative "/api" calls, which the Vite dev
-// server proxies to the backend (see vite.config.ts). This lets a single tunnel
-// on :5173 serve both the UI and the API (same origin, no CORS). Set VITE_API_URL
-// to an absolute URL to point at a separately-hosted backend (e.g. the deployed
-// Railway backend URL in production — no hardcoded prod URL).
-export const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+// API base. Empty → relative "/api" calls, which is the normal case now: one
+// FastAPI service serves this bundle AND the API from a single origin (docs/adr/
+// 0005), and in dev the Vite proxy forwards the same relative calls to :8000
+// (see vite.config.ts). So empty is correct in dev, in preview and in production.
+//
+// The default is deliberately '' and not 'http://localhost:8000'. A production
+// build runs where no .env.local exists, so a localhost default would silently
+// bake a dead address into the deployed bundle whenever the env var is forgotten.
+// Failing to relative /api instead just works. Set VITE_API_URL to an absolute
+// URL only to aim at a genuinely separate backend — and note that doing so puts
+// the UI and API on two origins again, which is what breaks session cookies.
+export const API = import.meta.env.VITE_API_URL ?? ''
+
+// ── Transport ─────────────────────────────────────────────────────────────────
+
+/**
+ * Called whenever the API answers 401.
+ *
+ * AuthProvider registers itself here so one dead session clears the signed-in
+ * state everywhere at once. It deliberately does NOT redirect: the board is
+ * public (docs/adr/0002), so losing a session means you are browsing anonymously
+ * again, not that you have been thrown out of the site.
+ */
+let onUnauthorized: (() => void) | null = null
+
+export function setUnauthorizedHandler(fn: (() => void) | null): void {
+  onUnauthorized = fn
+}
+
+/**
+ * Every request in this file goes through here, for one reason:
+ * `credentials: 'include'`.
+ *
+ * The session cookie is httpOnly, so JavaScript can never read it or attach it
+ * by hand — the browser only sends it when the fetch asks for it. Omitting the
+ * flag is the classic way auth "works locally but not in production": in dev the
+ * API is same-origin through the Vite proxy, where the cookie rides along
+ * regardless, so the bug stays invisible until deploy.
+ */
+async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const res = await fetch(`${API}${path}`, { credentials: 'include', ...init })
+  if (res.status === 401) onUnauthorized?.()
+  return res
+}
+
+/** Pull the backend's `detail` string out of an error body, if there is one. */
+async function readDetail(res: Response): Promise<string> {
+  try {
+    const j = await res.json()
+    return typeof j?.detail === 'string' ? j.detail : ''
+  } catch {
+    return '' // non-JSON error body — the caller falls back to a generic message
+  }
+}
+
+/** An API failure that still knows its status code, so callers can branch on it. */
+export class ApiError extends Error {
+  status: number
+  constructor(status: number, message: string) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -175,25 +233,25 @@ export async function fetchJobs(
   p.set('page', String(page))
   p.set('page_size', String(pageSize))
 
-  const res = await fetch(`${API}/api/jobs?${p}`)
+  const res = await apiFetch(`/api/jobs?${p}`)
   if (!res.ok) throw new Error(`Jobs fetch failed: ${res.status}`)
   return res.json()
 }
 
 export async function fetchJobDetail(source: string, sourceId: string): Promise<JobDetail> {
-  const res = await fetch(`${API}/api/jobs/${encodeURIComponent(source)}/${encodeURIComponent(sourceId)}`)
+  const res = await apiFetch(`/api/jobs/${encodeURIComponent(source)}/${encodeURIComponent(sourceId)}`)
   if (!res.ok) throw new Error(`Job detail fetch failed: ${res.status}`)
   return res.json()
 }
 
 export async function fetchFilters(): Promise<FiltersResponse> {
-  const res = await fetch(`${API}/api/filters`)
+  const res = await apiFetch('/api/filters')
   if (!res.ok) throw new Error(`Filters fetch failed: ${res.status}`)
   return res.json()
 }
 
 export async function fetchStats(): Promise<StatsResponse> {
-  const res = await fetch(`${API}/api/stats`)
+  const res = await apiFetch('/api/stats')
   if (!res.ok) throw new Error(`Stats fetch failed: ${res.status}`)
   return res.json()
 }
@@ -239,20 +297,14 @@ export interface RolePayload {
  * a generic failure.
  */
 async function postJson(path: string, body: unknown): Promise<{ ok: boolean }> {
-  const res = await fetch(`${API}${path}`, {
+  const res = await apiFetch(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
 
   if (!res.ok) {
-    let detail = ''
-    try {
-      const j = await res.json()
-      detail = typeof j?.detail === 'string' ? j.detail : ''
-    } catch {
-      // non-JSON error body — fall through to the generic message
-    }
+    const detail = await readDetail(res)
     if (res.status === 429) {
       throw new Error(detail || 'Too many submissions. Please try again later.')
     }
@@ -268,6 +320,126 @@ export function submitEnquiry(payload: EnquiryPayload): Promise<{ ok: boolean }>
 
 export function submitRole(payload: RolePayload): Promise<{ ok: boolean }> {
   return postJson('/api/post-role', payload)
+}
+
+// ── Seeker accounts ───────────────────────────────────────────────────────────
+// A Seeker is the only kind of account holder (CONTEXT.md, docs/adr/0001). None
+// of this gates anything: an account exists so Saved Roles outlive the browser.
+// Every call below relies on the session cookie set by the backend, which is why
+// they all go through apiFetch.
+
+export interface Seeker {
+  id: string
+  email: string
+  display_name: string | null
+  email_verified: boolean
+}
+
+export interface RegisterPayload {
+  email: string
+  password: string
+  display_name: string
+  /** Honeypot. Always sent, always empty for a human. */
+  website: string
+}
+
+/** Where "Continue with Google" points. A plain link — the backend redirects. */
+export const GOOGLE_SIGN_IN_PATH = `${API}/api/auth/google`
+
+/** Turn a non-OK auth response into an ApiError carrying the backend's reason. */
+async function authError(res: Response, fallback: string): Promise<ApiError> {
+  const detail = await readDetail(res)
+  if (res.status === 429) {
+    return new ApiError(429, detail || 'Too many attempts. Please try again later.')
+  }
+  return new ApiError(res.status, detail || fallback)
+}
+
+/**
+ * Who is signed in, or `null`.
+ *
+ * A 401 here is the ordinary answer for an anonymous visitor, not a failure —
+ * so it resolves to null rather than throwing. Only a genuine transport or
+ * server error throws.
+ */
+export async function fetchMe(): Promise<Seeker | null> {
+  const res = await apiFetch('/api/auth/me')
+  if (res.status === 401) return null
+  if (!res.ok) throw new ApiError(res.status, `Could not load your account (${res.status}).`)
+  return res.json()
+}
+
+export async function registerSeeker(payload: RegisterPayload): Promise<void> {
+  const res = await apiFetch('/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  // Registering an address that already exists answers like success on purpose,
+  // so the endpoint is not an account-existence oracle (PLAN_ACCOUNTS §5). The
+  // caller therefore asks /me afterwards rather than assuming it is signed in.
+  if (!res.ok) throw await authError(res, `Could not create your account (${res.status}).`)
+}
+
+export async function loginSeeker(email: string, password: string): Promise<void> {
+  const res = await apiFetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  if (res.status === 401) {
+    // Deliberately one message for "no such address" and "wrong password" —
+    // saying which one is true tells a stranger whether the address has an
+    // account here.
+    throw new ApiError(401, 'That email and password combination is not right.')
+  }
+  if (!res.ok) throw await authError(res, `Could not sign you in (${res.status}).`)
+}
+
+export async function logoutSeeker(): Promise<void> {
+  const res = await apiFetch('/api/auth/logout', { method: 'POST' })
+  // 401 means the session was already gone, which is the outcome we wanted.
+  if (!res.ok && res.status !== 401) {
+    throw new ApiError(res.status, `Could not sign you out (${res.status}).`)
+  }
+}
+
+/** Permanent. Rows removed, sessions revoked — see docs/adr/0007. */
+export async function deleteAccount(): Promise<void> {
+  const res = await apiFetch('/api/me', { method: 'DELETE' })
+  if (!res.ok) throw await authError(res, `Could not delete your account (${res.status}).`)
+}
+
+// ── Saved Roles (server-side) ─────────────────────────────────────────────────
+// The server stores only (source, source_id) and joins the Role's fields from
+// jobs.db at read time, so a Saved Role is a reference and never a frozen copy
+// — which is the whole reason it beats the localStorage version.
+
+export type SavedRole = Job
+
+export async function fetchSavedRoles(): Promise<SavedRole[]> {
+  const res = await apiFetch('/api/me/saved')
+  if (!res.ok) throw new ApiError(res.status, `Could not load your Saved Roles (${res.status}).`)
+  return res.json()
+}
+
+export async function saveRole(source: string, sourceId: string): Promise<void> {
+  const res = await apiFetch('/api/me/saved', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ source, source_id: sourceId }),
+  })
+  if (!res.ok) throw new ApiError(res.status, `Could not save that Role (${res.status}).`)
+}
+
+export async function unsaveRole(source: string, sourceId: string): Promise<void> {
+  const path = `/api/me/saved/${encodeURIComponent(source)}/${encodeURIComponent(sourceId)}`
+  const res = await apiFetch(path, { method: 'DELETE' })
+  // 404 means it was not saved in the first place — the end state is the one
+  // the Seeker asked for, so treat it as done rather than an error.
+  if (!res.ok && res.status !== 404) {
+    throw new ApiError(res.status, `Could not remove that Saved Role (${res.status}).`)
+  }
 }
 
 // ── URL serialisation ─────────────────────────────────────────────────────────

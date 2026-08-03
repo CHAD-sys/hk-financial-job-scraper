@@ -4,14 +4,28 @@
 
 @theme {
   /* ── Layout ───────────────────────────────────────────────── */
-  --nav-height: 64px;   /* must match the sticky Nav height (h-16); the job
-                           detail panel offsets by this so it clears the nav */
+  --nav-height: 65px;   /* Mobile: 64px row + 1px header border-b. The desktop
+                           bar is two tiers and overrides this at lg — see the
+                           media query below. Includes the borders on purpose:
+                           this is the outer edge of the sticky header, which is
+                           where things anchored below it must start. Anything
+                           sitting under the nav (job detail panel, scroll
+                           clearance) reads this rather than hardcoding it. */
 
   /* ── Color Tokens ─────────────────────────────────────────── */
   --color-bg:            #FFFDF9;
   --color-surface:       #FFFFFF;
   --color-surface-2:     #F8F5F0;
   --color-nav:           #0B1628;
+  --color-masthead:      #16223A;  /* One tonal step up from --color-nav. Shared
+                                      by the desktop nav row AND every dark page
+                                      hero directly beneath it, so the two read
+                                      as ONE continuous band. Dark surfaces must
+                                      step monotonically — deep chrome, then
+                                      masthead, then light content. Painting a
+                                      hero --color-nav again puts a lighter nav
+                                      row between two darks, and that sandwich
+                                      reads as a stray stripe. */
 
   --color-ink:           #0B1628;
   --color-ink-muted:     #475569;
@@ -41,6 +55,14 @@
 
   /* ── Motion ──────────────────────────────────────────────── */
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* At lg the Nav splits into two tiers:
+     44px utility strip + 1px divider + 44px nav row + 1px header border = 90px.
+   Overriding the token here keeps the job detail panel and the scroll clearance
+   correct without either of them knowing why the bar got taller. */
+@media (min-width: 1024px) {
+  :root { --nav-height: 90px; }
 }
 
 /* ── Base ─────────────────────────────────────────────────────── */

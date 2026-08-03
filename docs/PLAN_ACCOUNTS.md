@@ -1,314 +1,223 @@
-# PLAN — User accounts, sign-in, and gated listings
+# PLAN — Seeker accounts (v1)
 
-**Status:** approved, not started
-**Date:** 2026-07-27
-**Costed at:** 5d on the August build plan. Realistic estimate below is **7–9d** —
-see §11. This is the largest single item in August and it unblocks three others.
-
----
-
-## 1. What we're building
-
-The platform has never had accounts. This adds them, and simultaneously changes
-the board from fully public to **partially gated**: anyone can see that a role
-exists, but the description, salary and apply link require an account.
-
-Three things become possible once this lands:
-
-- **Auto-tracking** (4d, separate item) — application status held per user on the
-  server instead of per device.
-- **Saved roles across devices** — today they live in `localStorage` and die with
-  the browser profile.
-- **Stage 2 employer accounts** — the paid-listing product is gated on this.
+**Status:** designed, not started
+**Date:** 2026-07-30
+**Supersedes:** the 27 July accounts plan, deleted in full. No decision from it carries
+over; every decision below was re-derived from scratch.
 
 ---
 
-## 2. Decisions (locked)
+## 1. What we are building, and what it is for
 
-| # | Decision | Rationale |
-|---|----------|-----------|
-| 1 | Auth is **FastAPI-native**, not PocketBase | PocketBase is a reviewer mirror, is not deployed, and must be *stopped* during the daily sync — see §3 |
-| 2 | Users live in their **own SQLite file**, never `jobs.db` | The pipeline rewrites `jobs.db` daily and `backup.py` copies it wholesale; credentials must not be in the scraper's blast radius or in every nightly backup |
-| 3 | **Full listings require an account** | Owner decision. Consequences are handled as work in §8, not treated as blockers |
-| 4 | **Both** Google sign-in **and** email + password | Owner decision. Costs more than either alone; reflected in the estimate |
-| 5 | Gating is enforced **server-side** | A UI-only gate is not a gate — see §7.1 |
-| 6 | Sessions are **httpOnly cookies**, not localStorage tokens | A token in localStorage is readable by any XSS; an httpOnly cookie is not |
+A **Seeker** account: sign in with Google or email + password, keep Saved Roles on the
+server instead of in the browser, delete your account when you want to.
 
----
+That is a deliberately small feature, and the reason matters. **v1 is not built because
+Seekers are asking for it.** Nothing on the board is gated (ADR 0002) and there are no
+alerts, so the account's entire benefit is that Saved Roles survive the browser and stop
+going stale. Expect very few signups.
 
-## 3. Why not PocketBase (the build plan's assumption)
+**v1 exists as the identity foundation for future paid personalisation** — CV matching
+and personalised roles, built by another team member — which cannot exist without a
+Seeker to attach a CV to. Two implications run through everything below:
 
-The August plan says *"Our database (PocketBase) ships authentication built in,
-which is why this is days not weeks."* That premise does not hold:
-
-- **It is not the platform's database.** `data/jobs.db` is, read by FastAPI.
-  `hk_jobs/sync_pocketbase.py` states it directly: *"PocketBase is NOT part of the
-  live app; it is a browsable, shareable copy used to hand the data to a reviewer."*
-- **It is not deployed.** `webapp/backend/railway.json` starts `uvicorn main:app`
-  and nothing else. No PB service exists in any deploy config.
-- **It must be offline during the daily sync.** `daily_run.sh` phase 4 refuses to
-  run while PB serves on :8090, because the sync writes PB's SQLite file directly.
-  If PB were the auth server, **every sign-in would fail during the nightly run.**
-
-Making PocketBase viable would mean rewriting the sync to go through PB's HTTP API
-and deploying a second service. That is more work than writing the auth, and it
-buys a dependency rather than removing one.
+- Keep the surface minimal. Do not build conversion pressure for features that do not
+  exist yet.
+- Get identity right the first time. Migrating a *paying* user base later is far more
+  expensive than migrating a free one.
 
 ---
 
-## 4. Facts established (do not re-derive)
+## 2. Decision log
 
-- Backend is FastAPI, `webapp/backend/main.py`, now with two POST endpoints
-  (`/api/contact`, `/api/post-role`) and `mailer.py` for outbound email.
-- CORS is `["GET", "POST"]`. Cookie auth needs `allow_credentials=True` **and**
-  an explicit origin list — `allow_origins=["*"]` is invalid with credentials
-  and browsers will reject it.
-- `useSavedJobs` (`src/hooks/useSavedJobs.ts`) is `localStorage`-only, keyed
-  `finex_saved_jobs:v1`, with a legacy-key migration path already in place.
-- The board's list endpoint currently returns the apply link (`url`) and both
-  salary fields on **every** row, and `/api/jobs/{source}/{source_id}` adds
-  `description_clean` + `description_summary`.
-- Live shape: 3,612 active primary roles — 3,266 mainstream, 149 Exclusive,
-  197 Recruiter Posts.
-- `PrivacyNotice.tsx` already describes accounts, gated behind `ACCOUNTS_LIVE`
-  (currently `true`). Shipping this makes that notice accurate.
-- Nav already reserves the right-hand slot for a Sign in control.
+Every line was a deliberate choice. Do not silently reverse one.
 
----
-
-## 5. Data model — `data/users.db`
-
-A separate SQLite file, created and migrated by the backend on boot.
-
-```sql
-CREATE TABLE users (
-    id              TEXT PRIMARY KEY,        -- uuid4
-    email           TEXT NOT NULL UNIQUE,    -- stored lowercased
-    password_hash   TEXT,                    -- NULL for Google-only accounts
-    google_sub      TEXT UNIQUE,             -- Google's stable subject id, NULL if none
-    display_name    TEXT NOT NULL DEFAULT '',
-    email_verified  INTEGER NOT NULL DEFAULT 0,
-    created_at      TEXT NOT NULL,
-    last_login_at   TEXT,
-    is_active       INTEGER NOT NULL DEFAULT 1
-);
-
-CREATE TABLE sessions (
-    token_hash   TEXT PRIMARY KEY,           -- sha256 of the cookie value, never the value
-    user_id      TEXT NOT NULL REFERENCES users(id),
-    created_at   TEXT NOT NULL,
-    expires_at   TEXT NOT NULL,
-    user_agent   TEXT
-);
-
-CREATE TABLE email_tokens (
-    token_hash  TEXT PRIMARY KEY,
-    user_id     TEXT NOT NULL REFERENCES users(id),
-    purpose     TEXT NOT NULL,               -- 'verify' | 'reset'
-    expires_at  TEXT NOT NULL,
-    used_at     TEXT
-);
-
-CREATE TABLE saved_jobs (
-    user_id    TEXT NOT NULL REFERENCES users(id),
-    source     TEXT NOT NULL,
-    source_id  TEXT NOT NULL,
-    saved_at   TEXT NOT NULL,
-    PRIMARY KEY (user_id, source, source_id)
-);
-```
-
-**Why token *hashes* and not tokens:** if `users.db` leaks, stored session tokens
-would be immediately usable to impersonate every logged-in user. Hashes are not.
-Same reasoning as password hashing, and it costs one line.
-
-`saved_jobs` stores only the key, not a copy of the job — the job lives in
-`jobs.db` and is joined at read time, so a saved role never goes stale.
+| # | Decision | Where |
+|---|----------|-------|
+| 1 | Seekers only. Employers are a separate aggregate later, **not a `role` column** | ADR 0001 |
+| 2 | Carrot = durable Saved Roles. Alerts, application tracking, CV matching all deferred | ADR 0001 |
+| 3 | **Nothing is gated.** The board stays fully public to anonymous visitors | ADR 0002 |
+| 4 | Google + email/password. LinkedIn is a fast-follow, not v1 | ADR 0003 |
+| 5 | Auth assembled from Python libraries inside the existing FastAPI service | ADR 0004 |
+| 6 | **FastAPI serves the React bundle** — one origin, one service | ADR 0005 |
+| 7 | Seeker data in its own `/data/seekers.db`, `ATTACH`-joined to `jobs.db` | ADR 0006 |
+| 8 | Railway scheduled volume backups, enabled before launch | ADR 0006 |
+| 9 | Resend, sending from `mail.finexclub.org` | ADR 0008 |
+| 10 | Unverified Seekers get full access; verification gates *sending*, not the account | §4 |
+| 11 | Sessions: opaque tokens, SHA-256 hashed at rest, **90 days rolling**, no "remember me" | §4 |
+| 12 | An alert would be a *saved search* reusing the existing filter params — when built | §6 |
+| 13 | CV component contract deferred. Only commitment: **`seeker_id` is a stable opaque UUID** | ADR 0006 |
+| 14 | First sign-in **union-merges** `localStorage` saves, then clears the local key | §4 |
+| 15 | Abuse: rate limit per email **and** per IP, honeypot on signup, non-enumerable responses. No CAPTCHA | §5 |
+| 16 | Self-serve account deletion that **really deletes**. Access requests handled manually | ADR 0007 |
+| 17 | `ACCOUNTS_LIVE = false` **now**; account clauses rewritten at ship | §7 |
+| 18 | No admin UI. `sqlite3` over `railway ssh` | §5 |
+| 19 | First-party server-side event counts. No third-party analytics | §5 |
+| 20 | **Single-origin change ships alone, first**, before any auth code | §8 |
 
 ---
 
-## 6. Backend — `webapp/backend/auth.py` (new) + routes in `main.py`
+## 3. Facts established — do not re-derive
 
-```
-POST /api/auth/register       email, password        -> 201, sends verification
-POST /api/auth/login          email, password        -> 200 + session cookie
-POST /api/auth/logout                                -> 204, clears cookie
-GET  /api/auth/me                                    -> current user or 401
-POST /api/auth/verify         token                  -> marks email_verified
-POST /api/auth/forgot         email                  -> always 200 (see below)
-POST /api/auth/reset          token, new password    -> 200
-GET  /api/auth/google         -> redirect to Google
-GET  /api/auth/google/callback -> exchanges code, upserts user, sets cookie
-GET  /api/me/saved            -> saved roles (joined against jobs.db)
-POST /api/me/saved            source, source_id
-DELETE /api/me/saved/{source}/{source_id}
-```
+- **`up.railway.app` is on the Public Suffix List** (line 15360). `finex-careers.up.railway.app`
+  and `backend-production-08b4e.up.railway.app` are therefore **different sites**. No cookie
+  can be scoped across them, `SameSite=Lax` is never sent cross-site, and `SameSite=None`
+  is blocked by Safari's ITP and partitioned by Firefox. This is why decision 6 exists.
+- **`get_db()` sets `PRAGMA query_only=ON`** (`main.py:90`) — the API cannot write to `jobs.db`.
+- **`mailer.send_mail()` cannot email a user.** Fixed `RECIPIENT` constant, by design.
+- **`_rate_limited(key)` already exists** (`main.py:881`): in-memory sliding window, 3/hour,
+  `SUBMIT_RATE_LIMIT`. Its own comment notes it resets on deploy and does not survive replicas.
+- **Honeypot pattern already written twice**, on `/api/contact` and `/api/post-role`.
+- **`useSavedJobs.ts` stores whole `Job` objects** under `finex_saved_jobs:v1` — so a Saved Role
+  today is a frozen snapshot and a soft-deleted role still shows as live. Server-side saves
+  storing only `(source, source_id)` and joining at read time fix this for free.
+- **`webapp/frontend/.env.local` already supports one origin**: `VITE_API_URL=` makes the
+  frontend call relative `/api`.
+- **A Role has no URL.** `selectedJob` is React state (`JobBoardPage.tsx:62`); the query string
+  carries filters/sort/page only. No `JobPosting` structured data, no `robots.txt`, no sitemap.
+- **`backup.py` covers `data/jobs.db` locally only**, and defaults to `retention_days=0` —
+  every snapshot kept forever. The README's "30-day rolling" is stale.
+- **`AboutPage.tsx:290`** — "free to browse and needs no account, no paywall on any listing"
+  **stays true** under decision 3 and needs no change.
+- **LinkedIn OIDC returns only** `sub`, `name`, `given_name`, `family_name`, `picture`,
+  `locale`, and *optionally* `email` / `email_verified`. No work history, no skills, no
+  headline. LinkedIn states it "does not verify user identities."
 
-Non-negotiables, each for a specific reason:
+---
 
-| Requirement | Why |
+## 4. Behaviour
+
+**Sign-up / sign-in.** Google or email + password. A session is issued immediately;
+Saved Roles work from the first click. Google sign-ins arrive verified.
+
+**Verification** exists to confirm the address so password reset works, and to stop the
+platform becoming a mail cannon aimed at an address its owner never entered. It gates
+*outbound mail*, not access. With alerts deferred, nothing else depends on it yet.
+
+**Sessions.** Opaque random tokens, stored as SHA-256 hashes so a leaked `seekers.db`
+does not hand over live sessions. 90-day rolling expiry refreshed on use. No
+"remember me" checkbox — it pushes a decision onto the Seeker when the answer is known.
+`httpOnly`, `Secure`, `SameSite=Lax`, which works because of decision 6.
+
+**Account linking rule, absolute:** never auto-link an OAuth identity to an existing
+account unless the provider asserts the email is verified. Otherwise anyone who can
+create a provider account on your email address takes over your account.
+
+**Saved Roles.** Server stores `(seeker_id, source, source_id)` only. Job fields are
+joined from `jobs.db` at read time. On first sign-in, `localStorage` saves are
+union-merged into the account and the local key is cleared: signed out means browser,
+signed in means account, first sign-in moves them up.
+
+**Deletion.** Real deletion, sessions revoked, event logged. See ADR 0007.
+
+---
+
+## 5. Defences and visibility
+
+| Concern | Measure |
 |---|---|
-| **Argon2id** password hashing (pin the lib version at install; do not guess) | bcrypt is acceptable, plain sha256 is not |
-| `/api/auth/forgot` always returns 200, even for unknown emails | Different responses turn it into an account-existence oracle |
-| Login rate-limited per email **and** per IP | Per-IP alone lets a botnet spray one account; per-email alone lets one IP spray many |
-| Session cookie: `httpOnly`, `Secure`, `SameSite=Lax`, expiry set | Lax still allows the Google OAuth redirect to land while blocking cross-site POSTs |
-| Google OAuth **state** parameter, single-use | Without it the callback is CSRF-able |
-| Verification and reset tokens: single-use, ≤1h expiry, stored hashed | A leaked mailbox otherwise grants permanent access |
-| Constant-time comparison for all token checks | Timing side channel is cheap to avoid |
-| `allow_credentials=True` + explicit origin list in CORS | Wildcard origins are rejected by browsers when credentials are sent |
-| Email enumeration: register on an existing address behaves like success and sends a "someone tried to register" mail | Same oracle problem as forgot-password |
+| Inbox bombing a third party via `/register` | Rate limit **per target email**, not only per IP — the target is the constant, the IP is not |
+| Brute force / credential stuffing | Rate limit per email and per IP on login |
+| Bot signups | Honeypot field, mirroring the two existing endpoints |
+| Account enumeration | Register on an existing address behaves like success and mails "someone tried to register"; forgot-password always returns 200 |
+| Password storage | Argon2id via `argon2-cffi`. **Resolve the version at install time — a guessed pin broke a build once** |
+| Visibility | First-party server-side events: signup started/completed, verification clicked, login, save, delete. No cookies, no JS, no vendor — so `PrivacyNotice.tsx:99`'s "no third-party trackers" claim stays true |
+| Admin | None. `sqlite3 /data/seekers.db` over `railway ssh` |
 
-New dependencies for `requirements.txt` (**resolve real versions at install time —
-a guessed pin already broke a build once this week**): `argon2-cffi`,
-`authlib` (Google OAuth), `itsdangerous` or `pyjwt` for signed tokens.
+**Knowingly accepted gap:** the rate limiter is in-memory and resets on restart. Acceptable
+for a foundation release with few Seekers. It wants to be persistent before paid features.
 
 ---
 
-## 7. The gate
+## 6. Deferred, with the shape already decided
 
-### 7.1 Server-side, not UI-side
+Not in v1, but the design is settled so it is not re-litigated later:
 
-The gate lives in the **API response builder**, not the React components. If
-`/api/jobs` keeps returning descriptions and apply links and the UI merely hides
-them, anyone can read the JSON directly and the gate is decorative.
-
-Anonymous responses omit the fields entirely rather than blanking them, so a
-client cannot tell a gated field from an empty one:
-
-| Field | Anonymous | Signed in |
-|---|:--:|:--:|
-| title, company, sector, locations, seniority, posted_at, source_tier | ✅ | ✅ |
-| `description_excerpt` (first ~200 chars) | ✅ | ✅ |
-| `description_clean`, `description_summary` | ❌ | ✅ |
-| `salary_estimated_*`, `salary_hkd_*` | ❌ | ✅ |
-| `url`, `apply_url` | ❌ | ✅ |
-| `required_skills`, `board_signals` | ❌ | ✅ |
-
-Implement as one `serialise_job(row, *, authed: bool)` used by **both** the list
-and detail endpoints. A second code path is how these gates leak.
-
-### 7.2 Search still works on gated fields
-
-Filtering and full-text search must keep querying the full row server-side —
-otherwise an anonymous visitor searching "Murex" gets nothing and concludes the
-board is empty. They see *that* matching roles exist and how many; they just
-cannot read them. That is the entire persuasion mechanism for signing up.
+- **Alerts** — a weekly digest, Monday 09:00 HKT, riding the cadence
+  `hk_jobs/reports/weekly.py` already uses. **An alert is a saved search**: store the
+  existing filter params (`filtersToSearchParams`), so alerts inherit every filter added
+  later for free. ~800 emails/month at 200 Seekers, inside Resend's free tier; daily
+  would be ~6,000 and outside it. **Blocked on the open item in §9.**
+- **Application tracking** — Seeker-owned status on roles already saved. Needs no email,
+  no scheduled job, no fresh `jobs.db`. The cheapest way to give the account a visible
+  purpose if signups disappoint.
+- **LinkedIn sign-in** — third provider against the same Seeker record, configured
+  through a generic OIDC slot. Brand value, not data value.
+- **Employer accounts and billing** — a different aggregate, gated on paid inventory
+  existing (`docs/PLAN_FRONT_PAGE.md` decision 20).
 
 ---
 
-## 8. Consequences of gating — required work, not optional
+## 7. Copy that must change
 
-These follow directly from decision 3 and must ship **with** it, not after.
-
-1. **`AboutPage.tsx` currently says "no paywall on any listing".** That becomes
-   false the moment this ships. It must be rewritten in the same release.
-2. **`PrivacyNotice.tsx`** — clause 2's "Browsing the job index requires none of
-   this. You can read every listing without giving us anything." becomes false.
-   Same release.
-3. **The portal's Careers door** says "Every finance role in Hong Kong" with a
-   live count; it should say what is visible without an account.
-4. **SEO / Google for Jobs — read this before implementing.** Google's structured
-   data policy prohibits **cloaking**: serving Googlebot content that a user
-   arriving from that search result cannot see. If we emit `JobPosting`
-   structured data with full descriptions while gating those descriptions from
-   users, that is a violation and risks removal from Google Jobs entirely.
-   Three lawful options, pick one deliberately:
-   - **(a)** Do not emit `JobPosting` structured data at all. Simplest, forfeits
-     Google Jobs traffic.
-   - **(b)** Keep the *description* public and gate only salary, apply link and
-     skills. Compliant, keeps indexing, still a strong signup reason.
-   - **(c)** First-click-free: visitors arriving from Google see the full role;
-     the gate applies to onward browsing. More logic, keeps traffic.
-   Recommendation: **(b)** — it preserves the acquisition channel the board
-   depends on while still making the account worth having.
-5. **`robots.txt` / `sitemap.xml`** — neither exists yet. Whatever stays public
-   should be indexable on purpose rather than by accident.
+1. **`PrivacyNotice.tsx:22` — set `ACCOUNTS_LIVE = false` today.** It is committed and
+   live, and currently tells visitors the platform holds their name, email and a
+   password hash. None of that exists yet.
+2. **At ship, rewrite the account clauses** to match v1 exactly: remove "application
+   status" (deferred), and add two disclosures it lacks — **Resend** processing Seeker
+   email addresses in the US (a cross-border transfer) and **Google** receiving data on
+   Google sign-in. Then set the flag back to `true`.
+3. **`CLAUDE.md`** needs the soft-delete carve-out from ADR 0007 written into it.
+4. **`AboutPage.tsx`** — no change. Decision 3 keeps it true.
 
 ---
 
-## 9. Frontend
-
-| File | Change |
-|---|---|
-| `src/auth/AuthProvider.tsx` | NEW — context: `user`, `loading`, `login`, `logout`, `register`. Calls `/api/auth/me` once on mount |
-| `src/pages/SignInPage.tsx` | NEW — `/signin`, email+password form, "Continue with Google", link to register |
-| `src/pages/RegisterPage.tsx` | NEW — `/register` |
-| `src/pages/VerifyEmailPage.tsx` | NEW — `/verify` landing for the emailed link |
-| `src/pages/ResetPasswordPage.tsx` | NEW — `/reset` |
-| `src/components/Nav.tsx` | Fill the reserved slot: Sign in → user menu when authed |
-| `src/components/JobCard.tsx` | Locked-state treatment for gated fields |
-| `src/components/JobDetailModal.tsx` | Gate description/salary/apply behind a sign-in prompt that explains *why* |
-| `src/hooks/useSavedJobs.ts` | Dual mode: `localStorage` when anonymous, API when authed. **On first sign-in, migrate existing local saves to the account** — silently losing them is the kind of thing users never forgive |
-| `src/api/client.ts` | `credentials: 'include'` on every request; 401 handling |
-
-`fetch` must send `credentials: 'include'` or the session cookie is never
-attached — the single most common way this feature "works locally and not in
-production".
-
----
-
-## 10. Build order
+## 8. Build order
 
 | Phase | Work | Verifiable outcome |
 |---|---|---|
-| 1 | `users.db` schema + `auth.py`: hashing, sessions, cookie handling | Unit tests pass; no HTTP yet |
-| 2 | register / login / logout / me + rate limiting | Can create a session with curl |
-| 3 | Email verification + password reset via `mailer.py` | Round trip works end to end |
-| 4 | Google OAuth (needs a GCP project + redirect URIs per environment) | Both sign-in paths reach one user record |
-| 5 | `serialise_job(authed=…)` + gate on both endpoints | Anonymous JSON provably lacks the fields |
-| 6 | AuthProvider, sign-in/register pages, Nav slot | Full flow in the browser |
-| 7 | Saved-jobs migration local → server | Existing saves survive first sign-in |
-| 8 | About + privacy rewrite, SEO decision from §8.4, robots/sitemap | Site is internally consistent again |
+| **0** | Single origin (FastAPI serves the bundle, catch-all route) · Railway volume backups on · `ACCOUNTS_LIVE=false` | **Board works unchanged at one origin. No auth code involved** |
+| 1 | `seekers.db` schema + migrations + writable connection · hashing · session issue/verify/revoke | Unit tests pass, no HTTP yet |
+| 2 | register / login / logout / me · rate limits · honeypot · non-enumerable responses | A session obtainable with curl |
+| 3 | Resend + DNS · verification · password reset | Round trip to a real inbox |
+| 4 | Google OAuth | Both paths reach one Seeker record |
+| 5 | Server-side Saved Roles (`ATTACH` join) · `localStorage` migration | Existing saves survive first sign-in |
+| 6 | AuthProvider · sign-in / register pages · Nav slot · dual-mode `useSavedJobs` | Full flow in a browser |
+| 7 | Delete-account · event logging · privacy notice rewrite | Site internally consistent again |
 
-Phases 1–3 are the risky ones and are independently testable. Phase 4 has an
-external dependency (Google Cloud console) that should be started early because
-it involves waiting on a consent screen, not coding.
+**Phase 0 ships alone, deliberately.** It is the riskiest infrastructure change here —
+it retires a Railway service, needs a catch-all route or every client-side route 404s on
+refresh, and rewrites `/rail-it`. Shipping it with auth means debugging topology and
+cookies simultaneously.
 
----
-
-## 11. Estimate
-
-The plan's 5 days assumed PocketBase supplied auth, verification, reset and an
-admin UI. Writing it ourselves, with **two** sign-in methods and a server-side
-gate:
-
-| | |
-|---|---|
-| Phases 1–3 (core auth, email flows) | 3d |
-| Phase 4 (Google OAuth) | 1–1.5d |
-| Phase 5 (gating, both endpoints, tests) | 1d |
-| Phases 6–7 (frontend, saved-jobs migration) | 2d |
-| Phase 8 (copy, SEO, robots/sitemap) | 0.5–1d |
-| **Total** | **7.5–8.5d** |
-
-August has 21 working days and was already at 19.5 committed before the contact
-endpoint, `/post-a-role`, and the About/privacy work were added. **This item
-alone exceeds the remaining slack.** Something else in August moves, or this
-does — that is a scheduling decision, not an engineering one.
+**Start phase 3's DNS records now, in parallel.** SPF/DKIM/DMARC verification and
+propagation is waiting, not coding.
 
 ---
 
-## 12. Testing
+## 9. Open items
 
-- **Security-focused, in `tests/test_auth.py`:** password never returned in any
-  response; session cookie is httpOnly+Secure+SameSite; forgot-password returns
-  identical responses for known and unknown emails; login rate limit trips per
-  email and per IP; expired and reused tokens rejected; OAuth callback rejects a
-  bad or replayed `state`.
-- **Gate tests, in `tests/test_job_gating.py`:** anonymous `/api/jobs` and
-  `/api/jobs/{source}/{id}` responses contain none of the gated keys; the same
-  requests with a session contain all of them; search on a gated field still
-  returns correct counts anonymously.
-- Never send real email in a test — patch `mailer.send_mail` as the existing
-  submit-endpoint tests do.
+- [ ] **How does the `jobs.db` on the Railway volume get refreshed?** The pipeline runs
+      locally against your Mac's copy; `_seed_db_if_missing()` only downloads when the file
+      is *absent*; no script uploads it. Does not block v1 — **blocks alerts**, which need
+      to know which Roles are new.
+- [ ] **Can CNAME/TXT records be added to `finexclub.org` DNS?** It is a Wix site. Blocks
+      phase 3 entirely; nothing else.
+- [ ] Google Cloud project + OAuth consent screen + redirect URIs — owner task with lead time.
+- [ ] `/rail-it` rewrite for the single-service topology.
+- [ ] A custom domain is still wanted for the brand — decision 6 fixes cookies but leaves the
+      public URL reading `backend-production-08b4e.up.railway.app`. No longer urgent.
 
 ---
 
-## 13. Open items
+## 10. Non-goals for v1
 
-- [ ] SEO approach from §8.4 — (a), (b) or (c). **Blocks phase 5**; recommend (b)
-- [ ] Google Cloud project + OAuth consent screen + redirect URIs (owner task, has lead time)
-- [ ] Move transactional email off the personal Gmail before it carries verification and reset links
-- [ ] Session lifetime, and whether "remember me" is offered
-- [ ] What happens to the 197 Recruiter Posts under gating — recruiter attribution is arguably the most sensitive data on the board
-- [ ] Whether Stage 2 employer accounts share this `users` table or get their own role column (cheap to decide now, expensive later)
+Stated as refusals, not omissions: **no gating · no alerts · no application tracking ·
+no CV upload or matching · no employer accounts · no billing · no admin UI · no LinkedIn ·
+no CAPTCHA · no self-serve data export.**
+
+---
+
+## 11. Testing
+
+- **`tests/test_auth.py`** — password never appears in any response; session cookie is
+  `httpOnly`+`Secure`+`SameSite`; forgot-password returns identical responses for known and
+  unknown addresses; register on an existing address is indistinguishable from success;
+  expired and reused tokens rejected; rate limit trips per email *and* per IP; OAuth
+  callback rejects a bad or replayed `state`; an OAuth identity with `email_verified: false`
+  never auto-links to an existing account.
+- **`tests/test_saved_roles.py`** — `ATTACH` join returns live job fields, not stored copies;
+  a soft-deleted role shows as closed rather than live; first-sign-in migration is a union
+  and is idempotent on a second run.
+- **`tests/test_account_deletion.py`** — rows actually gone, sessions revoked, event logged.
+- Never send real email in a test — patch the sender, as the existing submit-endpoint tests do.

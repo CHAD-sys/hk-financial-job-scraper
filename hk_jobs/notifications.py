@@ -10,7 +10,7 @@ Configuration — set these environment variables (or in config/api_keys.env):
   SMTP_PORT    (default: 587)
   SMTP_USER    your Gmail address
   SMTP_PASS    Gmail App Password (16 chars — NOT your regular password)
-  NOTIFY_EMAIL recipient (default: mohamedaminechahid@gmail.com)
+  NOTIFY_EMAIL recipient (default: amine@finexclub.org)
 
 Gmail setup (one-time):
   1. myaccount.google.com → Security → 2-Step Verification → ON
@@ -54,7 +54,7 @@ SMTP_HOST    = os.getenv("SMTP_HOST",    "smtp.gmail.com")
 SMTP_PORT    = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER    = os.getenv("SMTP_USER",    "")
 SMTP_PASS    = os.getenv("SMTP_PASS",    "")
-NOTIFY_EMAIL = os.getenv("NOTIFY_EMAIL", "mohamedaminechahid@gmail.com")
+NOTIFY_EMAIL = os.getenv("NOTIFY_EMAIL", "amine@finexclub.org")
 PROJECT_NAME = "FinEx Careers — HK Job Board"
 
 BACKUP_DIR = Path("data/backups")
