@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ChevronDown, Star, EyeOff } from 'lucide-react'
+import { ChevronDown, Star, EyeOff, ArrowLeft } from 'lucide-react'
 import type { Job, FiltersResponse, JobListResponse, TierTab } from '../api/client'
 import {
   DEFAULT_FILTERS, fetchJobs, fetchFilters, fetchStats,
@@ -18,6 +18,8 @@ import EmptyState from '../components/EmptyState'
 import Pagination from '../components/Pagination'
 import JobDetailModal from '../components/JobDetailModal'
 import StatCard from '../components/StatCard'
+import SearchHero from '../components/SearchHero'
+import RecommendedRoles from '../components/RecommendedRoles'
 
 const PAGE_SIZE = 24
 const SORT_OPTIONS = [
@@ -84,13 +86,51 @@ export default function JobBoardPage() {
   )
   const activeCount = countActiveFilters(activeFilters)
 
+  // ── TEMPORARY UI EXPERIMENT: two modes ──────────────────────────────────────
+  // The page is now a search engine, which means it is two screens rather than
+  // one: a home that asks a question, and a results page that answers it.
+  //
+  //   discover  — no query, no filters. SearchHero + a sampled strip of roles.
+  //   board     — the ordinary index: filter bar, tier tabs, grid, pagination.
+  //
+  // `forceBoard` exists for the search box: its 300ms debounce means activeCount
+  // is still 0 for a beat after submit, which would leave the hero on screen
+  // while the results are already loading. A deep link with filters in the URL
+  // lands on the board directly, since activeCount is already > 0 on mount.
+  const [forceBoard, setForceBoard] = useState(false)
+  const showBoard = forceBoard || activeCount > 0 || activeFilters.tier !== 'all'
+
+  const runSearch = useCallback((query: string) => {
+    setSearchInput(query)
+    setBaseFilters(DEFAULT_FILTERS)
+    setPage(1)
+    setForceBoard(true)
+  }, [])
+
+  const pickSector = useCallback((sector: string) => {
+    setSearchInput('')
+    setBaseFilters({ ...DEFAULT_FILTERS, sectors: [sector] })
+    setPage(1)
+    setForceBoard(true)
+  }, [])
+
+  const backToSearch = useCallback(() => {
+    setBaseFilters(DEFAULT_FILTERS)
+    setSearchInput(DEFAULT_FILTERS.search)
+    setPage(1)
+    setForceBoard(false)
+  }, [])
+
   // Sync URL whenever the applied filters / sort / page change
   useEffect(() => {
     setSearchParams(filtersToSearchParams(activeFilters, sort, page), { replace: true })
   }, [activeFilters, sort, page, setSearchParams])
 
-  // Fetch jobs; the cancelled flag drops out-of-order responses from stale requests
+  // Fetch jobs; the cancelled flag drops out-of-order responses from stale requests.
+  // Skipped entirely in discover mode — the hero shows no grid, so fetching 24
+  // rows to throw away would just slow the first paint of the page that matters.
   useEffect(() => {
+    if (!showBoard) return
     let cancelled = false
     setLoading(true)
     fetchJobs(activeFilters, sort, page, PAGE_SIZE)
@@ -98,14 +138,14 @@ export default function JobBoardPage() {
       .catch(console.error)
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [activeFilters, sort, page])
+  }, [activeFilters, sort, page, showBoard])
 
   // Recruiter Posts preview strip: same active filters (sector/search/
   // seniority/etc.), tier forced to 'social', small page. Skipped entirely
   // when already ON the Recruiter Posts tab — the main grid below already
   // shows exactly this.
   useEffect(() => {
-    if (activeFilters.tier === 'social') {
+    if (!showBoard || activeFilters.tier === 'social') {
       setRecruiterPosts(null)
       return
     }
@@ -114,7 +154,7 @@ export default function JobBoardPage() {
       .then(r => { if (!cancelled) setRecruiterPosts(r) })
       .catch(console.error)
     return () => { cancelled = true }
-  }, [activeFilters])
+  }, [activeFilters, showBoard])
 
   const updateFilters = useCallback((patch: Partial<JobFilters>) => {
     const { search, ...rest } = patch
@@ -142,6 +182,30 @@ export default function JobBoardPage() {
     <div style={{ backgroundColor: 'var(--color-bg)', minHeight: '100dvh' }}>
       <Nav />
 
+      {/* ── DISCOVER MODE: the search-engine home ───────────── */}
+      {!showBoard && (
+        <>
+          <SearchHero
+            filterData={filterData}
+            boardTotal={boardTotal}
+            onSearch={runSearch}
+          />
+          <main id="main-content" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+            <RecommendedRoles
+              filterData={filterData}
+              saved={isSaved}
+              onToggleSave={toggleSave}
+              onSelect={setSelectedJob}
+              onSeeAll={pickSector}
+            />
+            <IndexStats boardTotal={boardTotal} filterData={filterData} />
+          </main>
+        </>
+      )}
+
+      {/* ── BOARD MODE: the results page ────────────────────── */}
+      {showBoard && (
+        <>
       {/* ── Slim hero ───────────────────────────────────────── */}
       <section
         style={{
@@ -170,6 +234,23 @@ export default function JobBoardPage() {
                 Financial Careers Index
               </h1>
             </div>
+
+            {/* The way back to the search home. A results page that cannot
+                return to its own search box is a dead end. */}
+            <button
+              type="button"
+              onClick={backToSearch}
+              className="hero-chip self-start sm:self-auto inline-flex items-center gap-2 rounded-lg px-3.5 text-sm font-semibold cursor-pointer outline-none"
+              style={{
+                minHeight: '2.75rem',
+                backgroundColor: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.18)',
+                color: 'rgba(248,250,252,0.9)',
+              }}
+            >
+              <ArrowLeft size={15} strokeWidth={2.5} aria-hidden="true" />
+              New search
+            </button>
           </div>
         </div>
       </section>
@@ -377,6 +458,8 @@ export default function JobBoardPage() {
 
         <IndexStats boardTotal={boardTotal} filterData={filterData} />
       </main>
+        </>
+      )}
 
       {/* ── Job detail modal ────────────────────────────────── */}
       {selectedJob && (
