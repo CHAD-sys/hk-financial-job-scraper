@@ -204,26 +204,67 @@ export default function SearchHero({ filterData, boardTotal, onSearch }: Props) 
             now what the market looks like tonight — context for the search you
             are about to type, not a sixth way to navigate.
 
-            Deliberately NOT buttons: a boxed pill with a hover state that does
-            nothing is worse than either a plain stat or a real control. So the
-            border is gone, there is no hover, and the markup is a <dl> — the
-            element that actually means "label and value" to a screen reader. */}
+            Two problems had to be solved at once, and they pull against each
+            other. It must not read as a control: no box per item, no hover, no
+            pointer. But bare label-and-value at one size read as a run-on
+            sentence — six numbers loose on a navy field, which looked like text
+            someone forgot to finish rather than a designed element.
+
+            The fix is the standard metric treatment: value dominant, label
+            small and tracked beneath it, and the whole set bound into one
+            module by hairline rules. A grid whose 1px gaps let the container's
+            border colour show through draws those rules at every breakpoint for
+            free — no nth-child arithmetic that breaks when 6 columns become 2.
+
+            Markup stays a <dl>, which is what "label and value" means to a
+            screen reader. DOM order is dt then dd so it reads "Banking, 2,232";
+            flex-col-reverse puts the number on top visually without disturbing
+            that. */}
         {filterData && filterData.sectors.length > 0 && (
-          <dl className="mt-8 sm:mt-10 flex flex-wrap items-center justify-center gap-x-7 gap-y-3">
-            {filterData.sectors.map(s => (
-              <div key={s.name} className="flex items-baseline gap-2">
-                <dt className="text-sm font-medium" style={{ color: 'rgba(248,250,252,0.62)' }}>
-                  {s.name}
-                </dt>
-                <dd
-                  className="tabular-nums text-sm font-bold"
-                  style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-gold-star)' }}
+          <section className="mt-9 sm:mt-11" aria-label="Open roles by sector">
+            <h2
+              className="mb-3 text-xs font-semibold uppercase"
+              style={{ color: 'rgba(248,250,252,0.42)', letterSpacing: '0.14em' }}
+            >
+              Open roles by sector
+            </h2>
+
+            <dl
+              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 overflow-hidden rounded-xl"
+              style={{
+                gap: '1px',
+                backgroundColor: 'rgba(255,255,255,0.11)',
+                border: '1px solid rgba(255,255,255,0.11)',
+              }}
+            >
+              {filterData.sectors.map(s => (
+                <div
+                  key={s.name}
+                  // justify-end, not the default: in flex-col-reverse the main
+                  // axis starts at the bottom, so the default packs content
+                  // downward and every number floats to a different height
+                  // depending on whether its label wrapped to two lines.
+                  // Packing to main-end puts all six numbers on one line, which
+                  // is the whole point of a stat row.
+                  className="flex flex-col-reverse justify-end items-center gap-1 px-2 py-4 sm:py-5"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.035)' }}
                 >
-                  {s.count.toLocaleString()}
-                </dd>
-              </div>
-            ))}
-          </dl>
+                  <dt
+                    className="text-[10px] sm:text-[11px] font-semibold uppercase leading-tight text-center"
+                    style={{ color: 'rgba(248,250,252,0.55)', letterSpacing: '0.1em' }}
+                  >
+                    {s.name}
+                  </dt>
+                  <dd
+                    className="tabular-nums text-2xl sm:text-[1.75rem] font-bold leading-none"
+                    style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-gold-star)' }}
+                  >
+                    {s.count.toLocaleString()}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
         )}
       </div>
     </section>

@@ -1,7 +1,7 @@
 # Graph Report - hk-job-scraper  (2026-08-03)
 
 ## Corpus Check
-- 200 files · ~382,560 words
+- 200 files · ~382,565 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `5fdbcea4`
+- Built from commit: `6538282a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 

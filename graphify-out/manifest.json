@@ -380,8 +380,8 @@
     "semantic_hash": "787e5a07efeb2bf6209d5937195f2f68"
   },
   "webapp/frontend/src/pages/JobBoardPage.tsx": {
-    "mtime": 1785745796.275147,
-    "ast_hash": "71e65e147a87109a1e51d5cb57372ec6",
+    "mtime": 1785754895.1674523,
+    "ast_hash": "e7abed33a87e367c4c152d9a9885d851",
     "semantic_hash": ""
   },
   "webapp/frontend/src/pages/LandingPage.tsx": {
@@ -1205,8 +1205,8 @@
     "semantic_hash": ""
   },
   "webapp/frontend/src/components/SearchHero.tsx": {
-    "mtime": 1785745952.707547,
-    "ast_hash": "0f21b4334fc4427063acb9b59a2e4dd4",
+    "mtime": 1785754875.6842144,
+    "ast_hash": "5eb0bcbec9b372ebc70dfaac31f064c7",
     "semantic_hash": ""
   }
 }
