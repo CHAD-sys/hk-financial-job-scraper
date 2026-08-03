@@ -1208,5 +1208,10 @@
     "mtime": 1785755765.5955477,
     "ast_hash": "a82ff8950a2ebc1072631bc9441856c9",
     "semantic_hash": ""
+  },
+  "webapp/frontend/public/design-options.html": {
+    "mtime": 1785757319.554633,
+    "ast_hash": "d088ec8628b5f3401b0fd4e774c4b10b",
+    "semantic_hash": ""
   }
 }
