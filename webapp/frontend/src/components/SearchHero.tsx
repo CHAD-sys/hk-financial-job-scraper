@@ -199,73 +199,20 @@ export default function SearchHero({ filterData, boardTotal, onSearch }: Props) 
           ))}
         </div>
 
-        {/* ── Sector counts ──────────────────────────────────────────────────
-            Read-only. These were chips you could click into the board, and are
-            now what the market looks like tonight — context for the search you
-            are about to type, not a sixth way to navigate.
+        {/* NOTE — there is deliberately nothing below the popular queries.
+            A per-sector count block lived here through two revisions, as
+            clickable category chips and then as a stat row, and both were
+            wrong for the same underlying reason rather than for want of
+            styling: the hero's job is to get one query typed, and a second
+            block of information competes with the field for the first
+            decision. The pattern this screen follows is blunt about it —
+            "search bar is the CTA, reduce friction to search".
 
-            Two problems had to be solved at once, and they pull against each
-            other. It must not read as a control: no box per item, no hover, no
-            pointer. But bare label-and-value at one size read as a run-on
-            sentence — six numbers loose on a navy field, which looked like text
-            someone forgot to finish rather than a designed element.
-
-            The fix is the standard metric treatment: value dominant, label
-            small and tracked beneath it, and the whole set bound into one
-            module by hairline rules. A grid whose 1px gaps let the container's
-            border colour show through draws those rules at every breakpoint for
-            free — no nth-child arithmetic that breaks when 6 columns become 2.
-
-            Markup stays a <dl>, which is what "label and value" means to a
-            screen reader. DOM order is dt then dd so it reads "Banking, 2,232";
-            flex-col-reverse puts the number on top visually without disturbing
-            that. */}
-        {filterData && filterData.sectors.length > 0 && (
-          <section className="mt-9 sm:mt-11" aria-label="Open roles by sector">
-            <h2
-              className="mb-3 text-xs font-semibold uppercase"
-              style={{ color: 'rgba(248,250,252,0.42)', letterSpacing: '0.14em' }}
-            >
-              Open roles by sector
-            </h2>
-
-            <dl
-              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 overflow-hidden rounded-xl"
-              style={{
-                gap: '1px',
-                backgroundColor: 'rgba(255,255,255,0.11)',
-                border: '1px solid rgba(255,255,255,0.11)',
-              }}
-            >
-              {filterData.sectors.map(s => (
-                <div
-                  key={s.name}
-                  // justify-end, not the default: in flex-col-reverse the main
-                  // axis starts at the bottom, so the default packs content
-                  // downward and every number floats to a different height
-                  // depending on whether its label wrapped to two lines.
-                  // Packing to main-end puts all six numbers on one line, which
-                  // is the whole point of a stat row.
-                  className="flex flex-col-reverse justify-end items-center gap-1 px-2 py-4 sm:py-5"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.035)' }}
-                >
-                  <dt
-                    className="text-[10px] sm:text-[11px] font-semibold uppercase leading-tight text-center"
-                    style={{ color: 'rgba(248,250,252,0.55)', letterSpacing: '0.1em' }}
-                  >
-                    {s.name}
-                  </dt>
-                  <dd
-                    className="tabular-nums text-2xl sm:text-[1.75rem] font-bold leading-none"
-                    style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-gold-star)' }}
-                  >
-                    {s.count.toLocaleString()}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-        )}
+            Nothing was lost by cutting it. The sub-headline above already
+            carries the totals, and the About-this-index block at the foot of
+            the discover page carries the sector breakdown, in a section that
+            exists to hold exactly that. Adding it back here would state the
+            same fact for a third time. */}
       </div>
     </section>
   )

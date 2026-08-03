@@ -38,8 +38,12 @@ const SAMPLE_SIZE = 6
  * Reading exactly six produced six roles from two employers: the API sorts by
  * recency, and a bank that posts a batch on Tuesday owns a whole page of it. A
  * wider window gives `diversify` below something to choose from.
+ *
+ * 24 was not wide enough — a single bulk upload can be 24 rows on its own, and
+ * the strip still came back three-deep in one employer. 60 spans enough of the
+ * recency ordering that one employer cannot own the whole window.
  */
-const WINDOW_SIZE = SAMPLE_SIZE * 4
+const WINDOW_SIZE = SAMPLE_SIZE * 10
 
 /**
  * Deep pages of a 2,000-row sector are months-old postings. Capping the jump
@@ -58,6 +62,31 @@ function shuffled<T>(items: T[]): T[] {
 }
 
 /**
+ * Collapse the legal-entity noise in a company name so one bank is one bank.
+ *
+ * The scrapers take the employer string from whatever each source printed, so
+ * the same institution arrives as "Bank of Communications (Hong Kong) Limited"
+ * from one board and "Bank of Communications Hong Kong Branch" from another.
+ * Comparing raw strings put both in the strip side by side, which reads as a
+ * duplicate even though the rows are two genuinely different vacancies.
+ *
+ * Deliberately conservative: it strips only locale and legal suffixes, never
+ * meaningful words. Two names that differ in substance ("Standard Chartered"
+ * vs "Standard Chartered Bank") stay distinct — under-merging shows one extra
+ * employer, over-merging would silently hide roles from the sample.
+ */
+const ENTITY_NOISE = /\b(limited|ltd|inc|plc|co|company|hong\s*kong|hk|s\.?a\.?r\.?|branch)\b/g
+
+function employerKey(company: string): string {
+  return company
+    .toLowerCase()
+    .replace(/[(),.]/g, ' ')
+    .replace(ENTITY_NOISE, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
  * Pick `size` roles, taking one per employer before allowing a second.
  *
  * Six roles at the same bank reads as a broken sample even when it is a correct
@@ -71,8 +100,9 @@ function diversify(jobs: Job[], size: number): Job[] {
   const rest: Job[] = []
 
   for (const job of pool) {
-    if (!seen.has(job.company)) {
-      seen.add(job.company)
+    const key = employerKey(job.company)
+    if (!seen.has(key)) {
+      seen.add(key)
       first.push(job)
     } else {
       rest.push(job)
