@@ -21,12 +21,12 @@ interface Props {
   /** Live totals for the sub-headline. Null until /api/filters answers. */
   filterData: FiltersResponse | null
   boardTotal: number | null
-  /** Run a text query — moves the page into results mode. */
+  /**
+   * Run a text query — the only thing on this screen that moves the page into
+   * results mode. The sector counts below are read-only stats, and there is no
+   * "browse everything" link, so a search is the way in by design.
+   */
   onSearch: (query: string) => void
-  /** Pick a sector — also moves the page into results mode. */
-  onPickSector: (sector: string) => void
-  /** Show every role, unfiltered. The old default, now an explicit choice. */
-  onBrowseAll: () => void
 }
 
 /**
@@ -45,13 +45,7 @@ const POPULAR_QUERIES = [
   'Wealth management',
 ]
 
-export default function SearchHero({
-  filterData,
-  boardTotal,
-  onSearch,
-  onPickSector,
-  onBrowseAll,
-}: Props) {
+export default function SearchHero({ filterData, boardTotal, onSearch }: Props) {
   const [value, setValue] = useState('')
 
   // Explicit submit, not the live-debounced search the results board uses. On a
@@ -205,44 +199,31 @@ export default function SearchHero({
           ))}
         </div>
 
-        {/* ── Sectors ────────────────────────────────────────────────────────
-            "Categories" in the marketplace pattern. Real counts, so the choice
-            is informed rather than a guess. */}
-        {filterData && filterData.sectors.length > 0 && (
-          <div className="mt-8 sm:mt-10">
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {filterData.sectors.map(s => (
-                <button
-                  key={s.name}
-                  type="button"
-                  onClick={() => onPickSector(s.name)}
-                  className="hero-chip inline-flex items-center gap-2 rounded-lg px-3.5 py-2.5 text-sm font-semibold cursor-pointer outline-none"
-                  style={{
-                    backgroundColor: 'transparent',
-                    border: '1px solid rgba(255,255,255,0.18)',
-                    color: 'rgba(248,250,252,0.88)',
-                  }}
-                >
-                  {s.name}
-                  <span
-                    className="tabular-nums text-xs font-bold"
-                    style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-gold-star)' }}
-                  >
-                    {s.count.toLocaleString()}
-                  </span>
-                </button>
-              ))}
-            </div>
+        {/* ── Sector counts ──────────────────────────────────────────────────
+            Read-only. These were chips you could click into the board, and are
+            now what the market looks like tonight — context for the search you
+            are about to type, not a sixth way to navigate.
 
-            <button
-              type="button"
-              onClick={onBrowseAll}
-              className="hero-underline mt-6 text-sm font-medium cursor-pointer outline-none"
-              style={{ color: 'rgba(248,250,252,0.6)' }}
-            >
-              or browse all {boardTotal != null ? boardTotal.toLocaleString() : ''} roles
-            </button>
-          </div>
+            Deliberately NOT buttons: a boxed pill with a hover state that does
+            nothing is worse than either a plain stat or a real control. So the
+            border is gone, there is no hover, and the markup is a <dl> — the
+            element that actually means "label and value" to a screen reader. */}
+        {filterData && filterData.sectors.length > 0 && (
+          <dl className="mt-8 sm:mt-10 flex flex-wrap items-center justify-center gap-x-7 gap-y-3">
+            {filterData.sectors.map(s => (
+              <div key={s.name} className="flex items-baseline gap-2">
+                <dt className="text-sm font-medium" style={{ color: 'rgba(248,250,252,0.62)' }}>
+                  {s.name}
+                </dt>
+                <dd
+                  className="tabular-nums text-sm font-bold"
+                  style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-gold-star)' }}
+                >
+                  {s.count.toLocaleString()}
+                </dd>
+              </div>
+            ))}
+          </dl>
         )}
       </div>
     </section>

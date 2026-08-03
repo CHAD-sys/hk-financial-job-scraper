@@ -380,8 +380,8 @@
     "semantic_hash": "787e5a07efeb2bf6209d5937195f2f68"
   },
   "webapp/frontend/src/pages/JobBoardPage.tsx": {
-    "mtime": 1785586789.8944016,
-    "ast_hash": "5e723bf30be1da54ceb89d56e798b7d1",
+    "mtime": 1785745796.275147,
+    "ast_hash": "71e65e147a87109a1e51d5cb57372ec6",
     "semantic_hash": ""
   },
   "webapp/frontend/src/pages/LandingPage.tsx": {
@@ -1197,6 +1197,16 @@
   "docs/adr/0009-send-as-the-pro-address-over-existing-smtp-not-a-new-subdomain.md": {
     "mtime": 1785429853.6155658,
     "ast_hash": "e452ba628889f3f8e460df03a596801f",
+    "semantic_hash": ""
+  },
+  "webapp/frontend/src/components/RecommendedRoles.tsx": {
+    "mtime": 1785745875.0343463,
+    "ast_hash": "9f2028d4ee0eac6cdf9a11db05a89439",
+    "semantic_hash": ""
+  },
+  "webapp/frontend/src/components/SearchHero.tsx": {
+    "mtime": 1785745952.707547,
+    "ast_hash": "0f21b4334fc4427063acb9b59a2e4dd4",
     "semantic_hash": ""
   }
 }

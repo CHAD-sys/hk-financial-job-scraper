@@ -93,11 +93,10 @@ export default function JobBoardPage() {
   //   discover  — no query, no filters. SearchHero + a sampled strip of roles.
   //   board     — the ordinary index: filter bar, tier tabs, grid, pagination.
   //
-  // `forceBoard` exists because the two triggers that are not filters still have
-  // to reach the results page: "browse all" (deliberately no filters at all) and
-  // a just-typed search, whose 300ms debounce would otherwise leave the hero on
-  // screen for a beat after submit. A deep link with filters in the URL lands on
-  // the board directly, since activeCount is already > 0 on mount.
+  // `forceBoard` exists for the search box: its 300ms debounce means activeCount
+  // is still 0 for a beat after submit, which would leave the hero on screen
+  // while the results are already loading. A deep link with filters in the URL
+  // lands on the board directly, since activeCount is already > 0 on mount.
   const [forceBoard, setForceBoard] = useState(false)
   const showBoard = forceBoard || activeCount > 0 || activeFilters.tier !== 'all'
 
@@ -114,8 +113,6 @@ export default function JobBoardPage() {
     setPage(1)
     setForceBoard(true)
   }, [])
-
-  const browseAll = useCallback(() => setForceBoard(true), [])
 
   const backToSearch = useCallback(() => {
     setBaseFilters(DEFAULT_FILTERS)
@@ -192,8 +189,6 @@ export default function JobBoardPage() {
             filterData={filterData}
             boardTotal={boardTotal}
             onSearch={runSearch}
-            onPickSector={pickSector}
-            onBrowseAll={browseAll}
           />
           <main id="main-content" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
             <RecommendedRoles
