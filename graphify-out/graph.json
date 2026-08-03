@@ -147,6 +147,76 @@
   },
   "nodes": [
     {
+      "label": "RecommendedRoles.tsx",
+      "file_type": "code",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "components_recommendedroles",
+      "community": 93,
+      "norm_label": "recommendedroles.tsx"
+    },
+    {
+      "label": "shuffled()",
+      "file_type": "code",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L55",
+      "_origin": "ast",
+      "id": "components_recommendedroles_shuffled",
+      "community": 93,
+      "norm_label": "shuffled()"
+    },
+    {
+      "label": "employerKey()",
+      "file_type": "code",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L80",
+      "_origin": "ast",
+      "id": "components_recommendedroles_employerkey",
+      "community": 93,
+      "norm_label": "employerkey()"
+    },
+    {
+      "label": "diversify()",
+      "file_type": "code",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L96",
+      "_origin": "ast",
+      "id": "components_recommendedroles_diversify",
+      "community": 93,
+      "norm_label": "diversify()"
+    },
+    {
+      "label": "Props",
+      "file_type": "code",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L115",
+      "_origin": "ast",
+      "id": "components_recommendedroles_props",
+      "community": 32,
+      "norm_label": "props"
+    },
+    {
+      "label": "pickSector()",
+      "file_type": "code",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L130",
+      "_origin": "ast",
+      "id": "components_recommendedroles_picksector",
+      "community": 93,
+      "norm_label": "picksector()"
+    },
+    {
+      "label": "RecommendedRoles()",
+      "file_type": "code",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L137",
+      "_origin": "ast",
+      "id": "components_recommendedroles_recommendedroles",
+      "community": 93,
+      "norm_label": "recommendedroles()"
+    },
+    {
       "label": "SearchHero.tsx",
       "file_type": "code",
       "source_file": "webapp/frontend/src/components/SearchHero.tsx",
@@ -192,9 +262,9 @@
       "source_file": "webapp/frontend/src/pages/JobBoardPage.tsx",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "pages_jobboardpage",
       "community": 45,
-      "norm_label": "jobboardpage.tsx"
+      "norm_label": "jobboardpage.tsx",
+      "id": "pages_jobboardpage"
     },
     {
       "label": "SORT_OPTIONS",
@@ -202,9 +272,9 @@
       "source_file": "webapp/frontend/src/pages/JobBoardPage.tsx",
       "source_location": "L25",
       "_origin": "ast",
-      "id": "pages_jobboardpage_sort_options",
       "community": 45,
-      "norm_label": "sort_options"
+      "norm_label": "sort_options",
+      "id": "pages_jobboardpage_sort_options"
     },
     {
       "label": "TIER_TABS",
@@ -212,9 +282,9 @@
       "source_file": "webapp/frontend/src/pages/JobBoardPage.tsx",
       "source_location": "L32",
       "_origin": "ast",
-      "id": "pages_jobboardpage_tier_tabs",
       "community": 45,
-      "norm_label": "tier_tabs"
+      "norm_label": "tier_tabs",
+      "id": "pages_jobboardpage_tier_tabs"
     },
     {
       "label": "JobBoardPage()",
@@ -222,9 +292,9 @@
       "source_file": "webapp/frontend/src/pages/JobBoardPage.tsx",
       "source_location": "L44",
       "_origin": "ast",
-      "id": "pages_jobboardpage_jobboardpage",
       "community": 45,
-      "norm_label": "jobboardpage()"
+      "norm_label": "jobboardpage()",
+      "id": "pages_jobboardpage_jobboardpage"
     },
     {
       "label": "TIER_NOTES",
@@ -232,9 +302,9 @@
       "source_file": "webapp/frontend/src/pages/JobBoardPage.tsx",
       "source_location": "L489",
       "_origin": "ast",
-      "id": "pages_jobboardpage_tier_notes",
       "community": 45,
-      "norm_label": "tier_notes"
+      "norm_label": "tier_notes",
+      "id": "pages_jobboardpage_tier_notes"
     },
     {
       "label": "TierExplainer()",
@@ -242,9 +312,9 @@
       "source_file": "webapp/frontend/src/pages/JobBoardPage.tsx",
       "source_location": "L504",
       "_origin": "ast",
-      "id": "pages_jobboardpage_tierexplainer",
       "community": 45,
-      "norm_label": "tierexplainer()"
+      "norm_label": "tierexplainer()",
+      "id": "pages_jobboardpage_tierexplainer"
     },
     {
       "label": "IndexStats()",
@@ -252,69 +322,9 @@
       "source_file": "webapp/frontend/src/pages/JobBoardPage.tsx",
       "source_location": "L534",
       "_origin": "ast",
-      "id": "pages_jobboardpage_indexstats",
       "community": 45,
-      "norm_label": "indexstats()"
-    },
-    {
-      "label": "RecommendedRoles.tsx",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 45,
-      "norm_label": "recommendedroles.tsx",
-      "id": "components_recommendedroles"
-    },
-    {
-      "label": "shuffled()",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
-      "source_location": "L51",
-      "_origin": "ast",
-      "community": 45,
-      "norm_label": "shuffled()",
-      "id": "components_recommendedroles_shuffled"
-    },
-    {
-      "label": "diversify()",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
-      "source_location": "L67",
-      "_origin": "ast",
-      "community": 45,
-      "norm_label": "diversify()",
-      "id": "components_recommendedroles_diversify"
-    },
-    {
-      "label": "Props",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
-      "source_location": "L85",
-      "_origin": "ast",
-      "community": 7,
-      "norm_label": "props",
-      "id": "components_recommendedroles_props"
-    },
-    {
-      "label": "pickSector()",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
-      "source_location": "L100",
-      "_origin": "ast",
-      "community": 45,
-      "norm_label": "picksector()",
-      "id": "components_recommendedroles_picksector"
-    },
-    {
-      "label": "RecommendedRoles()",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
-      "source_location": "L107",
-      "_origin": "ast",
-      "community": 45,
-      "norm_label": "recommendedroles()",
-      "id": "components_recommendedroles_recommendedroles"
+      "norm_label": "indexstats()",
+      "id": "pages_jobboardpage_indexstats"
     },
     {
       "label": "CONTEXT.md",
@@ -1172,7 +1182,7 @@
       "source_file": "hk_jobs/notifications.py",
       "source_location": "L584",
       "_origin": "ast",
-      "community": 77,
+      "community": 4,
       "norm_label": "send_failure_alert()",
       "id": "hk_jobs_notifications_send_failure_alert"
     },
@@ -1242,7 +1252,7 @@
       "source_file": "hk_jobs/notifications.py",
       "source_location": "L590",
       "_origin": "ast",
-      "community": 77,
+      "community": 4,
       "norm_label": "send an immediate alert when the pipeline raises an exception.",
       "id": "hk_jobs_notifications_rationale_590"
     },
@@ -5676,7 +5686,7 @@
       "source_file": "webapp/frontend/src/api/client.ts",
       "source_location": "L175",
       "_origin": "ast",
-      "community": 45,
+      "community": 93,
       "norm_label": "default_filters",
       "id": "api_client_default_filters"
     },
@@ -5726,7 +5736,7 @@
       "source_file": "webapp/frontend/src/api/client.ts",
       "source_location": "L264",
       "_origin": "ast",
-      "community": 100,
+      "community": 95,
       "norm_label": "career_stages",
       "id": "api_client_career_stages"
     },
@@ -5976,7 +5986,7 @@
       "source_file": "webapp/frontend/src/auth/AuthProvider.tsx",
       "source_location": "L24",
       "_origin": "ast",
-      "community": 94,
+      "community": 100,
       "norm_label": "authprovider()",
       "id": "auth_authprovider_authprovider"
     },
@@ -6186,7 +6196,7 @@
       "source_file": "webapp/frontend/src/hooks/useSavedJobs.ts",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 94,
+      "community": 100,
       "norm_label": "usesavedjobs.ts",
       "id": "hooks_usesavedjobs"
     },
@@ -6196,7 +6206,7 @@
       "source_file": "webapp/frontend/src/hooks/useSavedJobs.ts",
       "source_location": "L12",
       "_origin": "ast",
-      "community": 94,
+      "community": 100,
       "norm_label": "load()",
       "id": "hooks_usesavedjobs_load"
     },
@@ -6206,7 +6216,7 @@
       "source_file": "webapp/frontend/src/hooks/useSavedJobs.ts",
       "source_location": "L21",
       "_origin": "ast",
-      "community": 94,
+      "community": 100,
       "norm_label": "jobkey()",
       "id": "hooks_usesavedjobs_jobkey"
     },
@@ -6216,7 +6226,7 @@
       "source_file": "webapp/frontend/src/hooks/useSavedJobs.ts",
       "source_location": "L47",
       "_origin": "ast",
-      "community": 94,
+      "community": 100,
       "norm_label": "migratelocalsaves()",
       "id": "hooks_usesavedjobs_migratelocalsaves"
     },
@@ -6226,7 +6236,7 @@
       "source_file": "webapp/frontend/src/hooks/useSavedJobs.ts",
       "source_location": "L63",
       "_origin": "ast",
-      "community": 94,
+      "community": 100,
       "norm_label": "ensuremigrated()",
       "id": "hooks_usesavedjobs_ensuremigrated"
     },
@@ -6636,7 +6646,7 @@
       "source_file": "webapp/frontend/src/pages/SavedJobsPage.tsx",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 94,
+      "community": 7,
       "norm_label": "savedjobspage.tsx",
       "id": "pages_savedjobspage"
     },
@@ -6646,7 +6656,7 @@
       "source_file": "webapp/frontend/src/pages/SavedJobsPage.tsx",
       "source_location": "L10",
       "_origin": "ast",
-      "community": 94,
+      "community": 7,
       "norm_label": "savedjobspage()",
       "id": "pages_savedjobspage_savedjobspage"
     },
@@ -6816,7 +6826,7 @@
       "source_file": "hk_jobs/adapters/base.py",
       "source_location": "L44",
       "_origin": "ast",
-      "community": 111,
+      "community": 9,
       "norm_label": ".__init__()",
       "id": "adapters_base_baseadapter_init"
     },
@@ -6826,7 +6836,7 @@
       "source_file": "hk_jobs/adapters/base.py",
       "source_location": "L44",
       "_origin": "ast",
-      "community": 111,
+      "community": 9,
       "norm_label": "any",
       "id": "hk_jobs_adapters_base_py_any"
     },
@@ -6836,7 +6846,7 @@
       "source_file": "hk_jobs/adapters/base.py",
       "source_location": "L57",
       "_origin": "ast",
-      "community": 111,
+      "community": 9,
       "norm_label": ".fetch_jobs()",
       "id": "adapters_base_baseadapter_fetch_jobs"
     },
@@ -6846,7 +6856,7 @@
       "source_file": "hk_jobs/adapters/base.py",
       "source_location": "L57",
       "_origin": "ast",
-      "community": 111,
+      "community": 9,
       "norm_label": "job",
       "id": "hk_jobs_adapters_base_py_job"
     },
@@ -6876,7 +6886,7 @@
       "source_file": "hk_jobs/adapters/base.py",
       "source_location": "L72",
       "_origin": "ast",
-      "community": 111,
+      "community": 9,
       "norm_label": "._safe_fetch()",
       "id": "adapters_base_baseadapter_safe_fetch"
     },
@@ -6906,7 +6916,7 @@
       "source_file": "hk_jobs/adapters/base.py",
       "source_location": "L45",
       "_origin": "ast",
-      "community": 111,
+      "community": 9,
       "norm_label": "args:             company:      human-readable name, e.g. \"hsbc\".             co",
       "id": "adapters_base_rationale_45"
     },
@@ -6916,7 +6926,7 @@
       "source_file": "hk_jobs/adapters/base.py",
       "source_location": "L58",
       "_origin": "ast",
-      "community": 111,
+      "community": 9,
       "norm_label": "fetch all active jobs from this source and return them as job objects.",
       "id": "adapters_base_rationale_58"
     },
@@ -6936,7 +6946,7 @@
       "source_file": "hk_jobs/adapters/base.py",
       "source_location": "L73",
       "_origin": "ast",
-      "community": 111,
+      "community": 9,
       "norm_label": "call fn(*args, **kwargs) and return its result.          if fn raises for any re",
       "id": "adapters_base_rationale_73"
     },
@@ -6946,7 +6956,7 @@
       "source_file": "hk_jobs/adapters/efc.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 9,
+      "community": 3,
       "norm_label": "efc.py",
       "id": "adapters_efc"
     },
@@ -6976,7 +6986,7 @@
       "source_file": "hk_jobs/adapters/efc.py",
       "source_location": "L100",
       "_origin": "ast",
-      "community": 9,
+      "community": 3,
       "norm_label": "any",
       "id": "hk_jobs_adapters_efc_py_any"
     },
@@ -7096,7 +7106,7 @@
       "source_file": "hk_jobs/adapters/efc.py",
       "source_location": "L262",
       "_origin": "ast",
-      "community": 9,
+      "community": 3,
       "norm_label": "datetime",
       "id": "hk_jobs_adapters_efc_py_datetime"
     },
@@ -7106,7 +7116,7 @@
       "source_file": "hk_jobs/adapters/efc.py",
       "source_location": "L275",
       "_origin": "ast",
-      "community": 3,
+      "community": 21,
       "norm_label": "_extract_efc_id()",
       "id": "adapters_efc_extract_efc_id"
     },
@@ -7116,7 +7126,7 @@
       "source_file": "hk_jobs/adapters/efc.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 9,
+      "community": 3,
       "norm_label": "efinancialcareers adapter (per-company, json api).  \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
       "id": "adapters_efc_rationale_1"
     },
@@ -7166,7 +7176,7 @@
       "source_file": "hk_jobs/adapters/efc.py",
       "source_location": "L276",
       "_origin": "ast",
-      "community": 3,
+      "community": 21,
       "norm_label": "extract the trailing `.id{number}` from a detailspageurl; fall back to url.",
       "id": "adapters_efc_rationale_276"
     },
@@ -7176,7 +7186,7 @@
       "source_file": "hk_jobs/adapters/eightfold.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 9,
+      "community": 56,
       "norm_label": "eightfold.py",
       "id": "adapters_eightfold"
     },
@@ -7186,7 +7196,7 @@
       "source_file": "hk_jobs/adapters/eightfold.py",
       "source_location": "L41",
       "_origin": "ast",
-      "community": 6,
+      "community": 56,
       "norm_label": "_ef_signals()",
       "id": "adapters_eightfold_ef_signals"
     },
@@ -7256,7 +7266,7 @@
       "source_file": "hk_jobs/adapters/eightfold.py",
       "source_location": "L112",
       "_origin": "ast",
-      "community": 9,
+      "community": 6,
       "norm_label": "client",
       "id": "hk_jobs_adapters_eightfold_py_client"
     },
@@ -7276,7 +7286,7 @@
       "source_file": "hk_jobs/adapters/eightfold.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 9,
+      "community": 56,
       "norm_label": "eightfold ai ats adapter.  eightfold is used by hsbc, hang seng bank, and hsbc l",
       "id": "adapters_eightfold_rationale_1"
     },
@@ -7286,7 +7296,7 @@
       "source_file": "hk_jobs/adapters/eightfold.py",
       "source_location": "L42",
       "_origin": "ast",
-      "community": 6,
+      "community": 56,
       "norm_label": "p2/p3 market signals from one eightfold position (only non-empty ones).",
       "id": "adapters_eightfold_rationale_42"
     },
@@ -7316,7 +7326,7 @@
       "source_file": "hk_jobs/adapters/indeed.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 9,
+      "community": 59,
       "norm_label": "indeed.py",
       "id": "adapters_indeed"
     },
@@ -7446,7 +7456,7 @@
       "source_file": "hk_jobs/adapters/indeed.py",
       "source_location": "L306",
       "_origin": "ast",
-      "community": 149,
+      "community": 47,
       "norm_label": "_extract_mosaic_json()",
       "id": "adapters_indeed_extract_mosaic_json"
     },
@@ -7456,7 +7466,7 @@
       "source_file": "hk_jobs/adapters/indeed.py",
       "source_location": "L355",
       "_origin": "ast",
-      "community": 47,
+      "community": 59,
       "norm_label": "_epoch_ms_to_dt()",
       "id": "adapters_indeed_epoch_ms_to_dt"
     },
@@ -7466,7 +7476,7 @@
       "source_file": "hk_jobs/adapters/indeed.py",
       "source_location": "L355",
       "_origin": "ast",
-      "community": 9,
+      "community": 59,
       "norm_label": "datetime",
       "id": "hk_jobs_adapters_indeed_py_datetime"
     },
@@ -7496,7 +7506,7 @@
       "source_file": "hk_jobs/adapters/indeed.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 9,
+      "community": 59,
       "norm_label": "indeed fallback adapter.  \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
       "id": "adapters_indeed_rationale_1"
     },
@@ -7566,7 +7576,7 @@
       "source_file": "hk_jobs/adapters/indeed.py",
       "source_location": "L307",
       "_origin": "ast",
-      "community": 149,
+      "community": 47,
       "norm_label": "pull the `mosaic-provider-jobcards` json object out of the page.      indeed ass",
       "id": "adapters_indeed_rationale_307"
     },
@@ -7576,7 +7586,7 @@
       "source_file": "hk_jobs/adapters/indeed.py",
       "source_location": "L356",
       "_origin": "ast",
-      "community": 47,
+      "community": 59,
       "norm_label": "convert an indeed epoch-milliseconds timestamp to a utc datetime.",
       "id": "adapters_indeed_rationale_356"
     },
@@ -7606,7 +7616,7 @@
       "source_file": "hk_jobs/adapters/jobsdb.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 9,
+      "community": 75,
       "norm_label": "jobsdb.py",
       "id": "adapters_jobsdb"
     },
@@ -7726,7 +7736,7 @@
       "source_file": "hk_jobs/adapters/jobsdb.py",
       "source_location": "L305",
       "_origin": "ast",
-      "community": 83,
+      "community": 25,
       "norm_label": "._apply_advertiser_allowlist()",
       "id": "adapters_jobsdb_jobsdbadapter_apply_advertiser_allowlist"
     },
@@ -7756,7 +7766,7 @@
       "source_file": "hk_jobs/adapters/jobsdb.py",
       "source_location": "L434",
       "_origin": "ast",
-      "community": 12,
+      "community": 75,
       "norm_label": "_parse_listing_date()",
       "id": "adapters_jobsdb_parse_listing_date"
     },
@@ -7766,7 +7776,7 @@
       "source_file": "hk_jobs/adapters/jobsdb.py",
       "source_location": "L434",
       "_origin": "ast",
-      "community": 9,
+      "community": 75,
       "norm_label": "datetime",
       "id": "hk_jobs_adapters_jobsdb_py_datetime"
     },
@@ -7776,7 +7786,7 @@
       "source_file": "hk_jobs/adapters/jobsdb.py",
       "source_location": "L471",
       "_origin": "ast",
-      "community": 157,
+      "community": 12,
       "norm_label": "_extract_source_id()",
       "id": "adapters_jobsdb_extract_source_id"
     },
@@ -7786,7 +7796,7 @@
       "source_file": "hk_jobs/adapters/jobsdb.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 9,
+      "community": 75,
       "norm_label": "jobsdb fallback adapter.  \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
       "id": "adapters_jobsdb_rationale_1"
     },
@@ -7856,7 +7866,7 @@
       "source_file": "hk_jobs/adapters/jobsdb.py",
       "source_location": "L306",
       "_origin": "ast",
-      "community": 83,
+      "community": 25,
       "norm_label": "for plain-listing companies, drop cards whose advertiser isn't accepted.",
       "id": "adapters_jobsdb_rationale_306"
     },
@@ -7876,7 +7886,7 @@
       "source_file": "hk_jobs/adapters/jobsdb.py",
       "source_location": "L435",
       "_origin": "ast",
-      "community": 12,
+      "community": 75,
       "norm_label": "parse a jobsdb relative date string into a utc datetime.      live page formats",
       "id": "adapters_jobsdb_rationale_435"
     },
@@ -7886,7 +7896,7 @@
       "source_file": "hk_jobs/adapters/jobsdb.py",
       "source_location": "L472",
       "_origin": "ast",
-      "community": 157,
+      "community": 12,
       "norm_label": "extract trailing numeric job id from a jobsdb url; fall back to full url.",
       "id": "adapters_jobsdb_rationale_472"
     },
@@ -7896,7 +7906,7 @@
       "source_file": "hk_jobs/adapters/jobsdb.py",
       "source_location": "L59",
       "_origin": "ast",
-      "community": 9,
+      "community": 75,
       "norm_label": "# important: these selectors could not be verified against live cloudflare-",
       "id": "adapters_jobsdb_rationale_59"
     },
@@ -7906,7 +7916,7 @@
       "source_file": "hk_jobs/adapters/linkedin.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 9,
+      "community": 84,
       "norm_label": "linkedin.py",
       "id": "adapters_linkedin"
     },
@@ -8036,7 +8046,7 @@
       "source_file": "hk_jobs/adapters/linkedin.py",
       "source_location": "L311",
       "_origin": "ast",
-      "community": 43,
+      "community": 84,
       "norm_label": "_extract_job_id()",
       "id": "adapters_linkedin_extract_job_id"
     },
@@ -8046,7 +8056,7 @@
       "source_file": "hk_jobs/adapters/linkedin.py",
       "source_location": "L325",
       "_origin": "ast",
-      "community": 9,
+      "community": 84,
       "norm_label": "_parse_date()",
       "id": "adapters_linkedin_parse_date"
     },
@@ -8056,7 +8066,7 @@
       "source_file": "hk_jobs/adapters/linkedin.py",
       "source_location": "L325",
       "_origin": "ast",
-      "community": 9,
+      "community": 84,
       "norm_label": "datetime",
       "id": "hk_jobs_adapters_linkedin_py_datetime"
     },
@@ -8086,7 +8096,7 @@
       "source_file": "hk_jobs/adapters/linkedin.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 9,
+      "community": 84,
       "norm_label": "linkedin fallback adapter (public *guest* jobs api \u2014 no login).  \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
       "id": "adapters_linkedin_rationale_1"
     },
@@ -8146,7 +8156,7 @@
       "source_file": "hk_jobs/adapters/linkedin.py",
       "source_location": "L312",
       "_origin": "ast",
-      "community": 43,
+      "community": 84,
       "norm_label": "pull the numeric job id from the card's entity-urn, falling back to its link.",
       "id": "adapters_linkedin_rationale_312"
     },
@@ -8156,7 +8166,7 @@
       "source_file": "hk_jobs/adapters/linkedin.py",
       "source_location": "L326",
       "_origin": "ast",
-      "community": 9,
+      "community": 84,
       "norm_label": "read the iso date from the card's <time datetime=\"yyyy-mm-dd\"> element.",
       "id": "adapters_linkedin_rationale_326"
     },
@@ -8486,7 +8496,7 @@
       "source_file": "hk_jobs/adapters/successfactors.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 9,
+      "community": 99,
       "norm_label": "successfactors.py",
       "id": "adapters_successfactors"
     },
@@ -8496,7 +8506,7 @@
       "source_file": "hk_jobs/adapters/successfactors.py",
       "source_location": "L103",
       "_origin": "ast",
-      "community": 156,
+      "community": 96,
       "norm_label": "_extract_source_id()",
       "id": "adapters_successfactors_extract_source_id"
     },
@@ -8516,7 +8526,7 @@
       "source_file": "hk_jobs/adapters/successfactors.py",
       "source_location": "L119",
       "_origin": "ast",
-      "community": 9,
+      "community": 99,
       "norm_label": "datetime",
       "id": "hk_jobs_adapters_successfactors_py_datetime"
     },
@@ -8606,7 +8616,7 @@
       "source_file": "hk_jobs/adapters/successfactors.py",
       "source_location": "L278",
       "_origin": "ast",
-      "community": 9,
+      "community": 69,
       "norm_label": "job",
       "id": "hk_jobs_adapters_successfactors_py_job"
     },
@@ -8676,7 +8686,7 @@
       "source_file": "hk_jobs/adapters/successfactors.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 9,
+      "community": 99,
       "norm_label": "sap successfactors (recruiting marketing / rmk) adapter.  successfactors is the",
       "id": "adapters_successfactors_rationale_1"
     },
@@ -8686,7 +8696,7 @@
       "source_file": "hk_jobs/adapters/successfactors.py",
       "source_location": "L104",
       "_origin": "ast",
-      "community": 156,
+      "community": 96,
       "norm_label": "pull the numeric posting id out of a successfactors job link.      '/job/causewa",
       "id": "adapters_successfactors_rationale_104"
     },
@@ -8816,7 +8826,7 @@
       "source_file": "hk_jobs/adapters/workday.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 9,
+      "community": 56,
       "norm_label": "workday.py",
       "id": "adapters_workday"
     },
@@ -8826,7 +8836,7 @@
       "source_file": "hk_jobs/adapters/workday.py",
       "source_location": "L50",
       "_origin": "ast",
-      "community": 98,
+      "community": 15,
       "norm_label": "_strip_html()",
       "id": "adapters_workday_strip_html"
     },
@@ -8946,7 +8956,7 @@
       "source_file": "hk_jobs/adapters/workday.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 9,
+      "community": 56,
       "norm_label": "workday ats adapter.  workday is the most common ats among large hk financial fi",
       "id": "adapters_workday_rationale_1"
     },
@@ -8956,7 +8966,7 @@
       "source_file": "hk_jobs/adapters/workday.py",
       "source_location": "L51",
       "_origin": "ast",
-      "community": 98,
+      "community": 15,
       "norm_label": "convert an html job description to clean plain text.      block-level tags (p, b",
       "id": "adapters_workday_rationale_51"
     },
@@ -9186,7 +9196,7 @@
       "source_file": "hk_jobs/backup.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 77,
+      "community": 4,
       "norm_label": "backup.py",
       "id": "hk_jobs_backup"
     },
@@ -9196,7 +9206,7 @@
       "source_file": "hk_jobs/backup.py",
       "source_location": "L26",
       "_origin": "ast",
-      "community": 77,
+      "community": 4,
       "norm_label": "backup_database()",
       "id": "hk_jobs_backup_backup_database"
     },
@@ -9206,7 +9216,7 @@
       "source_file": "hk_jobs/backup.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 77,
+      "community": 4,
       "norm_label": "database backup utility.  creates a dated copy of jobs.db in data/backups/. by d",
       "id": "hk_jobs_backup_rationale_1"
     },
@@ -9366,7 +9376,7 @@
       "source_file": "hk_jobs/description_fetcher.py",
       "source_location": "L89",
       "_origin": "ast",
-      "community": 38,
+      "community": 76,
       "norm_label": ".__init__()",
       "id": "hk_jobs_description_fetcher_descriptionfetcher_init"
     },
@@ -10406,7 +10416,7 @@
       "source_file": "hk_jobs/migrations.py",
       "source_location": "L478",
       "_origin": "ast",
-      "community": 21,
+      "community": 4,
       "norm_label": "migrate_to_phase_26()",
       "id": "hk_jobs_migrations_migrate_to_phase_26"
     },
@@ -10416,7 +10426,7 @@
       "source_file": "hk_jobs/migrations.py",
       "source_location": "L557",
       "_origin": "ast",
-      "community": 21,
+      "community": 4,
       "norm_label": "migrate_to_phase_27()",
       "id": "hk_jobs_migrations_migrate_to_phase_27"
     },
@@ -10426,7 +10436,7 @@
       "source_file": "hk_jobs/migrations.py",
       "source_location": "L589",
       "_origin": "ast",
-      "community": 21,
+      "community": 4,
       "norm_label": "migrate_to_phase_28()",
       "id": "hk_jobs_migrations_migrate_to_phase_28"
     },
@@ -10596,7 +10606,7 @@
       "source_file": "hk_jobs/migrations.py",
       "source_location": "L479",
       "_origin": "ast",
-      "community": 21,
+      "community": 4,
       "norm_label": "create the lp-2 \"secret market\" ingestion tables: linkedin_posts,     recruiter_",
       "id": "hk_jobs_migrations_rationale_479"
     },
@@ -10606,7 +10616,7 @@
       "source_file": "hk_jobs/migrations.py",
       "source_location": "L558",
       "_origin": "ast",
-      "community": 21,
+      "community": 4,
       "norm_label": "add extraction result columns to linkedin_posts (lp-3).      stores the extracto",
       "id": "hk_jobs_migrations_rationale_558"
     },
@@ -10616,7 +10626,7 @@
       "source_file": "hk_jobs/migrations.py",
       "source_location": "L590",
       "_origin": "ast",
-      "community": 21,
+      "community": 4,
       "norm_label": "add email/email_fetched_at columns to recruiter_fetch_state (lp-5 email     harv",
       "id": "hk_jobs_migrations_rationale_590"
     },
@@ -10626,7 +10636,7 @@
       "source_file": "hk_jobs/pipeline.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 77,
+      "community": 4,
       "norm_label": "pipeline.py",
       "id": "hk_jobs_pipeline"
     },
@@ -10666,7 +10676,7 @@
       "source_file": "hk_jobs/pipeline.py",
       "source_location": "L62",
       "_origin": "ast",
-      "community": 17,
+      "community": 98,
       "norm_label": "namespace",
       "id": "hk_jobs_pipeline_py_namespace"
     },
@@ -10766,7 +10776,7 @@
       "source_file": "hk_jobs/pipeline.py",
       "source_location": "L412",
       "_origin": "ast",
-      "community": 17,
+      "community": 98,
       "norm_label": "_parse_args()",
       "id": "hk_jobs_pipeline_parse_args"
     },
@@ -10786,7 +10796,7 @@
       "source_file": "hk_jobs/pipeline.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 77,
+      "community": 4,
       "norm_label": "pipeline orchestrator.  reads companies.yaml, instantiates the right adapter for",
       "id": "hk_jobs_pipeline_rationale_1"
     },
@@ -10986,7 +10996,7 @@
       "source_file": "hk_jobs/posts/email_harvest.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 13,
+      "community": 19,
       "norm_label": "email_harvest.py",
       "id": "posts_email_harvest"
     },
@@ -10996,7 +11006,7 @@
       "source_file": "hk_jobs/posts/email_harvest.py",
       "source_location": "L46",
       "_origin": "ast",
-      "community": 13,
+      "community": 19,
       "norm_label": "emailharvestsummary",
       "id": "posts_email_harvest_emailharvestsummary"
     },
@@ -11046,7 +11056,7 @@
       "source_file": "hk_jobs/posts/email_harvest.py",
       "source_location": "L154",
       "_origin": "ast",
-      "community": 13,
+      "community": 19,
       "norm_label": "_backfill_promoted_jobs()",
       "id": "posts_email_harvest_backfill_promoted_jobs"
     },
@@ -11056,7 +11066,7 @@
       "source_file": "hk_jobs/posts/email_harvest.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 13,
+      "community": 19,
       "norm_label": "lp-5 recruiter email harvest (plan_linkedin_posts.md decision #10): a one-time-p",
       "id": "posts_email_harvest_rationale_1"
     },
@@ -11076,7 +11086,7 @@
       "source_file": "hk_jobs/posts/email_harvest.py",
       "source_location": "L155",
       "_origin": "ast",
-      "community": 13,
+      "community": 19,
       "norm_label": "push every recruiter's current harvested email into board_signals for     alread",
       "id": "posts_email_harvest_rationale_155"
     },
@@ -11736,7 +11746,7 @@
       "source_file": "hk_jobs/posts/pilot_report.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 21,
+      "community": 4,
       "norm_label": "pilot_report.py",
       "id": "posts_pilot_report"
     },
@@ -11746,7 +11756,7 @@
       "source_file": "hk_jobs/posts/pilot_report.py",
       "source_location": "L35",
       "_origin": "ast",
-      "community": 21,
+      "community": 4,
       "norm_label": "pilotreport",
       "id": "posts_pilot_report_pilotreport"
     },
@@ -11756,7 +11766,7 @@
       "source_file": "hk_jobs/posts/pilot_report.py",
       "source_location": "L49",
       "_origin": "ast",
-      "community": 21,
+      "community": 4,
       "norm_label": "generate_pilot_report()",
       "id": "posts_pilot_report_generate_pilot_report"
     },
@@ -11766,7 +11776,7 @@
       "source_file": "hk_jobs/posts/pilot_report.py",
       "source_location": "L99",
       "_origin": "ast",
-      "community": 21,
+      "community": 4,
       "norm_label": "_window_days()",
       "id": "posts_pilot_report_window_days"
     },
@@ -11776,7 +11786,7 @@
       "source_file": "hk_jobs/posts/pilot_report.py",
       "source_location": "L112",
       "_origin": "ast",
-      "community": 21,
+      "community": 4,
       "norm_label": "format_report()",
       "id": "posts_pilot_report_format_report"
     },
@@ -11786,7 +11796,7 @@
       "source_file": "hk_jobs/posts/pilot_report.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 21,
+      "community": 4,
       "norm_label": "lp-4 pilot deliverable (plan_linkedin_posts.md decision #11): a one-page summary",
       "id": "posts_pilot_report_rationale_1"
     },
@@ -11996,7 +12006,7 @@
       "source_file": "hk_jobs/posts/store.py",
       "source_location": "L47",
       "_origin": "ast",
-      "community": 13,
+      "community": 19,
       "norm_label": "poststore",
       "id": "posts_store_poststore"
     },
@@ -12006,7 +12016,7 @@
       "source_file": "hk_jobs/posts/store.py",
       "source_location": "L48",
       "_origin": "ast",
-      "community": 13,
+      "community": 19,
       "norm_label": ".__init__()",
       "id": "posts_store_poststore_init"
     },
@@ -12026,7 +12036,7 @@
       "source_file": "hk_jobs/posts/store.py",
       "source_location": "L92",
       "_origin": "ast",
-      "community": 13,
+      "community": 19,
       "norm_label": ".get_last_fetched_at()",
       "id": "posts_store_poststore_get_last_fetched_at"
     },
@@ -12036,7 +12046,7 @@
       "source_file": "hk_jobs/posts/store.py",
       "source_location": "L102",
       "_origin": "ast",
-      "community": 13,
+      "community": 19,
       "norm_label": ".get_email_fetched_at()",
       "id": "posts_store_poststore_get_email_fetched_at"
     },
@@ -12046,7 +12056,7 @@
       "source_file": "hk_jobs/posts/store.py",
       "source_location": "L112",
       "_origin": "ast",
-      "community": 13,
+      "community": 19,
       "norm_label": ".record_email()",
       "id": "posts_store_poststore_record_email"
     },
@@ -12056,7 +12066,7 @@
       "source_file": "hk_jobs/posts/store.py",
       "source_location": "L135",
       "_origin": "ast",
-      "community": 13,
+      "community": 19,
       "norm_label": ".all_recruiter_emails()",
       "id": "posts_store_poststore_all_recruiter_emails"
     },
@@ -12066,7 +12076,7 @@
       "source_file": "hk_jobs/posts/store.py",
       "source_location": "L146",
       "_origin": "ast",
-      "community": 13,
+      "community": 19,
       "norm_label": ".record_fetch_result()",
       "id": "posts_store_poststore_record_fetch_result"
     },
@@ -12096,7 +12106,7 @@
       "source_file": "hk_jobs/posts/store.py",
       "source_location": "L113",
       "_origin": "ast",
-      "community": 13,
+      "community": 19,
       "norm_label": "store the harvested email (or none if the search found none \u2014 still         reco",
       "id": "posts_store_rationale_113"
     },
@@ -12106,7 +12116,7 @@
       "source_file": "hk_jobs/posts/store.py",
       "source_location": "L136",
       "_origin": "ast",
-      "community": 13,
+      "community": 19,
       "norm_label": "slug -> email for every recruiter with a non-null harvested email.",
       "id": "posts_store_rationale_136"
     },
@@ -12116,7 +12126,7 @@
       "source_file": "hk_jobs/posts/store.py",
       "source_location": "L149",
       "_origin": "ast",
-      "community": 13,
+      "community": 19,
       "norm_label": "update recruiter_fetch_state after an attempt. last_fetched_at is only         a",
       "id": "posts_store_rationale_149"
     },
@@ -12176,7 +12186,7 @@
       "source_file": "hk_jobs/posts/vendor_client.py",
       "source_location": "L112",
       "_origin": "ast",
-      "community": 19,
+      "community": 13,
       "norm_label": ".__init__()",
       "id": "posts_vendor_client_apifyclient_init"
     },
@@ -12186,7 +12196,7 @@
       "source_file": "hk_jobs/posts/vendor_client.py",
       "source_location": "L120",
       "_origin": "ast",
-      "community": 93,
+      "community": 13,
       "norm_label": ".fetch_profile_posts()",
       "id": "posts_vendor_client_apifyclient_fetch_profile_posts"
     },
@@ -12196,7 +12206,7 @@
       "source_file": "hk_jobs/posts/vendor_client.py",
       "source_location": "L137",
       "_origin": "ast",
-      "community": 93,
+      "community": 13,
       "norm_label": ".search_posts()",
       "id": "posts_vendor_client_apifyclient_search_posts"
     },
@@ -12206,7 +12216,7 @@
       "source_file": "hk_jobs/posts/vendor_client.py",
       "source_location": "L156",
       "_origin": "ast",
-      "community": 93,
+      "community": 13,
       "norm_label": ".fetch_profile_email()",
       "id": "posts_vendor_client_apifyclient_fetch_profile_email"
     },
@@ -12216,7 +12226,7 @@
       "source_file": "hk_jobs/posts/vendor_client.py",
       "source_location": "L175",
       "_origin": "ast",
-      "community": 93,
+      "community": 13,
       "norm_label": "._call_actor()",
       "id": "posts_vendor_client_apifyclient_call_actor"
     },
@@ -12226,7 +12236,7 @@
       "source_file": "hk_jobs/posts/vendor_client.py",
       "source_location": "L175",
       "_origin": "ast",
-      "community": 93,
+      "community": 13,
       "norm_label": "any",
       "id": "hk_jobs_posts_vendor_client_py_any"
     },
@@ -12266,7 +12276,7 @@
       "source_file": "hk_jobs/posts/vendor_client.py",
       "source_location": "L123",
       "_origin": "ast",
-      "community": 93,
+      "community": 13,
       "norm_label": "watchlist polling: posts from one profile, optionally since a date.          `si",
       "id": "posts_vendor_client_rationale_123"
     },
@@ -12276,7 +12286,7 @@
       "source_file": "hk_jobs/posts/vendor_client.py",
       "source_location": "L140",
       "_origin": "ast",
-      "community": 93,
+      "community": 13,
       "norm_label": "weekly discovery search: posts matching a free-text query.          `searchqueri",
       "id": "posts_vendor_client_rationale_140"
     },
@@ -12286,7 +12296,7 @@
       "source_file": "hk_jobs/posts/vendor_client.py",
       "source_location": "L157",
       "_origin": "ast",
-      "community": 93,
+      "community": 13,
       "norm_label": "lp-5 recruiter email harvest: one profile, email-search mode.          `queries`",
       "id": "posts_vendor_client_rationale_157"
     },
@@ -12296,7 +12306,7 @@
       "source_file": "hk_jobs/posts/vendor_client.py",
       "source_location": "L178",
       "_origin": "ast",
-      "community": 93,
+      "community": 13,
       "norm_label": "single mockable seam \u2014 patch this in tests to inject fixture json         instea",
       "id": "posts_vendor_client_rationale_178"
     },
@@ -12706,7 +12716,7 @@
       "source_file": "hk_jobs/schema.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 9,
+      "community": 31,
       "norm_label": "schema.py",
       "id": "hk_jobs_schema"
     },
@@ -12716,7 +12726,7 @@
       "source_file": "hk_jobs/schema.py",
       "source_location": "L16",
       "_origin": "ast",
-      "community": 9,
+      "community": 31,
       "norm_label": "job",
       "id": "hk_jobs_schema_job"
     },
@@ -12726,7 +12736,7 @@
       "source_file": "hk_jobs/schema.py",
       "source_location": "L159",
       "_origin": "ast",
-      "community": 9,
+      "community": 31,
       "norm_label": ".dedup_hash()",
       "id": "hk_jobs_schema_job_dedup_hash"
     },
@@ -12756,7 +12766,7 @@
       "source_file": "hk_jobs/schema.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 9,
+      "community": 31,
       "norm_label": "canonical job schema.  every adapter \u2014 regardless of source ats \u2014 maps its raw d",
       "id": "hk_jobs_schema_rationale_1"
     },
@@ -12766,7 +12776,7 @@
       "source_file": "hk_jobs/schema.py",
       "source_location": "L160",
       "_origin": "ast",
-      "community": 9,
+      "community": 31,
       "norm_label": "return a 12-character fingerprint that identifies this job posting.          why",
       "id": "hk_jobs_schema_rationale_160"
     },
@@ -12916,7 +12926,7 @@
       "source_file": "hk_jobs/storage.py",
       "source_location": "L395",
       "_origin": "ast",
-      "community": 20,
+      "community": 34,
       "norm_label": ".mark_inactive_for_run()",
       "id": "hk_jobs_storage_jobstore_mark_inactive_for_run"
     },
@@ -12946,7 +12956,7 @@
       "source_file": "hk_jobs/storage.py",
       "source_location": "L569",
       "_origin": "ast",
-      "community": 20,
+      "community": 34,
       "norm_label": ".refresh_signal_flags()",
       "id": "hk_jobs_storage_jobstore_refresh_signal_flags"
     },
@@ -12966,7 +12976,7 @@
       "source_file": "hk_jobs/storage.py",
       "source_location": "L610",
       "_origin": "ast",
-      "community": 53,
+      "community": 34,
       "norm_label": "any",
       "id": "hk_jobs_storage_py_any"
     },
@@ -13116,7 +13126,7 @@
       "source_file": "hk_jobs/storage.py",
       "source_location": "L402",
       "_origin": "ast",
-      "community": 20,
+      "community": 34,
       "norm_label": "soft-delete jobs for a company that were not seen in this run.          after we",
       "id": "hk_jobs_storage_rationale_402"
     },
@@ -13136,7 +13146,7 @@
       "source_file": "hk_jobs/storage.py",
       "source_location": "L570",
       "_origin": "ast",
-      "community": 20,
+      "community": 34,
       "norm_label": "recompute the indexed grp_new / grp_urgent / grp_applicants columns from",
       "id": "hk_jobs_storage_rationale_570"
     },
@@ -15843,7 +15853,7 @@
       "source_file": "tests/test_base_adapter.py",
       "source_location": "L36",
       "_origin": "ast",
-      "community": 74,
+      "community": 9,
       "norm_label": "test_cannot_instantiate_base_directly()",
       "id": "tests_test_base_adapter_test_cannot_instantiate_base_directly"
     },
@@ -16193,7 +16203,7 @@
       "source_file": "tests/test_cross_posting.py",
       "source_location": "L35",
       "_origin": "ast",
-      "community": 20,
+      "community": 23,
       "norm_label": "store()",
       "id": "tests_test_cross_posting_store"
     },
@@ -16203,7 +16213,7 @@
       "source_file": "tests/test_cross_posting.py",
       "source_location": "L35",
       "_origin": "ast",
-      "community": 20,
+      "community": 23,
       "norm_label": "path",
       "id": "tests_test_cross_posting_py_path"
     },
@@ -16473,7 +16483,7 @@
       "source_file": "tests/test_efc.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 3,
+      "community": 21,
       "norm_label": "test_efc.py",
       "id": "tests_test_efc"
     },
@@ -16483,7 +16493,7 @@
       "source_file": "tests/test_efc.py",
       "source_location": "L20",
       "_origin": "ast",
-      "community": 3,
+      "community": 21,
       "norm_label": "_api_job()",
       "id": "tests_test_efc_api_job"
     },
@@ -16493,7 +16503,7 @@
       "source_file": "tests/test_efc.py",
       "source_location": "L38",
       "_origin": "ast",
-      "community": 3,
+      "community": 21,
       "norm_label": "_adapter()",
       "id": "tests_test_efc_adapter"
     },
@@ -16503,7 +16513,7 @@
       "source_file": "tests/test_efc.py",
       "source_location": "L57",
       "_origin": "ast",
-      "community": 3,
+      "community": 21,
       "norm_label": "_dummyclient",
       "id": "tests_test_efc_dummyclient"
     },
@@ -16513,7 +16523,7 @@
       "source_file": "tests/test_efc.py",
       "source_location": "L58",
       "_origin": "ast",
-      "community": 3,
+      "community": 21,
       "norm_label": ".__enter__()",
       "id": "tests_test_efc_dummyclient_enter"
     },
@@ -16523,7 +16533,7 @@
       "source_file": "tests/test_efc.py",
       "source_location": "L59",
       "_origin": "ast",
-      "community": 3,
+      "community": 21,
       "norm_label": ".__exit__()",
       "id": "tests_test_efc_dummyclient_exit"
     },
@@ -16533,7 +16543,7 @@
       "source_file": "tests/test_efc.py",
       "source_location": "L64",
       "_origin": "ast",
-      "community": 3,
+      "community": 21,
       "norm_label": "test_maps_api_job_to_canonical()",
       "id": "tests_test_efc_test_maps_api_job_to_canonical"
     },
@@ -16543,7 +16553,7 @@
       "source_file": "tests/test_efc.py",
       "source_location": "L81",
       "_origin": "ast",
-      "community": 3,
+      "community": 21,
       "norm_label": "test_salary_zero_becomes_none()",
       "id": "tests_test_efc_test_salary_zero_becomes_none"
     },
@@ -16553,7 +16563,7 @@
       "source_file": "tests/test_efc.py",
       "source_location": "L87",
       "_origin": "ast",
-      "community": 3,
+      "community": 21,
       "norm_label": "test_salary_present_kept()",
       "id": "tests_test_efc_test_salary_present_kept"
     },
@@ -16563,7 +16573,7 @@
       "source_file": "tests/test_efc.py",
       "source_location": "L95",
       "_origin": "ast",
-      "community": 3,
+      "community": 21,
       "norm_label": "test_follows_multiple_pages()",
       "id": "tests_test_efc_test_follows_multiple_pages"
     },
@@ -16573,7 +16583,7 @@
       "source_file": "tests/test_efc.py",
       "source_location": "L104",
       "_origin": "ast",
-      "community": 3,
+      "community": 21,
       "norm_label": "test_stops_at_page_count()",
       "id": "tests_test_efc_test_stops_at_page_count"
     },
@@ -16583,7 +16593,7 @@
       "source_file": "tests/test_efc.py",
       "source_location": "L110",
       "_origin": "ast",
-      "community": 3,
+      "community": 21,
       "norm_label": "test_empty_result()",
       "id": "tests_test_efc_test_empty_result"
     },
@@ -16593,7 +16603,7 @@
       "source_file": "tests/test_efc.py",
       "source_location": "L115",
       "_origin": "ast",
-      "community": 3,
+      "community": 21,
       "norm_label": "test_non_hk_jobs_are_filtered_out()",
       "id": "tests_test_efc_test_non_hk_jobs_are_filtered_out"
     },
@@ -16623,7 +16633,7 @@
       "source_file": "tests/test_efc.py",
       "source_location": "L143",
       "_origin": "ast",
-      "community": 3,
+      "community": 21,
       "norm_label": "test_extract_id()",
       "id": "tests_test_efc_test_extract_id"
     },
@@ -16643,7 +16653,7 @@
       "source_file": "tests/test_efc.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 3,
+      "community": 21,
       "norm_label": "tests for the efinancialcareers adapter (json api).  the http layer is mocked vi",
       "id": "tests_test_efc_rationale_1"
     },
@@ -16653,7 +16663,7 @@
       "source_file": "tests/test_efc.py",
       "source_location": "L39",
       "_origin": "ast",
-      "community": 3,
+      "community": 21,
       "norm_label": "pages: list of (data_list, page_count) returned successively by _fetch_page.",
       "id": "tests_test_efc_rationale_39"
     },
@@ -16663,7 +16673,7 @@
       "source_file": "tests/test_efc.py",
       "source_location": "L116",
       "_origin": "ast",
-      "community": 3,
+      "community": 21,
       "norm_label": "a global brand returns worldwide jobs; only hong kong ones are kept.",
       "id": "tests_test_efc_rationale_116"
     },
@@ -16703,7 +16713,7 @@
       "source_file": "tests/test_eightfold.py",
       "source_location": "L32",
       "_origin": "ast",
-      "community": 154,
+      "community": 6,
       "norm_label": "_mocktransport",
       "id": "tests_test_eightfold_mocktransport"
     },
@@ -16713,7 +16723,7 @@
       "source_file": "tests/test_eightfold.py",
       "source_location": "L35",
       "_origin": "ast",
-      "community": 154,
+      "community": 6,
       "norm_label": ".__init__()",
       "id": "tests_test_eightfold_mocktransport_init"
     },
@@ -16723,7 +16733,7 @@
       "source_file": "tests/test_eightfold.py",
       "source_location": "L39",
       "_origin": "ast",
-      "community": 154,
+      "community": 6,
       "norm_label": ".handle_request()",
       "id": "tests_test_eightfold_mocktransport_handle_request"
     },
@@ -16733,7 +16743,7 @@
       "source_file": "tests/test_eightfold.py",
       "source_location": "L39",
       "_origin": "ast",
-      "community": 154,
+      "community": 6,
       "norm_label": "request",
       "id": "tests_test_eightfold_py_request"
     },
@@ -16743,7 +16753,7 @@
       "source_file": "tests/test_eightfold.py",
       "source_location": "L39",
       "_origin": "ast",
-      "community": 154,
+      "community": 6,
       "norm_label": "response",
       "id": "tests_test_eightfold_py_response"
     },
@@ -16753,7 +16763,7 @@
       "source_file": "tests/test_eightfold.py",
       "source_location": "L53",
       "_origin": "ast",
-      "community": 154,
+      "community": 6,
       "norm_label": "adapter()",
       "id": "tests_test_eightfold_adapter"
     },
@@ -16933,7 +16943,7 @@
       "source_file": "tests/test_eightfold.py",
       "source_location": "L33",
       "_origin": "ast",
-      "community": 154,
+      "community": 6,
       "norm_label": "serves paginated fixture data by inspecting the 'start' query param.",
       "id": "tests_test_eightfold_rationale_33"
     },
@@ -16953,7 +16963,7 @@
       "source_file": "tests/test_email_harvest.py",
       "source_location": "L25",
       "_origin": "ast",
-      "community": 21,
+      "community": 4,
       "norm_label": "db()",
       "id": "tests_test_email_harvest_db"
     },
@@ -18253,7 +18263,7 @@
       "source_file": "tests/test_indeed.py",
       "source_location": "L60",
       "_origin": "ast",
-      "community": 149,
+      "community": 47,
       "norm_label": "test_extract_mosaic_json_returns_model()",
       "id": "tests_test_indeed_test_extract_mosaic_json_returns_model"
     },
@@ -18263,7 +18273,7 @@
       "source_file": "tests/test_indeed.py",
       "source_location": "L67",
       "_origin": "ast",
-      "community": 149,
+      "community": 47,
       "norm_label": "test_extract_mosaic_json_absent_returns_none()",
       "id": "tests_test_indeed_test_extract_mosaic_json_absent_returns_none"
     },
@@ -18273,7 +18283,7 @@
       "source_file": "tests/test_indeed.py",
       "source_location": "L71",
       "_origin": "ast",
-      "community": 149,
+      "community": 47,
       "norm_label": "test_extract_mosaic_json_malformed_returns_none()",
       "id": "tests_test_indeed_test_extract_mosaic_json_malformed_returns_none"
     },
@@ -18283,7 +18293,7 @@
       "source_file": "tests/test_indeed.py",
       "source_location": "L76",
       "_origin": "ast",
-      "community": 149,
+      "community": 47,
       "norm_label": "test_extract_mosaic_json_brace_match_survives_nested_braces()",
       "id": "tests_test_indeed_test_extract_mosaic_json_brace_match_survives_nested_braces"
     },
@@ -18343,7 +18353,7 @@
       "source_file": "tests/test_indeed.py",
       "source_location": "L114",
       "_origin": "ast",
-      "community": 47,
+      "community": 59,
       "norm_label": "test_epoch_ms_to_dt_valid()",
       "id": "tests_test_indeed_test_epoch_ms_to_dt_valid"
     },
@@ -18353,7 +18363,7 @@
       "source_file": "tests/test_indeed.py",
       "source_location": "L119",
       "_origin": "ast",
-      "community": 47,
+      "community": 59,
       "norm_label": "test_epoch_ms_to_dt_zero_or_bad()",
       "id": "tests_test_indeed_test_epoch_ms_to_dt_zero_or_bad"
     },
@@ -18473,7 +18483,7 @@
       "source_file": "tests/test_indeed.py",
       "source_location": "L190",
       "_origin": "ast",
-      "community": 173,
+      "community": 42,
       "norm_label": "test_pagination_dedups_by_jobkey()",
       "id": "tests_test_indeed_test_pagination_dedups_by_jobkey"
     },
@@ -18593,7 +18603,7 @@
       "source_file": "tests/test_indeed.py",
       "source_location": "L77",
       "_origin": "ast",
-      "community": 149,
+      "community": 47,
       "norm_label": "the brace-matcher must not stop at a nested '}' inside the object.",
       "id": "tests_test_indeed_rationale_77"
     },
@@ -18643,7 +18653,7 @@
       "source_file": "tests/test_indeed.py",
       "source_location": "L191",
       "_origin": "ast",
-      "community": 173,
+      "community": 42,
       "norm_label": "page 2 repeats one card (ccc333) \u2014 output must contain 5 unique jobs, not 6.",
       "id": "tests_test_indeed_rationale_191"
     },
@@ -18783,7 +18793,7 @@
       "source_file": "tests/test_jobsdb.py",
       "source_location": "L105",
       "_origin": "ast",
-      "community": 12,
+      "community": 75,
       "norm_label": "test_parse_listing_date_today()",
       "id": "tests_test_jobsdb_test_parse_listing_date_today"
     },
@@ -18793,7 +18803,7 @@
       "source_file": "tests/test_jobsdb.py",
       "source_location": "L112",
       "_origin": "ast",
-      "community": 12,
+      "community": 75,
       "norm_label": "test_parse_listing_date_days_ago()",
       "id": "tests_test_jobsdb_test_parse_listing_date_days_ago"
     },
@@ -18803,7 +18813,7 @@
       "source_file": "tests/test_jobsdb.py",
       "source_location": "L120",
       "_origin": "ast",
-      "community": 12,
+      "community": 75,
       "norm_label": "test_parse_listing_date_hours_ago()",
       "id": "tests_test_jobsdb_test_parse_listing_date_hours_ago"
     },
@@ -18813,7 +18823,7 @@
       "source_file": "tests/test_jobsdb.py",
       "source_location": "L128",
       "_origin": "ast",
-      "community": 12,
+      "community": 75,
       "norm_label": "test_parse_listing_date_empty()",
       "id": "tests_test_jobsdb_test_parse_listing_date_empty"
     },
@@ -18823,7 +18833,7 @@
       "source_file": "tests/test_jobsdb.py",
       "source_location": "L132",
       "_origin": "ast",
-      "community": 12,
+      "community": 75,
       "norm_label": "test_parse_listing_date_unrecognised()",
       "id": "tests_test_jobsdb_test_parse_listing_date_unrecognised"
     },
@@ -18833,7 +18843,7 @@
       "source_file": "tests/test_jobsdb.py",
       "source_location": "L138",
       "_origin": "ast",
-      "community": 157,
+      "community": 12,
       "norm_label": "test_extract_source_id_modern_url()",
       "id": "tests_test_jobsdb_test_extract_source_id_modern_url"
     },
@@ -18843,7 +18853,7 @@
       "source_file": "tests/test_jobsdb.py",
       "source_location": "L144",
       "_origin": "ast",
-      "community": 157,
+      "community": 12,
       "norm_label": "test_extract_source_id_legacy_suffix()",
       "id": "tests_test_jobsdb_test_extract_source_id_legacy_suffix"
     },
@@ -18853,7 +18863,7 @@
       "source_file": "tests/test_jobsdb.py",
       "source_location": "L149",
       "_origin": "ast",
-      "community": 157,
+      "community": 12,
       "norm_label": "test_extract_source_id_no_number_falls_back()",
       "id": "tests_test_jobsdb_test_extract_source_id_no_number_falls_back"
     },
@@ -18943,7 +18953,7 @@
       "source_file": "tests/test_jobsdb.py",
       "source_location": "L207",
       "_origin": "ast",
-      "community": 174,
+      "community": 12,
       "norm_label": "test_fetch_jobs_descriptions_empty()",
       "id": "tests_test_jobsdb_test_fetch_jobs_descriptions_empty"
     },
@@ -19133,7 +19143,7 @@
       "source_file": "tests/test_jobsdb.py",
       "source_location": "L208",
       "_origin": "ast",
-      "community": 174,
+      "community": 12,
       "norm_label": "without detail pages, descriptions are empty strings \u2014 expected.",
       "id": "tests_test_jobsdb_rationale_208"
     },
@@ -19373,7 +19383,7 @@
       "source_file": "tests/test_linkedin.py",
       "source_location": "L158",
       "_origin": "ast",
-      "community": 175,
+      "community": 55,
       "norm_label": "test_pagination_dedups_by_job_id()",
       "id": "tests_test_linkedin_test_pagination_dedups_by_job_id"
     },
@@ -19503,7 +19513,7 @@
       "source_file": "tests/test_linkedin.py",
       "source_location": "L159",
       "_origin": "ast",
-      "community": 175,
+      "community": 55,
       "norm_label": "page 2 repeats card 333 \u2014 output must be 4 unique jobs, not 5.",
       "id": "tests_test_linkedin_rationale_159"
     },
@@ -19603,7 +19613,7 @@
       "source_file": "tests/test_pilot_report.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 21,
+      "community": 4,
       "norm_label": "test_pilot_report.py",
       "id": "tests_test_pilot_report"
     },
@@ -19613,7 +19623,7 @@
       "source_file": "tests/test_pilot_report.py",
       "source_location": "L16",
       "_origin": "ast",
-      "community": 21,
+      "community": 4,
       "norm_label": "db()",
       "id": "tests_test_pilot_report_db"
     },
@@ -19623,7 +19633,7 @@
       "source_file": "tests/test_pilot_report.py",
       "source_location": "L16",
       "_origin": "ast",
-      "community": 21,
+      "community": 19,
       "norm_label": "path",
       "id": "tests_test_pilot_report_py_path"
     },
@@ -19633,7 +19643,7 @@
       "source_file": "tests/test_pilot_report.py",
       "source_location": "L25",
       "_origin": "ast",
-      "community": 21,
+      "community": 4,
       "norm_label": "test_report_on_empty_db_has_zeroed_numbers()",
       "id": "tests_test_pilot_report_test_report_on_empty_db_has_zeroed_numbers"
     },
@@ -19643,7 +19653,7 @@
       "source_file": "tests/test_pilot_report.py",
       "source_location": "L35",
       "_origin": "ast",
-      "community": 21,
+      "community": 4,
       "norm_label": "test_report_reflects_real_promoted_data_and_cost()",
       "id": "tests_test_pilot_report_test_report_reflects_real_promoted_data_and_cost"
     },
@@ -19653,7 +19663,7 @@
       "source_file": "tests/test_pilot_report.py",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 21,
+      "community": 4,
       "norm_label": "tests for hk_jobs/posts/pilot_report.py.",
       "id": "tests_test_pilot_report_rationale_1"
     },
@@ -19873,7 +19883,7 @@
       "source_file": "tests/test_pipeline.py",
       "source_location": "L262",
       "_origin": "ast",
-      "community": 17,
+      "community": 98,
       "norm_label": "test_only_flag_accepted_by_parse_args()",
       "id": "tests_test_pipeline_test_only_flag_accepted_by_parse_args"
     },
@@ -19883,7 +19893,7 @@
       "source_file": "tests/test_pipeline.py",
       "source_location": "L269",
       "_origin": "ast",
-      "community": 17,
+      "community": 98,
       "norm_label": "test_only_flag_accepts_multiple_slugs()",
       "id": "tests_test_pipeline_test_only_flag_accepts_multiple_slugs"
     },
@@ -19893,7 +19903,7 @@
       "source_file": "tests/test_pipeline.py",
       "source_location": "L276",
       "_origin": "ast",
-      "community": 17,
+      "community": 98,
       "norm_label": "test_company_flag_still_accepted_by_parse_args()",
       "id": "tests_test_pipeline_test_company_flag_still_accepted_by_parse_args"
     },
@@ -19903,7 +19913,7 @@
       "source_file": "tests/test_pipeline.py",
       "source_location": "L283",
       "_origin": "ast",
-      "community": 17,
+      "community": 98,
       "norm_label": "test_verbose_flag_parsed()",
       "id": "tests_test_pipeline_test_verbose_flag_parsed"
     },
@@ -20133,7 +20143,7 @@
       "source_file": "tests/test_posts_pipeline.py",
       "source_location": "L163",
       "_origin": "ast",
-      "community": 5,
+      "community": 19,
       "norm_label": "test_discovery_slug_is_prefixed_and_never_collides_with_watchlist()",
       "id": "tests_test_posts_pipeline_test_discovery_slug_is_prefixed_and_never_collides_with_watchlist"
     },
@@ -20293,7 +20303,7 @@
       "source_file": "tests/test_promote.py",
       "source_location": "L23",
       "_origin": "ast",
-      "community": 21,
+      "community": 4,
       "norm_label": "db()",
       "id": "tests_test_promote_db"
     },
@@ -20453,7 +20463,7 @@
       "source_file": "tests/test_promote.py",
       "source_location": "L234",
       "_origin": "ast",
-      "community": 4,
+      "community": 20,
       "norm_label": "test_metrics_on_empty_db()",
       "id": "tests_test_promote_test_metrics_on_empty_db"
     },
@@ -21293,7 +21303,7 @@
       "source_file": "tests/test_storage.py",
       "source_location": "L30",
       "_origin": "ast",
-      "community": 20,
+      "community": 41,
       "norm_label": "store()",
       "id": "tests_test_storage_store"
     },
@@ -21303,7 +21313,7 @@
       "source_file": "tests/test_storage.py",
       "source_location": "L30",
       "_origin": "ast",
-      "community": 20,
+      "community": 41,
       "norm_label": "path",
       "id": "tests_test_storage_py_path"
     },
@@ -21863,7 +21873,7 @@
       "source_file": "tests/test_successfactors.py",
       "source_location": "L76",
       "_origin": "ast",
-      "community": 156,
+      "community": 96,
       "norm_label": "test_extract_source_id_from_job_url()",
       "id": "tests_test_successfactors_test_extract_source_id_from_job_url"
     },
@@ -21873,7 +21883,7 @@
       "source_file": "tests/test_successfactors.py",
       "source_location": "L81",
       "_origin": "ast",
-      "community": 156,
+      "community": 96,
       "norm_label": "test_extract_source_id_absolute_url()",
       "id": "tests_test_successfactors_test_extract_source_id_absolute_url"
     },
@@ -21883,7 +21893,7 @@
       "source_file": "tests/test_successfactors.py",
       "source_location": "L86",
       "_origin": "ast",
-      "community": 156,
+      "community": 96,
       "norm_label": "test_extract_source_id_unparseable_falls_back_to_href()",
       "id": "tests_test_successfactors_test_extract_source_id_unparseable_falls_back_to_href"
     },
@@ -22253,7 +22263,7 @@
       "source_file": "tests/test_successfactors.py",
       "source_location": "L87",
       "_origin": "ast",
-      "community": 156,
+      "community": 96,
       "norm_label": "an unrecognised link must still yield a stable id, not an empty collision.",
       "id": "tests_test_successfactors_rationale_87"
     },
@@ -22603,7 +22613,7 @@
       "source_file": "tests/test_workday.py",
       "source_location": "L34",
       "_origin": "ast",
-      "community": 110,
+      "community": 35,
       "norm_label": "_mocktransport",
       "id": "tests_test_workday_mocktransport"
     },
@@ -22613,7 +22623,7 @@
       "source_file": "tests/test_workday.py",
       "source_location": "L37",
       "_origin": "ast",
-      "community": 110,
+      "community": 35,
       "norm_label": ".__init__()",
       "id": "tests_test_workday_mocktransport_init"
     },
@@ -22623,7 +22633,7 @@
       "source_file": "tests/test_workday.py",
       "source_location": "L43",
       "_origin": "ast",
-      "community": 110,
+      "community": 35,
       "norm_label": ".handle_request()",
       "id": "tests_test_workday_mocktransport_handle_request"
     },
@@ -22633,7 +22643,7 @@
       "source_file": "tests/test_workday.py",
       "source_location": "L43",
       "_origin": "ast",
-      "community": 110,
+      "community": 35,
       "norm_label": "request",
       "id": "tests_test_workday_py_request"
     },
@@ -22643,7 +22653,7 @@
       "source_file": "tests/test_workday.py",
       "source_location": "L43",
       "_origin": "ast",
-      "community": 110,
+      "community": 35,
       "norm_label": "response",
       "id": "tests_test_workday_py_response"
     },
@@ -22653,7 +22663,7 @@
       "source_file": "tests/test_workday.py",
       "source_location": "L57",
       "_origin": "ast",
-      "community": 110,
+      "community": 35,
       "norm_label": "adapter()",
       "id": "tests_test_workday_adapter"
     },
@@ -22663,7 +22673,7 @@
       "source_file": "tests/test_workday.py",
       "source_location": "L78",
       "_origin": "ast",
-      "community": 98,
+      "community": 15,
       "norm_label": "test_strip_html_removes_tags()",
       "id": "tests_test_workday_test_strip_html_removes_tags"
     },
@@ -22673,7 +22683,7 @@
       "source_file": "tests/test_workday.py",
       "source_location": "L82",
       "_origin": "ast",
-      "community": 98,
+      "community": 15,
       "norm_label": "test_strip_html_block_tags_become_newlines()",
       "id": "tests_test_workday_test_strip_html_block_tags_become_newlines"
     },
@@ -22683,7 +22693,7 @@
       "source_file": "tests/test_workday.py",
       "source_location": "L89",
       "_origin": "ast",
-      "community": 98,
+      "community": 15,
       "norm_label": "test_strip_html_decodes_entities()",
       "id": "tests_test_workday_test_strip_html_decodes_entities"
     },
@@ -22693,7 +22703,7 @@
       "source_file": "tests/test_workday.py",
       "source_location": "L94",
       "_origin": "ast",
-      "community": 98,
+      "community": 15,
       "norm_label": "test_strip_html_empty_string()",
       "id": "tests_test_workday_test_strip_html_empty_string"
     },
@@ -22703,7 +22713,7 @@
       "source_file": "tests/test_workday.py",
       "source_location": "L98",
       "_origin": "ast",
-      "community": 98,
+      "community": 15,
       "norm_label": "test_strip_html_plain_text_unchanged()",
       "id": "tests_test_workday_test_strip_html_plain_text_unchanged"
     },
@@ -22853,7 +22863,7 @@
       "source_file": "tests/test_workday.py",
       "source_location": "L211",
       "_origin": "ast",
-      "community": 110,
+      "community": 35,
       "norm_label": "test_no_detail_fetch_skips_get()",
       "id": "tests_test_workday_test_no_detail_fetch_skips_get"
     },
@@ -22883,7 +22893,7 @@
       "source_file": "tests/test_workday.py",
       "source_location": "L35",
       "_origin": "ast",
-      "community": 110,
+      "community": 35,
       "norm_label": "serves fixture data without touching the network.",
       "id": "tests_test_workday_rationale_35"
     },
@@ -22893,7 +22903,7 @@
       "source_file": "tests/test_workday.py",
       "source_location": "L58",
       "_origin": "ast",
-      "community": 110,
+      "community": 35,
       "norm_label": "workdayadapter wired to mock transport; detail sleep removed.",
       "id": "tests_test_workday_rationale_58"
     },
@@ -23393,7 +23403,7 @@
       "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 100,
+      "community": 95,
       "norm_label": "enquiryform.tsx",
       "id": "components_enquiryform"
     },
@@ -23403,7 +23413,7 @@
       "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
       "source_location": "L5",
       "_origin": "ast",
-      "community": 100,
+      "community": 95,
       "norm_label": "status",
       "id": "components_enquiryform_status"
     },
@@ -23413,7 +23423,7 @@
       "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
       "source_location": "L7",
       "_origin": "ast",
-      "community": 100,
+      "community": 95,
       "norm_label": "max",
       "id": "components_enquiryform_max"
     },
@@ -23423,7 +23433,7 @@
       "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
       "source_location": "L17",
       "_origin": "ast",
-      "community": 100,
+      "community": 95,
       "norm_label": "enquiryform()",
       "id": "components_enquiryform_enquiryform"
     },
@@ -23433,7 +23443,7 @@
       "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
       "source_location": "L164",
       "_origin": "ast",
-      "community": 100,
+      "community": 95,
       "norm_label": "field()",
       "id": "components_enquiryform_field"
     },
@@ -25063,7 +25073,7 @@
       "source_file": "CLAUDE.md",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 75,
+      "community": 150,
       "norm_label": "claude.md",
       "id": "claude"
     },
@@ -25073,7 +25083,7 @@
       "source_file": "CLAUDE.md",
       "source_location": "L1",
       "_origin": "ast",
-      "community": 75,
+      "community": 150,
       "norm_label": "claude.md \u2014 hk financial job scraper",
       "id": "claude_claude_md_hk_financial_job_scraper"
     },
@@ -25083,7 +25093,7 @@
       "source_file": "CLAUDE.md",
       "source_location": "L6",
       "_origin": "ast",
-      "community": 75,
+      "community": 150,
       "norm_label": "what we are building",
       "id": "claude_what_we_are_building"
     },
@@ -25153,7 +25163,7 @@
       "source_file": "CLAUDE.md",
       "source_location": "L75",
       "_origin": "ast",
-      "community": 75,
+      "community": 150,
       "norm_label": "architecture (the shape of the solution)",
       "id": "claude_architecture_the_shape_of_the_solution"
     },
@@ -25163,7 +25173,7 @@
       "source_file": "CLAUDE.md",
       "source_location": "L90",
       "_origin": "ast",
-      "community": 75,
+      "community": 150,
       "norm_label": "tech stack (decided \u2014 do not substitute without asking)",
       "id": "claude_tech_stack_decided_do_not_substitute_without_asking"
     },
@@ -25173,7 +25183,7 @@
       "source_file": "CLAUDE.md",
       "source_location": "L103",
       "_origin": "ast",
-      "community": 75,
+      "community": 150,
       "norm_label": "exception: linkedin recruiter posts (\"secret market\")",
       "id": "claude_exception_linkedin_recruiter_posts_secret_market"
     },
@@ -25193,7 +25203,7 @@
       "source_file": "CLAUDE.md",
       "source_location": "L137",
       "_origin": "ast",
-      "community": 75,
+      "community": 150,
       "norm_label": "working agreement with the human",
       "id": "claude_working_agreement_with_the_human"
     },
@@ -25373,7 +25383,7 @@
       "source_file": "README.md",
       "source_location": "L77",
       "_origin": "ast",
-      "community": 95,
+      "community": 145,
       "norm_label": "data sources",
       "id": "readme_data_sources"
     },
@@ -27084,7 +27094,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 95,
+      "community": 145,
       "norm_label": "applicant tracking system (ats)",
       "id": "claude_ats_concept"
     },
@@ -27097,7 +27107,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 95,
+      "community": 145,
       "norm_label": "workday ats",
       "id": "claude_workday"
     },
@@ -27110,7 +27120,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 95,
+      "community": 145,
       "norm_label": "eightfold ai ats",
       "id": "claude_eightfold"
     },
@@ -27136,7 +27146,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 95,
+      "community": 145,
       "norm_label": "oracle taleo ats (hostile)",
       "id": "claude_taleo"
     },
@@ -27149,7 +27159,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 95,
+      "community": 145,
       "norm_label": "icims ats (hostile)",
       "id": "claude_icims"
     },
@@ -27162,7 +27172,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 95,
+      "community": 145,
       "norm_label": "jobsdb fallback strategy for hostile atss",
       "id": "claude_jobsdb_fallback"
     },
@@ -27175,7 +27185,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 95,
+      "community": 145,
       "norm_label": "indeed employer-page fallback (gs/jpm/dbs)",
       "id": "claude_indeed_fallback"
     },
@@ -27752,7 +27762,7 @@
       "author": null,
       "contributor": null,
       "rationale": "Sources are tried in priority order per company: Workday, Eightfold, eFinancialCareers, JobsDB, Indeed, LinkedIn guest, longtail LLM. For Goldman Sachs, JPMorgan and DBS, Indeed is promoted from fallback to primary because their clean JobsDB presence is near-zero.",
-      "community": 9,
+      "community": 56,
       "norm_label": "adapter priority fallback chain",
       "id": "docs_architecture_guide_adapter_priority_chain"
     },
@@ -28032,7 +28042,7 @@
       "author": null,
       "contributor": null,
       "rationale": "pytest, one test file per module; network-dependent adapter tests use recorded fixtures in tests/fixtures/, never live calls. The frontend has no test files \u2014 the local react-doctor skill covers lint/a11y/architecture triage instead.",
-      "community": 9,
+      "community": 56,
       "norm_label": "fixture-based adapter tests",
       "id": "docs_architecture_guide_fixture_based_tests"
     },
@@ -28144,7 +28154,7 @@
       "author": null,
       "contributor": null,
       "rationale": "A first pass reported 28-day median life for ATS feeds against 2 days for eFinancialCareers. Invalid: Workday and Eightfold have 55 days of observation, eFC only 11, so only short-lived eFC postings can appear closed. The giveaway was 86 active eFC listings over 30 days old. The correction \u2014 shown rather than hidden \u2014 is a fixed 7-day follow-up horizon applied identically to every source.",
-      "community": 9,
+      "community": 107,
       "norm_label": "observation-window trap",
       "id": "docs_market_panel_analysis_observation_window_trap"
     },
@@ -28158,7 +28168,7 @@
       "author": null,
       "contributor": null,
       "rationale": "Measured identically: Eightfold 0.4% (n=237), Workday 5.6% (n=125), JobsDB 24.4% (n=4,653), LinkedIn 39.8% (n=211), eFinancialCareers 76.9% (n=65). At 14 days Eightfold is still 7.3% and Workday 6.7%. eFC's level is indicative, its rank solid.",
-      "community": 9,
+      "community": 56,
       "norm_label": "uniform 7-day closure rate",
       "id": "docs_market_panel_analysis_seven_day_closure_rate"
     },
@@ -28228,7 +28238,7 @@
       "author": null,
       "contributor": null,
       "rationale": "1,785 postings per weekday against 509 per weekend day (8,923 vs 1,018 total), holding across every source independently including employer-ATS feeds where the employer's own system writes the timestamp. Eightfold recorded zero weekend postings in the entire window.",
-      "community": 9,
+      "community": 75,
       "norm_label": "3.5x weekday posting rhythm",
       "id": "docs_market_panel_analysis_weekday_rhythm"
     },
@@ -28242,7 +28252,7 @@
       "author": null,
       "contributor": null,
       "rationale": "Chi-square against uniform weekdays gives 21.51 on 4 df, past the 9.49 critical value \u2014 but with 9,941 observations almost any wobble would be significant. The real test is replication across independent sources, and it fails: the entire effect lives in JobsDB (23.5%), while LinkedIn 16.9%, Workday 17.2% and Eightfold 18.1% sit below uniform. An effect that reverses sign when you change measuring instrument is a property of the instrument.",
-      "community": 9,
+      "community": 75,
       "norm_label": "thursday peak is an instrument artefact",
       "id": "docs_market_panel_analysis_thursday_artefact"
     },
@@ -28256,7 +28266,7 @@
       "author": null,
       "contributor": null,
       "rationale": "Tested on 665 live postings carrying LinkedIn applicant counts: Spearman rho = 0.029, t = 0.76, nowhere near 1.96. Week-one postings average 37.5 applicants, month-two 46.2, and weeks 3\u20134 are the crowded bucket \u2014 a shape indistinguishable from noise. It does not mean applying early is harmful; it means there is no evidence a same-day application beats a considered one three days later.",
-      "community": 9,
+      "community": 84,
       "norm_label": "'apply within the hour' null result",
       "id": "docs_market_panel_analysis_apply_early_null_result"
     },
@@ -28270,7 +28280,7 @@
       "author": null,
       "contributor": null,
       "rationale": "Applicant counts are only observed on postings still open. If heavily-applied roles close faster, the crowded ones drop out of view and the true age-competition slope is partly hidden. The honest conclusion is that the panel cannot support the urgency claim, not that urgency is disproven.",
-      "community": 9,
+      "community": 84,
       "norm_label": "survivorship caveat on applicant counts",
       "id": "docs_market_panel_analysis_survivorship_caveat"
     },
@@ -28312,7 +28322,7 @@
       "author": null,
       "contributor": null,
       "rationale": "Every source is the sole home of a meaningful block of roles \u2014 dropping JobsDB would cost 1,715 roles nothing else covers, dropping the paid LinkedIn-posts feed 196. No single source makes the others redundant, which is the strongest available justification for the multi-adapter architecture.",
-      "community": 9,
+      "community": 56,
       "norm_label": "sole-source coverage per adapter",
       "id": "docs_market_panel_analysis_sole_source_coverage"
     },
@@ -28396,7 +28406,7 @@
       "author": null,
       "contributor": null,
       "rationale": "Lifespan is currently reconstructed from posted_at, which relies on source-supplied dates of wildly varying quality, and nothing in the schema records how long each source has been observed \u2014 exactly what produced the retracted 2-day eFC figure. A first-seen timestamp we control plus a per-adapter start date makes lifespan analysis exact and makes the window trap impossible to fall into twice.",
-      "community": 9,
+      "community": 107,
       "norm_label": "first_seen_at column proposal",
       "id": "docs_market_panel_analysis_first_seen_at_proposal"
     },
@@ -28435,7 +28445,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 171,
+      "community": 30,
       "norm_label": "recruiter tier taxonomy (agency_recruiter | independent | agency_page)",
       "id": "hk_jobs_recruiters_tier"
     },
@@ -28474,7 +28484,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 91,
+      "community": 30,
       "norm_label": "enabled flag (lp-4 pilot watchlist membership)",
       "id": "hk_jobs_recruiters_enabled"
     },
@@ -28500,7 +28510,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 171,
+      "community": 30,
       "norm_label": "selby jennings recruiter group",
       "id": "hk_jobs_recruiters_selby_jennings"
     },
@@ -28513,7 +28523,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 171,
+      "community": 30,
       "norm_label": "hays recruiter group",
       "id": "hk_jobs_recruiters_hays"
     },
@@ -28526,7 +28536,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 171,
+      "community": 30,
       "norm_label": "gillian lam (selby jennings, highest-value lp-0 source)",
       "id": "hk_jobs_recruiters_gillian_lam"
     },
@@ -28539,7 +28549,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 171,
+      "community": 30,
       "norm_label": "jonathan sugiarto (selby jennings, best single-post yield)",
       "id": "hk_jobs_recruiters_jonathan_sugiarto"
     },
@@ -29020,7 +29030,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 79,
+      "community": 33,
       "norm_label": "workday listing response fixture",
       "id": "workday_listing_fixture"
     },
@@ -29046,7 +29056,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 79,
+      "community": 33,
       "norm_label": "workday total result count field",
       "id": "workday_listing_total_count"
     },
@@ -29059,7 +29069,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 56,
+      "community": 79,
       "norm_label": "workday externalpath detail key",
       "id": "workday_listing_externalpath"
     },
@@ -29254,7 +29264,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 79,
+      "community": 33,
       "norm_label": "eightfold jobs page 0 fixture",
       "id": "eightfold_page0_fixture"
     },
@@ -29280,7 +29290,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 79,
+      "community": 33,
       "norm_label": "eightfold count total-across-pages field",
       "id": "eightfold_page0_count_total"
     },
@@ -29332,7 +29342,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 79,
+      "community": 33,
       "norm_label": "eightfold jobs page 1 fixture",
       "id": "eightfold_page1_fixture"
     },
@@ -29345,7 +29355,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 79,
+      "community": 33,
       "norm_label": "eightfold offset pagination termination",
       "id": "eightfold_page1_offset_pagination"
     },
@@ -29566,7 +29576,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 79,
+      "community": 33,
       "norm_label": "paginated ats job listing response",
       "id": "workday_listing_paginated_ats_listing_response"
     },
@@ -29651,7 +29661,7 @@
       "contributor": "graphify verification pass",
       "rationale": "Built 2026-07-29 to ingest careers.hkjc.com. Closes the one row of the CLAUDE.md ATS table that had never had an adapter. SuccessFactors RMK exposes no candidate-facing JSON API, so this adapter parses HTML (tr.data-row rows, /job/{slug}/{id}/ links, ?startrow= pagination at 25 per page) using selectolax. It is a FIRST-PARTY source \u2014 the employer's own careers site, no login, no authwall \u2014 so it carries the clean-path posture of Workday/Eightfold, NOT the JobsDB/Indeed ToS-violation posture. Reuses workday._strip_html(), whose docstring had anticipated a SuccessFactors caller since before the adapter existed.",
       "norm_label": "sap successfactors adapter (hkjc, first successfactors source)",
-      "community": 98,
+      "community": 145,
       "id": "hk_jobs_adapters_successfactors"
     },
     {
@@ -29665,7 +29675,7 @@
       "contributor": "graphify verification pass",
       "rationale": "SuccessFactors' `q=` searches the whole posting body, not the facility facet. On careers.hkjc.com 2026-07-29, q=Finance returned 44 rows of which only 9 sat in the Finance facility: 21 were 'Charities and Community' grant-making roles that merely mention the word finance, plus 4 Membership and Customer Excellence, 3 Transformation Office, 3 Strategic Projects, 2 Information Technology, 2 Racing. Ingesting the raw search would have put 35 non-finance roles on a finance job board. The facility_allowlist config key filters on the structured facet instead. NOTE: an earlier count of '12 of 44' was wrong \u2014 it came from combining two captures taken under different sort orders, so page 2 overlapped page 1. A consistent fetch gives 9.",
       "norm_label": "rmk q= is full-text, not a department filter (facility_allowlist)",
-      "community": 98,
+      "community": 145,
       "id": "successfactors_fulltext_precision_trap"
     },
     {
@@ -29679,7 +29689,7 @@
       "contributor": "graphify verification pass",
       "rationale": "SuccessFactors nests deeply-empty block elements, so the shared workday._strip_html() produced ~132 lines per posting of which ~103 held only a space or \\xa0. Its \\n{3,} collapse cannot see them \u2014 the lines are not empty, they contain whitespace. Left alone that inflated description_clean by roughly a third, billed those tokens to the DeepSeek enricher, and rendered a ragged excerpt on the job card. _tidy_text() drops whitespace-only lines for this adapter only; Workday and JobsDB share _strip_html() and their expectations must not shift underneath them. Measured effect on HKJC: 132 lines -> 29, 3,440 chars -> 3,267.",
       "norm_label": "rmk detail pages need whitespace-line tidying (_tidy_text)",
-      "community": 98,
+      "community": 145,
       "id": "successfactors_whitespace_bloat"
     },
     {
@@ -29693,7 +29703,7 @@
       "contributor": "graphify verification pass",
       "rationale": "Added 2026-07-29 as the first successfactors entry. sf_host careers.hkjc.com, search_query Finance, facility_allowlist [Finance], max_pages 10, fetch_details true. First run: 44 postings fetched, 9 kept after the facility filter, 9 new rows written to jobs.db, all 9 enriched by DeepSeek (salary bands HK$5k-80k/month, categories Finance and Operations) and served by GET /api/jobs?companies=Hong+Kong+Jockey+Club.",
       "norm_label": "hong kong jockey club (hkjc) \u2014 9 finance roles ingested",
-      "community": 98,
+      "community": 145,
       "id": "hkjc_company_entry"
     },
     {
@@ -29706,12 +29716,193 @@
       "author": null,
       "contributor": "graphify verification pass",
       "rationale": "A department name that reads as finance but is not. The 9 roles in HKJC Projects and Risk Management are Civil Technician, Facility Technician, Senior Security Officer, Safety and Health Management Staff, Assistant Facilities Management Officer, Manager VIP Services, Technician - General Staff, plus Senior Manager Enterprise Risk Management and Compliance - General Pre AE. DeepSeek categorised 7 of the 9 as Operations/Engineering/Other and only Enterprise Risk Management as Finance. The department was briefly added to facility_allowlist on owner instruction and REMOVED the same day once the titles were inspected: 2 relevant rows do not pay for 7 wrong ones on a finance board. Lesson for every future SuccessFactors employer: read the actual titles behind a facility before allowlisting it \u2014 the facet label is not a reliable proxy for the work.",
-      "community": 98,
+      "community": 145,
       "norm_label": "\"projects and risk management\" at hkjc is construction risk, not financial risk",
       "id": "hkjc_risk_department_name_trap"
     }
   ],
   "links": [
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_recommendedroles",
+      "target": "api_client"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_recommendedroles",
+      "target": "api_client_default_filters"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_recommendedroles",
+      "target": "api_client_fetchjobs"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_recommendedroles",
+      "target": "api_client_filtersresponse"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_recommendedroles",
+      "target": "api_client_job"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L67",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_recommendedroles",
+      "target": "components_recommendedroles_diversify"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L80",
+      "weight": 1.0,
+      "source": "components_recommendedroles",
+      "target": "components_recommendedroles_employerkey",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L100",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_recommendedroles",
+      "target": "components_recommendedroles_picksector"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L85",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_recommendedroles",
+      "target": "components_recommendedroles_props"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L107",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_recommendedroles",
+      "target": "components_recommendedroles_recommendedroles"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L51",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_recommendedroles",
+      "target": "components_recommendedroles_shuffled"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "webapp/frontend/src/pages/JobBoardPage.tsx",
+      "source_location": "L22",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "pages_jobboardpage",
+      "target": "components_recommendedroles"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L68",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_recommendedroles_diversify",
+      "target": "components_recommendedroles_shuffled"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L103",
+      "weight": 1.0,
+      "source": "components_recommendedroles_diversify",
+      "target": "components_recommendedroles_employerkey",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L87",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_recommendedroles_props",
+      "target": "api_client_filtersresponse"
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L88",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_recommendedroles_props",
+      "target": "api_client_job"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
+      "source_location": "L119",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "components_recommendedroles_recommendedroles",
+      "target": "components_recommendedroles_picksector"
+    },
     {
       "relation": "imports_from",
       "context": "import",
@@ -30033,17 +30224,6 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "webapp/frontend/src/pages/JobBoardPage.tsx",
-      "source_location": "L22",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "pages_jobboardpage",
-      "target": "components_recommendedroles"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/pages/JobBoardPage.tsx",
       "source_location": "L16",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -30208,155 +30388,6 @@
       "weight": 1.0,
       "source": "pages_jobboardpage_jobboardpage",
       "target": "hooks_usesavedjobs_usesavedjobs"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
-      "source_location": "L4",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_recommendedroles",
-      "target": "api_client"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
-      "source_location": "L4",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_recommendedroles",
-      "target": "api_client_default_filters"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
-      "source_location": "L4",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_recommendedroles",
-      "target": "api_client_fetchjobs"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
-      "source_location": "L3",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_recommendedroles",
-      "target": "api_client_filtersresponse"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
-      "source_location": "L3",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_recommendedroles",
-      "target": "api_client_job"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
-      "source_location": "L67",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_recommendedroles",
-      "target": "components_recommendedroles_diversify"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
-      "source_location": "L100",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_recommendedroles",
-      "target": "components_recommendedroles_picksector"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
-      "source_location": "L85",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_recommendedroles",
-      "target": "components_recommendedroles_props"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
-      "source_location": "L107",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_recommendedroles",
-      "target": "components_recommendedroles_recommendedroles"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
-      "source_location": "L51",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_recommendedroles",
-      "target": "components_recommendedroles_shuffled"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
-      "source_location": "L68",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_recommendedroles_diversify",
-      "target": "components_recommendedroles_shuffled"
-    },
-    {
-      "relation": "references",
-      "context": "field",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
-      "source_location": "L87",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_recommendedroles_props",
-      "target": "api_client_filtersresponse"
-    },
-    {
-      "relation": "references",
-      "context": "field",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
-      "source_location": "L88",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_recommendedroles_props",
-      "target": "api_client_job"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/RecommendedRoles.tsx",
-      "source_location": "L119",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_recommendedroles_recommendedroles",
-      "target": "components_recommendedroles_picksector"
     },
     {
       "relation": "contains",
@@ -84818,5 +84849,5 @@
       "source_file": "tests/fixtures/eightfold/page0.json"
     }
   ],
-  "built_at_commit": "6538282a1e1fc9283ad5e307769c381f81ec4c72"
+  "built_at_commit": "7540bea8729f17c390d1448100c80c9fdec746b1"
 }

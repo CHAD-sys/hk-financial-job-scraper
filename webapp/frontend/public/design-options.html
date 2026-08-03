@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FinEx Careers — landing design options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FFFDF9; --surface:#FFFFFF; --surface-2:#F8F5F0;
+    --nav:#0B1628; --masthead:#16223A;
+    --ink:#0B1628; --ink-muted:#475569; --ink-faint:#94A3B8; --ink-inv:#F8FAFC;
+    --gold:#9A6F00; --gold-star:#E0A106; --gold-light:#FBF0D3;
+    --blue:#1E3A8A; --border:#E2E8F0; --border-strong:#CBD5E1;
+    --display:'Playfair Display',Georgia,serif;
+    --sans:'Inter',-apple-system,sans-serif;
+    --mono:'JetBrains Mono','Courier New',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--sans);background:#EDEAE4;color:var(--ink);-webkit-font-smoothing:antialiased}
+  img{max-width:100%}
+
+  /* ── Gallery chrome ─────────────────────────────────────────── */
+  .chrome{position:sticky;top:0;z-index:100;background:#12161E;color:#F8FAFC;
+    border-bottom:1px solid rgba(255,255,255,.12)}
+  .chrome-in{max-width:1400px;margin:0 auto;padding:10px 20px;display:flex;
+    align-items:center;gap:18px;flex-wrap:wrap}
+  .chrome b{font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:-.01em}
+  .chrome nav{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+  .chrome a{font-family:var(--mono);font-size:11px;text-decoration:none;color:rgba(248,250,252,.72);
+    border:1px solid rgba(255,255,255,.18);padding:6px 11px;border-radius:999px;transition:all .15s}
+  .chrome a:hover{background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.36)}
+  .chrome span.note{font-size:11px;color:rgba(248,250,252,.5)}
+
+  .opt{max-width:1400px;margin:26px auto;background:var(--bg);
+    box-shadow:0 8px 40px -8px rgba(0,0,0,.3);overflow:hidden;border-radius:6px;
+    scroll-margin-top:56px}
+  .opt-head{background:#1B2230;color:#F8FAFC;padding:14px 22px;display:flex;
+    gap:16px;align-items:baseline;flex-wrap:wrap}
+  .opt-head .n{font-family:var(--mono);font-size:12px;color:var(--gold-star)}
+  .opt-head h2{font-family:var(--display);font-size:19px;font-weight:700}
+  .opt-head p{font-size:12.5px;color:rgba(248,250,252,.62);margin-left:auto;max-width:640px;line-height:1.5}
+  .tag{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;
+    padding:3px 8px;border:1px solid rgba(255,255,255,.22);border-radius:3px;color:rgba(248,250,252,.7)}
+
+  /* shared mock nav */
+  .mnav{display:flex;align-items:center;gap:26px;padding:13px 34px;font-size:12.5px}
+  .mnav .logo{font-family:var(--display);font-weight:700;font-size:16px}
+  .mnav .logo i{font-style:italic;color:var(--gold-star)}
+  .mnav .sp{margin-left:auto}
+
+  /* ══ 01 BROADSHEET ══════════════════════════════════════════ */
+  .bs{background:var(--bg)}
+  .bs .mnav{background:var(--nav);color:var(--ink-inv);border-bottom:none}
+  .bs .mnav a{color:rgba(248,250,252,.66);text-decoration:none}
+  .bs-rule-hard{height:3px;background:var(--ink)}
+  .bs-body{padding:0 34px}
+  .bs-meta{display:flex;justify-content:space-between;align-items:center;
+    font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--ink-muted);padding:11px 0;border-bottom:1px solid var(--ink)}
+  .bs-hero{padding:44px 0 34px;display:grid;grid-template-columns:1.35fr 1fr;gap:52px;align-items:end}
+  .bs-hero h1{font-family:var(--display);font-size:60px;line-height:1.02;letter-spacing:-.025em;font-weight:700}
+  .bs-hero h1 em{font-style:italic;color:var(--gold)}
+  .bs-kicker{font-size:14.5px;line-height:1.65;color:var(--ink-muted);border-left:2px solid var(--gold-star);
+    padding-left:16px}
+  .bs-search{display:flex;align-items:stretch;border-bottom:2px solid var(--ink);margin-top:6px}
+  .bs-search input{flex:1;border:0;background:transparent;font-family:var(--sans);font-size:20px;
+    padding:14px 4px;outline:none;color:var(--ink)}
+  .bs-search input::placeholder{color:var(--ink-faint)}
+  .bs-search button{background:var(--ink);color:var(--ink-inv);border:0;font-family:var(--sans);
+    font-size:13px;font-weight:600;padding:0 26px;cursor:pointer;letter-spacing:.02em}
+  .bs-pop{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:15px;
+    font-size:12.5px;color:var(--ink-muted)}
+  .bs-pop b{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.12em;
+    color:var(--ink-faint);font-weight:500}
+  .bs-pop a{color:var(--ink);text-decoration:underline;text-underline-offset:3px;
+    text-decoration-color:var(--border-strong)}
+  .bs-sec{padding:0 34px 40px}
+  .bs-sechead{display:flex;align-items:baseline;gap:14px;border-top:1px solid var(--ink);
+    padding-top:13px;margin-top:8px}
+  .bs-sechead h3{font-family:var(--display);font-size:23px;font-weight:700}
+  .bs-sechead span{font-size:12.5px;color:var(--ink-muted)}
+  .bs-sechead .act{margin-left:auto;font-family:var(--mono);font-size:11px;text-transform:uppercase;
+    letter-spacing:.1em;border-bottom:1px solid var(--ink);padding-bottom:2px}
+  .bs-grid{display:grid;grid-template-columns:repeat(3,1fr);margin-top:20px;
+    border-left:1px solid var(--border-strong)}
+  .bs-card{border-right:1px solid var(--border-strong);border-top:1px solid var(--border-strong);
+    border-bottom:1px solid var(--border-strong);padding:18px 20px}
+  .bs-card .co{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;
+    color:var(--ink-muted)}
+  .bs-card h4{font-family:var(--display);font-size:18px;line-height:1.24;margin:7px 0 11px;font-weight:600}
+  .bs-card .lv{display:inline-block;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
+    background:var(--ink);color:var(--ink-inv);padding:3px 7px}
+  .bs-card .sal{font-family:var(--mono);font-size:11.5px;color:var(--ink-muted);
+    margin-top:14px;padding-top:11px;border-top:1px solid var(--border)}
+
+  /* ══ 02 TERMINAL ════════════════════════════════════════════ */
+  .tm{background:#0A1120;color:#E6EAF2;
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(255,255,255,.028) 1px,transparent 1px);
+    background-size:52px 52px}
+  .tm .mnav{color:#E6EAF2;border-bottom:1px solid rgba(255,255,255,.09)}
+  .tm .mnav a{color:rgba(230,234,242,.6);text-decoration:none}
+  .tm-status{display:flex;gap:26px;flex-wrap:wrap;align-items:center;padding:9px 34px;
+    font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
+    background:rgba(0,0,0,.28);border-bottom:1px solid rgba(255,255,255,.09);color:rgba(230,234,242,.62)}
+  .tm-status .dot{width:6px;height:6px;border-radius:50%;background:#34D399;display:inline-block;
+    margin-right:7px;box-shadow:0 0 8px #34D399}
+  .tm-status b{color:var(--gold-star);font-weight:500}
+  .tm-hero{padding:54px 34px 40px;max-width:940px}
+  .tm-hero h1{font-family:var(--display);font-size:50px;line-height:1.08;letter-spacing:-.02em;
+    font-weight:700;color:#fff}
+  .tm-hero h1 em{font-style:italic;color:var(--gold-star)}
+  .tm-hero p{margin-top:15px;font-size:15px;color:rgba(230,234,242,.6);max-width:560px;line-height:1.6}
+  .tm-cmd{margin-top:30px;display:flex;align-items:center;gap:12px;
+    border:1px solid rgba(255,255,255,.16);background:rgba(0,0,0,.35);padding:16px 18px}
+  .tm-cmd .pr{font-family:var(--mono);font-size:16px;color:var(--gold-star)}
+  .tm-cmd input{flex:1;border:0;background:transparent;outline:none;font-family:var(--mono);
+    font-size:15px;color:#fff}
+  .tm-cmd input::placeholder{color:rgba(230,234,242,.34)}
+  .tm-cmd .go{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:#0A1120;
+    background:var(--gold-star);padding:8px 14px;cursor:pointer}
+  .tm-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:15px}
+  .tm-chips a{font-family:var(--mono);font-size:11px;color:rgba(230,234,242,.66);text-decoration:none;
+    border:1px solid rgba(255,255,255,.14);padding:6px 10px}
+  .tm-chips a:hover{border-color:var(--gold-star);color:var(--gold-star)}
+  .tm-rows{margin:0 34px 40px;border-top:1px solid rgba(255,255,255,.12)}
+  .tm-rowhead{display:grid;grid-template-columns:2.6fr 1.5fr .8fr 1fr;gap:16px;padding:10px 4px;
+    font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:rgba(230,234,242,.4);border-bottom:1px solid rgba(255,255,255,.12)}
+  .tm-row{display:grid;grid-template-columns:2.6fr 1.5fr .8fr 1fr;gap:16px;padding:15px 4px;
+    border-bottom:1px solid rgba(255,255,255,.07);align-items:center;transition:background .15s}
+  .tm-row:hover{background:rgba(255,255,255,.04)}
+  .tm-row .t{font-family:var(--display);font-size:16.5px;color:#fff}
+  .tm-row .c{font-size:13px;color:rgba(230,234,242,.62)}
+  .tm-row .l{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--gold-star)}
+  .tm-row .s{font-family:var(--mono);font-size:12.5px;color:rgba(230,234,242,.82);text-align:right}
+
+  /* ══ 03 QUIET LUXURY ════════════════════════════════════════ */
+  .ql{background:#FBF8F3}
+  .ql .mnav{color:var(--ink);border-bottom:1px solid var(--border)}
+  .ql .mnav a{color:var(--ink-muted);text-decoration:none}
+  .ql-hero{padding:96px 34px 84px;max-width:860px;margin:0 auto;text-align:center}
+  .ql-eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.28em;text-transform:uppercase;
+    color:var(--gold);margin-bottom:30px}
+  .ql-hero h1{font-family:var(--display);font-size:70px;line-height:1.04;letter-spacing:-.03em;
+    font-weight:400}
+  .ql-hero h1 em{font-style:italic}
+  .ql-line{margin:46px auto 0;max-width:620px;display:flex;align-items:center;gap:14px;
+    border-bottom:1px solid var(--ink);padding-bottom:12px}
+  .ql-line input{flex:1;border:0;background:transparent;outline:none;font-family:var(--sans);
+    font-size:19px;color:var(--ink);text-align:center}
+  .ql-line input::placeholder{color:var(--ink-faint);font-weight:300}
+  .ql-hint{margin-top:16px;font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--ink-faint)}
+  .ql-sec{padding:0 34px 90px;max-width:1180px;margin:0 auto}
+  .ql-sechead{text-align:center;margin-bottom:38px}
+  .ql-sechead h3{font-family:var(--display);font-size:26px;font-weight:400;font-style:italic}
+  .ql-sechead p{font-size:13px;color:var(--ink-muted);margin-top:8px}
+  .ql-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:26px}
+  .ql-card{background:#fff;border:1px solid var(--border);padding:30px 26px;border-radius:2px}
+  .ql-card .co{font-size:11.5px;letter-spacing:.06em;color:var(--ink-muted);text-transform:uppercase}
+  .ql-card h4{font-family:var(--display);font-size:20px;line-height:1.3;margin:12px 0 18px;font-weight:400}
+  .ql-card .sal{font-family:var(--mono);font-size:11.5px;color:var(--ink-faint)}
+
+  /* ══ 04 SPLIT AUTHORITY ═════════════════════════════════════ */
+  .sa{background:var(--bg)}
+  .sa .mnav{background:var(--nav);color:var(--ink-inv)}
+  .sa .mnav a{color:rgba(248,250,252,.66);text-decoration:none}
+  .sa-split{display:grid;grid-template-columns:1.15fr .85fr;min-height:430px}
+  .sa-left{background:var(--masthead);color:var(--ink-inv);padding:56px 44px}
+  .sa-eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--gold-star);margin-bottom:16px}
+  .sa-left h1{font-family:var(--display);font-size:46px;line-height:1.1;letter-spacing:-.02em;font-weight:700}
+  .sa-left h1 em{font-style:italic;color:var(--gold-star)}
+  .sa-left>p{margin-top:16px;font-size:14.5px;line-height:1.65;color:rgba(248,250,252,.66);max-width:430px}
+  .sa-field{margin-top:30px;display:flex;background:#fff;border-radius:999px;padding:6px 6px 6px 20px;
+    align-items:center;gap:12px;box-shadow:0 12px 40px -8px rgba(0,0,0,.4)}
+  .sa-field input{flex:1;border:0;outline:none;font-size:15px;font-family:var(--sans);padding:12px 0}
+  .sa-field button{border:0;background:var(--ink);color:#fff;font-size:13px;font-weight:600;
+    padding:12px 22px;border-radius:999px;cursor:pointer}
+  .sa-pop{display:flex;gap:7px;flex-wrap:wrap;margin-top:16px}
+  .sa-pop a{font-size:11.5px;color:rgba(248,250,252,.8);text-decoration:none;
+    background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);
+    padding:6px 11px;border-radius:999px}
+  .sa-right{background:var(--surface-2);padding:38px 40px;border-left:1px solid var(--border-strong)}
+  .sa-panel h4{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--ink-muted);padding-bottom:11px;border-bottom:1px solid var(--border-strong)}
+  .sa-bar{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)}
+  .sa-bar .nm{font-size:12.5px;width:132px;color:var(--ink)}
+  .sa-bar .tr{display:block;flex:1;height:6px;background:var(--border);border-radius:99px;overflow:hidden}
+  .sa-bar .fl{display:block;height:6px;background:var(--gold-star);border-radius:99px}
+  .sa-bar .vl{font-family:var(--mono);font-size:11.5px;width:46px;text-align:right;color:var(--ink-muted)}
+  .sa-trust{margin-top:22px;display:flex;gap:8px;flex-wrap:wrap}
+  .sa-trust span{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;
+    background:#fff;border:1px solid var(--border-strong);padding:5px 9px;color:var(--ink-muted);border-radius:3px}
+  .sa-fresh{margin-top:18px;font-size:12px;color:var(--ink-muted);line-height:1.6}
+  .sa-fresh b{color:var(--ink)}
+  .sa-sec{padding:38px 44px 46px}
+  .sa-sechead{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+  .sa-sechead h3{font-family:var(--display);font-size:22px;font-weight:700}
+  .sa-sechead .sub{font-size:12.5px;color:var(--ink-muted)}
+  .sa-sechead .act{margin-left:auto;background:var(--ink);color:#fff;font-size:12px;font-weight:600;
+    padding:9px 16px;border-radius:6px}
+  .sa-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .sa-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px 20px;
+    box-shadow:0 1px 3px rgba(0,0,0,.05);border-top:3px solid var(--gold-star)}
+  .sa-card .co{font-size:11.5px;color:var(--ink-muted)}
+  .sa-card h4{font-family:var(--display);font-size:17.5px;line-height:1.28;margin:8px 0 12px;font-weight:600}
+  .sa-card .lv{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.08em;
+    background:var(--ink);color:#fff;padding:3px 7px;border-radius:3px}
+  .sa-card .sal{font-family:var(--mono);font-size:11.5px;color:var(--ink-muted);margin-top:12px}
+
+  @media(max-width:1000px){
+    .bs-hero,.sa-split{grid-template-columns:1fr;gap:26px}
+    .bs-grid,.ql-grid,.sa-grid{grid-template-columns:1fr}
+    .tm-rowhead,.tm-row{grid-template-columns:1fr}
+    .tm-row .s{text-align:left}
+    .bs-hero h1{font-size:40px}.ql-hero h1{font-size:42px}
+    .tm-hero h1{font-size:34px}.sa-left h1{font-size:34px}
+  }
+</style>
+</head>
+<body>
+
+<div class="chrome">
+  <div class="chrome-in">
+    <b>Careers landing — four directions</b>
+    <span class="note">Static mockups. Real content, real tokens. Pick one (or parts of several).</span>
+    <nav>
+      <a href="#o1">01 Broadsheet</a>
+      <a href="#o2">02 Terminal</a>
+      <a href="#o3">03 Quiet Luxury</a>
+      <a href="#o4">04 Split Authority</a>
+    </nav>
+  </div>
+</div>
+
+<!-- ══════════ 01 ══════════ -->
+<section class="opt" id="o1">
+  <div class="opt-head">
+    <span class="n">01</span><h2>Broadsheet</h2>
+    <span class="tag">Editorial</span><span class="tag">Zero radius</span>
+    <p>The financial-press treatment. Left-aligned, asymmetric, hard rules, no pills or cards — structure comes from lines, not boxes. Search is a ruled field, not a floating pill. Leans hardest on Playfair, which you already load.</p>
+  </div>
+  <div class="bs">
+    <div class="mnav"><span class="logo">FinEx <i>Careers</i></span>
+      <a>Home</a><a>Careers</a><a>Consultation</a><a>Learning</a><a>About</a><span class="sp"></span><a>Saved</a></div>
+    <div class="bs-rule-hard"></div>
+    <div class="bs-body">
+      <div class="bs-meta"><span>Hong Kong · Financial Careers Index</span><span>Sunday 3 August 2026 · Updated 06:14</span></div>
+      <div class="bs-hero">
+        <div>
+          <h1>The roles Hong Kong finance is <em>actually</em> hiring for.</h1>
+          <div class="bs-search">
+            <input placeholder="Search roles, skills or employers" />
+            <button>Search</button>
+          </div>
+          <div class="bs-pop"><b>Popular</b>
+            <a>Private banking</a>·<a>Risk management</a>·<a>Compliance</a>·<a>Equity research</a>·<a>Actuarial</a>
+          </div>
+        </div>
+        <p class="bs-kicker">Every open role at 236 employers, collected each morning from the banks' own systems and the boards they post to — then read, structured and salary-estimated before you see it.</p>
+      </div>
+    </div>
+    <div class="bs-sec">
+      <div class="bs-sechead"><h3>Roles to start with</h3><span>Sampled from Banking · 2,232 open</span>
+        <span class="act">Show me others</span></div>
+      <div class="bs-grid">
+        <div class="bs-card"><div class="co">China CITIC Bank International</div>
+          <h4>Officer / Senior Officer, Banking Services</h4><span class="lv">JUNIOR</span>
+          <div class="sal">~HK$19k–29k / mo · Tsim Sha Tsui</div></div>
+        <div class="bs-card"><div class="co">Bank of China (Hong Kong)</div>
+          <h4>(Senior) Business Development Manager, Private Banking</h4><span class="lv">SENIOR</span>
+          <div class="sal">~HK$50k–70k / mo · Hong Kong Island</div></div>
+        <div class="bs-card"><div class="co">Standard Chartered</div>
+          <h4>A.D., Liquidity Mgmt, Treasury Markets</h4><span class="lv">SENIOR</span>
+          <div class="sal">~HK$65k–85k / mo · Hong Kong SAR</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ 02 ══════════ -->
+<section class="opt" id="o2">
+  <div class="opt-head">
+    <span class="n">02</span><h2>Terminal</h2>
+    <span class="tag">Data-dense</span><span class="tag">Dark</span>
+    <p>Takes "live market data" literally. A status line that proves freshness, a command-line search, and roles as scannable rows rather than cards — you compare six roles in one glance instead of six card-reads. Closest to a Bloomberg/desk tool.</p>
+  </div>
+  <div class="tm">
+    <div class="mnav"><span class="logo">FinEx <i>Careers</i></span>
+      <a>Home</a><a>Careers</a><a>Consultation</a><a>Learning</a><a>About</a><span class="sp"></span><a>Saved</a></div>
+    <div class="tm-status">
+      <span><span class="dot"></span>LIVE</span>
+      <span>ACTIVE ROLES <b>3,695</b></span>
+      <span>EMPLOYERS <b>236</b></span>
+      <span>LAST INGEST <b>06:14 HKT</b></span>
+      <span>NEW TODAY <b>+128</b></span>
+      <span>HIDDEN MARKET <b>221</b></span>
+    </div>
+    <div class="tm-hero">
+      <h1>Search the Hong Kong finance market, <em>not a job board</em>.</h1>
+      <p>Nine sources reconciled into one index every morning — including mandates that never reach a public board.</p>
+      <div class="tm-cmd">
+        <span class="pr">&gt;</span>
+        <input placeholder="role, skill or employer…" />
+        <span class="go">SEARCH</span>
+      </div>
+      <div class="tm-chips">
+        <a>private banking</a><a>risk management</a><a>compliance</a><a>equity research</a><a>actuarial</a><a>wealth management</a>
+      </div>
+    </div>
+    <div class="tm-rows">
+      <div class="tm-rowhead"><span>Role</span><span>Employer</span><span>Level</span><span>Est. monthly</span></div>
+      <div class="tm-row"><span class="t">Officer / Senior Officer, Banking Services</span>
+        <span class="c">China CITIC Bank Int'l</span><span class="l">JUNIOR</span><span class="s">19k–29k</span></div>
+      <div class="tm-row"><span class="t">(Senior) BD Manager, Private Banking</span>
+        <span class="c">Bank of China (HK)</span><span class="l">SENIOR</span><span class="s">50k–70k</span></div>
+      <div class="tm-row"><span class="t">A.D., Liquidity Mgmt, Treasury Markets</span>
+        <span class="c">Standard Chartered</span><span class="l">SENIOR</span><span class="s">65k–85k</span></div>
+      <div class="tm-row"><span class="t">AVP, Syndicated Loan Structuring, APAC</span>
+        <span class="c">Mizuho Bank</span><span class="l">MID</span><span class="s">45k–60k</span></div>
+      <div class="tm-row"><span class="t">ETF Product Manager — VP</span>
+        <span class="c">Citi</span><span class="l">SENIOR</span><span class="s">70k–95k</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ 03 ══════════ -->
+<section class="opt" id="o3">
+  <div class="opt-head">
+    <span class="n">03</span><h2>Quiet Luxury</h2>
+    <span class="tag">Exaggerated minimalism</span>
+    <p>Strips the hero to a sentence and a line. No button, no chips, no counts — you type and press enter. The confidence play: it reads expensive precisely because it withholds. Risk is discoverability, so the sampled roles below have to carry more weight.</p>
+  </div>
+  <div class="ql">
+    <div class="mnav"><span class="logo">FinEx <i>Careers</i></span>
+      <a>Home</a><a>Careers</a><a>Consultation</a><a>Learning</a><a>About</a><span class="sp"></span><a>Saved</a></div>
+    <div class="ql-hero">
+      <div class="ql-eyebrow">Hong Kong · Financial Careers Index</div>
+      <h1>Where do you want to work <em>next?</em></h1>
+      <div class="ql-line"><input placeholder="Search roles, skills or employers" /></div>
+      <div class="ql-hint">Press enter · 3,695 live roles · 236 employers</div>
+    </div>
+    <div class="ql-sec">
+      <div class="ql-sechead"><h3>Roles to start with</h3><p>A changing sample from Banking — 2,232 open right now</p></div>
+      <div class="ql-grid">
+        <div class="ql-card"><div class="co">China CITIC Bank International</div>
+          <h4>Officer / Senior Officer, Banking Services</h4><div class="sal">~HK$19k–29k / mo</div></div>
+        <div class="ql-card"><div class="co">Bank of China (Hong Kong)</div>
+          <h4>(Senior) BD Manager, Private Banking</h4><div class="sal">~HK$50k–70k / mo</div></div>
+        <div class="ql-card"><div class="co">Standard Chartered</div>
+          <h4>A.D., Liquidity Mgmt, Treasury Markets</h4><div class="sal">~HK$65k–85k / mo</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ 04 ══════════ -->
+<section class="opt" id="o4">
+  <div class="opt-head">
+    <span class="n">04</span><h2>Split Authority</h2>
+    <span class="tag">Trust &amp; authority</span><span class="tag">Closest to today</span>
+    <p>Keeps your current navy hero but ends the flat empty band: search on the left, a live market panel on the right that answers "why should I believe this index?" — sector mix, sources, freshness. The smallest jump from what is already built.</p>
+  </div>
+  <div class="sa">
+    <div class="mnav"><span class="logo">FinEx <i>Careers</i></span>
+      <a>Home</a><a>Careers</a><a>Consultation</a><a>Learning</a><a>About</a><span class="sp"></span><a>Saved</a></div>
+    <div class="sa-split">
+      <div class="sa-left">
+        <div class="sa-eyebrow">Hong Kong · Live market data</div>
+        <h1>Every finance role in Hong Kong, <em>in one index</em>.</h1>
+        <p>3,695 live roles across 236 employers, refreshed every morning — including roles the big boards never carry.</p>
+        <div class="sa-field"><input placeholder="Search roles, skills or employers" /><button>Search</button></div>
+        <div class="sa-pop"><a>Private banking</a><a>Risk management</a><a>Compliance</a><a>Equity research</a><a>Actuarial</a></div>
+      </div>
+      <div class="sa-right">
+        <div class="sa-panel">
+          <h4>The index right now</h4>
+          <div class="sa-bar"><span class="nm">Banking</span><span class="tr"><span class="fl" style="width:100%"></span></span><span class="vl">2,232</span></div>
+          <div class="sa-bar"><span class="nm">Insurance</span><span class="tr"><span class="fl" style="width:28%"></span></span><span class="vl">613</span></div>
+          <div class="sa-bar"><span class="nm">Investment Banking</span><span class="tr"><span class="fl" style="width:20%"></span></span><span class="vl">436</span></div>
+          <div class="sa-bar"><span class="nm">Professional Services</span><span class="tr"><span class="fl" style="width:15%"></span></span><span class="vl">341</span></div>
+          <div class="sa-bar"><span class="nm">Asset Management</span><span class="tr"><span class="fl" style="width:3%"></span></span><span class="vl">58</span></div>
+          <div class="sa-trust"><span>Workday</span><span>Eightfold</span><span>SuccessFactors</span><span>+6 sources</span></div>
+          <div class="sa-fresh">Last collected <b>06:14 HKT today</b>. Duplicates across sources already merged; salaries estimated where undisclosed.</div>
+        </div>
+      </div>
+    </div>
+    <div class="sa-sec">
+      <div class="sa-sechead"><h3>Roles to start with</h3><span class="sub">Sampled from Banking · 2,232 open</span>
+        <span class="act">See all Banking →</span></div>
+      <div class="sa-grid">
+        <div class="sa-card"><div class="co">China CITIC Bank International</div>
+          <h4>Officer / Senior Officer, Banking Services</h4><span class="lv">JUNIOR</span>
+          <div class="sal">~HK$19k–29k / mo</div></div>
+        <div class="sa-card"><div class="co">Bank of China (Hong Kong)</div>
+          <h4>(Senior) BD Manager, Private Banking</h4><span class="lv">SENIOR</span>
+          <div class="sal">~HK$50k–70k / mo</div></div>
+        <div class="sa-card"><div class="co">Standard Chartered</div>
+          <h4>A.D., Liquidity Mgmt, Treasury Markets</h4><span class="lv">SENIOR</span>
+          <div class="sal">~HK$65k–85k / mo</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div style="max-width:1400px;margin:0 auto 60px;padding:0 22px;font-size:13px;color:#4A5262;line-height:1.7">
+  <p><b>Note:</b> these are static mockups, not the running app — nothing here is wired to the API. Tell me which direction (or which pieces of which) and I will build it into <code>SearchHero.tsx</code> / <code>RecommendedRoles.tsx</code> against live data.</p>
+</div>
+
+</body>
+</html>

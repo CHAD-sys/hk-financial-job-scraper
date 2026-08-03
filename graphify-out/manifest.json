@@ -1200,13 +1200,13 @@
     "semantic_hash": ""
   },
   "webapp/frontend/src/components/RecommendedRoles.tsx": {
-    "mtime": 1785745875.0343463,
-    "ast_hash": "9f2028d4ee0eac6cdf9a11db05a89439",
+    "mtime": 1785755840.8520372,
+    "ast_hash": "51d412ca7b70008ecab2a1909e479f2b",
     "semantic_hash": ""
   },
   "webapp/frontend/src/components/SearchHero.tsx": {
-    "mtime": 1785755088.8960514,
-    "ast_hash": "1e4942baeb2c270a658e51be78433fad",
+    "mtime": 1785755765.5955477,
+    "ast_hash": "a82ff8950a2ebc1072631bc9441856c9",
     "semantic_hash": ""
   }
 }
