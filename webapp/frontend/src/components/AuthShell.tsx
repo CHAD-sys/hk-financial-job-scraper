@@ -1,6 +1,5 @@
 import Nav from './Nav'
 import { GOOGLE_SIGN_IN_PATH } from '../api/client'
-import { useSavedJobs } from '../hooks/useSavedJobs'
 
 /**
  * The frame the three account screens share: nav, a narrow centred column, an
@@ -18,11 +17,10 @@ export function AuthShell({
   standfirst?: React.ReactNode
   children: React.ReactNode
 }) {
-  const { count } = useSavedJobs()
 
   return (
     <div style={{ backgroundColor: 'var(--color-bg)', minHeight: '100dvh' }}>
-      <Nav savedCount={count} />
+      <Nav />
       <main id="main-content" className="mx-auto max-w-md px-6 py-14 lg:py-20">
         <span
           className="text-xs font-semibold uppercase"

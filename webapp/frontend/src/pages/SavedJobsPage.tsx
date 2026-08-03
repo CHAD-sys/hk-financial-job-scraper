@@ -2,19 +2,19 @@ import { useState } from 'react'
 import { Bookmark, ArrowLeft } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { Job } from '../api/client'
-import { useSavedJobs } from '../hooks/useSavedJobs'
+import { useSavedRoles } from '../savedRoles/useSavedRoles'
 import Nav from '../components/Nav'
 import JobCard from '../components/JobCard'
 import JobDetailModal from '../components/JobDetailModal'
 
 export default function SavedJobsPage() {
   const navigate = useNavigate()
-  const { savedList, toggle, isSaved, count } = useSavedJobs()
+  const { savedList, toggle, isSaved, count } = useSavedRoles()
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
 
   return (
     <div style={{ backgroundColor: 'var(--color-bg)', minHeight: '100dvh' }}>
-      <Nav savedCount={count} />
+      <Nav />
 
       {/* Header */}
       <section

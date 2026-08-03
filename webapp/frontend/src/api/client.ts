@@ -444,6 +444,29 @@ export async function saveRole(source: string, sourceId: string): Promise<void> 
   if (!res.ok) throw new ApiError(res.status, `Could not save that Role (${res.status}).`)
 }
 
+/**
+ * Lift a browser's Saved Roles into the account in one call.
+ *
+ * A union, never a replace, and idempotent — so a Seeker signing in on a second
+ * device keeps both sets, and a retry after a flaky network cannot duplicate or
+ * drop anything. That is why this exists instead of N calls to `saveRole`:
+ * "all or nothing" is a property the server can actually provide, and a client
+ * loop cannot.
+ */
+export async function mergeSavedRoles(
+  roles: { source: string; source_id: string }[],
+): Promise<{ merged: number; submitted: number }> {
+  const res = await apiFetch('/api/me/saved/merge', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roles }),
+  })
+  if (!res.ok) {
+    throw new ApiError(res.status, `Could not move your Saved Roles into the account (${res.status}).`)
+  }
+  return res.json()
+}
+
 export async function unsaveRole(source: string, sourceId: string): Promise<void> {
   const path = `/api/me/saved/${encodeURIComponent(source)}/${encodeURIComponent(sourceId)}`
   const res = await apiFetch(path, { method: 'DELETE' })

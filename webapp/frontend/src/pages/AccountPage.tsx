@@ -4,7 +4,6 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import Nav from '../components/Nav'
 import { deleteAccount } from '../api/client'
 import { useAuth } from '../auth/useAuth'
-import { useSavedJobs } from '../hooks/useSavedJobs'
 
 type DeleteStage = 'idle' | 'confirming' | 'deleting' | 'error'
 
@@ -22,7 +21,6 @@ const CONFIRM_WORD = 'DELETE'
 export default function AccountPage() {
   const { seeker, loading, logout, refresh } = useAuth()
   const navigate = useNavigate()
-  const { count } = useSavedJobs()
   const [stage, setStage] = useState<DeleteStage>('idle')
   const [confirmText, setConfirmText] = useState('')
   const [error, setError] = useState('')
@@ -60,7 +58,7 @@ export default function AccountPage() {
 
   return (
     <div style={{ backgroundColor: 'var(--color-bg)', minHeight: '100dvh' }}>
-      <Nav savedCount={count} />
+      <Nav />
       <main id="main-content" className="mx-auto max-w-2xl px-6 py-14 lg:px-8">
         <span
           className="text-xs font-semibold uppercase"

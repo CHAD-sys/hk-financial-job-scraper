@@ -4,10 +4,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { scrollToTop, scrollToHash } from '../utils/scroll'
 import type { Seeker } from '../api/client'
 import { useAuth } from '../auth/useAuth'
-
-interface Props {
-  savedCount?: number
-}
+import { useSavedRoles } from '../savedRoles/useSavedRoles'
 
 /**
  * Primary navigation.
@@ -38,7 +35,12 @@ const LINKS: { label: string; to: string; external?: boolean }[] = [
   { label: 'About', to: '/about' },
 ]
 
-export default function Nav({ savedCount = 0 }: Props) {
+export default function Nav() {
+  // Read the count rather than take it as a prop. As a prop it defaulted to 0,
+  // so the four pages that rendered a bare <Nav /> — Home, About, Learning and
+  // Post a role — showed a signed-in Seeker a Saved badge of zero. A forgotten
+  // prop with a default is a silent wrong number; reading the context is not.
+  const { count: savedCount } = useSavedRoles()
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
   const { pathname, hash } = useLocation()
