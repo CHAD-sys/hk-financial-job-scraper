@@ -247,3 +247,57 @@ def test_jobs_endpoints_are_unaffected_by_accounts(client):
     assert row["title"] == "Credit Risk Analyst"
     assert row["company"] == "HSBC"
     assert "salary_estimated_min" in row
+
+
+# ── Outbound Seeker mail ──────────────────────────────────────────────────────
+#
+# Nothing asserted on Seeker mail before, because there was nothing to assert
+# against: the sender was a module-level SMTP connection, and the best the suite
+# could do was blank the credentials so it did not fire. Now it is a collaborator
+# the app is given, so "did we email them?" is a question with an answer.
+
+def _sender(client):
+    return client.app.state.sender
+
+
+def test_registering_emails_a_verification_link(client):
+    _register(client)
+    sent = _sender(client).sent
+    assert [m.to for m in sent] == ["seeker@example.com"]
+    assert "Confirm" in sent[0].subject
+    assert "/verify?token=" in sent[0].body
+
+
+def test_registering_an_existing_address_warns_the_owner_instead(client):
+    """
+    Decision 15: register answers like success either way, so the response
+    cannot be used to test whether an address has an account. The person who
+    actually owns it is told, and nobody else learns anything.
+    """
+    _register(client)
+    _sender(client).sent.clear()
+
+    second = TestClient(client.app)
+    assert _register(second).status_code == 201
+
+    sent = _sender(client).sent
+    assert [m.to for m in sent] == ["seeker@example.com"]
+    assert "tried to register" in sent[0].subject
+
+
+def test_registration_succeeds_even_when_mail_cannot_be_delivered(client):
+    """
+    Mail is best-effort. A signup that 500s over a mailbox problem is a far
+    worse failure than one that quietly defers the verification email.
+    """
+    _sender(client).delivers = False
+    assert _register(client).status_code == 201
+    assert client.get("/api/auth/me").status_code == 200
+
+
+def test_signing_in_emails_nobody(client):
+    _register(client)
+    _sender(client).sent.clear()
+    client.post("/api/auth/logout")
+    client.post("/api/auth/login", json={"email": GOOD["email"], "password": GOOD["password"]})
+    assert _sender(client).sent == []

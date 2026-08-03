@@ -55,6 +55,7 @@ from mailer import RECIPIENT, SMTP_USER, send_mail  # noqa: E402
 # filtered, sorted, counted and shaped for the wire lives in this module — see
 # its docstring for why "browsing is filtered, addressing is not".
 import job_read  # noqa: E402
+from sender import Message, Sender, SmtpSender  # noqa: E402
 from settings import Settings  # noqa: E402
 from job_read import (  # noqa: E402
     BOARD_WHERE,
@@ -739,7 +740,7 @@ def _auth_rate_limited(request: Request, key: str, *, limit: int, window_s: int)
     return _limit(request, key, limit=limit, window_s=window_s)
 
 
-def _send_seeker_mail(to: str, subject: str, body: str) -> bool:
+def _send_seeker_mail(request: Request, to: str, subject: str, body: str) -> bool:
     """
     Mail *to a Seeker*, at an address they typed.
 
@@ -749,14 +750,15 @@ def _send_seeker_mail(to: str, subject: str, body: str) -> bool:
     email and not only on the caller's IP: without that, anyone could point our
     sending reputation at a stranger's inbox.
 
-    Returns False when outbound mail is not configured yet (ADR 0009 — pending
-    the amine@finexclub.org mailbox password). Registration must still succeed in
-    that state: the Seeker gets an account, just no verification mail.
+    The sender is a collaborator of the app (see sender.py), not a module-level
+    SMTP connection: that is what stops the test suite mailing real people, and
+    what lets a test assert on what was sent.
+
+    False means it did not go — because mail is not configured yet (ADR 0009,
+    pending the mailbox password) or because the send failed. Registration must
+    still succeed either way: the Seeker gets an account, just no mail.
     """
-    if not mailer.SEEKER_MAIL_READY:
-        logger.warning("Seeker mail not configured — not sending %r to %s", subject, to)
-        return False
-    return mailer.send_to(to, subject, body)
+    return request.app.state.sender.send(Message(to=to, subject=subject, body=body))
 
 
 class RegisterIn(BaseModel):
@@ -835,6 +837,7 @@ def register(payload: RegisterIn, request: Request, response: Response):
     except seekers_store.EmailAlreadyRegistered:
         store.log_event("seeker.register_existing", seeker_id=None)
         _send_seeker_mail(
+            request,
             email,
             "Someone tried to register with your email",
             "Someone just tried to create a FinEx Careers account with this address.\n"
@@ -849,6 +852,7 @@ def register(payload: RegisterIn, request: Request, response: Response):
                                                      user_agent=request.headers.get("user-agent")))
     raw_token = auth.issue_email_token(store, seeker_id, purpose="verify")
     _send_seeker_mail(
+        request,
         email,
         "Confirm your email — FinEx Careers",
         f"Welcome to FinEx Careers.\n\nConfirm this address to finish setting up "
@@ -1051,7 +1055,7 @@ def _mount_frontend(app: FastAPI, settings: Settings) -> None:
         return FileResponse(settings.index_html, headers={"Cache-Control": "no-cache"})
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, *, sender: Sender | None = None) -> FastAPI:
     """
     Build an app from an explicit configuration.
 
@@ -1062,6 +1066,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     reconfigure anything.
     """
     settings = settings or Settings.from_env()
+    # SmtpSender by default; a test passes a RecordingSender and asserts on it.
+    sender = sender if sender is not None else SmtpSender()
 
     app = FastAPI(
         title="FinEx Careers API",
@@ -1070,6 +1076,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.state.settings = settings
+    app.state.sender = sender
     # Per-app, so two apps in one process (which is what the tests build) cannot
     # share a rate-limit budget.
     app.state.rate_log = defaultdict(list)

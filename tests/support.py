@@ -202,13 +202,22 @@ def make_app(db: Path, dist: Path | None = None, submissions: Path | None = None
     It is a function call now. `create_app` takes the configuration; nothing is
     global, so two apps with two different databases can exist at once and a
     test never touches `os.environ` at all.
+
+    Outbound Seeker mail goes to a RecordingSender unless a test says otherwise,
+    so nothing in the suite can reach a real SMTP server. Reach it through
+    `client.app.state.sender` to assert on what was sent.
     """
     from main import create_app  # imported here so a collection-time import cannot fail
+    from sender import RecordingSender
     from settings import Settings
 
-    return create_app(Settings(
-        jobs_db=db,
-        frontend_dist=dist if dist is not None else Path("/nonexistent/dist"),
-        submissions_dir=submissions,
-        **over,
-    ))
+    sender = over.pop("sender", None) or RecordingSender()
+    return create_app(
+        Settings(
+            jobs_db=db,
+            frontend_dist=dist if dist is not None else Path("/nonexistent/dist"),
+            submissions_dir=submissions,
+            **over,
+        ),
+        sender=sender,
+    )
