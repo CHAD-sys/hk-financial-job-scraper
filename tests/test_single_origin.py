@@ -20,105 +20,26 @@ The database is likewise a two-table stand-in rather than the real 100 MB
 jobs.db, so this file is hermetic and runs anywhere. It holds exactly the
 columns /api/jobs reads — enough to prove the route still reaches SQLite and
 returns rows.
+
+The builders used to live in this file and were imported by other test modules.
+They now live in `support.py`; the aliases below keep the old names working for
+anything still reaching for them.
 """
 
 from __future__ import annotations
 
-import importlib
-import sqlite3
-import sys
-from pathlib import Path
-
 import pytest
 from fastapi.testclient import TestClient
 
-BACKEND = Path(__file__).resolve().parent.parent / "webapp" / "backend"
+from .support import (
+    BACKEND,
+    INDEX_MARKER,
+    import_main as _import_main,
+    make_bundle as _make_bundle,
+    make_jobs_db as _make_db,
+)
 
-INDEX_MARKER = "<!-- test index.html -->"
-
-
-def _make_db(path: Path) -> None:
-    """A minimal jobs.db: the columns /api/jobs selects and filters on, one row."""
-    conn = sqlite3.connect(path)
-    with conn:
-        conn.execute(
-            """
-            CREATE TABLE jobs (
-                source          TEXT NOT NULL,
-                source_id       TEXT NOT NULL,
-                company         TEXT NOT NULL,
-                url             TEXT NOT NULL,
-                title           TEXT NOT NULL,
-                description_clean TEXT NOT NULL DEFAULT '',
-                locations       TEXT NOT NULL DEFAULT '[]',
-                posted_at       TEXT,
-                is_active       INTEGER NOT NULL DEFAULT 1,
-                is_primary      INTEGER NOT NULL DEFAULT 1,
-                cross_posted    INTEGER NOT NULL DEFAULT 0,
-                apply_url       TEXT NOT NULL DEFAULT '',
-                source_tier     TEXT NOT NULL DEFAULT 'mainstream',
-                board_signals   TEXT NOT NULL DEFAULT '{}',
-                grp_new         INTEGER,
-                grp_urgent      INTEGER,
-                grp_applicants  INTEGER,
-                PRIMARY KEY (source, source_id)
-            );
-            """
-        )
-        conn.execute(
-            """
-            CREATE TABLE job_enrichments (
-                source          TEXT NOT NULL,
-                source_id       TEXT NOT NULL,
-                seniority       TEXT,
-                job_category    TEXT,
-                remote_type     TEXT,
-                required_skills TEXT,
-                salary_hkd_min  INTEGER,
-                salary_hkd_max  INTEGER,
-                salary_estimated_min INTEGER,
-                salary_estimated_max INTEGER,
-                salary_estimated_confidence TEXT,
-                years_experience_required INTEGER,
-                description_summary TEXT,
-                title_en        TEXT,
-                PRIMARY KEY (source, source_id)
-            );
-            """
-        )
-        conn.execute(
-            "INSERT INTO jobs (source, source_id, company, url, title, description_clean, "
-            "locations, posted_at) VALUES (?,?,?,?,?,?,?,?)",
-            (
-                "workday", "J1", "HSBC", "https://example.test/j1",
-                "Credit Risk Analyst", "Analyse credit risk.",
-                '["Hong Kong"]', "2026-07-01T00:00:00+00:00",
-            ),
-        )
-    conn.close()
-
-
-def _make_bundle(dist: Path) -> None:
-    """A fake `npm run build` output: index.html, a hashed asset, a root file."""
-    (dist / "assets").mkdir(parents=True)
-    (dist / "index.html").write_text(
-        f"<html><body>{INDEX_MARKER}<div id='root'></div></body></html>", encoding="utf-8"
-    )
-    (dist / "assets" / "index-abc123.js").write_text("console.log('app')", encoding="utf-8")
-    (dist / "favicon.svg").write_text("<svg/>", encoding="utf-8")
-
-
-def _import_main(monkeypatch, db: Path, dist: Path, submissions: Path):
-    """Fresh app per test — module-level config (DB_PATH, FRONTEND_DIST) and the
-    static mount are all decided at import time, so a reimport is the only way to
-    exercise a different configuration."""
-    monkeypatch.setenv("JOBS_DB_PATH", str(db))
-    monkeypatch.setenv("FRONTEND_DIST", str(dist))
-    monkeypatch.setenv("SUBMISSIONS_DIR", str(submissions))
-    monkeypatch.syspath_prepend(str(BACKEND))
-    for mod in ("main", "mailer"):
-        sys.modules.pop(mod, None)
-    return importlib.import_module("main")
+__all__ = ["BACKEND", "INDEX_MARKER", "_import_main", "_make_bundle", "_make_db"]
 
 
 @pytest.fixture()

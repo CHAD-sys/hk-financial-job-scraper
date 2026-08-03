@@ -25,7 +25,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from .test_single_origin import _import_main, _make_bundle, _make_db
+from .support import import_main as _import_main, make_bundle as _make_bundle, make_jobs_db as _make_db
 
 GOOD = {"email": "seeker@example.com", "password": "correct-horse-battery", "display_name": "Ada"}
 
