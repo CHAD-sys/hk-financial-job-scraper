@@ -8,7 +8,7 @@ import {
   countActiveFilters,
 } from '../api/client'
 import type { JobFilters } from '../api/client'
-import { useSavedJobs } from '../hooks/useSavedJobs'
+import { useSavedRoles } from '../savedRoles/useSavedRoles'
 import { useDebounce } from '../hooks/useDebounce'
 import Nav from '../components/Nav'
 import FilterBar from '../components/FilterBar'
@@ -65,7 +65,7 @@ export default function JobBoardPage() {
   // into the main grid's `jobs.map(...)` loop above.
   const [recruiterPosts, setRecruiterPosts] = useState<JobListResponse | null>(null)
 
-  const { toggle: toggleSave, isSaved, count: savedCount } = useSavedJobs()
+  const { toggle: toggleSave, isSaved } = useSavedRoles()
 
   // Load filter options + unfiltered board total once
   useEffect(() => {
@@ -140,7 +140,7 @@ export default function JobBoardPage() {
 
   return (
     <div style={{ backgroundColor: 'var(--color-bg)', minHeight: '100dvh' }}>
-      <Nav savedCount={savedCount} />
+      <Nav />
 
       {/* ── Slim hero ───────────────────────────────────────── */}
       <section

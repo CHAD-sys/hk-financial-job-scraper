@@ -31,7 +31,7 @@ SMTP_PASS = os.getenv("SMTP_PASS", "")
 # Where enquiries and role submissions go. A module constant on purpose: the
 # recipient must never be derived from a request, or the endpoint becomes an
 # open relay for anyone who can POST to it.
-RECIPIENT = os.getenv("ENQUIRY_EMAIL", "mohamedaminechahid@gmail.com")
+RECIPIENT = os.getenv("ENQUIRY_EMAIL", "amine@finexclub.org")
 
 # CR/LF in a header field is how header injection works — an attacker who gets a
 # newline into a Subject or Reply-To can append arbitrary headers (Bcc, etc.).
@@ -75,4 +75,66 @@ def send_mail(subject: str, body_text: str, reply_to: str | None = None) -> bool
         return True
     except Exception as exc:  # noqa: BLE001 - never let mail failure break a request
         logger.error("Failed to send %r: %s", subject, exc)
+        return False
+
+
+# ── Mail TO a Seeker ──────────────────────────────────────────────────────────
+# Everything above sends to the fixed RECIPIENT constant, deliberately, so those
+# endpoints cannot become an open relay. Seeker accounts need the opposite
+# direction: mail to an address a stranger typed (verification, password reset).
+#
+# That is a genuinely different capability with a different threat model, so it
+# gets its own function and its own credentials rather than relaxing send_mail().
+# The abuse it invites — pointing our sending reputation at a victim's inbox —
+# is held off by per-target-email rate limiting at the endpoint, not here.
+#
+# Identity: amine@finexclub.org over the existing HostGator mail host, per ADR
+# 0009. Not a new Resend subdomain: DNS shows mail.finexclub.org is already the
+# live MX for the business mail, and finexclub.org's single permitted SPF record
+# (`v=spf1 a mx include:websitewelcome.com ~all`) already authorises that server
+# via `a mx`. So this needs no DNS change at all.
+
+SEEKER_SMTP_HOST = os.getenv("SEEKER_SMTP_HOST", "mail.finexclub.org")
+SEEKER_SMTP_PORT = int(os.getenv("SEEKER_SMTP_PORT", "587"))
+SEEKER_FROM = os.getenv("SEEKER_FROM", "FinEx Careers <amine@finexclub.org>")
+SEEKER_SMTP_USER = os.getenv("SEEKER_SMTP_USER", "amine@finexclub.org")
+SEEKER_SMTP_PASS = os.getenv("SEEKER_SMTP_PASS", "")
+
+# Callers check this before composing. False means "not configured yet" — the
+# account still gets created, the Seeker just receives no mail. A registration
+# that 500s because the mailbox password is missing would be a far worse
+# failure than one that quietly defers the verification email.
+SEEKER_MAIL_READY = bool(SEEKER_SMTP_USER and SEEKER_SMTP_PASS)
+
+
+def send_to(to: str, subject: str, body_text: str) -> bool:
+    """
+    Send one plain-text message to a Seeker. Returns False on any failure.
+
+    No caller may treat False as fatal: mail is best-effort here. Registration,
+    password changes and account deletion all complete regardless.
+    """
+    if not SEEKER_MAIL_READY:
+        logger.warning("Seeker mail not configured — not sending %r", subject)
+        return False
+
+    msg = EmailMessage()
+    msg["Subject"] = _header_safe(subject)
+    msg["From"] = SEEKER_FROM
+    # The recipient is request-derived here, unlike send_mail(). It is sanitised
+    # for CR/LF like any other header — an address reaching this point has
+    # already passed EmailStr validation, but header injection is cheap to close
+    # twice and expensive to miss once.
+    msg["To"] = _header_safe(to, limit=320)
+    msg.set_content(body_text)
+
+    try:
+        with smtplib.SMTP(SEEKER_SMTP_HOST, SEEKER_SMTP_PORT, timeout=20) as srv:
+            srv.starttls()
+            srv.login(SEEKER_SMTP_USER, SEEKER_SMTP_PASS)
+            srv.send_message(msg)
+        logger.info("Sent %r to a Seeker", msg["Subject"])
+        return True
+    except Exception as exc:  # noqa: BLE001 - mail failure must not break a request
+        logger.error("Failed to send %r to a Seeker: %s", subject, exc)
         return False

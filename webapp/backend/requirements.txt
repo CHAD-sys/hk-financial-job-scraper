@@ -4,3 +4,10 @@ pydantic==2.13.4
 # Backs pydantic's EmailStr, used to validate addresses on /api/contact and
 # /api/post-role. Pydantic raises at import time without it.
 email-validator==2.3.0
+# Argon2id password hashing for Seeker accounts (webapp/backend/auth.py, ADR 0004).
+# Version resolved by installing it and reading back what pip actually put in the
+# venv — a guessed pin has broken a build in this repo before. argon2-cffi pulls
+# in argon2-cffi-bindings (the compiled reference implementation), pinned here too
+# so the build is reproducible rather than "whatever resolved today".
+argon2-cffi==25.1.0
+argon2-cffi-bindings==25.1.0

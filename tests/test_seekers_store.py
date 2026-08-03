@@ -1,0 +1,381 @@
+"""
+Tests for the seekers.db storage layer.
+
+The theme is that this file holds the only copy of the account data there is
+(ADR 0006) and that its delete really deletes (ADR 0007), so the tests are about
+the guarantees rather than the CRUD: the path never resolves to jobs.db,
+migrations are safe to re-run, uniqueness is enforced by the database, deletion
+leaves nothing behind but the event, and none of it needs a network or a server.
+
+Every test gets its own file under tmp_path — no shared state, no cleanup.
+"""
+
+from __future__ import annotations
+
+import sqlite3
+import sys
+from datetime import timedelta
+from pathlib import Path
+
+import pytest
+
+BACKEND = Path(__file__).resolve().parent.parent / "webapp" / "backend"
+sys.path.insert(0, str(BACKEND))
+
+from seekers_store import (  # noqa: E402 — path must be set up first
+    EmailAlreadyRegistered,
+    SeekerStore,
+    from_iso,
+    normalise_email,
+    resolve_seekers_db_path,
+    utcnow,
+)
+
+
+@pytest.fixture()
+def store(tmp_path) -> SeekerStore:
+    return SeekerStore(tmp_path / "seekers.db")
+
+
+# ── Where the file lives ──────────────────────────────────────────────────────
+
+
+def test_path_defaults_next_to_the_jobs_db_volume(tmp_path, monkeypatch):
+    """On Railway JOBS_DB_PATH=/data/jobs.db, so seekers.db must land on /data too."""
+    monkeypatch.delenv("SEEKERS_DB_PATH", raising=False)
+    monkeypatch.setenv("JOBS_DB_PATH", str(tmp_path / "volume" / "jobs.db"))
+    assert resolve_seekers_db_path() == (tmp_path / "volume" / "seekers.db").resolve()
+
+
+def test_explicit_env_override_wins(tmp_path, monkeypatch):
+    monkeypatch.setenv("SEEKERS_DB_PATH", str(tmp_path / "elsewhere.db"))
+    assert resolve_seekers_db_path() == (tmp_path / "elsewhere.db").resolve()
+
+
+def test_refuses_to_be_jobs_db(tmp_path, monkeypatch):
+    """The invariant from ADR 0006, enforced rather than merely documented."""
+    monkeypatch.setenv("SEEKERS_DB_PATH", str(tmp_path / "jobs.db"))
+    with pytest.raises(ValueError, match="jobs.db"):
+        resolve_seekers_db_path()
+    with pytest.raises(ValueError, match="jobs.db"):
+        SeekerStore(tmp_path / "jobs.db")
+
+
+# ── Migrations ────────────────────────────────────────────────────────────────
+
+
+def _schema(db_path: Path) -> set[tuple[str, str]]:
+    conn = sqlite3.connect(db_path)
+    try:
+        return {
+            (row[0], row[1])
+            for row in conn.execute(
+                "SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'"
+            ).fetchall()
+        }
+    finally:
+        conn.close()
+
+
+def test_migrations_create_every_table(store):
+    names = {name for kind, name in _schema(store.db_path) if kind == "table"}
+    assert {
+        "seekers",
+        "seeker_identities",
+        "sessions",
+        "email_tokens",
+        "saved_roles",
+        "events",
+    } <= names
+
+
+def test_migrations_are_idempotent(tmp_path):
+    """Run twice — second run must be a no-op, not an error, and not a schema change."""
+    db_path = tmp_path / "seekers.db"
+    first = SeekerStore(db_path)
+    seeker_id = first.create_seeker("alice@example.com")
+    before = _schema(db_path)
+
+    first.migrate()  # explicit re-run
+    second = SeekerStore(db_path)  # and a fresh store, which migrates in __init__
+
+    assert _schema(db_path) == before
+    assert second.get_seeker(seeker_id) is not None  # data survived
+
+
+def test_wal_mode_is_on(store):
+    conn = sqlite3.connect(store.db_path)
+    try:
+        assert conn.execute("PRAGMA journal_mode").fetchone()[0].lower() == "wal"
+    finally:
+        conn.close()
+
+
+# ── Seekers ───────────────────────────────────────────────────────────────────
+
+
+def test_create_and_fetch(store):
+    seeker_id = store.create_seeker(
+        "Alice@Example.COM ", password_hash="not-a-real-hash", display_name="Alice"
+    )
+    assert len(seeker_id) == 36 and seeker_id.count("-") == 4  # uuid4 shape
+
+    seeker = store.get_seeker(seeker_id)
+    assert seeker["email"] == "alice@example.com"  # normalised on the way in
+    assert seeker["display_name"] == "Alice"
+    assert seeker["email_verified"] == 0
+    assert seeker["last_login_at"] is None
+    assert store.get_seeker_by_email("ALICE@example.com")["id"] == seeker_id
+
+
+def test_seeker_id_is_not_the_email(store):
+    """ADR 0006: the identifier is opaque. Email is mutable and must never key anything."""
+    seeker_id = store.create_seeker("alice@example.com")
+    assert "alice" not in seeker_id
+    assert "@" not in seeker_id
+
+
+def test_duplicate_email_is_refused_by_the_database(store):
+    store.create_seeker("alice@example.com")
+    with pytest.raises(EmailAlreadyRegistered):
+        store.create_seeker("ALICE@EXAMPLE.COM")  # same address, different casing
+
+
+def test_password_hash_is_nullable_for_oauth_only_seekers(store):
+    seeker_id = store.create_seeker("bob@example.com", email_verified=True)
+    assert store.get_seeker(seeker_id)["password_hash"] is None
+    assert store.get_seeker(seeker_id)["email_verified"] == 1
+
+
+def test_set_password_and_verification_and_login(store):
+    seeker_id = store.create_seeker("carol@example.com")
+    store.set_password_hash(seeker_id, "hash-v2")
+    store.set_email_verified(seeker_id)
+    store.touch_last_login(seeker_id)
+
+    seeker = store.get_seeker(seeker_id)
+    assert seeker["password_hash"] == "hash-v2"
+    assert seeker["email_verified"] == 1
+    assert from_iso(seeker["last_login_at"]) <= utcnow()
+
+
+def test_normalise_email_does_not_mangle_the_local_part(store):
+    """Gmail dot/plus rules are deliberately NOT applied — merging two people is worse."""
+    assert normalise_email(" A.Lice+jobs@Example.com ") == "a.lice+jobs@example.com"
+
+
+# ── Identities ────────────────────────────────────────────────────────────────
+
+
+def test_identity_link_is_idempotent(store):
+    seeker_id = store.create_seeker("dana@example.com", email_verified=True)
+    store.link_identity(seeker_id, "google", "sub-123")
+    store.link_identity(seeker_id, "google", "sub-123")
+
+    assert store.get_identity("google", "sub-123")["seeker_id"] == seeker_id
+    assert len(store.list_identities(seeker_id)) == 1
+    assert store.get_identity("google", "unknown-sub") is None
+
+
+def test_one_seeker_can_hold_several_providers(store):
+    seeker_id = store.create_seeker("dana@example.com", email_verified=True)
+    store.link_identity(seeker_id, "google", "sub-123")
+    store.link_identity(seeker_id, "linkedin", "sub-456")
+    assert len(store.list_identities(seeker_id)) == 2
+
+
+# ── Sessions ──────────────────────────────────────────────────────────────────
+
+
+def test_session_round_trip_and_revocation(store):
+    seeker_id = store.create_seeker("erin@example.com")
+    expires = utcnow() + timedelta(days=90)
+    store.insert_session("hash-a", seeker_id, expires, user_agent="pytest")
+
+    session = store.get_session("hash-a")
+    assert session["seeker_id"] == seeker_id
+    assert session["user_agent"] == "pytest"
+
+    assert store.delete_session("hash-a") is True
+    assert store.get_session("hash-a") is None
+    assert store.delete_session("hash-a") is False
+
+
+def test_revoking_all_sessions(store):
+    seeker_id = store.create_seeker("erin@example.com")
+    other_id = store.create_seeker("frank@example.com")
+    expires = utcnow() + timedelta(days=90)
+    for token_hash in ("h1", "h2", "h3"):
+        store.insert_session(token_hash, seeker_id, expires)
+    store.insert_session("h4", other_id, expires)
+
+    assert store.delete_sessions_for_seeker(seeker_id) == 3
+    assert store.count_sessions(seeker_id) == 0
+    assert store.count_sessions(other_id) == 1  # untouched
+
+
+def test_purge_expired_sessions_leaves_live_ones(store):
+    seeker_id = store.create_seeker("erin@example.com")
+    now = utcnow()
+    store.insert_session("live", seeker_id, now + timedelta(days=90))
+    store.insert_session("dead", seeker_id, now - timedelta(seconds=1))
+
+    assert store.purge_expired_sessions(now=now) == 1
+    assert store.get_session("live") is not None
+    assert store.get_session("dead") is None
+
+
+# ── Email tokens ──────────────────────────────────────────────────────────────
+
+
+def test_email_token_claim_is_single_use(store):
+    seeker_id = store.create_seeker("gita@example.com")
+    store.insert_email_token("tok-hash", seeker_id, "verify", utcnow() + timedelta(hours=1))
+
+    assert store.claim_email_token("tok-hash") is True
+    assert store.claim_email_token("tok-hash") is False  # the second click loses
+    assert store.get_email_token("tok-hash")["used_at"] is not None
+
+
+def test_email_token_purpose_is_constrained(store):
+    seeker_id = store.create_seeker("gita@example.com")
+    with pytest.raises(ValueError):
+        store.insert_email_token("x", seeker_id, "login", utcnow() + timedelta(hours=1))
+
+
+def test_deleting_tokens_by_purpose(store):
+    seeker_id = store.create_seeker("gita@example.com")
+    expires = utcnow() + timedelta(hours=1)
+    store.insert_email_token("v1", seeker_id, "verify", expires)
+    store.insert_email_token("r1", seeker_id, "reset", expires)
+
+    assert store.delete_email_tokens(seeker_id, "reset") == 1
+    assert store.get_email_token("v1") is not None
+    assert store.get_email_token("r1") is None
+
+
+# ── Saved roles ───────────────────────────────────────────────────────────────
+
+
+def test_saving_a_role_is_idempotent(store):
+    seeker_id = store.create_seeker("hana@example.com")
+    store.save_role(seeker_id, "jobsdb", "job-1")
+    store.save_role(seeker_id, "jobsdb", "job-1")
+
+    saved = store.list_saved_roles(seeker_id)
+    assert len(saved) == 1
+    assert (saved[0]["source"], saved[0]["source_id"]) == ("jobsdb", "job-1")
+
+
+def test_saved_role_stores_a_reference_not_a_copy(store):
+    """CONTEXT.md: a Saved Role is a reference to a Role, never a snapshot of one."""
+    seeker_id = store.create_seeker("hana@example.com")
+    store.save_role(seeker_id, "workday", "job-2")
+    columns = set(store.list_saved_roles(seeker_id)[0])
+    assert columns == {"seeker_id", "source", "source_id", "saved_at"}
+    assert not columns & {"title", "company", "url", "description"}
+
+
+def test_unsave(store):
+    seeker_id = store.create_seeker("hana@example.com")
+    store.save_role(seeker_id, "jobsdb", "job-1")
+    assert store.unsave_role(seeker_id, "jobsdb", "job-1") is True
+    assert store.unsave_role(seeker_id, "jobsdb", "job-1") is False
+    assert store.list_saved_roles(seeker_id) == []
+
+
+def test_merge_is_a_union_and_idempotent(store):
+    """Decision 14: first sign-in lifts localStorage saves in without losing either set."""
+    seeker_id = store.create_seeker("hana@example.com")
+    store.save_role(seeker_id, "jobsdb", "already-here")
+
+    added = store.merge_saved_roles(seeker_id, [("jobsdb", "already-here"), ("indeed", "new-one")])
+    assert added == 1
+    assert len(store.list_saved_roles(seeker_id)) == 2
+
+    again = store.merge_saved_roles(seeker_id, [("jobsdb", "already-here"), ("indeed", "new-one")])
+    assert again == 0
+    assert len(store.list_saved_roles(seeker_id)) == 2
+
+
+# ── Events ────────────────────────────────────────────────────────────────────
+
+
+def test_events_are_counted_by_name(store):
+    seeker_id = store.create_seeker("iris@example.com")
+    store.log_event("signup.completed", seeker_id)
+    store.log_event("login.succeeded", seeker_id)
+    store.log_event("login.succeeded")  # anonymous events are allowed
+
+    assert store.count_events("login.succeeded") == 2
+    assert store.count_events("login.succeeded", seeker_id=seeker_id) == 1
+    assert store.count_events() == 3
+
+
+def test_events_hold_nothing_but_name_seeker_and_time(store):
+    """Decision 19: first-party counts, not a properties blob that becomes a data store."""
+    store.log_event("login.succeeded")
+    conn = sqlite3.connect(store.db_path)
+    try:
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(events)")}
+    finally:
+        conn.close()
+    assert columns == {"id", "name", "seeker_id", "created_at"}
+
+
+# ── Deletion (ADR 0007) ───────────────────────────────────────────────────────
+
+
+def test_deletion_really_deletes(store):
+    seeker_id = store.create_seeker("jane@example.com", password_hash="hash")
+    store.link_identity(seeker_id, "google", "sub-jane")
+    store.insert_session("sess-jane", seeker_id, utcnow() + timedelta(days=90))
+    store.insert_email_token("tok-jane", seeker_id, "verify", utcnow() + timedelta(hours=1))
+    store.save_role(seeker_id, "jobsdb", "job-1")
+    store.log_event("login.succeeded", seeker_id)
+
+    assert store.delete_seeker(seeker_id) is True
+
+    assert store.get_seeker(seeker_id) is None
+    assert store.get_seeker_by_email("jane@example.com") is None
+    assert store.get_session("sess-jane") is None
+    assert store.count_sessions(seeker_id) == 0
+    assert store.get_email_token("tok-jane") is None
+    assert store.list_saved_roles(seeker_id) == []
+    assert store.get_identity("google", "sub-jane") is None
+    assert store.list_identities(seeker_id) == []
+
+
+def test_deletion_logs_an_event_that_survives(store):
+    """ADR 0007: you cannot forward a deletion you have no record of."""
+    seeker_id = store.create_seeker("jane@example.com")
+    store.delete_seeker(seeker_id)
+
+    assert store.count_events("seeker.deleted", seeker_id=seeker_id) == 1
+    surviving = store.list_events(seeker_id)
+    assert [event["name"] for event in surviving] == ["seeker.deleted"]
+
+
+def test_deleting_an_unknown_seeker_is_false_not_an_error(store):
+    assert store.delete_seeker("00000000-0000-4000-8000-000000000000") is False
+
+
+def test_deletion_frees_the_email_for_reuse(store):
+    """Real deletion means the address is genuinely available again — a flag would not."""
+    first = store.create_seeker("jane@example.com")
+    store.delete_seeker(first)
+    second = store.create_seeker("jane@example.com")
+    assert second != first
+
+
+def test_deletion_leaves_other_seekers_alone(store):
+    victim = store.create_seeker("jane@example.com")
+    bystander = store.create_seeker("kim@example.com")
+    store.insert_session("sess-kim", bystander, utcnow() + timedelta(days=90))
+    store.save_role(bystander, "jobsdb", "job-1")
+
+    store.delete_seeker(victim)
+
+    assert store.get_seeker(bystander) is not None
+    assert store.get_session("sess-kim") is not None
+    assert len(store.list_saved_roles(bystander)) == 1

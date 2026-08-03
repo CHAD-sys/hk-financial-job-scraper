@@ -11,9 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 import os
-import re
 import sqlite3
 import threading
 import time
@@ -23,8 +21,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 # Logging first, so that everything below — including the env load — is visible.
@@ -42,174 +42,83 @@ logger = logging.getLogger(__name__)
 
 from env_file import load_env_file  # noqa: E402 — must import after logging setup
 
-# MUST run before the module-level os.environ reads below (DB_PATH, CORS_ORIGINS,
-# SUBMISSIONS_DIR) and before importing mailer, which reads its SMTP settings at
-# import time. uvicorn does not source config/api_keys.env the way daily_run.sh
-# does, so without this the backend starts with no credentials at all.
+# MUST run before Settings.from_env() below, and before importing mailer, which
+# reads its SMTP settings at import time. uvicorn does not source
+# config/api_keys.env the way daily_run.sh does, so without this the backend
+# starts with no credentials at all.
 load_env_file()
 
-from mailer import RECIPIENT, SMTP_USER, send_mail  # noqa: E402 — see above
+import mailer  # noqa: E402 — see above
+from mailer import RECIPIENT, SMTP_USER, send_mail  # noqa: E402
 
-# ── DB path ───────────────────────────────────────────────────────────────────
-# Configurable for deployment (e.g. a Railway volume mounted at /data). Defaults to
-# the repo's local data/jobs.db for development. If the DB isn't present and
-# DB_SEED_URL is set, download it once on first boot — lets a temporary demo seed a
-# volume with no manual upload step. The DB itself is never committed to git.
+# The jobs read path. Everything about which Roles are visible, how they are
+# filtered, sorted, counted and shaped for the wire lives in this module — see
+# its docstring for why "browsing is filtered, addressing is not".
+import job_read  # noqa: E402
+from sender import Message, Sender, SmtpSender  # noqa: E402
+from settings import Settings  # noqa: E402
+from job_read import (  # noqa: E402
+    BOARD_WHERE,
+    INTERNSHIP_COND,
+    SECTOR_SQL,
+    JobDetail,
+    JobFilters,
+    JobListResponse,
+    JobSummary,
+    Sort,
+    Visibility,
+)
 
-DB_PATH = Path(
-    os.environ.get("JOBS_DB_PATH", str(Path(__file__).parent.parent.parent / "data" / "jobs.db"))
-).resolve()
+# ── Per-request dependencies ──────────────────────────────────────────────────
+#
+# Every route reaches its configuration through the app it is serving, never
+# through a module global. That is what lets a test build a second app with a
+# different database instead of deleting this module from sys.modules and
+# re-importing it.
+
+router = APIRouter()
 
 
-def _seed_db_if_missing() -> None:
-    seed_url = os.environ.get("DB_SEED_URL", "").strip()
-    if DB_PATH.exists() or not seed_url:
+def cfg(request: Request) -> Settings:
+    """This app's settings."""
+    return request.app.state.settings
+
+
+def _seed_db_if_missing(settings: Settings) -> None:
+    """
+    Download the database once, if a seed URL is configured and it is absent.
+
+    Called from the lifespan rather than at import: a slow or hanging download
+    should delay startup visibly, not silently block `import main` — including
+    inside a test process that inherited DB_SEED_URL from the developer's env
+    file.
+    """
+    if settings.jobs_db.exists() or not settings.db_seed_url:
         return
     import urllib.request
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    tmp = DB_PATH.with_name(DB_PATH.name + ".downloading")
-    urllib.request.urlretrieve(seed_url, tmp)  # noqa: S310 — operator-provided URL
-    tmp.replace(DB_PATH)
+    logger.info("Seeding %s from %s", settings.jobs_db, settings.db_seed_url)
+    settings.jobs_db.parent.mkdir(parents=True, exist_ok=True)
+    tmp = settings.jobs_db.with_name(settings.jobs_db.name + ".downloading")
+    urllib.request.urlretrieve(settings.db_seed_url, tmp)  # noqa: S310 — operator-provided URL
+    tmp.replace(settings.jobs_db)
 
 
-_seed_db_if_missing()
+def get_db(request: Request) -> sqlite3.Connection:
+    """
+    A read-only connection to jobs.db.
 
-
-def _regexp(pattern: str, value: str | None) -> int:
-    """SQLite REGEXP impl (case-insensitive) so we can match whole words, not substrings."""
-    if value is None:
-        return 0
-    return 1 if re.search(pattern, value, re.IGNORECASE) else 0
-
-
-def get_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.create_function("REGEXP", 2, _regexp)
+    `job_read.prepare` installs the row factory and the REGEXP function the read
+    path needs — they are requirements of that module, so it owns them rather
+    than this file remembering to repeat them.
+    """
+    conn = sqlite3.connect(cfg(request).jobs_db, check_same_thread=False)
+    job_read.prepare(conn)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA query_only=ON")
     return conn
 
 
-# ── Sector logic ──────────────────────────────────────────────────────────────
-
-_IB_TERMS = [
-    "goldman", "morgan stanley", "deutsche bank", "barclays",
-    "jpmorgan chase", "bank of america", "ubs",
-    "hong kong exchanges",          # HKEX — market operator
-    "futu", "cicc", "china international capital",
-    "citic futures",                # CITIC Futures (brokerage); China CITIC Bank stays Banking
-]
-_INS_TERMS = [
-    "manulife", "axa", "aia", "prudential", "fwd", "sun life",
-    "zurich", "generali", "china life", "china pacific", "ping an",
-    "chubb", "swiss re", "samsung life", "allianz", "nippon", "metlife",
-]
-_AM_TERMS = [
-    "blackrock", "value partners", "macquarie", "fidelity",
-    "state street", "invesco", "bnp paribas am", "man group",
-    "schroders", "northern trust", "jpm am", "pimco", "kkr",
-    "franklin", "amundi",
-]
-# Professional services (Big 4). EY's advertiser is literally "EY", matched
-# EXACTLY (in _PS_EXACT) — a "%ey%" LIKE would wrongly match money/survey/key.
-_PS_TERMS = ["kpmg", "pwc", "pricewaterhouse", "deloitte", "ernst & young", "ernst and young"]
-_PS_EXACT = ["ey"]
-# Digital assets / crypto.
-_DA_TERMS = ["hashkey"]
-
-
-def _sector_clause(like_terms, exact_terms=()):
-    """Build a parenthesised OR clause of LIKE-substring + exact-equality matches."""
-    parts = [f"LOWER(j.company) LIKE '%{t}%'" for t in like_terms]
-    parts += [f"LOWER(j.company) = '{t}'" for t in exact_terms]
-    return "(" + " OR ".join(parts) + ")"
-
-
-_DA_COND  = _sector_clause(_DA_TERMS)
-_PS_COND  = _sector_clause(_PS_TERMS, _PS_EXACT)
-_IB_COND  = _sector_clause(_IB_TERMS)
-_INS_COND = _sector_clause(_INS_TERMS)
-_AM_COND  = _sector_clause(_AM_TERMS)
-
-SECTOR_SQL = f"""
-  CASE
-    WHEN {_DA_COND}  THEN 'Digital Assets'
-    WHEN {_PS_COND}  THEN 'Professional Services'
-    WHEN {_IB_COND}  THEN 'Investment Banking'
-    WHEN {_INS_COND} THEN 'Insurance'
-    WHEN {_AM_COND}  THEN 'Asset Management'
-    ELSE 'Banking'
-  END
-""".strip()
-
-# Whole-word internship match. Uses REGEXP (registered in get_db) so we match
-# "intern"/"internship" as words and NEVER as a substring of "internal",
-# "international", "internet", etc. \b word boundaries do this: "intern(ship)?s?"
-# matches intern/interns/internship/internships but not "internal" (no boundary
-# after "intern"). Covers summer/graduate intern, graduate/trainee programmes,
-# industrial placement, and the Chinese 實習.
-_INTERNSHIP_REGEX = (
-    r"\bintern(ship)?s?\b"
-    r"|\bsummer (analyst|associate|intern)\b"
-    r"|\bgraduate (intern|trainee|programme|program)\b"
-    r"|\btrainee programme?\b"
-    r"|\bindustrial placement\b"
-    r"|實習"
-)
-INTERNSHIP_COND = f"(j.title REGEXP '{_INTERNSHIP_REGEX}')"
-
-INTERNSHIP_SQL = f"CASE WHEN {INTERNSHIP_COND} THEN 1 ELSE 0 END"
-
-
 # ── Pydantic models ────────────────────────────────────────────────────────────
-
-class JobSummary(BaseModel):
-    source: str
-    source_id: str
-    company: str
-    sector: str
-    title: str
-    title_en: Optional[str]
-    source_tier: str
-    locations: list[str]
-    seniority: Optional[str]
-    job_category: Optional[str]
-    remote_type: Optional[str]
-    required_skills: list[str]
-    salary_hkd_min: Optional[int]
-    salary_hkd_max: Optional[int]
-    salary_estimated_min: Optional[int]
-    salary_estimated_max: Optional[int]
-    salary_estimated_confidence: Optional[str]
-    years_experience_required: Optional[int]
-    posted_at: Optional[str]
-    url: str
-    is_internship: bool
-    description_excerpt: str
-    # Market signals from the boards this vacancy appears on, keyed by source
-    # (e.g. {"indeed": {"urgently_hiring": true, "applicant_count": 25, "new_job": true},
-    # "linkedin": {"reposted": true}}). Aggregated across the cross-post group.
-    board_signals: dict[str, dict] = {}
-
-
-class JobDetail(JobSummary):
-    description_clean: str
-    description_summary: str
-    # Every job board / source this exact vacancy was found on. For a cross-posted
-    # role this lists all copies (e.g. ["jobsdb", "indeed", "efinancialcareers"]);
-    # for a single-source role it is just that one source. Used by the UI to show
-    # "Listed on" board tags on the detail view.
-    sources: list[str]
-
-
-class JobListResponse(BaseModel):
-    total: int
-    page: int
-    page_size: int
-    total_pages: int
-    jobs: list[JobSummary]
-
 
 class NameCount(BaseModel):
     name: str
@@ -247,253 +156,26 @@ class StatsResponse(BaseModel):
     internship_count: int
 
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
-
-def _parse_json_list(value: Optional[str]) -> list[str]:
-    if not value:
-        return []
-    try:
-        result = json.loads(value)
-        return result if isinstance(result, list) else []
-    except (json.JSONDecodeError, TypeError):
-        return []
-
-
-def _own_signals(row: sqlite3.Row) -> dict[str, dict]:
-    """This row's own board_signals, namespaced by its source ({source: {...}})."""
-    try:
-        sig = json.loads(row["board_signals"] or "{}")
-    except (TypeError, ValueError, IndexError):
-        sig = {}
-    return {row["source"]: sig} if sig else {}
-
-
-def _row_to_summary(row: sqlite3.Row) -> JobSummary:
-    desc = row["description_clean"] or ""
-    excerpt = desc[:200].rstrip() + ("…" if len(desc) > 200 else "")
-    return JobSummary(
-        source=row["source"],
-        source_id=row["source_id"],
-        company=row["company"],
-        sector=row["sector"],
-        title=row["title"],
-        title_en=row["title_en"],
-        source_tier=row["source_tier"] or "mainstream",
-        locations=_parse_json_list(row["locations"]),
-        seniority=row["seniority"],
-        job_category=row["job_category"],
-        remote_type=row["remote_type"],
-        required_skills=_parse_json_list(row["required_skills"]),
-        salary_hkd_min=row["salary_hkd_min"],
-        salary_hkd_max=row["salary_hkd_max"],
-        salary_estimated_min=row["salary_estimated_min"],
-        salary_estimated_max=row["salary_estimated_max"],
-        salary_estimated_confidence=row["salary_estimated_confidence"],
-        years_experience_required=row["years_experience_required"],
-        posted_at=row["posted_at"],
-        url=row["url"],
-        is_internship=bool(row["is_internship"]),
-        description_excerpt=excerpt,
-        board_signals=_own_signals(row),
-    )
-
-
-# ── Base SELECT used by /api/jobs ─────────────────────────────────────────────
-
-BASE_SELECT = f"""
-  SELECT
-    j.source,
-    j.source_id,
-    j.company,
-    -- Route "apply" to the preferred board. For a cross-posted role the displayed
-    -- card is the richest copy (JobsDB: description + skills) but apply_url points
-    -- at eFinancialCareers (set by reconcile_cross_posted); '' falls back to own url.
-    COALESCE(NULLIF(j.apply_url, ''), j.url) AS url,
-    j.title,
-    j.board_signals,
-    j.cross_posted,
-    j.apply_url AS raw_apply_url,
-    j.source_tier,
-    j.locations,
-    j.description_clean,
-    j.posted_at,
-    e.seniority,
-    e.job_category,
-    e.remote_type,
-    e.required_skills,
-    e.salary_hkd_min,
-    e.salary_hkd_max,
-    e.salary_estimated_min,
-    e.salary_estimated_max,
-    e.salary_estimated_confidence,
-    e.years_experience_required,
-    e.description_summary,
-    e.title_en,
-    ({SECTOR_SQL}) AS sector,
-    ({INTERNSHIP_SQL}) AS is_internship
-  FROM jobs j
-  LEFT JOIN job_enrichments e
-    ON j.source = e.source AND j.source_id = e.source_id
-""".strip()
-
-
-def _build_where(
-    search: Optional[str],
-    sectors: list[str],
-    companies: list[str],
-    seniority: list[str],
-    remote_type: list[str],
-    skills: list[str],
-    salary_min: Optional[int],
-    salary_max: Optional[int],
-    exp_min: Optional[int],
-    exp_max: Optional[int],
-    posted_within_days: Optional[int],
-    is_internship: Optional[bool],
-    tier: Optional[str] = None,
-    is_new: Optional[bool] = None,
-    urgently_hiring: Optional[bool] = None,
-    max_applicants: Optional[int] = None,
-    hidden_only: Optional[bool] = None,
-    verified_only: Optional[bool] = None,
-) -> tuple[str, list]:
-    conditions: list[str] = ["j.is_active = 1 AND j.is_primary = 1"]
-    params: list = []
-
-    # ── Market-signal filters. These read the pre-computed, indexed grp_* columns
-    # (populated by JobStore.refresh_signal_flags at reconcile time), which already
-    # aggregate each vacancy's cross-post group — so filtering is instant. ──
-    if is_new:
-        conditions.append("j.grp_new = 1")
-    if urgently_hiring:
-        conditions.append("j.grp_urgent = 1")
-    if max_applicants is not None:
-        # Low-competition: highest known applicant count across boards is below the
-        # threshold. Jobs with no known count are excluded (grp_applicants IS NULL).
-        conditions.append("j.grp_applicants IS NOT NULL AND j.grp_applicants < ?")
-        params.append(max_applicants)
-
-    # Tier tabs: 'boutique' = the Exclusive section (longtail companies scraped via
-    # LLM extraction), 'mainstream' = structured job-board sources, 'social' = the
-    # Recruiter Posts (LinkedIn recruiter posts, LP-5). 'all'/None = every tier.
-    if tier in ("boutique", "mainstream", "social"):
-        conditions.append("j.source_tier = ?")
-        params.append(tier)
-
-    # Recruiter Posts "truly hidden" filter (PLAN_LINKEDIN_POSTS.md decision #9's
-    # contextual sub-section): a social-tier job with no cross-source match, i.e.
-    # a vacancy that genuinely doesn't exist on any real board. Composes with
-    # every other active filter (sector, search, etc.) rather than being its own
-    # separate query, so "urgently hiring" + hidden_only can be combined.
-    if hidden_only:
-        conditions.append("j.source_tier = 'social' AND j.cross_posted = 0")
-
-    # "Verified job" filter: a Recruiter Posts listing that hk_jobs.posts.ghost_check
-    # confirmed is the SAME real vacancy as a listing already on the mainstream/
-    # boutique board — i.e. a currently-open role, not just an unconfirmed claim in
-    # a recruiter's post. cross_posted can't carry this (see ghost_check.py's module
-    # docstring: confidential posts never share a company_slug with a real listing),
-    # so it's read straight from board_signals instead.
-    if verified_only:
-        conditions.append("json_extract(j.board_signals, '$.not_a_ghost_job') = 1")
-
-    if search:
-        conditions.append("(LOWER(j.title) LIKE ? OR LOWER(j.company) LIKE ?)")
-        s = f"%{search.lower()}%"
-        params += [s, s]
-
-    if sectors:
-        sector_parts: list[str] = []
-        for sec in sectors:
-            if sec == "Digital Assets":
-                sector_parts.append(_DA_COND)
-            elif sec == "Professional Services":
-                sector_parts.append(_PS_COND)
-            elif sec == "Investment Banking":
-                sector_parts.append(_IB_COND)
-            elif sec == "Insurance":
-                sector_parts.append(_INS_COND)
-            elif sec == "Asset Management":
-                sector_parts.append(_AM_COND)
-            else:  # Banking (everything not matched by a specific sector)
-                sector_parts.append(
-                    f"(NOT {_DA_COND} AND NOT {_PS_COND} AND NOT {_IB_COND} "
-                    f"AND NOT {_INS_COND} AND NOT {_AM_COND})"
-                )
-        conditions.append("(" + " OR ".join(sector_parts) + ")")
-
-    if companies:
-        ph = ",".join("?" * len(companies))
-        conditions.append(f"j.company IN ({ph})")
-        params += list(companies)
-
-    if seniority:
-        ph = ",".join("?" * len(seniority))
-        conditions.append(f"e.seniority IN ({ph})")
-        params += list(seniority)
-
-    if remote_type:
-        ph = ",".join("?" * len(remote_type))
-        conditions.append(f"e.remote_type IN ({ph})")
-        params += list(remote_type)
-
-    if skills:
-        skill_parts = [
-            "EXISTS (SELECT 1 FROM json_each(e.required_skills) sk"
-            " WHERE LOWER(sk.value) = LOWER(?))"
-        ]
-        skill_cond = " OR ".join(skill_parts * len(skills))
-        # rebuild correctly — one EXISTS per skill
-        skill_parts2 = []
-        for sk in skills:
-            skill_parts2.append(
-                "EXISTS (SELECT 1 FROM json_each(e.required_skills) sk"
-                " WHERE LOWER(sk.value) = LOWER(?))"
-            )
-            params.append(sk)
-        conditions.append("(" + " OR ".join(skill_parts2) + ")")
-
-    # Salary filter matches the disclosed figure when present, else the AI estimate
-    # (disclosed salaries are rare, so without this the filter returns almost nothing).
-    if salary_min is not None:
-        conditions.append("COALESCE(e.salary_hkd_min, e.salary_estimated_min) >= ?")
-        params.append(salary_min)
-    if salary_max is not None:
-        conditions.append("COALESCE(e.salary_hkd_max, e.salary_estimated_max) <= ?")
-        params.append(salary_max)
-
-    if exp_min is not None:
-        conditions.append("e.years_experience_required >= ?")
-        params.append(exp_min)
-    if exp_max is not None:
-        conditions.append("e.years_experience_required <= ?")
-        params.append(exp_max)
-
-    if posted_within_days is not None:
-        conditions.append("j.posted_at >= datetime('now', ?)")
-        params.append(f"-{posted_within_days} days")
-
-    if is_internship is not None:
-        if is_internship:
-            conditions.append(INTERNSHIP_COND)
-        else:
-            conditions.append(f"NOT {INTERNSHIP_COND}")
-
-    where_sql = "WHERE " + " AND ".join(conditions)
-    return where_sql, params
-
-
 # ── App ────────────────────────────────────────────────────────────────────────
 
-@asynccontextmanager
-async def lifespan(_: FastAPI):
-    """
-    Report the configuration that otherwise fails silently.
 
-    A missing SMTP setup breaks no request — submissions are still queued and
-    still return 200 — so the only symptom is mail that never arrives. Saying so
-    at boot, loudly, is what turns that into a five-second diagnosis.
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     """
+    Everything that must happen once, at startup — not at import.
+
+    Seeding the database lives here because it is a network download: at import
+    it blocked `import main`, which meant any process that merely imported this
+    module (a test, a REPL, a linter) could start pulling a 100 MB file.
+
+    The SMTP warning is here for a different reason: a missing mail setup breaks
+    no request — submissions are still queued and still return 200 — so the only
+    symptom is mail that never arrives. Saying so at boot, loudly, is what turns
+    that into a five-second diagnosis.
+    """
+    settings: Settings = app.state.settings
+    _seed_db_if_missing(settings)
+
     if SMTP_USER:
         logger.info("Email configured — enquiries will be sent to %s", RECIPIENT)
     else:
@@ -501,36 +183,28 @@ async def lifespan(_: FastAPI):
             "SMTP_USER/SMTP_PASS are not set. Submissions will still be queued to %s "
             "but NO email will be sent. Locally: check config/api_keys.env. "
             "In production: set them in the platform environment.",
-            SUBMISSIONS_DIR,
+            settings.submissions_dir,
+        )
+
+    if not settings.frontend_present():
+        # Not fatal, by design: the API has to boot for backend-only local
+        # development (and for a deploy whose build step failed, where a working
+        # /api and a 404 UI is a far better failure than a service that will not
+        # start at all).
+        logger.warning(
+            "No frontend bundle at %s — serving the API only. "
+            "Build it with `npm run build` in webapp/frontend, or point FRONTEND_DIST "
+            "at an existing dist/ directory.",
+            settings.frontend_dist,
         )
     yield
 
 
-app = FastAPI(
-    title="FinEx Careers API",
-    description="Read-only API for Hong Kong financial job listings.",
-    version="1.0.0",
-    lifespan=lifespan,
-)
-
-# CORS origins are configurable for deployment via CORS_ORIGINS (comma-separated,
-# or "*" for a public demo with no logins). Defaults to the local Vite dev server.
-_cors = os.environ.get("CORS_ORIGINS", "http://localhost:5173").strip()
-_allow_origins = ["*"] if _cors == "*" else [o.strip() for o in _cors.split(",") if o.strip()]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_allow_origins,
-    # POST is required by /api/contact and /api/post-role — without it the
-    # browser blocks the preflight and the forms fail before reaching FastAPI.
-    allow_methods=["GET", "POST"],
-    allow_headers=["*"],
-)
-
-
 # ── /api/jobs ─────────────────────────────────────────────────────────────────
 
-@app.get("/api/jobs", response_model=JobListResponse, tags=["jobs"])
+@router.get("/api/jobs", response_model=JobListResponse, tags=["jobs"])
 def list_jobs(
+    request: Request,
     search: Optional[str] = Query(None, description="Full-text search on title + company"),
     sectors: list[str] = Query(default=[], description="Filter by sector(s)"),
     companies: list[str] = Query(default=[], description="Filter by company name(s)"),
@@ -555,138 +229,64 @@ def list_jobs(
     verified_only: Optional[bool] = Query(
         None, description="Only jobs ghost_check confirmed match a real board listing"
     ),
-    sort: str = Query("newest", description="Sort: newest | salary_high | salary_low | company"),
+    sort: Sort = Query(Sort.NEWEST, description="Sort order"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(24, ge=1, le=100, description="Results per page"),
 ):
-    # Salary sorts treat an AI estimate as the job's salary when nothing is
-    # disclosed (COALESCE), so disclosed- and estimate-only jobs rank in one
-    # unified list. The leading CASE forces rows with NO salary at all (both
-    # disclosed and estimated NULL) to sink to the bottom in BOTH directions —
-    # not relying on SQLite NULL ordering, which would float them to the top on DESC.
-    _sal_high = "COALESCE(e.salary_hkd_max, e.salary_estimated_max)"
-    _sal_low  = "COALESCE(e.salary_hkd_min, e.salary_estimated_min)"
-    # "Newest" = most recent POSTING date. But some sources mis-parse dates and yield
-    # posted_at values in the FUTURE (e.g. JobsDB relative-date bugs). A future date is
-    # invalid data, not "newest", so we treat anything dated beyond tomorrow — and NULLs —
-    # as unknown and sink them, rather than letting them dominate the top. (+1 day of
-    # slack absorbs UTC/HKT timezone skew for genuinely today's postings.)
-    _valid_posted = "CASE WHEN date(j.posted_at) <= date('now','+1 day') THEN j.posted_at END"
-    _newest = f"{_valid_posted} DESC NULLS LAST"
-    sort_clause = {
-        "newest":      _newest,
-        "salary_high": f"CASE WHEN {_sal_high} IS NULL THEN 1 ELSE 0 END, {_sal_high} DESC",
-        "salary_low":  f"CASE WHEN {_sal_low} IS NULL THEN 1 ELSE 0 END, {_sal_low} ASC",
-        "company":     "j.company ASC",
-    }.get(sort, _newest)
+    """
+    Browse the board.
 
-    where_sql, params = _build_where(
-        search, sectors, companies, seniority, remote_type, skills,
-        salary_min, salary_max, exp_min, exp_max, posted_within_days, is_internship,
-        tier, is_new, urgently_hiring, max_applicants, hidden_only, verified_only,
+    Visibility is BOARD — active and primary — so a vacancy cross-posted to four
+    sources appears once, not four times. Everything about how that is selected,
+    filtered, sorted and counted lives in job_read.
+    """
+    filters = JobFilters.of(
+        search=search, sectors=sectors, companies=companies, seniority=seniority,
+        remote_type=remote_type, skills=skills, salary_min=salary_min,
+        salary_max=salary_max, exp_min=exp_min, exp_max=exp_max,
+        posted_within_days=posted_within_days, is_internship=is_internship,
+        tier=tier, is_new=is_new, urgently_hiring=urgently_hiring,
+        max_applicants=max_applicants, hidden_only=hidden_only,
+        verified_only=verified_only,
     )
-
-    offset = (page - 1) * page_size
-
-    with get_db() as conn:
-        total = conn.execute(
-            f"SELECT COUNT(*) FROM jobs j "
-            f"LEFT JOIN job_enrichments e ON j.source=e.source AND j.source_id=e.source_id "
-            f"{where_sql}",
-            params,
-        ).fetchone()[0]
-
-        rows = conn.execute(
-            f"{BASE_SELECT} {where_sql} ORDER BY {sort_clause} LIMIT ? OFFSET ?",
-            params + [page_size, offset],
-        ).fetchall()
-
-        summaries = [_row_to_summary(r) for r in rows]
-
-        # A displayed card is one copy of a cross-posted vacancy; its signals may
-        # live on a HIDDEN copy from another board. Batch-fetch every copy's
-        # board_signals for the page's cross-posted rows (grouped by the shared
-        # apply_url) so each card shows the signals from all boards it's on.
-        apply_urls = [r["raw_apply_url"] for r in rows if r["cross_posted"] and r["raw_apply_url"]]
-        if apply_urls:
-            ph = ",".join("?" * len(apply_urls))
-            group_rows = conn.execute(
-                f"SELECT apply_url, source, board_signals FROM jobs "
-                f"WHERE is_active = 1 AND cross_posted = 1 AND apply_url IN ({ph})",
-                apply_urls,
-            ).fetchall()
-            by_url: dict[str, dict[str, dict]] = {}
-            for g in group_rows:
-                try:
-                    sig = json.loads(g["board_signals"] or "{}")
-                except (TypeError, ValueError):
-                    sig = {}
-                if sig:
-                    by_url.setdefault(g["apply_url"], {})[g["source"]] = sig
-            for r, s in zip(rows, summaries):
-                if r["cross_posted"] and r["raw_apply_url"] in by_url:
-                    s.board_signals = by_url[r["raw_apply_url"]]
-
-    return JobListResponse(
-        total=total,
-        page=page,
-        page_size=page_size,
-        total_pages=math.ceil(total / page_size) if total else 0,
-        jobs=summaries,
-    )
+    with get_db(request) as conn:
+        return job_read.list_jobs(
+            conn, filters, sort=sort, page=page, page_size=page_size,
+            visibility=Visibility.BOARD,
+        )
 
 
 # ── /api/jobs/{source}/{source_id} ────────────────────────────────────────────
 
-@app.get("/api/jobs/{source}/{source_id}", response_model=JobDetail, tags=["jobs"])
-def get_job(source: str, source_id: str):
-    sql = f"""
-      {BASE_SELECT}
-      WHERE j.is_active = 1 AND j.source = ? AND j.source_id = ?
+@router.get("/api/jobs/{source}/{source_id}", response_model=JobDetail, tags=["jobs"])
+def get_job(source: str, source_id: str, request: Request):
     """
-    with get_db() as conn:
-        row = conn.execute(sql, [source, source_id]).fetchone()
+    One Role, addressed by reference.
 
-        if row is None:
-            raise HTTPException(status_code=404, detail="Job not found")
-
-        # Which job boards this vacancy is on. A cross-posted role's copies all
-        # share the same apply_url (set by reconcile_cross_posted), so that URL is
-        # a reliable group key. Single-source roles have apply_url='' → just self.
-        meta = conn.execute(
-            "SELECT apply_url, cross_posted FROM jobs "
-            "WHERE is_active = 1 AND source = ? AND source_id = ?",
-            [source, source_id],
-        ).fetchone()
-        sources = [source]
-        if meta and meta["cross_posted"] and meta["apply_url"]:
-            group = conn.execute(
-                "SELECT DISTINCT source FROM jobs "
-                "WHERE is_active = 1 AND cross_posted = 1 AND apply_url = ?",
-                [meta["apply_url"]],
-            ).fetchall()
-            sources = sorted({r["source"] for r in group} | {source})
-
-    summary = _row_to_summary(row)
-    return JobDetail(
-        **summary.model_dump(),
-        description_clean=row["description_clean"] or "",
-        description_summary=row["description_summary"] or "",
-        sources=sources,
-    )
+    Visibility is ADDRESSABLE: a URL naming a specific (source, source_id) gets
+    that row whatever state it is in, and `closed` says which. Requiring
+    is_primary here would 404 a link whose copy stopped being primary at the last
+    reconciliation; requiring is_active would break every Saved Role the moment
+    the vacancy closed, which is precisely when a Seeker wants to look at it.
+    """
+    with get_db(request) as conn:
+        detail = job_read.get_job(conn, source, source_id, visibility=Visibility.ADDRESSABLE)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return detail
 
 
 # ── /api/filters ──────────────────────────────────────────────────────────────
 
-@app.get("/api/filters", response_model=FiltersResponse, tags=["meta"])
-def get_filters():
-    with get_db() as conn:
+@router.get("/api/filters", response_model=FiltersResponse, tags=["meta"])
+def get_filters(request: Request):
+    with get_db(request) as conn:
         # Companies with count
         companies = [
             NameCount(name=r["company"], count=r["cnt"])
             for r in conn.execute(
                 "SELECT j.company, COUNT(*) AS cnt FROM jobs j"
-                " WHERE j.is_active=1 AND j.is_primary=1 GROUP BY j.company ORDER BY cnt DESC",
+                f" WHERE {BOARD_WHERE} GROUP BY j.company ORDER BY cnt DESC",
             ).fetchall()
         ]
 
@@ -697,7 +297,7 @@ def get_filters():
               SELECT ({SECTOR_SQL}) AS sector
               FROM jobs j
               LEFT JOIN job_enrichments e ON j.source=e.source AND j.source_id=e.source_id
-              WHERE j.is_active=1 AND j.is_primary=1
+              WHERE {BOARD_WHERE}
             ) sub GROUP BY sector ORDER BY cnt DESC
             """
         ).fetchall()
@@ -705,12 +305,12 @@ def get_filters():
 
         # Top 100 skills
         skills_raw = conn.execute(
-            """
+            f"""
             SELECT LOWER(sk.value) AS skill, COUNT(*) AS cnt
             FROM jobs j
             JOIN job_enrichments e ON j.source=e.source AND j.source_id=e.source_id
             JOIN json_each(e.required_skills) sk
-            WHERE j.is_active=1 AND j.is_primary=1
+            WHERE {BOARD_WHERE}
               AND e.required_skills IS NOT NULL
               AND e.required_skills != '[]'
             GROUP BY LOWER(sk.value)
@@ -725,7 +325,7 @@ def get_filters():
             r[0] for r in conn.execute(
                 "SELECT DISTINCT e.seniority FROM job_enrichments e"
                 " JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-                " WHERE j.is_active=1 AND j.is_primary=1 AND e.seniority IS NOT NULL ORDER BY e.seniority"
+                f" WHERE {BOARD_WHERE} AND e.seniority IS NOT NULL ORDER BY e.seniority"
             ).fetchall()
         ]
 
@@ -734,7 +334,7 @@ def get_filters():
             r[0] for r in conn.execute(
                 "SELECT DISTINCT e.remote_type FROM job_enrichments e"
                 " JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-                " WHERE j.is_active=1 AND j.is_primary=1 AND e.remote_type IS NOT NULL ORDER BY e.remote_type"
+                f" WHERE {BOARD_WHERE} AND e.remote_type IS NOT NULL ORDER BY e.remote_type"
             ).fetchall()
         ]
 
@@ -742,14 +342,14 @@ def get_filters():
         sal = conn.execute(
             "SELECT MIN(e.salary_hkd_min), MAX(e.salary_hkd_max)"
             " FROM job_enrichments e JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-            " WHERE j.is_active=1 AND j.is_primary=1"
+            f" WHERE {BOARD_WHERE}"
         ).fetchone()
 
         # Experience range
         exp = conn.execute(
             "SELECT MIN(e.years_experience_required), MAX(e.years_experience_required)"
             " FROM job_enrichments e JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-            " WHERE j.is_active=1 AND j.is_primary=1"
+            f" WHERE {BOARD_WHERE}"
         ).fetchone()
 
     return FiltersResponse(
@@ -765,11 +365,11 @@ def get_filters():
 
 # ── /api/stats ────────────────────────────────────────────────────────────────
 
-@app.get("/api/stats", response_model=StatsResponse, tags=["meta"])
-def get_stats():
-    with get_db() as conn:
+@router.get("/api/stats", response_model=StatsResponse, tags=["meta"])
+def get_stats(request: Request):
+    with get_db(request) as conn:
         total = conn.execute(
-            "SELECT COUNT(*) FROM jobs WHERE is_active=1 AND is_primary=1"
+            f"SELECT COUNT(*) FROM jobs j WHERE {BOARD_WHERE}"
         ).fetchone()[0]
 
         # By sector
@@ -779,7 +379,7 @@ def get_stats():
               SELECT ({SECTOR_SQL}) AS sector
               FROM jobs j
               LEFT JOIN job_enrichments e ON j.source=e.source AND j.source_id=e.source_id
-              WHERE j.is_active=1 AND j.is_primary=1
+              WHERE {BOARD_WHERE}
             ) sub GROUP BY sector ORDER BY cnt DESC
             """
         ).fetchall()
@@ -789,7 +389,7 @@ def get_stats():
         sen_raw = conn.execute(
             "SELECT e.seniority, COUNT(*) AS cnt"
             " FROM job_enrichments e JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-            " WHERE j.is_active=1 AND j.is_primary=1 AND e.seniority IS NOT NULL"
+            f" WHERE {BOARD_WHERE} AND e.seniority IS NOT NULL"
             " GROUP BY e.seniority ORDER BY cnt DESC"
         ).fetchall()
         by_seniority = {r["seniority"]: r["cnt"] for r in sen_raw}
@@ -798,7 +398,7 @@ def get_stats():
         rem_raw = conn.execute(
             "SELECT e.remote_type, COUNT(*) AS cnt"
             " FROM job_enrichments e JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-            " WHERE j.is_active=1 AND j.is_primary=1 AND e.remote_type IS NOT NULL"
+            f" WHERE {BOARD_WHERE} AND e.remote_type IS NOT NULL"
             " GROUP BY e.remote_type ORDER BY cnt DESC"
         ).fetchall()
         by_remote_type = {r["remote_type"]: r["cnt"] for r in rem_raw}
@@ -806,18 +406,18 @@ def get_stats():
         # By source tier (powers the All / Exclusive / Mainstream tabs)
         tier_raw = conn.execute(
             "SELECT COALESCE(source_tier, 'mainstream') AS tier, COUNT(*) AS cnt"
-            " FROM jobs WHERE is_active=1 AND is_primary=1 GROUP BY tier"
+            f" FROM jobs j WHERE {BOARD_WHERE} GROUP BY tier"
         ).fetchall()
         by_source_tier = {r["tier"]: r["cnt"] for r in tier_raw}
 
         # Top 15 skills
         skills_raw = conn.execute(
-            """
+            f"""
             SELECT LOWER(sk.value) AS skill, COUNT(*) AS cnt
             FROM jobs j
             JOIN job_enrichments e ON j.source=e.source AND j.source_id=e.source_id
             JOIN json_each(e.required_skills) sk
-            WHERE j.is_active=1 AND j.is_primary=1
+            WHERE {BOARD_WHERE}
               AND e.required_skills IS NOT NULL
               AND e.required_skills != '[]'
             GROUP BY LOWER(sk.value)
@@ -830,13 +430,13 @@ def get_stats():
         # Top 15 companies
         comp_raw = conn.execute(
             "SELECT j.company, COUNT(*) AS cnt FROM jobs j"
-            " WHERE j.is_active=1 AND j.is_primary=1 GROUP BY j.company ORDER BY cnt DESC LIMIT 15"
+            f" WHERE {BOARD_WHERE} GROUP BY j.company ORDER BY cnt DESC LIMIT 15"
         ).fetchall()
         top_companies = [NameCount(name=r["company"], count=r["cnt"]) for r in comp_raw]
 
         # Internship count
         intern_count = conn.execute(
-            f"SELECT COUNT(*) FROM jobs j WHERE j.is_active=1 AND j.is_primary=1 AND {INTERNSHIP_COND}"
+            f"SELECT COUNT(*) FROM jobs j WHERE {BOARD_WHERE} AND {INTERNSHIP_COND}"
         ).fetchone()[0]
 
     return StatsResponse(
@@ -859,15 +459,13 @@ def get_stats():
 # (durable) and then email a notification (best-effort) — so a mail outage
 # delays the alert but never loses the submission.
 
-SUBMISSIONS_DIR = Path(os.environ.get("SUBMISSIONS_DIR", str(DB_PATH.parent))).resolve()
-
-# Rate limiting is in-memory and therefore per-process: it resets on deploy and
-# does not span replicas. Adequate for a single instance at current traffic;
-# move to Redis or a proxy-level limit before scaling out.
-_RATE_LIMIT = int(os.environ.get("SUBMIT_RATE_LIMIT", "3"))
+# Rate limiting is in-memory and therefore per-app: it resets on deploy and does
+# not span replicas. Adequate for a single instance at current traffic; move to
+# Redis or a proxy-level limit before scaling out.
+#
+# The window and the log live on the app rather than on this module, so two apps
+# in one process (which is what the tests now build) do not share a budget.
 _RATE_WINDOW_S = 3600
-_rate_log: dict[str, list[float]] = defaultdict(list)
-_rate_lock = threading.Lock()
 
 
 def _client_ip(request: Request) -> str:
@@ -878,25 +476,32 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def _rate_limited(key: str) -> bool:
+def _rate_limited(request: Request, key: str) -> bool:
+    return _limit(request, key, limit=cfg(request).submit_rate_limit, window_s=_RATE_WINDOW_S)
+
+
+def _limit(request: Request, key: str, *, limit: int, window_s: int) -> bool:
+    """Sliding window over this app's rate log."""
     now = time.time()
-    with _rate_lock:
-        hits = [t for t in _rate_log[key] if now - t < _RATE_WINDOW_S]
-        if len(hits) >= _RATE_LIMIT:
-            _rate_log[key] = hits
+    state = request.app.state
+    with state.rate_lock:
+        hits = [t for t in state.rate_log[key] if now - t < window_s]
+        if len(hits) >= limit:
+            state.rate_log[key] = hits
             return True
         hits.append(now)
-        _rate_log[key] = hits
+        state.rate_log[key] = hits
         return False
 
 
-def _persist(kind: str, payload: dict) -> bool:
+def _persist(request: Request, kind: str, payload: dict) -> bool:
     """Append one submission to data/{kind}.jsonl. Returns False if it could not
     be written — the only condition under which a submission is actually lost."""
+    submissions = cfg(request).submissions_dir
     try:
-        SUBMISSIONS_DIR.mkdir(parents=True, exist_ok=True)
+        submissions.mkdir(parents=True, exist_ok=True)
         record = {"received_at": datetime.now(timezone.utc).isoformat(), **payload}
-        with open(SUBMISSIONS_DIR / f"{kind}.jsonl", "a", encoding="utf-8") as fh:
+        with open(submissions / f"{kind}.jsonl", "a", encoding="utf-8") as fh:
             fh.write(json.dumps(record, ensure_ascii=False) + "\n")
         return True
     except Exception as exc:  # noqa: BLE001
@@ -957,7 +562,7 @@ class SubmitResponse(BaseModel):
     ok: bool
 
 
-@app.post("/api/contact", response_model=SubmitResponse, tags=["submit"])
+@router.post("/api/contact", response_model=SubmitResponse, tags=["submit"])
 def submit_enquiry(payload: EnquiryIn, request: Request):
     """Executive Career Consultation enquiry → JSONL queue + email notification."""
     # A filled honeypot means a bot. Return the same 200 a human gets: telling it
@@ -966,11 +571,11 @@ def submit_enquiry(payload: EnquiryIn, request: Request):
         logger.info("Honeypot triggered on /api/contact from %s", _client_ip(request))
         return SubmitResponse(ok=True)
 
-    if _rate_limited(f"contact:{_client_ip(request)}"):
+    if _rate_limited(request, f"contact:{_client_ip(request)}"):
         raise HTTPException(429, "Too many enquiries from this address. Please try again later.")
 
     data = payload.model_dump(exclude={"website"})
-    stored = _persist("enquiries", data)
+    stored = _persist(request, "enquiries", data)
 
     body = (
         f"New consultation enquiry\n\n"
@@ -986,7 +591,7 @@ def submit_enquiry(payload: EnquiryIn, request: Request):
     return SubmitResponse(ok=True)
 
 
-@app.post("/api/post-role", response_model=SubmitResponse, tags=["submit"])
+@router.post("/api/post-role", response_model=SubmitResponse, tags=["submit"])
 def submit_role(payload: RoleIn, request: Request):
     """
     Recruiter/employer role submission → JSONL moderation queue + email.
@@ -999,12 +604,12 @@ def submit_role(payload: RoleIn, request: Request):
         logger.info("Honeypot triggered on /api/post-role from %s", _client_ip(request))
         return SubmitResponse(ok=True)
 
-    if _rate_limited(f"role:{_client_ip(request)}"):
+    if _rate_limited(request, f"role:{_client_ip(request)}"):
         raise HTTPException(429, "Too many submissions from this address. Please try again later.")
 
     data = payload.model_dump(exclude={"website"})
     data["status"] = "pending"  # never anything else at rest; approval is manual
-    stored = _persist("submitted_roles", data)
+    stored = _persist(request, "submitted_roles", data)
 
     body = (
         f"New role submitted for review\n\n"
@@ -1030,8 +635,8 @@ def submit_role(payload: RoleIn, request: Request):
 
 # ── Health check ──────────────────────────────────────────────────────────────
 
-@app.get("/health", tags=["meta"])
-def health():
+@router.get("/health", tags=["meta"])
+def health(request: Request):
     """
     Liveness plus the two bits of configuration that fail silently.
 
@@ -1040,12 +645,460 @@ def health():
     surfacing it here the only symptom is an email that never arrives, which is
     exactly how this went unnoticed once already.
     """
+    settings = cfg(request)
     return {
         "status": "ok",
-        "db": str(DB_PATH),
+        "db": str(settings.jobs_db),
         "email": "configured" if SMTP_USER else "NOT CONFIGURED — enquiries queue but no mail is sent",
         "enquiry_recipient": RECIPIENT if SMTP_USER else None,
-        "submissions_dir": str(SUBMISSIONS_DIR),
+        "submissions_dir": str(settings.submissions_dir),
+        "frontend": str(settings.frontend_dist) if settings.frontend_present()
+                    else "NOT BUILT — API only, no UI served",
     }
 
 
+# ── Seeker accounts ───────────────────────────────────────────────────────────
+# Phase 2 of docs/PLAN_ACCOUNTS.md. The crypto, sessions and storage all live in
+# auth.py / seekers_store.py; this section is only the HTTP surface over them.
+#
+# Vocabulary note (CONTEXT.md): the account holder is a *Seeker*, never a "user".
+#
+# Nothing here gates anything. Per ADR 0002 the board stays fully public — these
+# endpoints add capability for signed-in Seekers and take nothing away from
+# anonymous ones. Do not "protect" any /api/jobs route with these dependencies.
+
+import auth  # noqa: E402 — same local-module convention as mailer/env_file above
+import seekers_store  # noqa: E402
+
+SESSION_COOKIE = "finex_session"
+
+def _set_session_cookie(request: Request, response: Response, raw_token: str) -> None:
+    """
+    Attach the session cookie.
+
+    SameSite=Lax works here *only* because this service also serves the frontend
+    (ADR 0005). If the UI were ever split back onto its own Railway domain, Lax
+    would silently stop being sent — `up.railway.app` is a public suffix, so the
+    two hosts are different sites — and every request would arrive anonymous with
+    no error anywhere. Read ADR 0005 before changing the topology.
+    """
+    response.set_cookie(
+        SESSION_COOKIE,
+        raw_token,
+        max_age=int(auth.SESSION_TTL.total_seconds()),
+        httponly=True,          # unreadable to JS, so XSS cannot exfiltrate it
+        secure=cfg(request).cookie_secure,
+        samesite="lax",
+        path="/",
+    )
+
+
+def _clear_session_cookie(response: Response) -> None:
+    response.delete_cookie(SESSION_COOKIE, path="/", samesite="lax")
+
+
+def _current_seeker(request: Request) -> Optional[dict]:
+    """
+    The signed-in Seeker's row, or None. Never raises — anonymous is a normal
+    state on this API, not an error, because nothing here is gated (ADR 0002).
+
+    auth.verify_session() deliberately returns only a seeker_id and collapses
+    every failure to None — unknown token, expired token, token belonging to a
+    Seeker who has since deleted their account. We do the row lookup, and treat a
+    missing row the same way: a valid-looking session for a Seeker who no longer
+    exists is simply not signed in.
+    """
+    raw = request.cookies.get(SESSION_COOKIE)
+    if not raw:
+        return None
+    try:
+        store = seekers_store.get_store()
+        seeker_id = auth.verify_session(store, raw)
+        return store.get_seeker(seeker_id) if seeker_id else None
+    except Exception:  # noqa: BLE001 — a bad cookie is anonymous, not a 500
+        logger.warning("Session verification failed", exc_info=True)
+        return None
+
+
+def _require_seeker(request: Request) -> dict:
+    seeker = _current_seeker(request)
+    if seeker is None:
+        raise HTTPException(status_code=401, detail="Not signed in")
+    return seeker
+
+
+def _auth_rate_limited(request: Request, key: str, *, limit: int, window_s: int) -> bool:
+    """
+    The same sliding window as the submit endpoints, with per-call limits —
+    3-per-hour is right for a contact form and would lock a Seeker out of their
+    own account after three password typos.
+
+    Same known weakness as the original: in-memory, so it resets on restart and
+    does not survive multiple replicas. Accepted for now (PLAN_ACCOUNTS §5); it
+    needs to be persistent before anyone pays us.
+    """
+    return _limit(request, key, limit=limit, window_s=window_s)
+
+
+def _send_seeker_mail(request: Request, to: str, subject: str, body: str) -> bool:
+    """
+    Mail *to a Seeker*, at an address they typed.
+
+    This is deliberately not mailer.send_mail(), which sends only to a hardcoded
+    RECIPIENT precisely so that endpoint cannot become an open relay. Accounts
+    invert that direction, which is why the rate limits above key on the target
+    email and not only on the caller's IP: without that, anyone could point our
+    sending reputation at a stranger's inbox.
+
+    The sender is a collaborator of the app (see sender.py), not a module-level
+    SMTP connection: that is what stops the test suite mailing real people, and
+    what lets a test assert on what was sent.
+
+    False means it did not go — because mail is not configured yet (ADR 0009,
+    pending the mailbox password) or because the send failed. Registration must
+    still succeed either way: the Seeker gets an account, just no mail.
+    """
+    return request.app.state.sender.send(Message(to=to, subject=subject, body=body))
+
+
+class RegisterIn(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=200)
+    display_name: str = Field(default="", max_length=100)
+    # Honeypot, matching /api/contact and /api/post-role. A human never sees it.
+    website: str = ""
+
+
+class LoginIn(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=1, max_length=200)
+
+
+class SeekerOut(BaseModel):
+    id: str
+    email: str
+    display_name: str
+    email_verified: bool
+
+
+class SaveRoleIn(BaseModel):
+    source: str = Field(min_length=1, max_length=50)
+    source_id: str = Field(min_length=1, max_length=200)
+
+
+class MergeSavedIn(BaseModel):
+    roles: list[SaveRoleIn] = Field(default_factory=list, max_length=500)
+
+
+def _seeker_out(row: dict) -> SeekerOut:
+    return SeekerOut(
+        id=row["id"],
+        email=row["email"],
+        display_name=row.get("display_name") or "",
+        email_verified=bool(row.get("email_verified")),
+    )
+
+
+@router.post("/api/auth/register", response_model=SeekerOut, status_code=201, tags=["auth"])
+def register(payload: RegisterIn, request: Request, response: Response):
+    """
+    Create a Seeker and sign them straight in.
+
+    Two behaviours that look like bugs and are not:
+
+    1. A filled honeypot returns the same 201 shape a human gets. Telling a bot
+       it was detected only teaches it what to change.
+    2. Registering an address that already exists ALSO returns success, and mails
+       the existing owner "someone tried to register" instead. Any observable
+       difference here turns this endpoint into an oracle for who has an account.
+       The caller is not signed in in that case, which is invisible to an
+       attacker but obvious to the real owner.
+    """
+    email = seekers_store.normalise_email(payload.email)
+    ip = _client_ip(request)
+
+    if payload.website:
+        logger.info("Honeypot triggered on /api/auth/register from %s", ip)
+        return SeekerOut(id="", email=email, display_name="", email_verified=False)
+
+    # Per-EMAIL first: the target is the constant in an inbox-bombing attempt,
+    # the source IP is not.
+    if _auth_rate_limited(request, f"reg:email:{email}", limit=3, window_s=3600) or \
+       _auth_rate_limited(request, f"reg:ip:{ip}", limit=10, window_s=3600):
+        raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
+
+    store = seekers_store.get_store()
+    try:
+        seeker_id = store.create_seeker(
+            email,
+            password_hash=auth.hash_password(payload.password),
+            display_name=payload.display_name.strip(),
+        )
+    except seekers_store.EmailAlreadyRegistered:
+        store.log_event("seeker.register_existing", seeker_id=None)
+        _send_seeker_mail(
+            request,
+            email,
+            "Someone tried to register with your email",
+            "Someone just tried to create a FinEx Careers account with this address.\n"
+            "You already have one, so nothing changed. If this was you, sign in "
+            "instead — or reset your password if you've forgotten it.\n\n"
+            "If it wasn't you, you can ignore this message.",
+        )
+        return SeekerOut(id="", email=email, display_name="", email_verified=False)
+
+    store.log_event("seeker.registered", seeker_id=seeker_id)
+    _set_session_cookie(request, response, auth.issue_session(store, seeker_id,
+                                                     user_agent=request.headers.get("user-agent")))
+    raw_token = auth.issue_email_token(store, seeker_id, purpose="verify")
+    _send_seeker_mail(
+        request,
+        email,
+        "Confirm your email — FinEx Careers",
+        f"Welcome to FinEx Careers.\n\nConfirm this address to finish setting up "
+        f"your account:\n\n{_verify_url(request, raw_token)}\n\n"
+        f"This link works once and expires in an hour.",
+    )
+    return _seeker_out(store.get_seeker(seeker_id))
+
+
+def _verify_url(request: Request, raw_token: str) -> str:
+    base = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
+    return f"{base}/verify?token={raw_token}"
+
+
+@router.post("/api/auth/login", response_model=SeekerOut, tags=["auth"])
+def login(payload: LoginIn, request: Request, response: Response):
+    """
+    Sign in. One failure message for every cause — wrong password, no such
+    account, Google-only account with no password set — because distinguishing
+    them is the same oracle problem as register.
+    """
+    email = seekers_store.normalise_email(payload.email)
+    ip = _client_ip(request)
+    if _auth_rate_limited(request, f"login:email:{email}", limit=10, window_s=900) or \
+       _auth_rate_limited(request, f"login:ip:{ip}", limit=30, window_s=900):
+        raise HTTPException(status_code=429,
+                            detail="Too many attempts. Try again in a few minutes.")
+
+    store = seekers_store.get_store()
+    row = store.get_seeker_by_email(email)
+    # verify_password() hashes against a dummy when the row is absent, so the
+    # response time does not reveal whether the address exists.
+    if not auth.verify_password(row["password_hash"] if row else None, payload.password):
+        store.log_event("seeker.login_failed", seeker_id=row["id"] if row else None)
+        raise HTTPException(status_code=401, detail="Email or password is incorrect")
+
+    store.touch_last_login(row["id"])
+    store.log_event("seeker.login", seeker_id=row["id"])
+    _set_session_cookie(request, response, auth.issue_session(store, row["id"],
+                                                     user_agent=request.headers.get("user-agent")))
+    return _seeker_out(store.get_seeker(row["id"]))
+
+
+@router.post("/api/auth/logout", status_code=204, tags=["auth"])
+def logout(request: Request, response: Response):
+    """Always 204. Logging out of a session you don't have is not an error."""
+    auth.revoke_session(seekers_store.get_store(), request.cookies.get(SESSION_COOKIE))
+    _clear_session_cookie(response)
+    return Response(status_code=204)
+
+
+@router.get("/api/auth/me", response_model=SeekerOut, tags=["auth"])
+def whoami(request: Request):
+    return _seeker_out(_require_seeker(request))
+
+
+@router.get("/api/me/saved", response_model=list[JobSummary], tags=["saved"])
+def list_saved(request: Request):
+    """
+    The Seeker's saved Roles, resolved against jobs.db at read time.
+
+    seekers.db stores references only — (source, source_id) — never a copy of the
+    Role. That is the fix for the bug this feature inherited: useSavedJobs.ts
+    keeps whole Job objects in localStorage, so a save is a frozen snapshot and a
+    role that closed months ago still displays as live.
+
+    Resolving at read time is only half of that fix, and until this endpoint
+    called job_read it was the only half present: the query carried no visibility
+    predicate, so a closed Role came back looking exactly like a live one — the
+    same bug, moved to the server. ADDRESSABLE returns it marked `closed`, which
+    is what CONTEXT.md means by a Saved Role "showing as closed once the Role is
+    gone". A reference whose row has left jobs.db entirely is dropped; there is
+    nothing to render but the reference.
+    """
+    seeker = _require_seeker(request)
+    refs = seekers_store.get_store().list_saved_roles(seeker["id"])
+    if not refs:
+        return []
+
+    pairs = [(r["source"], r["source_id"]) for r in refs]
+    conn = get_db(request)
+    try:
+        # Order is the Seeker's newest-first save order, preserved by jobs_by_refs.
+        saved = job_read.jobs_by_refs(conn, pairs, visibility=Visibility.ADDRESSABLE)
+    finally:
+        conn.close()
+
+    if len(saved) != len(pairs):
+        logger.info(
+            "Seeker %s has %d Saved Role(s) whose row is no longer in jobs.db",
+            seeker["id"], len(pairs) - len(saved),
+        )
+    return saved
+
+
+@router.post("/api/me/saved", status_code=204, tags=["saved"])
+def save_role(payload: SaveRoleIn, request: Request):
+    seeker = _require_seeker(request)
+    store = seekers_store.get_store()
+    store.save_role(seeker["id"], payload.source, payload.source_id)
+    store.log_event("role.saved", seeker_id=seeker["id"])
+    return Response(status_code=204)
+
+
+@router.delete("/api/me/saved/{source}/{source_id}", status_code=204, tags=["saved"])
+def unsave_role(source: str, source_id: str, request: Request):
+    """204 whether or not it was saved — unsaving twice is not an error."""
+    seeker = _require_seeker(request)
+    seekers_store.get_store().unsave_role(seeker["id"], source, source_id)
+    return Response(status_code=204)
+
+
+@router.post("/api/me/saved/merge", tags=["saved"])
+def merge_saved(payload: MergeSavedIn, request: Request):
+    """
+    Lift the browser's localStorage saves into the account on first sign-in
+    (decision 14). A union, never a replace, and idempotent — so a client that
+    retries, or a Seeker who signs in on a second device with its own local
+    saves, keeps everything rather than losing a set.
+    """
+    seeker = _require_seeker(request)
+    store = seekers_store.get_store()
+    added = store.merge_saved_roles(seeker["id"], [(r.source, r.source_id) for r in payload.roles])
+    if added:
+        store.log_event("saved.migrated", seeker_id=seeker["id"])
+    return {"merged": added, "submitted": len(payload.roles)}
+
+
+@router.delete("/api/me", status_code=204, tags=["auth"])
+def delete_account(request: Request, response: Response):
+    """
+    Really delete the account (ADR 0007) — rows gone, every session revoked.
+
+    CLAUDE.md's "soft-delete only, never hard-delete" governs Roles, so that a
+    Seeker can revisit a job they applied to after it closed. It does not extend
+    to the Seeker's own account: flipping a flag while telling someone their data
+    is gone turns an ordinary privacy question into a serious complaint.
+    """
+    seeker = _require_seeker(request)
+    seekers_store.get_store().delete_seeker(seeker["id"])
+    _clear_session_cookie(response)
+    logger.info("Seeker %s deleted their account", seeker["id"])
+    return Response(status_code=204)
+
+
+# ── The factory ───────────────────────────────────────────────────────────────
+
+
+def _mount_frontend(app: FastAPI, settings: Settings) -> None:
+    """
+    Serve the built React bundle from this same service (ADR 0005).
+
+    Registered LAST, and only when a bundle exists. FastAPI matches routes in
+    registration order and the catch-all matches every path — declared any
+    earlier it would swallow /api/* and /health before they were ever reached.
+    """
+    if not settings.frontend_present():
+        return
+
+    dist = settings.frontend_dist
+
+    # Vite emits hashed filenames under assets/ (app-a1b2c3.js), so those files are
+    # immutable: a change produces a new name. Safe to cache hard. Mounting the
+    # directory also means Starlette, not us, resolves the path — which is what
+    # keeps `/assets/../../etc/passwd` from being a file read.
+    assets = dist / "assets"
+    if assets.is_dir():
+        app.mount("/assets", StaticFiles(directory=assets), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def spa_fallback(full_path: str):
+        """
+        Serve index.html for anything that is not an API path.
+
+        The React app routes on the client: /jobs, /saved, /about, /learning and
+        /post-a-role exist only in the browser's router, not on disk. A hard
+        refresh (or a pasted link) asks THIS server for them, so without this
+        route every one of them 404s — the classic single-page-app deploy bug.
+
+        The /api and /health guards matter even though those routes are declared
+        above and win on registration order: they win only for paths that EXIST.
+        Without the guard, a typo'd or retired endpoint like /api/jobz would fall
+        through to here and answer 200 with a page of HTML, so a broken frontend
+        fetch would surface as a JSON parse error rather than an honest 404.
+        """
+        if full_path == "api" or full_path.startswith("api/") or full_path == "health":
+            raise HTTPException(status_code=404, detail="Not found")
+
+        # Real files at the root of the bundle — favicon.svg, icons.svg, and
+        # anything later dropped into frontend/public/ — are served as themselves.
+        # resolve() + is_relative_to() rejects any ../ that escapes the bundle.
+        if full_path:
+            candidate = (dist / full_path).resolve()
+            if candidate.is_relative_to(dist) and candidate.is_file():
+                return FileResponse(candidate)
+
+        # index.html is the one file that must NOT be cached: it is what points at
+        # the current hashed bundle, so a stale copy pins a returning visitor to a
+        # deleted JS file and the app boots to a blank page.
+        return FileResponse(settings.index_html, headers={"Cache-Control": "no-cache"})
+
+
+def create_app(settings: Settings | None = None, *, sender: Sender | None = None) -> FastAPI:
+    """
+    Build an app from an explicit configuration.
+
+    This is the seam the module used to lack. Everything that varies between a
+    production process, a local dev process and a test now varies HERE, as an
+    argument — rather than being read from the environment while the module was
+    being imported, which made `sys.modules.pop("main")` the only way to
+    reconfigure anything.
+    """
+    settings = settings or Settings.from_env()
+    # SmtpSender by default; a test passes a RecordingSender and asserts on it.
+    sender = sender if sender is not None else SmtpSender()
+
+    app = FastAPI(
+        title="FinEx Careers API",
+        description="Read-only API for Hong Kong financial job listings.",
+        version="1.0.0",
+        lifespan=lifespan,
+    )
+    app.state.settings = settings
+    app.state.sender = sender
+    # Per-app, so two apps in one process (which is what the tests build) cannot
+    # share a rate-limit budget.
+    app.state.rate_log = defaultdict(list)
+    app.state.rate_lock = threading.Lock()
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(settings.cors_origins),
+        # POST is required by /api/contact and /api/post-role — without it the
+        # browser blocks the preflight and the forms fail before reaching FastAPI.
+        # DELETE joins the list for the account endpoints (unsave a Role, delete an
+        # account). At one origin CORS is inert, but a dev frontend pointed at an
+        # absolute API URL still preflights, and a missing method fails there only.
+        allow_methods=["GET", "POST", "DELETE"],
+        allow_headers=["*"],
+    )
+
+    app.include_router(router)
+    _mount_frontend(app, settings)
+    return app
+
+
+# The process-wide app, for `uvicorn main:app` (Procfile, railway.json). One
+# ordinary caller of the factory, not a special case.
+app = create_app()

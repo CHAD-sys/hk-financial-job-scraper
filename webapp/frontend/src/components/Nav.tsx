@@ -1,11 +1,10 @@
-import { Briefcase, Bookmark, Menu, X, ArrowUpRight } from 'lucide-react'
-import { useState } from 'react'
+import { Briefcase, Bookmark, Menu, X, ChevronDown, User, LogOut, ArrowUpRight } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { scrollToTop, scrollToHash } from '../utils/scroll'
-
-interface Props {
-  savedCount?: number
-}
+import type { Seeker } from '../api/client'
+import { useAuth } from '../auth/useAuth'
+import { useSavedRoles } from '../savedRoles/useSavedRoles'
 
 /**
  * Primary navigation.
@@ -20,11 +19,11 @@ interface Props {
  * for, and the two hash links below make it genuinely useful: once you have
  * scrolled to Consultation the URL is still `/`, so Home is the way back up.
  *
- * Six items plus the right-hand cluster (Post a role, Saved) no longer fit one
- * desktop row, so on lg+ the bar splits in two: a slim utility strip carrying
- * identity and actions, and a full-width nav row below it. Nothing is hidden
- * behind an overflow menu — a link the user cannot see is a link they will not
- * click. Mobile keeps its single row and flat menu.
+ * Six items plus the right-hand cluster (Post a role, Saved, account) no
+ * longer fit one desktop row, so on lg+ the bar splits in two: a slim utility
+ * strip carrying identity and account actions, and a full-width nav row below
+ * it. Nothing is hidden behind an overflow menu — a link the user cannot see
+ * is a link they will not click. Mobile keeps its single row and flat menu.
  */
 
 const LINKS: { label: string; to: string; external?: boolean }[] = [
@@ -36,10 +35,27 @@ const LINKS: { label: string; to: string; external?: boolean }[] = [
   { label: 'About', to: '/about' },
 ]
 
-export default function Nav({ savedCount = 0 }: Props) {
+export default function Nav() {
+  // Read the count rather than take it as a prop. As a prop it defaulted to 0,
+  // so the four pages that rendered a bare <Nav /> — Home, About, Learning and
+  // Post a role — showed a signed-in Seeker a Saved badge of zero. A forgotten
+  // prop with a default is a silent wrong number; reading the context is not.
+  const { count: savedCount } = useSavedRoles()
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
   const { pathname, hash } = useLocation()
+  const { seeker, loading: authLoading, logout } = useAuth()
+
+  // Where sign-in should return to. The board is public, so nobody is ever sent
+  // here by a wall — they came from a page they were reading and should land
+  // back on it.
+  const returnTo = pathname === '/signin' || pathname === '/register' ? '/jobs' : pathname + hash
+
+  async function handleSignOut() {
+    setOpen(false)
+    await logout()
+    navigate('/')
+  }
 
   // A hash link is active only when its fragment is the current one. Home is the
   // portal with NO fragment — otherwise scrolling to Consultation (which leaves
@@ -129,11 +145,12 @@ export default function Nav({ savedCount = 0 }: Props) {
       className="sticky top-0 w-full border-b border-white/10"
     >
       {/* ── Desktop: two tiers ──────────────────────────────────────────────
-          The row splits by *kind* rather than hiding links in an overflow
-          menu: identity and actions sit on a slim utility strip, and the nav
-          gets a full-width row to itself. Everything stays visible, and the
-          active page earns a real underline rather than a shift in text
-          colour alone. */}
+          Six links plus the action cluster no longer share one row without
+          crowding, so the row splits by *kind* rather than hiding links in an
+          overflow menu: identity and account actions sit on a slim utility
+          strip, and the nav gets a full-width row to itself. Everything stays
+          visible, and the active page earns a real underline rather than a
+          shift in text colour alone. */}
       <div className="hidden lg:block">
         <div className="mx-auto max-w-7xl px-8">
           <div className="flex h-11 items-center justify-between gap-4">
@@ -160,10 +177,23 @@ export default function Nav({ savedCount = 0 }: Props) {
                 onClick={() => (pathname === '/saved' ? scrollToTop() : navigate('/saved'))}
               />
 
-              {/* Reserved: sign-in lands here when accounts ship. Deliberately
-                  renders nothing — a button that does not work is worse than
-                  none. Keeping the slot means the Nav does not need
-                  re-composition. */}
+              {/* Nothing renders until /api/auth/me has answered: flashing
+                  "Sign in" at somebody who is signed in is worse than a beat
+                  of nothing. */}
+              {!authLoading && (
+                seeker ? (
+                  <SeekerMenu seeker={seeker} onSignOut={handleSignOut} />
+                ) : (
+                  <Link
+                    to="/signin"
+                    state={{ from: returnTo }}
+                    className="inline-flex min-h-9 items-center rounded px-3 py-1.5 text-sm font-medium no-underline"
+                    style={{ color: 'rgba(248,250,252,0.75)' }}
+                  >
+                    Sign in
+                  </Link>
+                )
+              )}
             </div>
           </div>
         </div>
@@ -219,7 +249,7 @@ export default function Nav({ savedCount = 0 }: Props) {
         </div>
       </div>
 
-      {/* ── Mobile: one row ──────────────────────────────────────────────── */}
+      {/* ── Mobile: one row, unchanged ───────────────────────────────────── */}
       <div className="lg:hidden">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="flex h-16 items-center justify-between gap-4">
@@ -258,6 +288,10 @@ export default function Nav({ savedCount = 0 }: Props) {
             ...LINKS,
             { label: 'Saved roles', to: '/saved' },
             { label: 'Post a role', to: '/post-a-role' },
+            // The account item, which the desktop bar keeps in its own slot.
+            ...(authLoading ? [] : seeker
+              ? [{ label: 'Your account', to: '/account' }]
+              : [{ label: 'Sign in', to: '/signin' }]),
           ].map(({ label, to, external }) =>
             external ? (
               <a
@@ -275,6 +309,7 @@ export default function Nav({ savedCount = 0 }: Props) {
               <Link
                 key={label}
                 to={to}
+                state={to === '/signin' ? { from: returnTo } : undefined}
                 onClick={e => {
                   setOpen(false)
                   handleClick(e, to)
@@ -285,6 +320,17 @@ export default function Nav({ savedCount = 0 }: Props) {
                 {label}
               </Link>
             ),
+          )}
+
+          {seeker && (
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="flex min-h-11 items-center text-left text-sm font-medium cursor-pointer"
+              style={{ color: 'rgba(248,250,252,0.55)', background: 'none', border: 'none', padding: 0 }}
+            >
+              Sign out
+            </button>
           )}
         </nav>
       )}
@@ -333,5 +379,127 @@ function SavedButton({
         </span>
       )}
     </button>
+  )
+}
+
+/**
+ * The signed-in menu in the desktop bar.
+ *
+ * A disclosure button plus a short list — not a hover menu. Hover menus are
+ * unreachable by keyboard and unusable by touch, and this one holds "Sign out",
+ * which nobody should trigger by drifting a cursor. Escape closes it and returns
+ * focus to the button; a click anywhere else closes it too.
+ */
+function SeekerMenu({ seeker, onSignOut }: { seeker: Seeker; onSignOut: () => void }) {
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+
+  const name = seeker.display_name?.trim() || seeker.email
+  const initial = name.slice(0, 1).toUpperCase()
+
+  useEffect(() => {
+    if (!open) return
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setOpen(false)
+      buttonRef.current?.focus()
+    }
+
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  return (
+    // No breakpoint class of its own — the desktop utility strip that renders
+    // this is already lg-only.
+    <div ref={wrapRef} className="relative">
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="flex min-h-9 items-center gap-2 rounded px-2.5 py-1.5 text-sm font-medium cursor-pointer"
+        style={{
+          color: 'var(--color-ink-inverse)',
+          backgroundColor: open ? 'rgba(255,255,255,0.08)' : 'transparent',
+          border: '1px solid rgba(255,255,255,0.12)',
+        }}
+      >
+        <span
+          className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold"
+          style={{ backgroundColor: 'var(--color-gold)', color: '#fff' }}
+          aria-hidden="true"
+        >
+          {initial}
+        </span>
+        <span className="max-w-[10rem] truncate">{name}</span>
+        <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          aria-label="Account"
+          className="absolute right-0 mt-2 w-56 overflow-hidden rounded-lg py-1"
+          style={{
+            backgroundColor: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            boxShadow: 'var(--shadow-float)',
+          }}
+        >
+          <p
+            className="px-3 py-2 text-xs break-words"
+            style={{ color: 'var(--color-ink-faint)', borderBottom: '1px solid var(--color-border)' }}
+          >
+            {seeker.email}
+          </p>
+          <Link
+            role="menuitem"
+            to="/account"
+            onClick={() => setOpen(false)}
+            className="flex min-h-11 items-center gap-2 px-3 text-sm font-medium no-underline"
+            style={{ color: 'var(--color-ink)' }}
+          >
+            <User size={15} strokeWidth={2} />
+            Your account
+          </Link>
+          <Link
+            role="menuitem"
+            to="/saved"
+            onClick={() => setOpen(false)}
+            className="flex min-h-11 items-center gap-2 px-3 text-sm font-medium no-underline"
+            style={{ color: 'var(--color-ink)' }}
+          >
+            <Bookmark size={15} strokeWidth={2} />
+            Saved Roles
+          </Link>
+          <button
+            role="menuitem"
+            type="button"
+            onClick={() => { setOpen(false); onSignOut() }}
+            className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm font-medium cursor-pointer"
+            style={{
+              color: 'var(--color-ink-muted)',
+              background: 'none',
+              border: 'none',
+              borderTop: '1px solid var(--color-border)',
+            }}
+          >
+            <LogOut size={15} strokeWidth={2} />
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
