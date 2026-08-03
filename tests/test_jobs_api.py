@@ -181,9 +181,14 @@ def test_company_sorts_alphabetically(client):
     assert companies == sorted(companies)
 
 
-def test_unknown_sort_falls_back_to_newest(client):
-    assert _ids(_get(client, sort="not_a_sort", page_size=100)) == \
-           _ids(_get(client, sort="newest", page_size=100))
+def test_unknown_sort_is_rejected(client):
+    """
+    Changed deliberately. `sort` used to be a free string resolved with
+    `.get(sort, newest)`, so `?sort=slaary_high` quietly returned newest-first
+    and the caller never learned their parameter was ignored. It is an enum now,
+    so FastAPI rejects it at the edge.
+    """
+    assert client.get("/api/jobs", params={"sort": "not_a_sort"}).status_code == 422
 
 
 # ── Paging ────────────────────────────────────────────────────────────────────
@@ -324,8 +329,18 @@ def test_detail_reaches_a_non_primary_copy(client):
     assert client.get("/api/jobs/indeed/XPOST_HIDDEN").status_code == 200
 
 
-def test_detail_does_not_reach_a_closed_role(client):
-    """Pinned as it stands TODAY. This is the line the read-path work changes:
-    addressing a Role by reference should return it marked closed rather than
-    pretending it never existed."""
-    assert client.get("/api/jobs/workday/CLOSED").status_code == 404
+def test_detail_reaches_a_closed_role_and_says_so(client):
+    """
+    Changed deliberately. Addressing a Role by reference now returns it marked
+    closed rather than pretending it never existed — soft-delete keeps the row
+    precisely so a Seeker can look at a vacancy they applied to after it closed,
+    and a 404 threw that away.
+    """
+    r = client.get("/api/jobs/workday/CLOSED")
+    assert r.status_code == 200
+    assert r.json()["closed"] is True
+
+
+def test_the_board_never_returns_a_closed_role(client):
+    """The other half of the rule: browsing stays filtered."""
+    assert all(j["closed"] is False for j in _get(client, page_size=100)["jobs"])
