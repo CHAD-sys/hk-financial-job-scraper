@@ -72,6 +72,8 @@ from typing import Any
 
 import httpx
 
+from hk_jobs import salary, salary_anchors
+
 logger = logging.getLogger(__name__)
 
 _API_URL = "https://api.deepseek.com/chat/completions"
@@ -85,20 +87,19 @@ _API_URL = "https://api.deepseek.com/chat/completions"
 _MODEL = "deepseek-v4-flash"
 _DESC_MAX_CHARS = 2_000   # cap to keep prompt tight; descriptions are typically 1–4 KB
 
-# Bump whenever the model, the salary prompt, OR the deterministic clamp in
-# hk_jobs.salary_clamp changes materially — not just model/prompt swaps. hk_jobs.enrichment
-# stores this alongside each enrichment row and re-enriches any active job whose stored
-# version doesn't match — on every regular run, not just an explicit --re-enrich — so a
-# change reaches jobs that get soft-deleted and reactivated later, not just what's active
-# the day the change ships. Missing this on a clamp-only change (no model/prompt edit) is
-# exactly what let the 2026-07-21 boutique-discount and single-value-range fixes silently
-# skip ~200 already-"fresh"-marked rows until a one-off manual patch caught them.
-PROMPT_VERSION = "2026-07-21-v10-merged-3source-granular-prefix-cached"
+# PROMPT_VERSION is derived, not written down — see the bottom of this module.
+# hk_jobs.enrichment stores it alongside each enrichment row and re-enriches any
+# active job whose stored version doesn't match, on every regular run, so a
+# change reaches jobs that get soft-deleted and reactivated later rather than
+# only what happens to be active the day it ships.
 
 # Salary anchor table — the single source of truth, extracted from the 2026 Hays
 # Asia Salary Guide (HK) into a structured JSON. Loaded and rendered into the prompt
 # ONCE at import so every call carries the calibrated bands without re-reading the file.
-_ANCHORS_PATH = Path(__file__).resolve().parents[2] / "salary_guidlines" / "hk_salary_anchors.json"
+# Anchors come from hk_jobs.salary_anchors — the same object the deterministic
+# clamp reads. They used to be parsed here a second time from the same path, so
+# the prompt the model saw and the ceiling applied to its answer were two
+# independent reads of one file.
 
 _TIER_LABELS = {
     "front_office":
@@ -153,7 +154,7 @@ def _load_salary_reference() -> str:
     verbatim as "salary_role".
     """
     try:
-        data = json.loads(_ANCHORS_PATH.read_text(encoding="utf-8"))
+        data = salary_anchors.ANCHORS
         tables = data["tables_monthly_hkd"]
         order = data["tier_order_low_to_high"][::-1]  # display highest-paid first
         lines = []
@@ -292,6 +293,22 @@ salary_estimated_confidence:
 - "medium" = not stated, but function tier + seniority + company are clear
 - "low"    = not stated, and function tier or seniority is ambiguous (when low, bias to the
              BOTTOM of the band)""".replace("{salary_reference}", _SALARY_REFERENCE)
+
+
+# The version this enricher stamps on every row it writes.
+#
+# It used to be a hand-edited string, with a comment asking whoever changed the
+# model, the prompt, OR the clamp in hk_jobs.salary_clamp to remember to bump it
+# — a rule spanning three modules and enforced by nobody. It failed exactly as
+# you would expect: the 2026-07-21 boutique-discount and single-value-range
+# fixes silently skipped ~200 already-"fresh"-marked rows until a one-off manual
+# patch caught them.
+#
+# Derived from the model, the prompt text, the anchor calibration and the
+# clamp's constants, so a change to any of them re-estimates the affected rows
+# on its own. hk_jobs.salary.MANUAL_TAG remains for a change none of those can
+# see.
+PROMPT_VERSION = salary.version(_MODEL, _SALARY_INSTRUCTIONS)
 
 # Translation instructions. Many boutique/"Exclusive" HK postings are written in
 # Traditional Chinese (Cantonese) or Mandarin, sometimes mixed with English. Every

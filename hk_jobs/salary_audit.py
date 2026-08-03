@@ -35,7 +35,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 
 from hk_jobs.enrichers.deepseek import DeepSeekEnricher, _SALARY_REFERENCE
-from hk_jobs.salary_clamp import clamp_salary, fix_salary_magnitude
+from hk_jobs import salary
 
 logger = logging.getLogger(__name__)
 
@@ -182,24 +182,21 @@ def run_audit(db_path: str = "data/jobs.db", limit: int | None = None,
                     continue
                 v = verdict.get("verdict")
                 if v == "too_high":
-                    new_min = verdict.get("corrected_min")
-                    new_max = verdict.get("corrected_max")
-                    if isinstance(new_min, int) or isinstance(new_max, int):
-                        new_min, new_max = fix_salary_magnitude(
-                            new_min if isinstance(new_min, int) else None,
-                            new_max if isinstance(new_max, int) else None,
-                        )
-                    if not isinstance(new_max, int) or new_max >= r["est_max"]:
+                    revised = salary.lowered(
+                        verdict.get("corrected_min"),
+                        verdict.get("corrected_max"),
+                        current_max=r["est_max"],
+                        tier=r["salary_tier"],
+                        seniority=r["seniority"],
+                        role=r["salary_role"],
+                        company_slug=r["company_slug"],
+                        title=r["title"],
+                        source_tier=r["source_tier"],
+                    )
+                    if revised is None:
                         ok += 1  # not actually lower — treat as no-op
                         continue
-                    if not isinstance(new_min, int):
-                        new_min = round(new_max * 0.5)
-                    # run the correction through the same deterministic clamp stack
-                    new_min, new_max = clamp_salary(
-                        r["salary_tier"], r["seniority"], new_min, new_max,
-                        role=r["salary_role"], company_slug=r["company_slug"],
-                        title=r["title"], source_tier=r["source_tier"],
-                    )
+                    new_min, new_max = revised
                     if dry_run:
                         lowered += 1
                         logger.info("[dry] would lower %r: %s-%s -> %s-%s (%s)",

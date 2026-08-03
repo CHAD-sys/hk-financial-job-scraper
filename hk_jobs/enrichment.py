@@ -24,7 +24,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from hk_jobs.enrichers.deepseek import _MODEL, PROMPT_VERSION, DeepSeekEnricher
-from hk_jobs.salary_clamp import clamp_salary, fix_salary_magnitude
+from hk_jobs import salary
 
 logger = logging.getLogger(__name__)
 
@@ -173,16 +173,14 @@ class EnrichmentPipeline:
                             failed += 1
                             continue
                         try:
-                            raw_min, raw_max = fix_salary_magnitude(
+                            # Magnitude fix then the deterministic clamp — one
+                            # call, so the estimator and the nightly audit cannot
+                            # drift on how a model answer becomes a stored one.
+                            est_salary_min, est_salary_max = salary.finalise(
                                 _coerce_int(data.get("salary_estimated_min")),
                                 _coerce_int(data.get("salary_estimated_max")),
-                            )
-                            # Deterministic clamp: tier/seniority band -> named-role band ->
-                            # bank/insurance title-grade cap -> absolute HK$200k ceiling ->
-                            # floor raise on a confidently-matched grade row.
-                            est_salary_min, est_salary_max = clamp_salary(
-                                data.get("salary_tier"), data.get("seniority"),
-                                raw_min, raw_max,
+                                tier=data.get("salary_tier"),
+                                seniority=data.get("seniority"),
                                 role=data.get("salary_role"),
                                 company_slug=row["company_slug"],
                                 title=row["title"],

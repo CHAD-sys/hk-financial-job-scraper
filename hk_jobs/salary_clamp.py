@@ -60,19 +60,18 @@ the way substring-matching the free-text name did.
 """
 from __future__ import annotations
 
-import json
 import logging
 import re
-from pathlib import Path
+
+from hk_jobs import salary_anchors
 
 logger = logging.getLogger(__name__)
 
-_ANCHORS_PATH = Path(__file__).resolve().parent.parent / "salary_guidlines" / "hk_salary_anchors.json"
-
-# Hardcoded regardless of the anchors file — this is the one ceiling that must never be
-# bypassed by a missing/corrupt JSON. Keep in sync with meta.global_max_monthly_hkd in
-# hk_salary_anchors.json (that copy is documentation; this constant is what's enforced).
-GLOBAL_MAX_MONTHLY_HKD = 200_000
+# The ceiling and the anchor tables both come from hk_jobs.salary_anchors, which
+# reads the calibrated JSON once. This constant used to be hardcoded here with a
+# comment telling the reader to keep it in sync with the same number in the file
+# — and conceding that the file's copy was "documentation". One number, one home.
+GLOBAL_MAX_MONTHLY_HKD = salary_anchors.GLOBAL_MAX_MONTHLY_HKD
 
 # Boutique (source_tier == "boutique") employers pay a flat fraction of what the same
 # title at a mainstream/big employer would — applied to both endpoints, after every other
@@ -154,26 +153,14 @@ def fix_salary_magnitude(est_min: int | None, est_max: int | None) -> tuple[int 
     return fixed_min, fixed_max
 
 
-def _load_anchors() -> dict:
-    try:
-        return json.loads(_ANCHORS_PATH.read_text(encoding="utf-8"))
-    except Exception as exc:  # missing file, bad JSON, schema drift
-        logger.warning("Salary anchors unavailable for clamp (%s); tier/role/grade clamps disabled.", exc)
-        return {}
-
-
-_ANCHORS = _load_anchors()
-_LADDERS = _ANCHORS.get("ladders_monthly_hkd", {})
-_TABLES = _ANCHORS.get("tables_monthly_hkd", {})
-_GRADE_CAPS = _ANCHORS.get("management_grade_caps_monthly_hkd", {})
-_BANK_CAPS: dict = _GRADE_CAPS.get("bank", {}).get("caps_monthly_hkd", {})
-_INSURANCE_CAPS: dict = _GRADE_CAPS.get("insurance", {}).get("caps_monthly_hkd", {})
+_LADDERS = salary_anchors.LADDERS
+_TABLES = salary_anchors.TABLES
+_GRADE_CAPS = salary_anchors.GRADE_CAPS
+_BANK_CAPS: dict = salary_anchors.BANK_CAPS
+_INSURANCE_CAPS: dict = salary_anchors.INSURANCE_CAPS
 
 # Valid tier keys, exposed so the enricher/tests can reference the canonical set.
-TIER_KEYS = tuple(_LADDERS.keys()) or (
-    "front_office", "commercial_corporate_banking", "corporate_finance_accounting",
-    "middle_office", "insurance", "retail_banking", "back_office_operations",
-)
+TIER_KEYS = salary_anchors.TIER_KEYS
 
 
 # Position a seniority level within a role's ordered title ladder (0.0 = the ladder's
