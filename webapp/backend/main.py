@@ -13,9 +13,6 @@ import json
 import logging
 import os
 import sqlite3
-import threading
-import time
-from collections import defaultdict
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -55,6 +52,7 @@ from mailer import RECIPIENT, SMTP_USER, send_mail  # noqa: E402
 # filtered, sorted, counted and shaped for the wire lives in this module — see
 # its docstring for why "browsing is filtered, addressing is not".
 import job_read  # noqa: E402
+from rate_limit import RateLimiter  # noqa: E402
 from sender import Message, Sender, SmtpSender  # noqa: E402
 from settings import Settings  # noqa: E402
 from job_read import (  # noqa: E402
@@ -481,17 +479,15 @@ def _rate_limited(request: Request, key: str) -> bool:
 
 
 def _limit(request: Request, key: str, *, limit: int, window_s: int) -> bool:
-    """Sliding window over this app's rate log."""
-    now = time.time()
-    state = request.app.state
-    with state.rate_lock:
-        hits = [t for t in state.rate_log[key] if now - t < window_s]
-        if len(hits) >= limit:
-            state.rate_log[key] = hits
-            return True
-        hits.append(now)
-        state.rate_log[key] = hits
-        return False
+    """
+    True when this call should be REFUSED — the sense every call site reads.
+
+    The window, the table, the clock and the sweep live in `rate_limit.py`; this
+    is only the inversion. The table used to be a `defaultdict(list)` right here
+    that never evicted a key, so an attacker choosing a fresh email each time
+    grew it without bound (100,000 emails = 21.9 MiB, none of it ever reclaimed).
+    """
+    return not request.app.state.limiter.allow(key, limit=limit, window_s=window_s)
 
 
 def _persist(request: Request, kind: str, payload: dict) -> bool:
@@ -1079,8 +1075,7 @@ def create_app(settings: Settings | None = None, *, sender: Sender | None = None
     app.state.sender = sender
     # Per-app, so two apps in one process (which is what the tests build) cannot
     # share a rate-limit budget.
-    app.state.rate_log = defaultdict(list)
-    app.state.rate_lock = threading.Lock()
+    app.state.limiter = RateLimiter()
 
     app.add_middleware(
         CORSMiddleware,
