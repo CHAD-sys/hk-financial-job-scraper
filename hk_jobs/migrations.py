@@ -704,6 +704,70 @@ def migrate_to_phase_29(db_path: str) -> None:
         conn.close()
 
 
+def migrate_to_phase_30(db_path: str) -> None:
+    """
+    Record WHEN a Listing closed, and date the ones that already had.
+
+    `is_active` says a Role is no longer open. It does not say for how long, and
+    nothing else did either — `job_history` counts Listings per company per day,
+    not the fate of one Listing. So a Saved Role that closed last night and one
+    that closed in May were indistinguishable to every reader.
+
+    Saved Roles need the difference: a Closed Role drops out of a Seeker's list
+    once it has been closed a fortnight (docs/adr/0011).
+
+    THE BACKFILL, AND WHY fetched_at
+    --------------------------------
+    10,126 rows were already closed with no date to give them. `fetched_at` is
+    the last time a Listing was seen alive by a scrape, and a Listing is
+    deactivated on the first run that does not see it — so for a closed row it
+    lands within about a day of the real closure. That is far better than the
+    alternative of leaving them NULL, which would hand every long-dead Saved
+    Role a fresh fortnight starting from whenever this migration happened to run.
+
+    It is a proxy, not a fact, and it is wrong in one direction: a company whose
+    scrape kept failing has its deactivation deferred by the guards in
+    `mark_inactive_for_run`, so its rows can carry a `fetched_at` well before the
+    day they were actually closed, and will read as older than they are. Rows
+    closed from here on are stamped by `JobStore.deactivate()` at the moment it
+    happens and need no guessing.
+
+    Nothing is deleted and no row's state changes — this only writes a date onto
+    rows that are already closed.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+        with conn:
+            if "closed_at" not in cols:
+                conn.execute("ALTER TABLE jobs ADD COLUMN closed_at TEXT")
+                logger.info("Phase 30 migration: added jobs.closed_at")
+            # Idempotent, and safe to re-run: only ever fills a hole. An open row
+            # keeps NULL; a closed row that already has a date keeps that date.
+            cur = conn.execute(
+                "UPDATE jobs SET closed_at = fetched_at "
+                "WHERE is_active = 0 AND closed_at IS NULL"
+            )
+            if cur.rowcount:
+                logger.info(
+                    "Phase 30 migration: dated %s already-closed listing(s) from fetched_at "
+                    "(approximate — see the docstring).", cur.rowcount,
+                )
+            # The inverse hole: a row that reopened before phase 30 existed can
+            # be active AND dated, which would be a live Role claiming to have
+            # closed. Only reachable on a database migrated mid-flight.
+            cur = conn.execute(
+                "UPDATE jobs SET closed_at = NULL WHERE is_active = 1 AND closed_at IS NOT NULL"
+            )
+            if cur.rowcount:
+                logger.info(
+                    "Phase 30 migration: cleared closed_at on %s reopened listing(s).",
+                    cur.rowcount,
+                )
+    finally:
+        conn.close()
+
+
 # ── The ledger ────────────────────────────────────────────────────────────────
 
 _SCHEMA_MIGRATIONS_DDL = """
@@ -741,6 +805,7 @@ MIGRATIONS: tuple[tuple[int, Callable[[str], None]], ...] = (
     (27, migrate_to_phase_27),
     (28, migrate_to_phase_28),
     (29, migrate_to_phase_29),
+    (30, migrate_to_phase_30),
 )
 
 LATEST_PHASE = MIGRATIONS[-1][0]

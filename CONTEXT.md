@@ -52,7 +52,8 @@ _Avoid_: category (reserved for the AI-assigned job category), type, source type
 **Saved Role**:
 A Role a Seeker has marked to return to. It is a reference to a Role, never a copy of
 one, so a Saved Role always reflects the Role as it stands now — including showing as
-Closed once the Role is gone.
+Closed once the Role is gone. It stops being listed once it has been Closed a
+fortnight: still saved, still reachable, no longer in the way (`docs/adr/0011`).
 _Avoid_: bookmark, favourite, shortlist, starred job
 
 **Closed**:
@@ -60,8 +61,9 @@ A Role that is no longer open. The Listing is kept rather than removed, so a See
 still look at a vacancy after it stops accepting applications — which is the whole point
 of never hard-deleting one. Closed is a *state a Role is in*, not a reason it is
 missing: a Closed Role is still readable, still Saveable, and still says what it paid.
-Only a Role reached by reference is ever Closed; the board shows open Roles only. See
-`docs/adr/0010`.
+Only a Role reached by reference is ever Closed; the board shows open Roles only. We
+also record *when* it closed, which is what lets a Saved Role drop off a list after a
+fortnight without the Role itself going anywhere. See `docs/adr/0010` and `0011`.
 _Avoid_: expired, inactive, dead, archived, deleted (a Role is never deleted)
 
 **Alert**:

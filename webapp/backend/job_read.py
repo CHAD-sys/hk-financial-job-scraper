@@ -45,6 +45,7 @@ import math
 import re
 import sqlite3
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Iterable, Optional, Sequence
 
@@ -662,23 +663,99 @@ def jobs_by_refs(
     """
     Resolve `(source, source_id)` references, preserving the caller's order.
 
-    Built for Saved Roles: seekers.db stores references only, never a copy of the
-    Role, so the Role a Seeker sees is always the Role as it stands now —
-    including `closed=True` once it is gone. A reference whose row has left
-    jobs.db entirely is dropped; there is nothing to render but the reference.
+    Every reference that still has a row comes back, in whatever state it is in —
+    including `closed=True`. A reference whose row has left jobs.db entirely is
+    dropped; there is nothing to render but the reference.
+
+    For a Seeker's Saved Roles use `saved_roles` instead: it is this, plus the
+    retention rule, and that rule is not something a caller should be spelling.
+    """
+    return _by_refs(conn, list(refs), visibility)
+
+
+#: How long a Closed Role stays in a Seeker's Saved Roles before it drops out.
+#:
+#: Not a visibility rule and deliberately not a third `Visibility` member — the
+#: question is not "may this Seeker see this row" but "is this still worth
+#: keeping in front of them". ADR 0010 asks that anything reaching for a third
+#: visibility rule be argued as a new KIND of question; this one is a retention
+#: rule that happens to read the same column, and lives here so no route handler
+#: can pick its own fortnight. See docs/adr/0011.
+SAVED_ROLE_RETENTION = timedelta(days=14)
+
+#: Keep a Saved Role unless it is closed AND we can date that closure AND the
+#: date is older than the cutoff. Every unknown keeps the Role: a NULL
+#: `closed_at` (a row that closed before phase 30 and was never backfilled) and
+#: an unparseable one (`datetime()` returns NULL) both fail open. Hiding a Saved
+#: Role is the destructive direction — the Seeker did not ask for it to go — so
+#: it happens only on a date we can actually read.
+_RETENTION_SQL = (
+    "(j.is_active = 1"
+    " OR j.closed_at IS NULL"
+    " OR datetime(j.closed_at) IS NULL"
+    " OR datetime(j.closed_at) >= datetime(?))"
+)
+
+
+def saved_roles(
+    conn: sqlite3.Connection,
+    refs: Iterable[tuple[str, str]],
+    *,
+    now: Optional[datetime] = None,
+) -> list[JobSummary]:
+    """
+    A Seeker's Saved Roles: their references resolved, minus the long-dead ones.
+
+    Open Roles and recently-Closed ones come back exactly as `jobs_by_refs`
+    returns them, order preserved. A Role that has been Closed for longer than
+    `SAVED_ROLE_RETENTION` is left out.
+
+    The row is NOT touched — not the Listing in jobs.db, not the reference in
+    seekers.db. This is a read-time rule and nothing else, which is what makes it
+    reversible: a Listing that reopens has its `closed_at` cleared by the upsert,
+    and the Saved Role comes back on its own without the Seeker doing anything.
+
+    `now` is injectable because the alternative is a test that sleeps for a
+    fortnight.
     """
     pairs = list(refs)
     if not pairs:
         return []
 
-    where_sql, base_params = _where(JobFilters(), visibility)
-    by_key: dict[tuple[str, str], sqlite3.Row] = {}
+    cutoff = (now or datetime.now(timezone.utc)) - SAVED_ROLE_RETENTION
+    return _by_refs(
+        conn,
+        pairs,
+        Visibility.ADDRESSABLE,
+        extra_sql=_RETENTION_SQL,
+        extra_params=[cutoff.isoformat()],
+    )
 
+
+def _by_refs(
+    conn: sqlite3.Connection,
+    pairs: list[tuple[str, str]],
+    visibility: Visibility,
+    *,
+    extra_sql: Optional[str] = None,
+    extra_params: Sequence = (),
+) -> list[JobSummary]:
+    """Shared body of `jobs_by_refs` and `saved_roles`. Order follows `pairs`."""
+    if not pairs:
+        return []
+
+    where_sql, base_params = _where(JobFilters(), visibility)
+    head_params = list(base_params)
+    if extra_sql:
+        where_sql = f"{where_sql} AND {extra_sql}" if where_sql else f"WHERE {extra_sql}"
+        head_params += list(extra_params)
+
+    by_key: dict[tuple[str, str], sqlite3.Row] = {}
     for start in range(0, len(pairs), _REF_CHUNK):
         chunk = pairs[start:start + _REF_CHUNK]
         ref_clause = " OR ".join(["(j.source = ? AND j.source_id = ?)"] * len(chunk))
         clause = f"{where_sql} AND ({ref_clause})" if where_sql else f"WHERE ({ref_clause})"
-        params = base_params + [value for pair in chunk for value in pair]
+        params = head_params + [value for pair in chunk for value in pair]
         for row in conn.execute(f"{BASE_SELECT} {clause}", params).fetchall():
             by_key[(row["source"], row["source_id"])] = row
 

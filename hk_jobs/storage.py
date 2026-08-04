@@ -23,7 +23,7 @@ import logging
 import re
 import sqlite3
 from collections.abc import Collection, Iterable
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -76,6 +76,17 @@ CREATE TABLE IF NOT EXISTS jobs (
     posted_at       TEXT,                         -- ISO 8601
     fetched_at      TEXT NOT NULL,                -- ISO 8601
     is_active       INTEGER NOT NULL DEFAULT 1,   -- SQLite: 1/0 for boolean
+
+    -- When the Listing stopped being open (Phase 30). NULL for as long as it is
+    -- open, and set back to NULL if it reopens, so `closed_at IS NOT NULL` and
+    -- `is_active = 0` always agree. Written only by deactivate() and cleared
+    -- only by the upsert — nowhere else, which is what keeps them agreeing.
+    --
+    -- is_active answers "is this Role open"; closed_at answers "for how long has
+    -- it not been", and the second question had no answer at all: a Saved Role
+    -- that closed last night and one that closed in May were the same row to
+    -- every reader. Saved Roles need the difference (docs/adr/0011).
+    closed_at       TEXT,                         -- ISO 8601 UTC, NULL while open
 
     -- Provenance (Phase 13)
     -- The company_slug of the page this job was scraped from.  For direct ATS
@@ -289,6 +300,11 @@ ON CONFLICT (source, source_id) DO UPDATE SET
     dedup_hash         = excluded.dedup_hash,
     url                = excluded.url,
     is_active          = 1,
+    -- A Listing that comes back is open again, so it is no longer closed AT any
+    -- time. Leaving a stale closed_at behind would make a live Role look like
+    -- one that closed months ago, and after two weeks it would vanish from the
+    -- Saved Roles of every Seeker holding it (docs/adr/0011).
+    closed_at          = NULL,
     -- Backfill provenance for rows that pre-date Phase 13 (NULL → new value).
     -- Never overwrite a previously-set scraped_under_slug.
     scraped_under_slug = COALESCE(jobs.scraped_under_slug, excluded.scraped_under_slug),
@@ -481,6 +497,12 @@ class JobStore:
 
         THE ONE WRITE PATH TO is_active = 0, and the reason it exists.
 
+        It also stamps `closed_at`, which is only correct BECAUSE it is the one
+        write path: a closure timestamp written by three of four writers would be
+        worse than none, since a NULL would then mean either "still open" or "one
+        of the writers that forgot", and Saved Roles read it to decide what to
+        stop showing (docs/adr/0011).
+
         "Soft-delete only" was enforced by comments in four modules rather than by
         a module: `tech_filter.py`, `posts/expiry.py` and
         `scripts/remove_tech_roles.py` each opened their own connection and ran
@@ -516,6 +538,11 @@ class JobStore:
         if not refs:
             return 0
 
+        # One timestamp for the whole call, not one per chunk: a Listing's
+        # closure is an event, and 5,000 stale rows from one nightly run closed
+        # together whether the loop takes 40ms or 40s.
+        closed_at = datetime.now(timezone.utc).isoformat()
+
         slugs: set[str] = set()
         changed = 0
         with self._conn:
@@ -529,9 +556,9 @@ class JobStore:
                 ).fetchall()
                 slugs.update(r["company_slug"] for r in rows)
                 cur = self._conn.execute(
-                    f"UPDATE jobs SET is_active = 0 "
+                    f"UPDATE jobs SET is_active = 0, closed_at = ? "
                     f"WHERE is_active = 1 AND (source, source_id) IN (VALUES {placeholders})",
-                    flat,
+                    [closed_at, *flat],
                 )
                 changed += cur.rowcount
 

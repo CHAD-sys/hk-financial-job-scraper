@@ -112,7 +112,11 @@ create a provider account on your email address takes over your account.
 **Saved Roles.** Server stores `(seeker_id, source, source_id)` only. Job fields are
 joined from `jobs.db` at read time. On first sign-in, `localStorage` saves are
 union-merged into the account and the local key is cleared: signed out means browser,
-signed in means account, first sign-in moves them up.
+signed in means account, first sign-in moves them up. A Role that has been Closed a
+fortnight stops being listed — still saved, still reachable by reference, just no
+longer in the way (ADR 0011). Signed-out saves are unaffected, because a frozen copy
+in `localStorage` cannot learn that a Role closed; not going stale is what the account
+is for.
 
 **Deletion.** Real deletion, sessions revoked, event logged. See ADR 0007.
 

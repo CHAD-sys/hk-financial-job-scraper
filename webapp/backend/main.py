@@ -922,6 +922,11 @@ def list_saved(request: Request):
     is what CONTEXT.md means by a Saved Role "showing as closed once the Role is
     gone". A reference whose row has left jobs.db entirely is dropped; there is
     nothing to render but the reference.
+
+    `job_read.saved_roles` adds the one thing addressing itself does not decide:
+    a Role that has been Closed for longer than the retention window stops being
+    listed here (docs/adr/0011). It stays saved and stays readable by deep link;
+    this endpoint just stops putting it in front of the Seeker.
     """
     seeker = _require_seeker(request)
     refs = seekers_store.get_store().list_saved_roles(seeker["id"])
@@ -931,15 +936,20 @@ def list_saved(request: Request):
     pairs = [(r["source"], r["source_id"]) for r in refs]
     conn = get_db(request)
     try:
-        # Order is the Seeker's newest-first save order, preserved by jobs_by_refs.
-        saved = job_read.jobs_by_refs(conn, pairs, visibility=Visibility.ADDRESSABLE)
+        # Order is the Seeker's newest-first save order, preserved by saved_roles.
+        saved = job_read.saved_roles(conn, pairs)
     finally:
         conn.close()
 
     if len(saved) != len(pairs):
+        # Two reasons a reference resolves to nothing, and they are worth telling
+        # apart when reading logs: the row left jobs.db, or it is a Role that has
+        # been closed past the retention window and is now hidden by design.
         logger.info(
-            "Seeker %s has %d Saved Role(s) whose row is no longer in jobs.db",
-            seeker["id"], len(pairs) - len(saved),
+            "Seeker %s: %d of %d Saved Role(s) not listed (row gone from jobs.db, "
+            "or Closed longer than %s)",
+            seeker["id"], len(pairs) - len(saved), len(pairs),
+            job_read.SAVED_ROLE_RETENTION,
         )
     return saved
 

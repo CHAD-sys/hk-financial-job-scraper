@@ -226,3 +226,97 @@ def test_a_pre_ledger_database_converges_without_re_running_anything_twice(tmp_p
     finally:
         conn.close()
     assert after == before, "converging on a ledger must not change the schema"
+
+
+# ── Phase 30: when a Listing closed ───────────────────────────────────────────
+
+def _closed_at(db_path: str, source_id: str) -> str | None:
+    conn = sqlite3.connect(db_path)
+    try:
+        return conn.execute(
+            "SELECT closed_at FROM jobs WHERE source_id = ?", (source_id,)
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+
+def _seed_undated(db_path: str) -> None:
+    """Rows as they look on a database that has never seen phase 30."""
+    conn = sqlite3.connect(db_path)
+    with conn:
+        for source_id, is_active, fetched in (
+            ("OPEN", 1, "2026-08-04T09:00:00+00:00"),
+            ("CLOSED", 0, "2026-06-11T09:00:00+00:00"),
+        ):
+            conn.execute(
+                "INSERT INTO jobs (source, source_id, company, company_slug, url, dedup_hash,"
+                " title, fetched_at, is_active) VALUES ('workday', ?, 'X', 'x',"
+                " 'https://e.test', 'h', 'T', ?, ?)",
+                (source_id, fetched, is_active),
+            )
+        conn.execute("UPDATE jobs SET closed_at = NULL")
+    conn.close()
+
+
+def test_phase_30_adds_the_column(tmp_path: Path):
+    db = _db(tmp_path)
+    migrate(db)
+    assert "closed_at" in _columns(db, "jobs")
+
+
+def test_phase_30_dates_already_closed_listings_from_fetched_at(tmp_path: Path):
+    """
+    The backfill, and the reason it is `fetched_at`: it is the last time a
+    Listing was seen alive, and deactivation happens on the first run that does
+    not see it. Approximate on purpose — the alternative was leaving 10,126 rows
+    NULL, which hands every long-dead Saved Role a fresh fortnight starting from
+    whenever the migration happened to run.
+    """
+    db = _db(tmp_path)
+    migrate(db)
+    _seed_undated(db)
+
+    migrations.migrate_to_phase_30(db)
+
+    assert _closed_at(db, "CLOSED") == "2026-06-11T09:00:00+00:00"
+    assert _closed_at(db, "OPEN") is None, "an open Listing has no closure date"
+
+
+def test_phase_30_never_overwrites_a_date_it_already_has(tmp_path: Path):
+    """
+    Idempotent in the way that matters: re-running must not push a real
+    deactivate() timestamp back to the row's older fetched_at, which would age a
+    Saved Role by however long the Listing had been stale before it closed.
+    """
+    db = _db(tmp_path)
+    migrate(db)
+    _seed_undated(db)
+    conn = sqlite3.connect(db)
+    with conn:
+        conn.execute("UPDATE jobs SET closed_at = '2026-07-30T00:00:00+00:00'"
+                     " WHERE source_id = 'CLOSED'")
+    conn.close()
+
+    migrations.migrate_to_phase_30(db)
+
+    assert _closed_at(db, "CLOSED") == "2026-07-30T00:00:00+00:00"
+
+
+def test_phase_30_clears_a_date_left_on_a_reopened_listing(tmp_path: Path):
+    """
+    A live Role claiming to have closed is the failure that empties a Seeker's
+    Saved Roles for no reason. Only reachable on a database migrated mid-flight,
+    which is exactly the database this runs against.
+    """
+    db = _db(tmp_path)
+    migrate(db)
+    _seed_undated(db)
+    conn = sqlite3.connect(db)
+    with conn:
+        conn.execute("UPDATE jobs SET closed_at = '2026-05-01T00:00:00+00:00'"
+                     " WHERE source_id = 'OPEN'")
+    conn.close()
+
+    migrations.migrate_to_phase_30(db)
+
+    assert _closed_at(db, "OPEN") is None

@@ -342,3 +342,83 @@ def test_no_module_writes_is_active_outside_the_store():
         "these write is_active directly instead of via JobStore.deactivate(), "
         f"so they skip the primary re-election: {offenders}"
     )
+
+
+# ── When it closed ────────────────────────────────────────────────────────────
+# `is_active` says a Role is no longer open; `closed_at` says for how long it has
+# not been, and Saved Roles need the difference (docs/adr/0011). The date is only
+# trustworthy because deactivate() is the single write path — the guard above is
+# what keeps that true, and these are what keep the date honest.
+
+def closure(db: str, source: str) -> tuple[int, str | None]:
+    conn = sqlite3.connect(db)
+    try:
+        return conn.execute(
+            "SELECT is_active, closed_at FROM jobs WHERE source = ?", (source,)
+        ).fetchone()
+    finally:
+        conn.close()
+
+
+def test_deactivating_stamps_when_it_closed(db: str):
+    with JobStore(db) as store:
+        store.upsert_many([job("workday", "W1")])
+        assert closure(db, "workday") == (1, None), "an open Listing has no closure date"
+
+        store.deactivate([("workday", "W1")], reason="test")
+
+    is_active, closed_at = closure(db, "workday")
+    assert is_active == 0
+    assert closed_at is not None, "a closed Listing must say when"
+    stamped = datetime.fromisoformat(closed_at)
+    assert abs((datetime.now(UTC) - stamped).total_seconds()) < 60
+
+
+def test_a_reopened_listing_is_no_longer_closed_at_any_time(db: str):
+    """
+    THE one that matters most for the Seeker. A Listing that comes back keeps its
+    stale `closed_at` unless the upsert clears it — and a fortnight later every
+    Seeker holding that live Role would find it gone from their Saved Roles,
+    because the date says it closed months ago.
+    """
+    with JobStore(db) as store:
+        store.upsert_many([job("workday", "W1")])
+        store.deactivate([("workday", "W1")], reason="test")
+        assert closure(db, "workday")[1] is not None
+
+        store.upsert_many([job("workday", "W1")])       # the source lists it again
+
+    assert closure(db, "workday") == (1, None)
+
+
+def test_one_run_closes_together(db: str):
+    """
+    Every Listing in a call shares one timestamp. A nightly run closing 5,000
+    stale rows is one event, not 5,000 spread over however long the loop took.
+    """
+    with JobStore(db) as store:
+        store.upsert_many([job("workday", f"W{i}") for i in range(5)])
+        store.deactivate([("workday", f"W{i}") for i in range(5)], reason="test")
+
+    conn = sqlite3.connect(db)
+    try:
+        stamps = {r[0] for r in conn.execute("SELECT closed_at FROM jobs")}
+    finally:
+        conn.close()
+    assert len(stamps) == 1
+
+
+def test_a_listing_that_was_already_closed_keeps_its_original_date(db: str):
+    """
+    deactivate() only touches rows that are currently active, so re-running it
+    cannot push a long-closed Role's date forward and hand it a fresh fortnight
+    in someone's Saved Roles.
+    """
+    with JobStore(db) as store:
+        store.upsert_many([job("workday", "W1")])
+        store.deactivate([("workday", "W1")], reason="first")
+        first = closure(db, "workday")[1]
+
+        assert store.deactivate([("workday", "W1")], reason="again") == 0
+
+    assert closure(db, "workday")[1] == first
