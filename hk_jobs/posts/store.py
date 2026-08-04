@@ -26,7 +26,15 @@ logger = logging.getLogger(__name__)
 # Fallback lookback when a recruiter has no recorded last_fetched_at (new
 # entry) or it's stale beyond this — prevents asking the vendor for a
 # profile's entire history after a multi-day outage. See fetcher.py.
-CATCHUP_FLOOR_HOURS = 48
+#
+# It is DERIVED from the poll's cadence and no longer a number written here.
+# At 48h it was right for a daily poll and silently wrong for any slower one:
+# once the watchlist runs one night in three the watermark is ~72h old,
+# max(last_fetched_at, now - 48h) picks the floor, and the poll asks for two
+# days of a three-day gap — losing a day of posts per cycle with nothing in the
+# log but the routine "capping lookback" line. See hk_jobs/posts/cadence.py.
+# Re-exported from here because this is where callers already import it from.
+from hk_jobs.posts.cadence import CATCHUP_FLOOR_HOURS  # noqa: E402,F401
 
 
 @dataclass

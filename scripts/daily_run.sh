@@ -77,7 +77,15 @@ log "Phase 4 complete"
 # PocketBase sync (phase 4) since posts don't feed jobs/PB yet (that's LP-3/LP-5);
 # runs BEFORE the backup (phase 6) so today's backup includes whatever posts
 # were fetched.
-log "--- Phase 5: Fetching LinkedIn recruiter posts (watchlist) ---"
+#
+# Runs on ONE pipeline run in three, not every night — the watchlist is the only
+# thing in this pipeline that spends money per run, and at ~91% of all vendor
+# cost it was the reason a month landed at ~86% of Apify's free credit. The gate
+# is inside --fetch-posts (hk_jobs/posts/cadence.py), NOT here, because a
+# hand-run poll spends the same money as this one; keep calling it every night
+# and it decides for itself. A skipped run exits 0, so the || WARNING below stays
+# meaningful instead of firing two nights in three.
+log "--- Phase 5: Fetching LinkedIn recruiter posts (watchlist, 1 run in 3) ---"
 python -m hk_jobs.pipeline --fetch-posts 2>&1 | tee -a "$LOG_FILE" \
     || log "WARNING: LinkedIn posts fetch failed (non-fatal — is APIFY_API_TOKEN set?)"
 log "Phase 5 complete"

@@ -768,6 +768,38 @@ def migrate_to_phase_30(db_path: str) -> None:
         conn.close()
 
 
+_RUN_CADENCE_DDL = """
+CREATE TABLE IF NOT EXISTS run_cadence (
+    name         TEXT PRIMARY KEY,
+    runs         INTEGER NOT NULL DEFAULT 0,
+    last_run_at  TEXT,      -- ISO 8601 UTC, every run
+    last_due_at  TEXT       -- ISO 8601 UTC, only the runs that took their turn
+);
+"""
+
+
+def migrate_to_phase_31(db_path: str) -> None:
+    """
+    Somewhere to count runs, so a job can run once every N of them.
+
+    The watchlist poll is the only thing here that spends money per run, and it
+    ran on every one. Deciding "is it my turn" needs a counter that survives the
+    process, and no table held one — `recruiter_fetch_state` is per-recruiter and
+    `vendor_costs` only records the runs that DID spend, never the ones that were
+    skipped, so neither can tell you where in the cycle you are.
+
+    Starting empty means the first run after this migration is run 0 and polls
+    immediately, which is the behaviour anyone deploying this expects.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        with conn:
+            conn.execute(_RUN_CADENCE_DDL)
+        logger.debug("Phase 31 migration: run_cadence ready")
+    finally:
+        conn.close()
+
+
 # ── The ledger ────────────────────────────────────────────────────────────────
 
 _SCHEMA_MIGRATIONS_DDL = """
@@ -806,6 +838,7 @@ MIGRATIONS: tuple[tuple[int, Callable[[str], None]], ...] = (
     (28, migrate_to_phase_28),
     (29, migrate_to_phase_29),
     (30, migrate_to_phase_30),
+    (31, migrate_to_phase_31),
 )
 
 LATEST_PHASE = MIGRATIONS[-1][0]

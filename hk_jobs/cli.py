@@ -101,6 +101,7 @@ class PipelineArgs:
 
     # Secret Market (LinkedIn posts)
     fetch_posts: bool = False
+    posts_force: bool = False
     fetch_posts_backfill: bool = False
     posts_discovery: bool = False
     promote_posts: bool = False
@@ -382,7 +383,19 @@ def build_parser() -> argparse.ArgumentParser:
             "LP-2 'Secret Market' pipeline: poll recruiters.yaml watchlist for new "
             "LinkedIn posts via Apify (raw ingestion only — no jobs/PocketBase yet, "
             "see docs/PLAN_LINKEDIN_POSTS.md). Requires APIFY_API_TOKEN. "
-            "Self-enforces the $30/mo budget cap (hk_jobs.posts.budget)."
+            "Self-enforces the $30/mo budget cap (hk_jobs.posts.budget). "
+            "Runs on ONE pipeline run in POSTS_RUN_INTERVAL (3) — a skipped run is "
+            "a success, not an error; use --posts-force to poll anyway."
+        ),
+    )
+    p.add_argument(
+        "--posts-force",
+        dest="posts_force",
+        action="store_true",
+        help=(
+            "Poll the watchlist even when this run is not its turn. Still counts as "
+            "a run, so forcing shifts the cycle rather than sitting outside it. "
+            "Only meaningful with --fetch-posts."
         ),
     )
     p.add_argument(
@@ -565,8 +578,32 @@ def _fetch_descriptions(args: PipelineArgs) -> None:
 
 
 def _fetch_posts(args: PipelineArgs) -> None:
+    """
+    The watchlist poll, on one pipeline run in `POSTS_RUN_INTERVAL`.
+
+    The gate is here rather than in `daily_run.sh` because the cost is a property
+    of the poll, not of one caller's crontab: a hand-run `--fetch-posts` spends
+    the same money as the nightly one, and a shell-side check would not have
+    covered it.
+
+    A skipped run exits 0. It is the expected outcome two runs in three, and
+    `daily_run.sh` already treats a non-zero exit from this phase as a warning to
+    surface — so failing here would put a false alarm in the log every other day.
+    """
+    from hk_jobs.posts import cadence
     from hk_jobs.posts.fetcher import fetch_watchlist
 
+    decision = cadence.claim_run(args.db, force=args.posts_force)
+    if not decision.due:
+        logger.info(
+            "Watchlist poll skipped — %s. Nothing is lost: the next poll is scoped "
+            "to each recruiter's own last_fetched_at, so it covers the whole gap. "
+            "Use --posts-force to poll now.",
+            decision.describe(),
+        )
+        return
+
+    logger.info("Watchlist poll %s.", decision.describe())
     summary = fetch_watchlist(args.db)
     if summary.errors and not summary.recruiters_polled:
         raise SystemExit(f"Posts watchlist poll failed entirely: {summary.errors}")

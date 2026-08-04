@@ -20,11 +20,11 @@ This is the *content feed*: posts authored by people.
 | # | Decision | Choice |
 |---|----------|--------|
 | 1 | Ingestion philosophy | Capture ALL job-bearing posts; dedupe downstream. "Hidden" is a computed flag, not an ingestion filter |
-| 2 | Discovery | Hybrid: daily watchlist polling + weekly keyword post-search that feeds NEW recruiters into the watchlist (+ $0 Google-index side channel experiment) |
+| 2 | Discovery | Hybrid: watchlist polling **one pipeline run in three** (was daily — ADR 0012) + weekly keyword post-search that feeds NEW recruiters into the watchlist (+ $0 Google-index side channel experiment) |
 | 3 | Watchlist tiers | Agency recruiters, independent headhunters, agency company pages. NO in-house TA (duplicate signal vs own-ATS scraping) |
 | 4 | Bootstrap | Three-way: (a) search-driven harvest of active posters from first runs, (b) manual list enumerated on the boss's side, (c) known agency headhunters |
 | 5 | Vendor | **DECIDED (LP-0 complete, 2026-07-19): Apify/HarvestAPI.** `linkedin-profile-posts` for watchlist polling, `linkedin-post-search` for discovery, both $2/1k results. Piloterr disqualified — its live endpoint catalog has no post-discovery endpoint (`post/info` only enriches a known post ID). See `docs/BAKEOFF_RESULTS.md`. Total bake-off cost: $0.21 |
-| 6 | Budget | **$30/month cap** steady state |
+| 6 | Budget | **$30/month cap** steady state — but the binding constraint turned out to be Apify's **$5/month free credit**, which July reached 86% of. The cap has never fired; the cadence in ADR 0012 is what actually holds spend down |
 | 7 | Confidential employers | `company = "Confidential via {recruiter}"`, `company_slug = "confidential-{recruiter-slug}"`, LLM `employer_hint` in `board_signals`. Never guess the employer, never drop the post |
 | 8 | Quality bar | Two-tier: ALL scraped posts land in raw `linkedin_posts` table (replayable); promotion to `jobs` requires concrete title + HK-plausible location + stored confidence |
 | 9 | UI shape | Dedicated section, PLUS contextual sub-section inside filtered views (e.g. "urgently hiring" filter also shows matching secret-market jobs as a distinct block) |
@@ -33,7 +33,10 @@ This is the *content feed*: posts authored by people.
 | 12 | Metrics permanence | The same 3 metrics are computed on EVERY daily run forever (see §7); the v1 decision still uses only the pilot window |
 
 Defaults taken (owner did not object):
-- Cadence: daily, inside `daily_run.sh`
+- Cadence: **one pipeline run in three**, gated inside `--fetch-posts`
+  (`hk_jobs/posts/cadence.py`), not in `daily_run.sh` — a hand-run poll spends the same
+  money. Was daily; see ADR 0012 for the measured spend that changed it, and for why the
+  48h catch-up floor had to be derived from the interval rather than left alone.
 - Posts rank LOWEST in `_SOURCE_PRIORITY` — apply-routing always prefers a real ATS/board listing when the same vacancy exists there
 - Config file `recruiters.yaml` mirrors the `companies.yaml` convention
 
@@ -189,6 +192,25 @@ Schema mapping notes:
   `data/lp4_pilot_report_2026-07-22.md` (gitignored, local only — see caveat
   in the file: extrapolated monthly cost from a <1-day window is noisy,
   don't read $49.96/mo as a real steady-state number)
+
+> **⚠️ Superseded in part — recruiter attribution reversed (owner decision,
+> 2026-08-04).** LP-5 below describes a UI that names the recruiter, links their
+> LinkedIn profile, exposes their harvested email, and makes "DM {recruiter} to
+> apply" the primary CTA. That is no longer what ships. A Recruiter Post now
+> names nobody: no name, no profile link, no mailto, and the single CTA is
+> **"View the original LinkedIn post"**. The recruiter's name is also masked out
+> of the `company` field, which stores it as `"Confidential via {recruiter}"`
+> (decision #7) and was leaking it onto the card independently of any badge.
+> Skills are withheld on this tier too — they are extracted from a few lines of
+> social copy rather than a job description, so presenting them as requirements
+> overstates them.
+>
+> The reversal is **display-only**. `recruiter_name`, `recruiter_profile_url`
+> and `recruiter_email` are still fetched, still stored in `board_signals`, and
+> still served by `/api/jobs`. Removing them from the wire is a change to
+> `webapp/backend/job_read.py`; removing them from the data is a change to
+> `hk_jobs/posts/promote.py` plus a backfill. Neither has been done.
+> Enforced by `webapp/frontend/src/components/JobCard.test.tsx`.
 
 ### LP-5 — UI + PocketBase — ✅ MOSTLY BUILT (2026-07-22); email harvest still open
 - PB mirror: `board_signals` added to `sync_pocketbase.py`'s `_ENRICHMENT_FIELDS`
