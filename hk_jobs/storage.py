@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from hk_jobs.schema import Job, jobs_to_jsonl
+from hk_jobs.sources import apply_rank, display_rank
 
 logger = logging.getLogger(__name__)
 
@@ -112,30 +113,14 @@ _CREATE_INDEXES = [
 ]
 
 # ── Cross-source apply priority (Phase 19) ─────────────────────────────────────
-# When one vacancy is found on several sources, its apply_url points at the
-# URL of the FIRST source in this list that is present in the group. Sources not
-# listed rank last (in the order they were seen). Edit this list to change
-# apply-link preference globally.
-#
-# Ordering rationale (per the product directive):
-#     1. longtail — boutique roles (source_tier="boutique") take top apply priority.
-#   2-3. workday / eightfold — the company's OWN ATS (its real careers page), the
-#        best apply target after boutique.
-#   4-7. efinancialcareers → linkedin → indeed → jobsdb — the aggregator fallback
-#        order for roles with no boutique/own-ATS copy.
-_SOURCE_PRIORITY: tuple[str, ...] = (
-    "longtail",
-    "workday",
-    "eightfold",
-    "efinancialcareers",
-    "linkedin",
-    "indeed",
-    "jobsdb",
-    # linkedin_posts (LP-3 "Secret Market") is deliberately LAST: apply-routing
-    # must always prefer a real ATS/board listing over a recruiter's post when
-    # the same vacancy exists on both (PLAN_LINKEDIN_POSTS.md decision record).
-    "linkedin_posts",
-)
+# The order itself lives in hk_jobs/sources.py, with every other fact about a
+# source, because it used to live here — where the SuccessFactors adapter's
+# author had no reason to look, and so did not.
+
+
+def _preferred_apply_url(members: list[sqlite3.Row]) -> str:
+    """Return the URL of the highest-priority source among cross-posted copies."""
+    return min(members, key=lambda row: apply_rank(row["source"]))["url"]
 
 
 def ensure_schema(db_path: str) -> None:
@@ -160,44 +145,14 @@ def ensure_schema(db_path: str) -> None:
         conn.close()
 
 
-def _preferred_apply_url(members: list[sqlite3.Row]) -> str:
-    """Return the URL of the highest-priority source among cross-posted copies."""
-    def rank(row: sqlite3.Row) -> int:
-        src = row["source"]
-        return _SOURCE_PRIORITY.index(src) if src in _SOURCE_PRIORITY else len(_SOURCE_PRIORITY)
-
-    return min(members, key=rank)["url"]
-
-
 # ── Cross-source DISPLAY priority (Phase 20) ───────────────────────────────────
-# Which copy of a cross-posted vacancy the web app shows. Distinct from the apply
-# priority above: we apply on eFinancialCareers, but we DISPLAY the richest record.
-# JobsDB first — per the product decision, and because JobsDB rows carry both a
-# full description AND the DeepSeek enrichment (skills/summary). LinkedIn ranks
-# above indeed because LinkedIn rows now carry a fetched description + summary,
-# whereas indeed is listing-only (no description). The suppressed copies get
-# is_primary=0.
-_DISPLAY_PRIORITY: tuple[str, ...] = (
-    "jobsdb",
-    "eightfold",
-    "workday",
-    "efinancialcareers",
-    "longtail",
-    "linkedin",
-    "indeed",
-    # Same reasoning as _SOURCE_PRIORITY above: never show the thin/confidential
-    # post copy over a real board listing when both exist for the same vacancy.
-    "linkedin_posts",
-)
+# Also in hk_jobs/sources.py — see DISPLAY_ORDER for why it differs from the
+# apply order.
 
 
 def _primary_rowid(members: list[sqlite3.Row]) -> int:
     """rowid of the copy to display (highest display priority) among a group."""
-    def rank(row: sqlite3.Row) -> int:
-        src = row["source"]
-        return _DISPLAY_PRIORITY.index(src) if src in _DISPLAY_PRIORITY else len(_DISPLAY_PRIORITY)
-
-    return min(members, key=rank)["rowid"]
+    return min(members, key=lambda row: display_rank(row["source"]))["rowid"]
 
 
 _TITLE_NOISE_RE = re.compile(r"[^a-z0-9]+")
@@ -521,12 +476,12 @@ class JobStore:
 
           - sets cross_posted = 1 on every copy, and
           - sets apply_url on every copy to the highest-priority source's URL
-            (see _SOURCE_PRIORITY — eFinancialCareers first), so the frontend can
+            (see sources.APPLY_ORDER — eFinancialCareers first), so the frontend can
             always send an applicant to the preferred site while still showing
             that the role was found on multiple boards.
 
         It also sets is_primary for display de-duplication: within a cross-posted
-        group exactly one copy — the richest source (see _DISPLAY_PRIORITY, JobsDB
+        group exactly one copy — the richest source (see sources.DISPLAY_ORDER, JobsDB
         first: it carries the description AND the DeepSeek enrichment) — keeps
         is_primary=1 and the other copies get 0, so the web app shows one card per
         vacancy (with apply_url still pointing at eFinancialCareers). De-dup only

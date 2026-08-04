@@ -27,10 +27,18 @@ const BOARDS: Record<string, Board> = {
 }
 
 // Sources that are the employer's own careers page rather than a job board.
-const OWN_SITE = new Set(['workday', 'eightfold', 'longtail'])
+// Every entry is an ATS vendor's name, which is exactly what a Seeker does not
+// need to know — they all collapse into one "Company site" tag.
+//
+// Kept in step with hk_jobs/sources.py by tests/test_sources.py, which reads
+// this file. A source missing from BOTH this set and BOARDS is dropped silently
+// by normalise() below: it survives neither branch, so the tag never renders.
+// That is not hypothetical — `successfactors` was absent here for two days and
+// HKJC's roles showed no "Listed on" section at all.
+const OWN_SITE = new Set(['workday', 'eightfold', 'successfactors', 'longtail'])
 
 // Display order: own site first, then boards by preference, recruiter posts last
-// (lowest priority everywhere else in the pipeline too — storage.py _SOURCE_PRIORITY).
+// (lowest priority everywhere else in the pipeline too — sources.py APPLY_ORDER).
 const ORDER = ['company', 'efinancialcareers', 'indeed', 'jobsdb', 'linkedin', 'linkedin_posts']
 
 /** hex (#rrggbb) → rgba() string at the given alpha, for subtle tints. */

@@ -91,9 +91,9 @@ class Job(BaseModel):
             "When the same vacancy (same dedup_hash) is found on more than one "
             "source — e.g. eFinancialCareers AND JobsDB — every copy's apply_url "
             "points at the highest-priority source's URL. Priority is the company's "
-            "own ATS (Workday/Eightfold) first, then eFinancialCareers → Indeed → "
-            "JobsDB for roles with no own-ATS copy (see _SOURCE_PRIORITY in "
-            "storage.py). Read it as COALESCE(NULLIF(apply_url, ''), url)."
+            "own ATS (Workday/Eightfold/SuccessFactors) first, then eFinancialCareers "
+            "→ Indeed → JobsDB for roles with no own-ATS copy (see APPLY_ORDER in "
+            "sources.py). Read it as COALESCE(NULLIF(apply_url, ''), url)."
         ),
     )
     cross_posted: bool = Field(

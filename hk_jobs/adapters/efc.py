@@ -16,7 +16,7 @@ eFinancialCareers adapter (per-company, JSON API).
 Why this exists: the project is migrating apply-link priority from JobsDB to
 eFinancialCareers (a finance-specialised board). We scrape both; when the same
 vacancy is found on both, storage.reconcile_cross_posted() points apply_url at
-the eFC copy (see hk_jobs/storage.py::_SOURCE_PRIORITY).
+the eFC copy (see hk_jobs/sources.py::APPLY_ORDER).
 
 Data source (verified live, Bank of China, 2026-07-14):
     GET https://job-search-api.efinancialcareers.com/v1/efc/jobs/search

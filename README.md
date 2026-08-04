@@ -88,7 +88,9 @@ Seven adapters, tried per company in priority order. Every adapter implements th
 | `linkedin` | LinkedIn guest jobs | JSON (no login) | Fallback only |
 | `longtail` | Boutique careers pages | **LLM extraction** | Medium/small firms with no structured ATS feed (headless where needed) |
 
-**Cross-posting:** when the same vacancy appears on multiple sources, `storage.reconcile_cross_posted()` fuzzy-matches titles and points the apply link at the richest copy (eFC preferred) — see `_SOURCE_PRIORITY`.
+**Cross-posting:** when the same vacancy appears on multiple sources, `storage.reconcile_cross_posted()` fuzzy-matches titles, points the apply link at the employer's own ATS where there is one (`sources.APPLY_ORDER`) and displays the richest copy (`sources.DISPLAY_ORDER`).
+
+**Adding a source** means one entry in `hk_jobs/sources.py` — every fact about a source lives there, and `tests/test_sources.py` binds the adapter registry, `companies.yaml` validation and the frontend's "Listed on" tags to it. Getting it half-registered used to be silent; now it fails a test.
 
 **Tech-role filter:** `tech_filter.py` soft-deletes non-finance software roles so the board stays finance-focused.
 
@@ -384,6 +386,7 @@ hk-job-scraper/
 │   ├── pipeline.py              # The scrape: adapters → enrich → store
 │   ├── cli.py                   # PipelineArgs, the argparse parser, and the mode registry
 │   ├── schema.py                # Pydantic Job model + dedup hashing
+│   ├── sources.py               # The source registry: apply/display order, own-site
 │   ├── posts/                   # Recruiter Posts (LinkedIn) — paid-vendor exception
 │   │   ├── vendor_client.py     # Apify/HarvestAPI client
 │   │   ├── fetcher.py           # Watchlist polling (48h floor / backfill mode)
