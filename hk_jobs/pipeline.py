@@ -12,7 +12,6 @@ Usage:
 
 from __future__ import annotations
 
-import argparse
 import concurrent.futures
 import logging
 import random
@@ -23,6 +22,7 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from threading import Lock
 
+from hk_jobs.cli import PipelineArgs
 from hk_jobs.config import load_companies
 from hk_jobs.enrich import enrich_all
 from hk_jobs.storage import JobStore
@@ -59,14 +59,21 @@ class CompanyResult:
         return self.error is None
 
 
-def run(args: argparse.Namespace) -> list[CompanyResult]:
+def run(args: PipelineArgs) -> list[CompanyResult]:
     """
     Execute the full scrape-enrich-store pipeline.
 
     Returns the list of per-company results so callers (and tests) can
     inspect outcomes without having to re-read the database.
+
+    `args` is a `PipelineArgs`, not an `argparse.Namespace`. It used to be the
+    latter, read through ~20 `getattr(args, name, default)` calls — which meant
+    a caller that omitted a setting got `False` rather than an error, and the
+    tests' idea of the arguments drifted from production's without either side
+    noticing. Construct `PipelineArgs(db=..., no_enrich=True)` and every other
+    setting is production's default by construction.
     """
-    dry_run: bool = getattr(args, "dry_run", False)
+    dry_run = args.dry_run
 
     companies = load_companies(args.config)
 
@@ -74,15 +81,13 @@ def run(args: argparse.Namespace) -> list[CompanyResult]:
     # companies_longtail.yaml so its entries route to LongtailAdapter in the same
     # run. --longtail-only isolates just this track for testing.
     _longtail_yaml = Path(__file__).parent / "companies_longtail.yaml"
-    if _longtail_yaml.exists() and not getattr(args, "no_longtail", False):
+    if _longtail_yaml.exists() and not args.no_longtail:
         companies += load_companies(_longtail_yaml)
-    if getattr(args, "longtail_only", False):
+    if args.longtail_only:
         companies = [c for c in companies if c.adapter == "longtail"]
 
-    raw_filter = getattr(args, "company", None)
-    if raw_filter:
-        # Accept either a single slug (str) or a list of slugs (from action='append')
-        slugs = set(raw_filter) if isinstance(raw_filter, list) else {raw_filter}
+    if args.company:
+        slugs = set(args.company)
         companies = [c for c in companies if c.slug in slugs]
         if not companies:
             sys.exit(f"No enabled companies matching {sorted(slugs)} in companies.yaml")
@@ -106,7 +111,7 @@ def run(args: argparse.Namespace) -> list[CompanyResult]:
     # earlier drop to 5 + inter-company/page delays was unnecessary throttling.
     # Hard cap: >15 workers stacks too many Scrapling browser instances (~300 MB RAM each).
     DEFAULT_WORKERS = 10
-    _requested = getattr(args, "parallel_workers", None) or DEFAULT_WORKERS
+    _requested = args.parallel_workers or DEFAULT_WORKERS
     if _requested > 15:
         logger.warning(
             "--parallel-workers %d exceeds safe limit for Scrapling (each browser ~300 MB RAM). "
@@ -141,7 +146,7 @@ def run(args: argparse.Namespace) -> list[CompanyResult]:
         # the synchronised burst that got us blocked in the first place. The
         # data-protection guard already kept each company's existing jobs, so this
         # only adds today's listings back if the retry succeeds.
-        if not dry_run and getattr(args, "retry_failed", False):
+        if not dry_run and args.retry_failed:
             results = _retry_failed_companies(results, companies, store, run_time, args, db_lock)
 
         # Cross-source reconciliation: now that every source's jobs are stored,
@@ -161,7 +166,7 @@ def run(args: argparse.Namespace) -> list[CompanyResult]:
         # cyber/etc.) so they never pollute the board. Uses a persistent title→verdict
         # cache, so each run only classifies NEW titles via DeepSeek (cheap), and
         # cached verdicts are enforced even with no API key. Opt out with --no-tech-filter.
-        if not dry_run and not getattr(args, "no_tech_filter", False):
+        if not dry_run and not args.no_tech_filter:
             try:
                 from hk_jobs.tech_filter import run_tech_filter
                 with db_lock:
@@ -169,7 +174,7 @@ def run(args: argparse.Namespace) -> list[CompanyResult]:
             except Exception as exc:  # never let the guard break a run
                 logger.warning("tech-filter step failed (%s) — skipping", exc)
 
-        if not dry_run and getattr(args, "export", None):
+        if not dry_run and args.export:
             count = store.export_active_jsonl(args.export)
             logger.info("Exported %d active jobs → %s", count, args.export)
 
@@ -186,7 +191,13 @@ def run(args: argparse.Namespace) -> list[CompanyResult]:
     return results
 
 
-def _run_company(cfg, store: JobStore, run_time: datetime, args, db_lock=None) -> CompanyResult:
+def _run_company(
+    cfg,
+    store: JobStore,
+    run_time: datetime,
+    args: PipelineArgs,
+    db_lock=None,
+) -> CompanyResult:
     """
     Fetch, enrich, and store jobs for one company. Returns a CompanyResult.
 
@@ -235,10 +246,10 @@ def _run_company(cfg, store: JobStore, run_time: datetime, args, db_lock=None) -
     if _override:
         jobs = [job.model_copy(update=_override) for job in jobs]
 
-    if not getattr(args, "no_enrich", False):
+    if not args.no_enrich:
         jobs = enrich_all(jobs)
 
-    if getattr(args, "verbose", False) and jobs:
+    if args.verbose and jobs:
         for job in jobs:
             logger.debug(
                 "  [%s]  %-55s  %s",
@@ -247,7 +258,7 @@ def _run_company(cfg, store: JobStore, run_time: datetime, args, db_lock=None) -
                 ", ".join(job.locations) or "—",
             )
 
-    dry_run: bool = getattr(args, "dry_run", False)
+    dry_run = args.dry_run
 
     # Serialise all DB writes so concurrent threads don't corrupt SQLite.
     _lock = db_lock or _NullLock()
@@ -292,7 +303,7 @@ def _retry_failed_companies(
     companies: list,
     store: JobStore,
     run_time: datetime,
-    args,
+    args: PipelineArgs,
     db_lock,
 ) -> list[CompanyResult]:
     """
@@ -409,573 +420,17 @@ def _log_trend_changes(results: list[CompanyResult], db_path: str) -> None:
         conn.close()
 
 
-def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    p = argparse.ArgumentParser(
-        prog="python -m hk_jobs.pipeline",
-        description="Scrape HK financial job postings and store them in SQLite.",
-    )
-    p.add_argument(
-        "--db",
-        default="data/jobs.db",
-        metavar="PATH",
-        help="SQLite database path (default: data/jobs.db)",
-    )
-    p.add_argument(
-        "--export",
-        metavar="PATH",
-        help="Export active jobs to JSONL after the run (e.g. data/jobs.jsonl)",
-    )
-    p.add_argument(
-        "--only", "--company",
-        dest="company",
-        metavar="SLUG",
-        action="append",
-        help=(
-            "Run only this company slug. Repeat to run several: "
-            "--only aia-hk --only blackrock-hk"
-        ),
-    )
-    p.add_argument(
-        "--longtail-only",
-        dest="longtail_only",
-        action="store_true",
-        help="Run only the Longtail (LLM-extraction) boutique companies for isolated testing.",
-    )
-    p.add_argument(
-        "--no-longtail",
-        dest="no_longtail",
-        action="store_true",
-        help="Skip the Longtail track — run only the mainstream companies.yaml companies.",
-    )
-    p.add_argument(
-        "--dry-run",
-        action="store_true",
-        help=(
-            "Fetch and enrich jobs but do NOT write to the database. "
-            "Useful for verifying a new adapter config without touching stored data."
-        ),
-    )
-    p.add_argument(
-        "-v", "--verbose",
-        action="store_true",
-        help="Print each fetched job (title, location, source_id). Implies DEBUG logging.",
-    )
-    p.add_argument(
-        "--no-enrich",
-        action="store_true",
-        help="Skip the rule-based enrichment step (faster, but seniority/skills won't be set)",
-    )
-    p.add_argument(
-        "--no-tech-filter",
-        action="store_true",
-        help="Skip the finance-only guard that soft-deletes hard tech/IT roles each run.",
-    )
-    p.add_argument(
-        "--config",
-        metavar="PATH",
-        default=None,
-        help="Override the default companies.yaml path",
-    )
-    p.add_argument(
-        "--log-level",
-        default="INFO",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
-        help="Logging verbosity (default: INFO)",
-    )
-    p.add_argument(
-        "--weekly-report",
-        dest="weekly_report",
-        action="store_true",
-        help="Send weekly trend report email (run every Monday via cron).",
-    )
-    p.add_argument(
-        "--notify-summary",
-        dest="notify_summary",
-        action="store_true",
-        help="Send daily summary email after run (requires SMTP_USER/SMTP_PASS env vars).",
-    )
-    p.add_argument(
-        "--backup",
-        action="store_true",
-        help="Backup jobs.db to data/backups/jobs_YYYY-MM-DD.db with 30-day retention.",
-    )
-    p.add_argument(
-        "--incremental",
-        action="store_true",
-        help=(
-            "Only process jobs whose fetched_at is today (i.e. found in today's scrape). "
-            "Makes --fetch-descriptions and --enrich much faster on routine daily runs — "
-            "skips all existing jobs, processes only newly discovered ones."
-        ),
-    )
-    p.add_argument(
-        "--parallel-workers",
-        dest="parallel_workers",
-        type=int,
-        metavar="N",
-        default=10,
-        help=(
-            "Number of companies to scrape in parallel (default: 10). "
-            "Each JobsDB worker launches a Scrapling browser (~300 MB RAM). "
-            "Values above 15 are capped automatically to avoid memory exhaustion."
-        ),
-    )
-    p.add_argument(
-        "--no-retry",
-        dest="retry_failed",
-        action="store_false",
-        default=True,
-        help=(
-            "Disable the end-of-run retry pass. By default, companies that return "
-            "0 jobs (usually a transient Cloudflare block) are retried once, "
-            "sequentially and slowly, before the run finishes."
-        ),
-    )
-    p.add_argument(
-        "--fetch-descriptions",
-        dest="fetch_descriptions",
-        action="store_true",
-        help=(
-            "Fetch full job description HTML from each job's detail page and store "
-            "in description_raw / description_clean. Skips JobsDB jobs (Cloudflare). "
-            "Use --fetch-limit to cap the number of requests."
-        ),
-    )
-    p.add_argument(
-        "--fetch-limit",
-        dest="fetch_limit",
-        type=int,
-        metavar="N",
-        help="Max number of descriptions to fetch (default: all).",
-    )
-    p.add_argument(
-        "--enrich",
-        action="store_true",
-        help=(
-            "Run Phase 12 LLM enrichment: send unenriched jobs to DeepSeek and "
-            "store structured results in job_enrichments. Requires DEEPSEEK_API_KEY env var."
-        ),
-    )
-    p.add_argument(
-        "--enrich-limit",
-        dest="enrich_limit",
-        type=int,
-        metavar="N",
-        help="Max number of jobs to enrich in this run (useful for testing).",
-    )
-    p.add_argument(
-        "--re-enrich",
-        dest="re_enrich",
-        action="store_true",
-        help=(
-            "Re-enrich ALL active jobs, not just those missing an enrichment row. "
-            "Use after changing the enrichment prompt (e.g. new salary-estimate fields) "
-            "so every existing job is reprocessed. Upserts via ON CONFLICT."
-        ),
-    )
-    p.add_argument(
-        "--enrich-boutique",
-        dest="enrich_boutique",
-        action="store_true",
-        help=(
-            "Re-enrich only the boutique/\"Exclusive\" jobs (those with a category set). "
-            "Reprocesses existing rows so the v4 translation prompt reaches the many "
-            "Chinese-language boutique postings. Implies --enrich; upserts via ON CONFLICT."
-        ),
-    )
-    p.add_argument(
-        "--audit-salaries",
-        dest="audit_salaries",
-        action="store_true",
-        help=(
-            "Run the salary outlier audit agent (hk_jobs.salary_audit): re-judges the "
-            "estimates most likely to be wrong (>=120k, cluster outliers, ambiguous "
-            "'Team Head'-style titles), auto-applies DOWNWARD corrections with an audit "
-            "log, and reports upward suggestions for review. Requires DEEPSEEK_API_KEY."
-        ),
-    )
-    p.add_argument(
-        "--audit-limit",
-        dest="audit_limit",
-        type=int,
-        default=None,
-        help="Max number of flagged jobs the salary audit reviews in this run.",
-    )
-    p.add_argument(
-        "--audit-full",
-        dest="audit_full",
-        action="store_true",
-        help=(
-            "Review every active priced job, not just heuristic-flagged outliers. "
-            "Only sensible while the dataset is small enough to make a full LLM pass "
-            "affordable — use --audit-limit to cap cost/time if needed."
-        ),
-    )
-    p.add_argument(
-        "--repair-companies",
-        dest="repair_companies",
-        action="store_true",
-        help=(
-            "Phase 13 Fix A backfill: query JobsDB GraphQL for each active JobsDB job "
-            "and update the company column from the authoritative advertiser.name field. "
-            "Fixes rows that were mislabeled before the card-extraction fix was deployed. "
-            "No descriptions are re-fetched — this is a metadata-only correction pass. "
-            "Use --fetch-limit to process a subset for testing."
-        ),
-    )
-    p.add_argument(
-        "--report",
-        choices=["trends", "velocity"],
-        metavar="{trends,velocity}",
-        help=(
-            "Print an analytics report without running the scrapers. "
-            "'trends' shows per-company 7/30d averages; "
-            "'velocity' ranks companies by hiring growth rate."
-        ),
-    )
-    p.add_argument(
-        "--export-trends",
-        dest="export_trends",
-        metavar="PATH",
-        help="Export the latest trend snapshot for every company to a JSONL file.",
-    )
-    p.add_argument(
-        "--fetch-posts",
-        dest="fetch_posts",
-        action="store_true",
-        help=(
-            "LP-2 'Secret Market' pipeline: poll recruiters.yaml watchlist for new "
-            "LinkedIn posts via Apify (raw ingestion only — no jobs/PocketBase yet, "
-            "see docs/PLAN_LINKEDIN_POSTS.md). Requires APIFY_API_TOKEN. "
-            "Self-enforces the $30/mo budget cap (hk_jobs.posts.budget)."
-        ),
-    )
-    p.add_argument(
-        "--fetch-posts-backfill",
-        dest="fetch_posts_backfill",
-        action="store_true",
-        help=(
-            "One-time deep pull per recruiter: no date filter, up to max_posts "
-            "(default 50) each, instead of --fetch-posts's normal 'since last "
-            "success' incremental window. Use this once (or after adding new "
-            "recruiters) to actually populate real post history — every normal "
-            "--fetch-posts call, including each recruiter's very first, was "
-            "already scoped to a 48h floor, so raising max_posts alone never "
-            "increased real volume. Requires APIFY_API_TOKEN."
-        ),
-    )
-    p.add_argument(
-        "--posts-discovery",
-        dest="posts_discovery",
-        action="store_true",
-        help=(
-            "LP-2 weekly discovery search: keyword search for new job-bearing posts "
-            "(hk_jobs.posts.fetcher.DEFAULT_DISCOVERY_QUERIES). Independent of "
-            "--fetch-posts — run on a weekly cadence, not daily. Requires APIFY_API_TOKEN."
-        ),
-    )
-    p.add_argument(
-        "--promote-posts",
-        dest="promote_posts",
-        action="store_true",
-        help=(
-            "LP-3: classify+extract every pending linkedin_posts row via DeepSeek and "
-            "promote the ones that pass the gate (concrete title + HK-plausible location) "
-            "into the jobs table as source='linkedin_posts'. Requires DEEPSEEK_API_KEY. "
-            "Prints the Secret Market metrics (promoted, %% truly hidden, %% high-confidence) "
-            "after the run."
-        ),
-    )
-    p.add_argument(
-        "--posts-pilot-report",
-        dest="posts_pilot_report",
-        metavar="PATH",
-        nargs="?",
-        const="-",
-        help=(
-            "LP-4: print the pilot go/no-go report (promoted count, %% truly hidden, "
-            "cost so far, extrapolated monthly, a random sample for manual precision "
-            "spot-check). No scraping/vendor calls. Pass a path to also write the "
-            "markdown to a file; omit the path to print only."
-        ),
-    )
-    p.add_argument(
-        "--harvest-recruiter-emails",
-        dest="harvest_recruiter_emails",
-        action="store_true",
-        help=(
-            "LP-5: one-time-per-recruiter (then quarterly-refresh) email harvest via "
-            "harvestapi/linkedin-profile-scraper's $10/1k email-search mode. Skips "
-            "recruiters with an email fetched in the last 90 days unless --force-refresh. "
-            "Also backfills board_signals.recruiter_email on already-promoted jobs. "
-            "Requires APIFY_API_TOKEN. Self-enforces the $30/mo budget cap."
-        ),
-    )
-    p.add_argument(
-        "--force-refresh",
-        dest="force_refresh",
-        action="store_true",
-        help=(
-            "With --harvest-recruiter-emails: re-fetch every recruiter's email, "
-            "ignoring the 90-day freshness skip."
-        ),
-    )
-    p.add_argument(
-        "--deactivate-stale-posts",
-        dest="deactivate_stale_posts",
-        type=int,
-        nargs="?",
-        const=90,
-        metavar="DAYS",
-        help=(
-            "Soft-delete (is_active=0) active linkedin_posts jobs whose posted_at "
-            "is older than DAYS (default 90 / ~3 months). No scraping/vendor calls. "
-            "linkedin_posts-only: --fetch-posts-backfill can promote posts from "
-            "months/years ago since it pulls full history with no date filter."
-        ),
-    )
-    p.add_argument(
-        "--check-ghost-jobs",
-        dest="check_ghost_jobs",
-        action="store_true",
-        help=(
-            "Flag active linkedin_posts jobs that are actually the same real vacancy "
-            "as one already on the mainstream/boutique board (invisible to the "
-            "company_slug-based reconcile_cross_posted() since confidential posts "
-            "never carry a real employer slug). Free fuzzy-title pre-filter, then one "
-            "cheap DeepSeek call per candidate post. Sets "
-            "board_signals.not_a_ghost_job=true on confirmed matches. No scraping/"
-            "Apify calls. Requires DEEPSEEK_API_KEY."
-        ),
-    )
-    return p.parse_args(argv)
-
-
 def main(argv: list[str] | None = None) -> None:
-    args = _parse_args(argv)
-    # --verbose implies DEBUG regardless of --log-level
-    if args.verbose:
-        args.log_level = "DEBUG"
-    logging.basicConfig(
-        level=getattr(logging, args.log_level),
-        format="%(asctime)s  %(levelname)-8s  %(name)s — %(message)s",
-        datefmt="%H:%M:%S",
-    )
-    if args.verbose:
-        # httpcore/httpx emit a log line for every TCP event at DEBUG level —
-        # that noise drowns the per-job output we actually want to see.
-        for noisy in ("httpcore", "httpx", "hpack", "h11"):
-            logging.getLogger(noisy).setLevel(logging.WARNING)
+    """
+    Kept so `python -m hk_jobs.pipeline` keeps working — the command in
+    `daily_run.sh`, twenty README examples and a dozen docstrings.
 
-    # Ensure phase 11–13 tables/columns exist on every real-DB run (idempotent).
-    if not getattr(args, "dry_run", False):
-        from hk_jobs.migrations import (
-            migrate_to_phase_11,
-            migrate_to_phase_12,
-            migrate_to_phase_13,
-            migrate_to_phase_14,
-            migrate_to_phase_15,
-            migrate_to_phase_16,
-            migrate_to_phase_17,
-            migrate_to_phase_18,
-            migrate_to_phase_19,
-            migrate_to_phase_20,
-            migrate_to_phase_21,
-            migrate_to_phase_22,
-            migrate_to_phase_23,
-            migrate_to_phase_24,
-            migrate_to_phase_25,
-            migrate_to_phase_26,
-            migrate_to_phase_29,
-        )
-        Path(args.db).parent.mkdir(parents=True, exist_ok=True)
-        migrate_to_phase_11(args.db)
-        migrate_to_phase_12(args.db)
-        migrate_to_phase_13(args.db)
-        migrate_to_phase_14(args.db)
-        migrate_to_phase_15(args.db)
-        migrate_to_phase_16(args.db)
-        migrate_to_phase_17(args.db)
-        migrate_to_phase_18(args.db)
-        migrate_to_phase_19(args.db)
-        migrate_to_phase_20(args.db)
-        migrate_to_phase_21(args.db)
-        migrate_to_phase_22(args.db)
-        migrate_to_phase_23(args.db)
-        migrate_to_phase_24(args.db)
-        migrate_to_phase_25(args.db)
-        migrate_to_phase_26(args.db)
-        # Restamps enrichments whose version string changed shape but not meaning,
-        # so a derived PROMPT_VERSION does not re-pay for ~5,000 correct estimates.
-        migrate_to_phase_29(args.db)
+    The CLI itself lives in `hk_jobs.cli`. Imported here rather than at module
+    scope because `cli` imports `run` from this module.
+    """
+    from hk_jobs.cli import main as cli_main
 
-    # --weekly-report: send Monday trend report email (no scraping).
-    if getattr(args, "weekly_report", False):
-        from hk_jobs.reports.weekly import generate_weekly_report
-        generate_weekly_report(db_path=args.db)
-        return
-
-    # --notify-summary: send daily summary email (no scraping).
-    if getattr(args, "notify_summary", False):
-        from hk_jobs.notifications import send_daily_summary
-        send_daily_summary(db_path=args.db)
-        return
-
-    # --backup: create a dated copy of jobs.db, prune old backups.
-    if getattr(args, "backup", False):
-        from hk_jobs.backup import backup_database
-        backup_database(db_path=args.db)
-        return
-
-    # --report / --export-trends: analytics-only mode, no scraping.
-    if args.report or getattr(args, "export_trends", None):
-        from hk_jobs import analytics
-        if args.report == "trends":
-            analytics.print_trends_report(args.db)
-        elif args.report == "velocity":
-            analytics.print_velocity_report(args.db)
-        if getattr(args, "export_trends", None):
-            count = analytics.export_trends_jsonl(args.db, args.export_trends)
-            logger.info("Exported %d trend records → %s", count, args.export_trends)
-        return
-
-    # --enrich / --enrich-boutique: LLM enrichment pass, no scraping.
-    if getattr(args, "enrich", False) or getattr(args, "enrich_boutique", False):
-        from hk_jobs.enrichment import EnrichmentPipeline
-        EnrichmentPipeline(db_path=args.db).run(
-            limit=getattr(args, "enrich_limit", None),
-            incremental=getattr(args, "incremental", False),
-            re_enrich=getattr(args, "re_enrich", False),
-            boutique_only=getattr(args, "enrich_boutique", False),
-        )
-        return
-
-    # --audit-salaries: outlier audit agent pass, no scraping.
-    if getattr(args, "audit_salaries", False):
-        from hk_jobs.migrations import migrate_to_phase_24
-        from hk_jobs.salary_audit import run_audit
-        migrate_to_phase_24(args.db)
-        run_audit(args.db, limit=getattr(args, "audit_limit", None),
-                  full=getattr(args, "audit_full", False))
-        return
-
-    # --fetch-descriptions: pull full description text from detail pages.
-    if getattr(args, "fetch_descriptions", False):
-        from hk_jobs.description_fetcher import DescriptionFetcher
-        DescriptionFetcher(db_path=args.db).run(
-            limit=getattr(args, "fetch_limit", None),
-            incremental=getattr(args, "incremental", False),
-        )
-        return
-
-    # --fetch-posts: LP-2 watchlist poll, raw ingestion only. No scraping.
-    if getattr(args, "fetch_posts", False):
-        from hk_jobs.migrations import migrate_to_phase_26
-        from hk_jobs.posts.fetcher import fetch_watchlist
-        migrate_to_phase_26(args.db)
-        summary = fetch_watchlist(args.db)
-        if summary.errors and not summary.recruiters_polled:
-            raise SystemExit(f"Posts watchlist poll failed entirely: {summary.errors}")
-        return
-
-    # --fetch-posts-backfill: one-time deep pull, no date filter. No scraping.
-    if getattr(args, "fetch_posts_backfill", False):
-        from hk_jobs.migrations import migrate_to_phase_26
-        from hk_jobs.posts.fetcher import fetch_watchlist
-        migrate_to_phase_26(args.db)
-        summary = fetch_watchlist(args.db, backfill=True)
-        if summary.errors and not summary.recruiters_polled:
-            raise SystemExit(f"Posts backfill failed entirely: {summary.errors}")
-        return
-
-    # --posts-discovery: LP-2 weekly keyword discovery search. No scraping.
-    if getattr(args, "posts_discovery", False):
-        from hk_jobs.migrations import migrate_to_phase_26
-        from hk_jobs.posts.fetcher import fetch_discovery
-        migrate_to_phase_26(args.db)
-        summary = fetch_discovery(args.db)
-        if summary.errors and not summary.recruiters_polled:
-            raise SystemExit(f"Posts discovery search failed entirely: {summary.errors}")
-        return
-
-    # --promote-posts: LP-3 classify+extract+promote pass. No scraping.
-    if getattr(args, "promote_posts", False):
-        from hk_jobs.migrations import migrate_to_phase_26, migrate_to_phase_27
-        from hk_jobs.posts.metrics import compute_metrics, format_metrics
-        from hk_jobs.posts.promote import run_promotion
-        migrate_to_phase_26(args.db)
-        migrate_to_phase_27(args.db)
-        summary = run_promotion(args.db)
-        logger.info(format_metrics(compute_metrics(args.db)))
-        if summary.errors and not summary.promoted and summary.processed:
-            raise SystemExit(f"Posts promotion failed entirely: {summary.errors}")
-        return
-
-    # --posts-pilot-report: LP-4 go/no-go report. No scraping/vendor calls.
-    if getattr(args, "posts_pilot_report", None):
-        from hk_jobs.posts.pilot_report import format_report, generate_pilot_report
-        report = format_report(generate_pilot_report(args.db))
-        print(report)
-        target = args.posts_pilot_report
-        if target != "-":
-            Path(target).write_text(report, encoding="utf-8")
-            logger.info("Pilot report written to %s", target)
-        return
-
-    # --harvest-recruiter-emails: LP-5 one-time/quarterly email harvest. No scraping.
-    if getattr(args, "harvest_recruiter_emails", False):
-        from hk_jobs.migrations import migrate_to_phase_26, migrate_to_phase_28
-        from hk_jobs.posts.email_harvest import run_email_harvest
-        migrate_to_phase_26(args.db)
-        migrate_to_phase_28(args.db)
-        summary = run_email_harvest(args.db, force=getattr(args, "force_refresh", False))
-        if summary.errors and not summary.harvested and summary.checked:
-            raise SystemExit(f"Recruiter email harvest failed entirely: {summary.errors}")
-        return
-
-    # --deactivate-stale-posts: soft-delete old linkedin_posts jobs. No scraping.
-    if getattr(args, "deactivate_stale_posts", None) is not None:
-        from hk_jobs.posts.expiry import deactivate_stale_jobs
-        deactivate_stale_jobs(args.db, max_age_days=args.deactivate_stale_posts)
-        return
-
-    # --check-ghost-jobs: flag Secret Market posts that duplicate a board listing.
-    if getattr(args, "check_ghost_jobs", False):
-        from hk_jobs.posts.ghost_check import run_ghost_check
-        summary = run_ghost_check(args.db)
-        logger.info(
-            "Ghost check: %d checked, %d with candidates, %d AI calls, "
-            "%d matched, %d errors",
-            summary.checked, summary.with_candidates, summary.ai_calls,
-            summary.matched, summary.errors,
-        )
-        return
-
-    # --repair-companies: fix mislabeled company fields for existing JobsDB rows
-    # using the GraphQL advertiser.name (Phase 13 Fix A backfill).
-    if getattr(args, "repair_companies", False):
-        from hk_jobs.description_fetcher import DescriptionFetcher
-        DescriptionFetcher(db_path=args.db).run(
-            limit=getattr(args, "fetch_limit", None),
-            repair_companies=True,
-        )
-        return
-
-    _start = time.monotonic()
-    try:
-        run(args)
-    except Exception as exc:
-        if not getattr(args, "dry_run", False):
-            try:
-                from hk_jobs.notifications import send_failure_alert
-                send_failure_alert(
-                    phase="Pipeline",
-                    error=str(exc),
-                    duration_seconds=int(time.monotonic() - _start),
-                )
-            except Exception:
-                pass
-        raise
+    cli_main(argv)
 
 
 if __name__ == "__main__":

@@ -264,8 +264,11 @@ def main() -> None:
                         datefmt="%H:%M:%S")
     for noisy in ("httpcore", "httpx"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
-    from hk_jobs.migrations import migrate_to_phase_24
-    migrate_to_phase_24(args.db)
+    # The whole ledger, not the one phase this module happens to need. Naming
+    # your own prerequisites is how the startup path came to be missing phases
+    # 27 and 28 — see hk_jobs/migrations.py.
+    from hk_jobs.migrations import migrate
+    migrate(args.db)
     run_audit(args.db, limit=args.limit, dry_run=args.dry_run, full=args.full)
 
 

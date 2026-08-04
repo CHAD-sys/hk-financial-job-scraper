@@ -227,7 +227,15 @@ companies.yaml  →  pipeline.py  →  [adapter fallback chain]  →  enrich  �
 | `job_history` | Daily snapshots per company for trend tracking |
 | `company_metrics` | 7-day and 30-day rolling averages + growth rates |
 
-The full job description on `jobs` is never overwritten — enrichment still reads it. Migrations are phased and idempotent (`migrations.py`).
+The full job description on `jobs` is never overwritten — enrichment still reads it.
+
+Migrations are phased and idempotent (`migrations.py`). Every phase is registered in one
+ordered `MIGRATIONS` tuple, and `migrate(db_path)` applies whatever a given database has
+not yet recorded in its `schema_migrations` table — so a database can be built from
+nothing (`--db data/new.db` just works) and no mode has to know which phases it needs.
+Adding one means writing `migrate_to_phase_NN(db_path)` and appending it to `MIGRATIONS`;
+never edit a migration that has already been applied, since the ledger will not run it
+again.
 
 ---
 
@@ -370,10 +378,11 @@ hk-job-scraper/
 │   ├── sync_pocketbase.py       # One-way jobs.db -> PocketBase mirror
 │   ├── notifications.py         # Daily summary + failure-alert email
 │   ├── backup.py                # Rolling DB backups
-│   ├── migrations.py            # Phased, idempotent SQLite migrations
+│   ├── migrations.py            # Phased migrations + the schema_migrations ledger
 │   ├── llm_client.py            # Shared DeepSeek client
 │   ├── http_utils.py            # Shared httpx retry/backoff helpers
-│   ├── pipeline.py              # Orchestration + CLI (argparse)
+│   ├── pipeline.py              # The scrape: adapters → enrich → store
+│   ├── cli.py                   # PipelineArgs, the argparse parser, and the mode registry
 │   ├── schema.py                # Pydantic Job model + dedup hashing
 │   ├── posts/                   # Recruiter Posts (LinkedIn) — paid-vendor exception
 │   │   ├── vendor_client.py     # Apify/HarvestAPI client

@@ -138,6 +138,28 @@ _SOURCE_PRIORITY: tuple[str, ...] = (
 )
 
 
+def ensure_schema(db_path: str) -> None:
+    """
+    Create the `jobs` table and its indexes if they are absent.
+
+    The base schema every later migration alters. It used to be reachable only
+    by constructing a `JobStore`, which put it AFTER the migrations in `main()`
+    — so on a database that did not already exist, the seven `ALTER TABLE jobs`
+    migrations died on `no such table: jobs` and the pipeline could not
+    bootstrap. `migrations.migrate()` calls this first (as phase 10) so the
+    ordering is stated once instead of depending on which object happens to be
+    constructed first.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        with conn:
+            conn.execute(_CREATE_TABLE)
+            for idx_sql in _CREATE_INDEXES:
+                conn.execute(idx_sql)
+    finally:
+        conn.close()
+
+
 def _preferred_apply_url(members: list[sqlite3.Row]) -> str:
     """Return the URL of the highest-priority source among cross-posted copies."""
     def rank(row: sqlite3.Row) -> int:

@@ -1,13 +1,44 @@
 """
 Database migrations for hk_jobs.
 
-Each migration function is idempotent — safe to call on every startup.
+WHY THERE IS A LEDGER
+---------------------
+There was no record of what had run. Nineteen idempotent functions existed, and
+knowing whether a database was up to date meant reading `pipeline.main()` and
+comparing its import list against the `def`s in this file by eye. That went
+wrong in the three ways you would expect:
+
+  - **The list drifted.** Phases 27 and 28 were never added to it. They ran only
+    inside `--promote-posts` and `--harvest-recruiter-emails`, so a database
+    that had never been asked to do either was missing columns nothing would
+    tell you about.
+  - **Every mode re-derived its own subset.** Five separate branches called
+    `migrate_to_phase_26` before doing their work, each one a guess at its own
+    prerequisites.
+  - **A fresh database could not be built at all.** Seven migrations
+    `ALTER TABLE jobs`, but `jobs` is created by `JobStore`, which `main()` did
+    not reach until after the migrations had already failed. Phase 10 below is
+    that missing first step.
+
+`MIGRATIONS` is now the single ordered list, and `migrate()` applies whatever a
+given database has not recorded yet. Each function is still idempotent — that
+property is what lets an existing database (which has every migration applied
+and no ledger) converge safely on its next run: everything is re-applied as a
+no-op, then recorded, and subsequent runs skip it.
+
+ADDING A MIGRATION
+------------------
+Write `migrate_to_phase_NN(db_path)` and append `(NN, migrate_to_phase_NN)` to
+`MIGRATIONS`. Nothing else. Never edit a migration that has already been
+applied somewhere — the ledger means it will not run again, so the edit would
+land on new databases only.
 """
 
 from __future__ import annotations
 
 import logging
 import sqlite3
+from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +91,20 @@ CREATE TABLE IF NOT EXISTS job_enrichments (
     FOREIGN KEY (source, source_id) REFERENCES jobs (source, source_id)
 );
 """
+
+
+def migrate_to_phase_10(db_path: str) -> None:
+    """
+    Create the `jobs` table and its indexes — the base schema.
+
+    Numbered 10 because it is what existed before phase 11: the shape every
+    later `ALTER TABLE jobs` migration assumes. It lived in `JobStore.__init__`
+    only, which meant it ran after the migrations rather than before them, and
+    a database that did not already exist could not be migrated.
+    """
+    from hk_jobs.storage import ensure_schema
+
+    ensure_schema(db_path)
 
 
 def migrate_to_phase_11(db_path: str) -> None:
@@ -657,3 +702,101 @@ def migrate_to_phase_29(db_path: str) -> None:
             logger.debug("Phase 29 migration: nothing to restamp.")
     finally:
         conn.close()
+
+
+# ── The ledger ────────────────────────────────────────────────────────────────
+
+_SCHEMA_MIGRATIONS_DDL = """
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    phase       INTEGER PRIMARY KEY,
+    applied_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
+#: Every migration, in the order it must run. The ONE list — appending here is
+#: the whole of registering a new phase.
+#:
+#: Order is load-bearing beyond the obvious: 10 creates `jobs` before the seven
+#: phases that alter it; 26 creates `linkedin_posts` and `recruiter_fetch_state`
+#: before 27 and 28 add columns to them; 12 creates `job_enrichments` before 29
+#: restamps rows in it.
+MIGRATIONS: tuple[tuple[int, Callable[[str], None]], ...] = (
+    (10, migrate_to_phase_10),
+    (11, migrate_to_phase_11),
+    (12, migrate_to_phase_12),
+    (13, migrate_to_phase_13),
+    (14, migrate_to_phase_14),
+    (15, migrate_to_phase_15),
+    (16, migrate_to_phase_16),
+    (17, migrate_to_phase_17),
+    (18, migrate_to_phase_18),
+    (19, migrate_to_phase_19),
+    (20, migrate_to_phase_20),
+    (21, migrate_to_phase_21),
+    (22, migrate_to_phase_22),
+    (23, migrate_to_phase_23),
+    (24, migrate_to_phase_24),
+    (25, migrate_to_phase_25),
+    (26, migrate_to_phase_26),
+    (27, migrate_to_phase_27),
+    (28, migrate_to_phase_28),
+    (29, migrate_to_phase_29),
+)
+
+LATEST_PHASE = MIGRATIONS[-1][0]
+
+
+def applied_phases(db_path: str) -> set[int]:
+    """
+    Which phases this database has recorded.
+
+    Empty for a database that has never been migrated AND for one that was
+    migrated before the ledger existed — the two are indistinguishable, which is
+    fine precisely because every migration is idempotent: re-applying them all
+    on the pre-ledger database is a series of no-ops.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        with conn:
+            conn.execute(_SCHEMA_MIGRATIONS_DDL)
+        return {row[0] for row in conn.execute("SELECT phase FROM schema_migrations")}
+    finally:
+        conn.close()
+
+
+def migrate(db_path: str) -> list[int]:
+    """
+    Bring `db_path` up to `LATEST_PHASE`. Returns the phases applied this call.
+
+    The one way to migrate. Callers do not choose which phases they need — that
+    was the previous arrangement, and it is how phases 27 and 28 came to be
+    missing from the startup path while five separate modes each hand-picked
+    phase 26.
+
+    A phase is applied and recorded in the same connection-less step; if one
+    raises, the phases before it stay recorded and the run aborts, so the next
+    run resumes at the failure rather than starting over.
+    """
+    done = applied_phases(db_path)
+    pending = [(phase, fn) for phase, fn in MIGRATIONS if phase not in done]
+    if not pending:
+        logger.debug("Schema is current at phase %d.", LATEST_PHASE)
+        return []
+
+    logger.info(
+        "Applying %d migration(s): %s",
+        len(pending), ", ".join(str(p) for p, _ in pending),
+    )
+    for phase, fn in pending:
+        fn(db_path)
+        conn = sqlite3.connect(db_path)
+        try:
+            with conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO schema_migrations (phase) VALUES (?)",
+                    (phase,),
+                )
+        finally:
+            conn.close()
+
+    return [phase for phase, _ in pending]

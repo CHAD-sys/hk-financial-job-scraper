@@ -1,26 +1,33 @@
 """
-Tests for hk_jobs/pipeline.py — pipeline orchestrator.
+Tests for hk_jobs/pipeline.py — the scrape itself.
+
+The CLI that selects it lives in `hk_jobs/cli.py`, and so do its tests.
 
 Two things these tests have to imitate about production, both of which they
 previously did not:
 
-  - `main()` runs the migrations before it ever calls `run()`, and `run()`
-    records a daily snapshot into `job_history`. A bare database has no such
-    table, so every test that called `run()` died on
+  - `main()` migrates before it ever calls `run()`, and `run()` records a daily
+    snapshot into `job_history`. A bare database has no such table, so every
+    test that called `run()` died on
     `sqlite3.OperationalError: no such table: job_history`.
   - `run()` calls `load_companies` TWICE — once for the config, once for
     `companies_longtail.yaml` — so a mock that ignores its path argument
     returns the same companies both times and silently doubles the list.
 
 `_db()` and `_load_companies` below are those two facts, stated once.
+
+The third — that `run()` read ~20 settings off an `argparse.Namespace` these
+tests built with 8, so anything omitted silently became `False` — no longer
+needs a helper to state it. `_args()` returns a `PipelineArgs`, which supplies
+production's default for every setting a test does not name.
 """
 
-import argparse
 from datetime import UTC, datetime
 from pathlib import Path
 
+from hk_jobs.cli import PipelineArgs
 from hk_jobs.config import CompanyConfig
-from hk_jobs.migrations import migrate_to_phase_11
+from hk_jobs.migrations import migrate_to_phase_10, migrate_to_phase_11
 from hk_jobs.pipeline import COMPANY_TIMEOUT_SECS, run
 from hk_jobs.schema import Job
 from hk_jobs.storage import JobStore
@@ -61,6 +68,7 @@ def _db(tmp_path: Path) -> str:
     application never sees.
     """
     path = str(tmp_path / "jobs.db")
+    migrate_to_phase_10(path)   # the jobs table — phase 11's tables sit beside it
     migrate_to_phase_11(path)
     return path
 
@@ -87,16 +95,21 @@ def _args(
     company: str | None = None,
     dry_run: bool = False,
     verbose: bool = False,
-) -> argparse.Namespace:
-    return argparse.Namespace(
+) -> PipelineArgs:
+    """
+    Production's settings, with only what a test cares about overridden.
+
+    `no_enrich=True` keeps these tests off the enrichment path; everything else
+    is whatever the CLI would have produced, because `PipelineArgs` declares one
+    default per setting rather than leaving it to whoever builds the namespace.
+    """
+    return PipelineArgs(
         db=db,
         export=export,
-        company=company,
+        company=(company,) if company else (),
         dry_run=dry_run,
         verbose=verbose,
         no_enrich=True,   # skip enrichment so tests don't depend on enrich logic
-        config=None,
-        log_level="WARNING",
     )
 
 
@@ -320,38 +333,7 @@ def test_dry_run_does_not_call_mark_inactive(tmp_path: Path, monkeypatch):
     assert results[0].deactivated == 0
 
 
-# ── --only / --verbose ────────────────────────────────────────────────────────
-
-def test_only_flag_accepted_by_parse_args():
-    from hk_jobs.pipeline import _parse_args
-
-    args = _parse_args(["--only", "aia-hk", "--db", "data/jobs.db"])
-    assert args.company == ["aia-hk"]  # action='append' returns a list
-
-
-def test_only_flag_accepts_multiple_slugs():
-    from hk_jobs.pipeline import _parse_args
-
-    args = _parse_args(["--only", "aia-hk", "--only", "blackrock-hk", "--db", "data/jobs.db"])
-    assert set(args.company) == {"aia-hk", "blackrock-hk"}
-
-
-def test_company_flag_still_accepted_by_parse_args():
-    from hk_jobs.pipeline import _parse_args
-
-    args = _parse_args(["--company", "aia-hk", "--db", "data/jobs.db"])
-    assert args.company == ["aia-hk"]
-
-
-def test_verbose_flag_parsed():
-    from hk_jobs.pipeline import _parse_args
-
-    args = _parse_args(["-v", "--db", "data/jobs.db"])
-    assert args.verbose is True
-
-    args2 = _parse_args(["--verbose", "--db", "data/jobs.db"])
-    assert args2.verbose is True
-
+# ── --verbose ─────────────────────────────────────────────────────────────────
 
 def test_verbose_logs_job_titles(tmp_path: Path, monkeypatch, caplog):
     import logging
