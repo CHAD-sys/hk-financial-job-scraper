@@ -4,9 +4,9 @@
 
 **Automated collection, AI enrichment, and market intelligence for Hong Kong's financial sector**
 
-![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white) ![React](https://img.shields.io/badge/UI-React%20%2B%20Vite-61DAFB?logo=react&logoColor=black) ![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?logo=sqlite&logoColor=white) ![DeepSeek](https://img.shields.io/badge/AI-DeepSeek-8A2BE2) ![Sources](https://img.shields.io/badge/Sources-7-orange) ![Companies](https://img.shields.io/badge/Companies-190%2B-teal) ![Jobs](https://img.shields.io/badge/Active%20Jobs-5%2C000%2B-success) ![Enriched](https://img.shields.io/badge/AI%20Enriched-100%25-brightgreen) ![Recruiter Posts](https://img.shields.io/badge/Recruiter%20Posts-LinkedIn-6B4EFF) ![Private](https://img.shields.io/badge/Visibility-Private-lightgrey)
+![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white) ![React](https://img.shields.io/badge/UI-React%20%2B%20Vite-61DAFB?logo=react&logoColor=black) ![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?logo=sqlite&logoColor=white) ![DeepSeek](https://img.shields.io/badge/AI-DeepSeek-8A2BE2) ![Sources](https://img.shields.io/badge/Sources-9-orange) ![Companies](https://img.shields.io/badge/Companies-248-teal) ![Jobs](https://img.shields.io/badge/Active%20Jobs-5%2C000%2B-success) ![Enriched](https://img.shields.io/badge/AI%20Enriched-100%25-brightgreen) ![Recruiter Posts](https://img.shields.io/badge/Recruiter%20Posts-LinkedIn-6B4EFF) ![Private](https://img.shields.io/badge/Visibility-Private-lightgrey)
 
-*Not just a scraper — a full pipeline that **collects** jobs from 7 sources plus a LinkedIn recruiter-posts watchlist, **enriches** every listing with AI, **analyses** hiring trends over time, and **delivers** it through a web board, a boss-facing mirror, PDF intelligence reports, and daily email.*
+*Not just a scraper — a full pipeline that **collects** jobs from 8 adapters plus a LinkedIn recruiter-posts watchlist, **enriches** every listing with AI, **analyses** hiring trends over time, and **delivers** it through a web board, a boss-facing mirror, PDF intelligence reports, and daily email.*
 
 </div>
 
@@ -32,7 +32,7 @@ A fully automated platform that tracks hiring across Hong Kong's largest banks, 
 
 Every source maps into one canonical `Job` schema, so the rest of the system never knows or cares which board a listing came from. Adding a company is usually a single config entry.
 
-> **7 sources · 190+ companies · 5,000+ active jobs · 100% AI-enriched · daily automation**
+> **9 sources · 248 companies · 5,000+ active jobs · 100% AI-enriched · daily automation**
 
 ---
 

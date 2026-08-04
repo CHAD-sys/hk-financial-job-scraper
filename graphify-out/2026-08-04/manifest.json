@@ -75,9 +75,9 @@
     "semantic_hash": "fff68d03499d3fd6622050489ce7f34c"
   },
   "hk_jobs/migrations.py": {
-    "mtime": 1784806744.0262687,
-    "ast_hash": "f6ef8111bf8042a4cb9e88824347f5b2",
-    "semantic_hash": "f6ef8111bf8042a4cb9e88824347f5b2"
+    "mtime": 1785838052.2004795,
+    "ast_hash": "e341a2b347d439f120c0ffbd5ff859a0",
+    "semantic_hash": ""
   },
   "hk_jobs/notifications.py": {
     "mtime": 1785790637.5292685,
@@ -85,9 +85,9 @@
     "semantic_hash": ""
   },
   "hk_jobs/pipeline.py": {
-    "mtime": 1784806744.0268908,
-    "ast_hash": "246fb3248c8e5ab6e9d433b3fdd50be4",
-    "semantic_hash": "246fb3248c8e5ab6e9d433b3fdd50be4"
+    "mtime": 1785838223.0108266,
+    "ast_hash": "5722e3f4ddabd8156fa36132f9943461",
+    "semantic_hash": ""
   },
   "hk_jobs/reports/__init__.py": {
     "mtime": 1780655202.8489363,
@@ -105,9 +105,9 @@
     "semantic_hash": "8a1a516c62c3595f5c5cf6b179784aae"
   },
   "hk_jobs/storage.py": {
-    "mtime": 1784806744.0390537,
-    "ast_hash": "2ec0d476dfbaef2169d7ac7a7cff9fbf",
-    "semantic_hash": "2ec0d476dfbaef2169d7ac7a7cff9fbf"
+    "mtime": 1785838015.8509896,
+    "ast_hash": "a789878d70329aa2109dda3aeb94b8da",
+    "semantic_hash": ""
   },
   "pyproject.toml": {
     "mtime": 1780044652.7054415,
@@ -170,14 +170,14 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "tests/fixtures/eightfold/page0.json": {
-    "mtime": 1780046879.486217,
-    "ast_hash": "cc228ae73442d88f1922d64c376939ef",
-    "semantic_hash": "cc228ae73442d88f1922d64c376939ef"
+    "mtime": 1785836994.5926213,
+    "ast_hash": "44960ce1652fcfa89db891959457b8c1",
+    "semantic_hash": ""
   },
   "tests/fixtures/eightfold/page1.json": {
-    "mtime": 1780046884.2437117,
-    "ast_hash": "9a4d76d9f0f75ad723763b7dae56199c",
-    "semantic_hash": "9a4d76d9f0f75ad723763b7dae56199c"
+    "mtime": 1785836994.5930424,
+    "ast_hash": "3f8faa52ed155ccf39dd2280782d34f6",
+    "semantic_hash": ""
   },
   "tests/fixtures/workday/detail_jr001.json": {
     "mtime": 1780046493.2209573,
@@ -205,9 +205,9 @@
     "semantic_hash": "d27399ca79bc5367479346cea1ad64c2"
   },
   "tests/test_eightfold.py": {
-    "mtime": 1780047008.7549083,
-    "ast_hash": "16c42554b5eff810eac6c75f4bd65212",
-    "semantic_hash": "16c42554b5eff810eac6c75f4bd65212"
+    "mtime": 1785837002.2530513,
+    "ast_hash": "b9e05dacd6edf53ea8ee7b6e5ff989e2",
+    "semantic_hash": ""
   },
   "tests/test_enrich.py": {
     "mtime": 1780047577.7952003,
@@ -225,9 +225,9 @@
     "semantic_hash": "990c5deda3134ca432265b9a4131335c"
   },
   "tests/test_pipeline.py": {
-    "mtime": 1785791125.408848,
-    "ast_hash": "c348ef163a8c4622e72faf9f8f99f5d7",
-    "semantic_hash": "c348ef163a8c4622e72faf9f8f99f5d7"
+    "mtime": 1785838292.2613997,
+    "ast_hash": "583f6cbd9f3a78f35203f5978cd9e7fb",
+    "semantic_hash": ""
   },
   "tests/test_schema.py": {
     "mtime": 1780045375.2331967,
@@ -255,9 +255,9 @@
     "semantic_hash": "93b5a7f563417d0be76b4bf63b25d426"
   },
   "README.md": {
-    "mtime": 1785173748.214631,
-    "ast_hash": "8d01465b7554df0ee297c7e335aea866",
-    "semantic_hash": "8d01465b7554df0ee297c7e335aea866"
+    "mtime": 1785838530.6446786,
+    "ast_hash": "7ef0d7cd449987315871e22e4b70d178",
+    "semantic_hash": ""
   },
   "hk_jobs/companies.yaml": {
     "mtime": 1785362165.6887894,
@@ -680,8 +680,8 @@
     "semantic_hash": "13fe58b945abf4b68314e6b522719bfb"
   },
   "hk_jobs/salary_audit.py": {
-    "mtime": 1785791610.9795818,
-    "ast_hash": "404849c893d20ab3b449a2073c4484d6",
+    "mtime": 1785838440.6983237,
+    "ast_hash": "4fb07f896e3be3a867051ab9db6f6399",
     "semantic_hash": ""
   },
   "salary_guidlines/adecco_2026.json": {
@@ -2347,6 +2347,21 @@
   "tests/test_salary.py": {
     "mtime": 1785791744.099231,
     "ast_hash": "610410aeae133f32125f00f4e1a15463",
+    "semantic_hash": ""
+  },
+  "hk_jobs/cli.py": {
+    "mtime": 1785838435.050227,
+    "ast_hash": "1613684e104fa7f25a0631a559e5deaf",
+    "semantic_hash": ""
+  },
+  "tests/test_cli.py": {
+    "mtime": 1785838435.0504982,
+    "ast_hash": "3713ae59b8e09875c149d0a61c4d81d1",
+    "semantic_hash": ""
+  },
+  "tests/test_migrations.py": {
+    "mtime": 1785838333.6243231,
+    "ast_hash": "3c8df0ecbc8de5e5888968bbaa0c4cb0",
     "semantic_hash": ""
   }
 }
