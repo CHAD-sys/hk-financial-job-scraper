@@ -22,6 +22,7 @@ import json
 import logging
 import re
 import sqlite3
+from collections.abc import Collection, Iterable
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -30,6 +31,10 @@ from hk_jobs.schema import Job, jobs_to_jsonl
 from hk_jobs.sources import apply_rank, display_rank
 
 logger = logging.getLogger(__name__)
+
+#: SQLite caps expression-tree depth around 1000, so batched IN (...)
+#: clauses are chunked. Same limit and same reason as webapp/backend/job_read.py.
+_REF_CHUNK = 200
 
 # ── DDL ───────────────────────────────────────────────────────────────────────
 
@@ -450,21 +455,97 @@ class JobStore:
             if source is not None
             else (company_slug, fetched_iso)
         )
-        cursor = self._conn.execute(
+        # Select what is stale, then hand the write to deactivate(). The guards
+        # above are this method's own business — they answer "did this scrape
+        # fail?", which is a question no other caller asks — but the write, the
+        # soft-delete rule and the re-reconcile are everyone's, and live there.
+        stale = self._conn.execute(
             f"""
-            UPDATE jobs
-               SET is_active = 0
+            SELECT source, source_id
+              FROM jobs
              WHERE company_slug = ?
                {src_clause}
                AND is_active    = 1
                AND fetched_at   < ?
             """,
             params,
+        ).fetchall()
+        return self.deactivate(
+            [(r["source"], r["source_id"]) for r in stale],
+            reason="gone-from-source",
         )
-        self._conn.commit()
-        return cursor.rowcount
 
-    def reconcile_cross_posted(self) -> tuple[int, int]:
+    def deactivate(self, refs: Iterable[tuple[str, str]], *, reason: str) -> int:
+        """
+        Soft-delete the given (source, source_id) Listings. Returns rows changed.
+
+        THE ONE WRITE PATH TO is_active = 0, and the reason it exists.
+
+        "Soft-delete only" was enforced by comments in four modules rather than by
+        a module: `tech_filter.py`, `posts/expiry.py` and
+        `scripts/remove_tech_roles.py` each opened their own connection and ran
+        their own `UPDATE jobs SET is_active=0`. Three of them were correct about
+        the soft delete and wrong about what it costs.
+
+        Deactivating a Listing can hide a Role entirely. `reconcile_cross_posted`
+        elects exactly one copy of a cross-posted vacancy as `is_primary = 1` and
+        the board shows only that copy; deactivate the elected copy without
+        re-running the election and the surviving copies are all `is_primary = 0`,
+        so the Role disappears from the board while a live listing still exists.
+        Reproduced: a JobsDB + Workday pair, deactivate the JobsDB row, board goes
+        from 1 visible to 0 with the Workday row still `is_active = 1`.
+
+        Nothing in `tech_filter` or `expiry` mentioned it, and `pipeline.run()`
+        calls `run_tech_filter` AFTER `reconcile_cross_posted()`, so the window
+        opened on every nightly run and stayed open until the next one.
+
+        The re-election is scoped to the affected `company_slug`s, which bounds
+        the cost rather than eliminating it. Clustering is O(n^2) WITHIN a
+        company, so the work is sum(n^2) over the companies touched: measured on
+        the live database that is 1,002,066 pair comparisons in total, and one
+        company (bochk, 587 active Listings) is 34% of it. Deactivating anything
+        in a large company therefore costs about as much as a full pass — 22s
+        idle, ~50s under load.
+
+        Across a nightly run that is fine and the arithmetic is the reason:
+        `mark_inactive_for_run` fires once per company, each re-electing only its
+        own, so the total is sum(n^2) — ONE extra full pass, not 147. On a
+        20-minute scrape that is roughly 4%.
+        """
+        refs = list(refs)
+        if not refs:
+            return 0
+
+        slugs: set[str] = set()
+        changed = 0
+        with self._conn:
+            for chunk in (refs[i:i + _REF_CHUNK] for i in range(0, len(refs), _REF_CHUNK)):
+                placeholders = ",".join("(?,?)" * 1 for _ in chunk)
+                flat = [x for ref in chunk for x in ref]
+                rows = self._conn.execute(
+                    f"SELECT company_slug FROM jobs "
+                    f"WHERE is_active = 1 AND (source, source_id) IN (VALUES {placeholders})",
+                    flat,
+                ).fetchall()
+                slugs.update(r["company_slug"] for r in rows)
+                cur = self._conn.execute(
+                    f"UPDATE jobs SET is_active = 0 "
+                    f"WHERE is_active = 1 AND (source, source_id) IN (VALUES {placeholders})",
+                    flat,
+                )
+                changed += cur.rowcount
+
+        if changed:
+            logger.info(
+                "Deactivated %d listing(s) [%s]; re-electing primaries for %d company slug(s).",
+                changed, reason, len(slugs),
+            )
+            self.reconcile_cross_posted(company_slugs=slugs)
+        return changed
+
+    def reconcile_cross_posted(
+        self, *, company_slugs: Collection[str] | None = None
+    ) -> tuple[int, int]:
         """
         Detect vacancies that appear on more than one source and set apply_url.
 
@@ -498,10 +579,28 @@ class JobStore:
         """
         from collections import defaultdict
 
-        rows = self._conn.execute(
-            "SELECT rowid, company_slug, title, source, url, apply_url, cross_posted, is_primary "
-            "FROM jobs WHERE is_active = 1"
-        ).fetchall()
+        # company_slugs scopes the pass to the companies whose Listings just
+        # changed. Clustering is per-company and O(n^2) within one, so a full pass
+        # costs ~22s over 5,000 active rows — too slow to run after every
+        # deactivation, and unnecessary: a company nobody touched cannot have
+        # changed its election.
+        sql = (
+            "SELECT rowid, company_slug, title, source, url, apply_url, "
+            "cross_posted, is_primary FROM jobs WHERE is_active = 1"
+        )
+        if company_slugs is None:
+            rows = self._conn.execute(sql).fetchall()
+        else:
+            slugs = list(company_slugs)
+            if not slugs:
+                return 0, 0
+            rows = []
+            for i in range(0, len(slugs), _REF_CHUNK):
+                chunk = slugs[i:i + _REF_CHUNK]
+                ph = ",".join("?" * len(chunk))
+                rows += self._conn.execute(
+                    f"{sql} AND company_slug IN ({ph})", chunk
+                ).fetchall()
 
         by_company: dict[str, list[sqlite3.Row]] = defaultdict(list)
         for r in rows:

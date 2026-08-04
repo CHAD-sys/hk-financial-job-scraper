@@ -119,7 +119,8 @@ def main(argv=None) -> int:
     conn = sqlite3.connect(args.db)
     conn.row_factory = sqlite3.Row
     rows = conn.execute(
-        """SELECT j.title AS title, COALESCE(e.title_en,'') AS te
+        """SELECT j.source AS source, j.source_id AS source_id,
+                  j.title AS title, COALESCE(e.title_en,'') AS te
              FROM jobs j LEFT JOIN job_enrichments e
                ON j.source=e.source AND j.source_id=e.source_id
             WHERE j.is_active=1"""
@@ -159,17 +160,21 @@ def main(argv=None) -> int:
         return 0
 
     shutil.copy2(args.db, args.db + ".bak-pretech")
-    ph = ",".join("?" * len(tech_titles))
-    cur = conn.execute(
-        f"UPDATE jobs SET is_active=0 WHERE is_active=1 AND TRIM(title) IN ({ph})",
-        list(tech_titles),
-    )
-    conn.commit()
-    print(f"\n✅ Soft-deleted {cur.rowcount} tech job rows (is_active=0). "
-          f"Backup: {args.db}.bak-pretech", file=sys.stderr)
-    remaining = conn.execute("SELECT COUNT(*) FROM jobs WHERE is_active=1").fetchone()[0]
-    print(f"   Active jobs now: {remaining}", file=sys.stderr)
+    refs = [(r["source"], r["source_id"]) for r in affected]
     conn.close()
+
+    # Through JobStore.deactivate() rather than a raw UPDATE, so this one-off
+    # admin pass re-elects primaries like every other writer. A raw UPDATE here
+    # could hide a cross-posted Role from the board until the next nightly run.
+    from hk_jobs.storage import JobStore
+
+    with JobStore(args.db) as store:
+        removed = store.deactivate(refs, reason="hard-tech-manual")
+        remaining = store.stats()["active"]
+
+    print(f"\n✅ Soft-deleted {removed} tech job rows (is_active=0). "
+          f"Backup: {args.db}.bak-pretech", file=sys.stderr)
+    print(f"   Active jobs now: {remaining}", file=sys.stderr)
     return 0
 
 

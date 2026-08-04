@@ -33,6 +33,9 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+#: SQLite caps expression-tree depth around 1000; chunk batched IN (...).
+_TITLE_CHUNK = 200
+
 # deepseek-chat/deepseek-reasoner retired 2026-07-24 (see hk_jobs/enrichers/deepseek.py's
 # changelog, which migrated production enrichment off them). This module's model was left
 # stale and started hard-failing every call the moment the cutoff hit.
@@ -152,17 +155,34 @@ def run_tech_filter(db_path: str, api_key: str | None = None) -> tuple[int, int]
         )
 
     # Enforce: soft-delete active jobs whose title is known-tech.
+    #
+    # Select here, write through JobStore.deactivate(). This used to be a raw
+    # UPDATE on its own connection, which skipped the primary re-election: this
+    # step runs AFTER reconcile_cross_posted() in pipeline.run(), so deactivating
+    # the elected copy of a cross-posted Role left every surviving copy at
+    # is_primary=0 and the Role vanished from the board until the next night's run.
     tech_titles = [t for t, v in cached.items() if v == 1]
-    removed = 0
+    refs: list[tuple[str, str]] = []
     if tech_titles:
-        ph = ",".join("?" * len(tech_titles))
-        with conn:
-            cur = conn.execute(
-                f"UPDATE jobs SET is_active=0 WHERE is_active=1 AND TRIM(title) IN ({ph})",
-                tech_titles,
-            )
-            removed = cur.rowcount
+        for i in range(0, len(tech_titles), _TITLE_CHUNK):
+            chunk = tech_titles[i:i + _TITLE_CHUNK]
+            ph = ",".join("?" * len(chunk))
+            refs += [
+                (r[0], r[1])
+                for r in conn.execute(
+                    f"SELECT source, source_id FROM jobs "
+                    f"WHERE is_active=1 AND TRIM(title) IN ({ph})",
+                    chunk,
+                ).fetchall()
+            ]
+    conn.close()
+
+    removed = 0
+    if refs:
+        from hk_jobs.storage import JobStore
+
+        with JobStore(db_path) as store:
+            removed = store.deactivate(refs, reason="hard-tech")
     if removed:
         logger.info("tech-filter: soft-deleted %d hard-tech job row(s) (is_active=0)", removed)
-    conn.close()
     return classified, removed
