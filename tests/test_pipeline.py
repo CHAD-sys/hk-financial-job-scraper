@@ -1,10 +1,26 @@
-"""Tests for hk_jobs/pipeline.py — pipeline orchestrator."""
+"""
+Tests for hk_jobs/pipeline.py — pipeline orchestrator.
+
+Two things these tests have to imitate about production, both of which they
+previously did not:
+
+  - `main()` runs the migrations before it ever calls `run()`, and `run()`
+    records a daily snapshot into `job_history`. A bare database has no such
+    table, so every test that called `run()` died on
+    `sqlite3.OperationalError: no such table: job_history`.
+  - `run()` calls `load_companies` TWICE — once for the config, once for
+    `companies_longtail.yaml` — so a mock that ignores its path argument
+    returns the same companies both times and silently doubles the list.
+
+`_db()` and `_load_companies` below are those two facts, stated once.
+"""
 
 import argparse
 from datetime import UTC, datetime
 from pathlib import Path
 
 from hk_jobs.config import CompanyConfig
+from hk_jobs.migrations import migrate_to_phase_11
 from hk_jobs.pipeline import COMPANY_TIMEOUT_SECS, run
 from hk_jobs.schema import Job
 from hk_jobs.storage import JobStore
@@ -32,6 +48,37 @@ def _cfg(slug: str = "aia-hk", adapter: str = "workday") -> CompanyConfig:
         enabled=True,
         config={"tenant": "aia", "site": "External"},
     )
+
+
+def _db(tmp_path: Path) -> str:
+    """
+    A database path with the analytics tables in place.
+
+    `run()` records a snapshot into `job_history` / `company_metrics` at the end
+    of every non-dry run, and production creates those tables by running 16
+    migrations in `main()` long before `run()` is reached. Doing the same here is
+    what makes these tests exercise the production path rather than a shape the
+    application never sees.
+    """
+    path = str(tmp_path / "jobs.db")
+    migrate_to_phase_11(path)
+    return path
+
+
+def _load_companies(cfgs: list[CompanyConfig]):
+    """
+    A stand-in for `load_companies` that respects which file it was asked for.
+
+    `run()` calls it twice: once for the main config, once for
+    `companies_longtail.yaml`. A mock that ignores the path returns `cfgs` both
+    times, so the list doubles and `--company` filtering appears to return two
+    matches for one slug. Only the main-config call yields the test's companies;
+    the longtail call yields nothing, which is what an empty longtail track
+    looks like.
+    """
+    def fake(path=None):
+        return [] if path is not None and "longtail" in str(path) else cfgs
+    return fake
 
 
 def _args(
@@ -68,10 +115,10 @@ class _MockAdapter:
 def test_run_inserts_jobs(tmp_path: Path, monkeypatch):
     jobs = [_job("J-001"), _job("J-002")]
     cfg = _cfg()
-    monkeypatch.setattr("hk_jobs.pipeline.load_companies", lambda path=None: [cfg])
+    monkeypatch.setattr("hk_jobs.pipeline.load_companies", _load_companies([cfg]))
     monkeypatch.setattr(CompanyConfig, "build_adapter", lambda self: _MockAdapter(jobs))
 
-    results = run(_args(str(tmp_path / "jobs.db")))
+    results = run(_args(_db(tmp_path)))
 
     assert len(results) == 1
     assert results[0].total_fetched == 2
@@ -83,10 +130,10 @@ def test_run_inserts_jobs(tmp_path: Path, monkeypatch):
 def test_run_updates_on_re_run(tmp_path: Path, monkeypatch):
     jobs = [_job("J-001")]
     cfg = _cfg()
-    monkeypatch.setattr("hk_jobs.pipeline.load_companies", lambda path=None: [cfg])
+    monkeypatch.setattr("hk_jobs.pipeline.load_companies", _load_companies([cfg]))
     monkeypatch.setattr(CompanyConfig, "build_adapter", lambda self: _MockAdapter(jobs))
 
-    db = str(tmp_path / "jobs.db")
+    db = _db(tmp_path)
     run(_args(db))
     results = run(_args(db))
 
@@ -97,11 +144,11 @@ def test_run_updates_on_re_run(tmp_path: Path, monkeypatch):
 def test_run_flags_zero_jobs_company(tmp_path: Path, monkeypatch, caplog):
     import logging
     cfg = _cfg()
-    monkeypatch.setattr("hk_jobs.pipeline.load_companies", lambda path=None: [cfg])
+    monkeypatch.setattr("hk_jobs.pipeline.load_companies", _load_companies([cfg]))
     monkeypatch.setattr(CompanyConfig, "build_adapter", lambda self: _MockAdapter([]))
 
     with caplog.at_level(logging.WARNING):
-        results = run(_args(str(tmp_path / "jobs.db")))
+        results = run(_args(_db(tmp_path)))
 
     assert results[0].total_fetched == 0
     assert results[0].ok  # no error — just 0 jobs
@@ -114,10 +161,10 @@ def test_run_handles_adapter_exception(tmp_path: Path, monkeypatch):
             raise RuntimeError("network down")
 
     cfg = _cfg()
-    monkeypatch.setattr("hk_jobs.pipeline.load_companies", lambda path=None: [cfg])
+    monkeypatch.setattr("hk_jobs.pipeline.load_companies", _load_companies([cfg]))
     monkeypatch.setattr(CompanyConfig, "build_adapter", lambda self: _BrokenAdapter())
 
-    results = run(_args(str(tmp_path / "jobs.db")))
+    results = run(_args(_db(tmp_path)))
 
     assert len(results) == 1
     assert not results[0].ok
@@ -137,14 +184,14 @@ def test_run_company_filter(tmp_path: Path, monkeypatch):
             calls.append(self.slug)
             return [_job(company_slug=self.slug)]
 
-    monkeypatch.setattr("hk_jobs.pipeline.load_companies", lambda path=None: cfgs)
+    monkeypatch.setattr("hk_jobs.pipeline.load_companies", _load_companies(cfgs))
     monkeypatch.setattr(
         CompanyConfig,
         "build_adapter",
         lambda self: _TrackingAdapter(self.slug),
     )
 
-    results = run(_args(str(tmp_path / "jobs.db"), company="aia-hk"))
+    results = run(_args(_db(tmp_path), company="aia-hk"))
 
     assert len(results) == 1
     assert results[0].slug == "aia-hk"
@@ -156,33 +203,46 @@ def test_run_company_filter(tmp_path: Path, monkeypatch):
 def test_run_exports_jsonl(tmp_path: Path, monkeypatch):
     jobs = [_job("J-001"), _job("J-002")]
     cfg = _cfg()
-    monkeypatch.setattr("hk_jobs.pipeline.load_companies", lambda path=None: [cfg])
+    monkeypatch.setattr("hk_jobs.pipeline.load_companies", _load_companies([cfg]))
     monkeypatch.setattr(CompanyConfig, "build_adapter", lambda self: _MockAdapter(jobs))
 
     export_path = str(tmp_path / "out" / "jobs.jsonl")
-    run(_args(str(tmp_path / "jobs.db"), export=export_path))
+    run(_args(_db(tmp_path), export=export_path))
 
     lines = Path(export_path).read_text().strip().splitlines()
     assert len(lines) == 2
 
 
 def test_export_only_active_jobs(tmp_path: Path, monkeypatch):
-    """Jobs soft-deleted by mark_inactive_for_run should not appear in the export."""
-    jobs = [_job("J-001"), _job("J-002")]
-    cfg = _cfg()
-    monkeypatch.setattr("hk_jobs.pipeline.load_companies", lambda path=None: [cfg])
-    monkeypatch.setattr(CompanyConfig, "build_adapter", lambda self: _MockAdapter(jobs))
+    """
+    Jobs soft-deleted by mark_inactive_for_run should not appear in the export.
 
-    db_path = str(tmp_path / "jobs.db")
+    The second run returns FEWER jobs, not zero. Zero would prove nothing: a
+    scrape that comes back empty is far more likely to be a Cloudflare block
+    than a company that closed every vacancy overnight, so
+    `JobStore.mark_inactive_for_run` deliberately refuses to deactivate anything
+    on a 0-job result. This test used to assert the opposite and only ever
+    "passed" because it died earlier, on a missing job_history table.
+    """
+    cfg = _cfg()
+    monkeypatch.setattr("hk_jobs.pipeline.load_companies", _load_companies([cfg]))
+    monkeypatch.setattr(
+        CompanyConfig, "build_adapter",
+        lambda self: _MockAdapter([_job("J-001"), _job("J-002")]),
+    )
+
+    db_path = _db(tmp_path)
     export_path = str(tmp_path / "jobs.jsonl")
 
-    # First run inserts both; second run (empty adapter) soft-deletes both
     run(_args(db_path))
-    monkeypatch.setattr(CompanyConfig, "build_adapter", lambda self: _MockAdapter([]))
+    monkeypatch.setattr(
+        CompanyConfig, "build_adapter", lambda self: _MockAdapter([_job("J-001")]),
+    )
     run(_args(db_path, export=export_path))
 
-    lines = Path(export_path).read_text().strip().splitlines()
-    assert lines == [] or lines == [""]  # all deactivated
+    lines = [ln for ln in Path(export_path).read_text().strip().splitlines() if ln]
+    assert len(lines) == 1, "the deactivated job must not be exported"
+    assert '"source_id":"J-001"' in lines[0]
 
 
 # ── soft-delete integration ───────────────────────────────────────────────────
@@ -192,12 +252,12 @@ def test_mark_inactive_called_after_run(tmp_path: Path, monkeypatch):
     cfg = _cfg()
 
     # First run: insert J-001 and J-002
-    monkeypatch.setattr("hk_jobs.pipeline.load_companies", lambda path=None: [cfg])
+    monkeypatch.setattr("hk_jobs.pipeline.load_companies", _load_companies([cfg]))
     monkeypatch.setattr(
         CompanyConfig, "build_adapter",
         lambda self: _MockAdapter([_job("J-001"), _job("J-002")]),
     )
-    db_path = str(tmp_path / "jobs.db")
+    db_path = _db(tmp_path)
     run(_args(db_path))
 
     # Second run: only J-001 returned — J-002 should be deactivated
@@ -220,9 +280,12 @@ def test_dry_run_does_not_write_to_disk(tmp_path: Path, monkeypatch):
     """--dry-run must leave the real DB file untouched."""
     jobs = [_job("J-001"), _job("J-002")]
     cfg = _cfg()
-    monkeypatch.setattr("hk_jobs.pipeline.load_companies", lambda path=None: [cfg])
+    monkeypatch.setattr("hk_jobs.pipeline.load_companies", _load_companies([cfg]))
     monkeypatch.setattr(CompanyConfig, "build_adapter", lambda self: _MockAdapter(jobs))
 
+    # Deliberately NOT _db(): running the migrations would create the very file
+    # this test asserts is never created. A dry run skips the snapshot too, so it
+    # never reaches job_history.
     db_path = str(tmp_path / "jobs.db")
     run(_args(db_path, dry_run=True))
 
@@ -232,10 +295,10 @@ def test_dry_run_does_not_write_to_disk(tmp_path: Path, monkeypatch):
 def test_dry_run_reports_would_be_inserted_count(tmp_path: Path, monkeypatch):
     jobs = [_job("J-001"), _job("J-002"), _job("J-003")]
     cfg = _cfg()
-    monkeypatch.setattr("hk_jobs.pipeline.load_companies", lambda path=None: [cfg])
+    monkeypatch.setattr("hk_jobs.pipeline.load_companies", _load_companies([cfg]))
     monkeypatch.setattr(CompanyConfig, "build_adapter", lambda self: _MockAdapter(jobs))
 
-    results = run(_args(str(tmp_path / "jobs.db"), dry_run=True))
+    results = run(_args(_db(tmp_path), dry_run=True))
 
     assert results[0].total_fetched == 3
     assert results[0].inserted == 3   # would-be inserts
@@ -247,10 +310,10 @@ def test_dry_run_does_not_call_mark_inactive(tmp_path: Path, monkeypatch):
     """Running dry-run twice should not accumulate deactivated counts."""
     jobs = [_job("J-001")]
     cfg = _cfg()
-    monkeypatch.setattr("hk_jobs.pipeline.load_companies", lambda path=None: [cfg])
+    monkeypatch.setattr("hk_jobs.pipeline.load_companies", _load_companies([cfg]))
     monkeypatch.setattr(CompanyConfig, "build_adapter", lambda self: _MockAdapter(jobs))
 
-    db = str(tmp_path / "jobs.db")
+    db = _db(tmp_path)
     run(_args(db, dry_run=True))
     results = run(_args(db, dry_run=True))
 
@@ -295,11 +358,11 @@ def test_verbose_logs_job_titles(tmp_path: Path, monkeypatch, caplog):
 
     jobs = [_job("J-001"), _job("J-002")]
     cfg = _cfg()
-    monkeypatch.setattr("hk_jobs.pipeline.load_companies", lambda path=None: [cfg])
+    monkeypatch.setattr("hk_jobs.pipeline.load_companies", _load_companies([cfg]))
     monkeypatch.setattr(CompanyConfig, "build_adapter", lambda self: _MockAdapter(jobs))
 
     with caplog.at_level(logging.DEBUG):
-        run(_args(str(tmp_path / "jobs.db"), verbose=True))
+        run(_args(_db(tmp_path), verbose=True))
 
     # Each job's source_id should appear in a DEBUG log line
     debug_msgs = " ".join(caplog.messages)

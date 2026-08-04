@@ -5,9 +5,11 @@
       "id": "100000000000003",
       "name": "Analyst, Global Markets",
       "department": "Global Banking and Markets",
-      "locations": ["Hong Kong"],
+      "locations": [
+        "Hong Kong"
+      ],
       "job_description": "<p>An exciting opportunity in <strong>Global Markets</strong> for a driven Analyst.</p>",
-      "t_create": 1709424000000,
+      "t_create": 1709424000,
       "canonicalPositionUrl": "https://hsbc.eightfold.ai/careers?pid=100000000000003",
       "country": "HK",
       "city": "Hong Kong"

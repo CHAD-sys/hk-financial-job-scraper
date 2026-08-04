@@ -150,7 +150,16 @@ def test_description_clean_decodes_entities(adapter):
     assert "&" in assoc.description_clean  # &amp; decoded
 
 
-def test_posted_at_parsed_from_unix_ms(adapter):
+def test_posted_at_parsed_from_unix_seconds(adapter):
+    """
+    t_create is Unix SECONDS, not milliseconds.
+
+    The fixture used to carry millisecond values, which no live response has
+    ever contained — every one of the 619 Eightfold rows in the production
+    database has a sane date, and a millisecond value fed to
+    `datetime.fromtimestamp` raises before it can produce one. The old name of
+    this test enshrined the mistake.
+    """
     jobs = adapter.fetch_jobs()
     vp = next(j for j in jobs if j.source_id == "100000000000001")
     assert vp.posted_at is not None
