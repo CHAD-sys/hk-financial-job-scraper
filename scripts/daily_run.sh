@@ -32,7 +32,7 @@ if [[ -z "${DEEPSEEK_API_KEY:-}" ]]; then
     exit 1
 fi
 
-# Phase 1: Scrape listings from all 27 companies
+# Phase 1: Scrape listings from every enabled company in both config files
 log "--- Phase 1: Scraping listings ---"
 python -m hk_jobs.pipeline 2>&1 | tee -a "$LOG_FILE"
 log "Phase 1 complete"

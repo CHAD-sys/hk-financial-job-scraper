@@ -5,14 +5,29 @@
 
 ## What we are building
 
-A daily job scraper for the 30 largest Hong Kong financial institutions
-(banks, insurers, asset managers). It collects their open job postings,
-extracts structured features from each posting (skills, seniority, location,
-etc.), and stores them in a database. A later project (NOT in scope here)
-will match member CVs against this database.
+**FinEx Careers** — a Hong Kong financial-sector job board, fed by a daily
+multi-source scraping pipeline. It collects open postings, extracts structured
+features from each one (skills, seniority, location, an estimated salary), and
+stores them in SQLite; a React web app serves them to Seekers.
 
-The deliverable for THIS project is the scraping + enrichment + storage
-backend only. No web UI, no CV matching yet.
+Two things this file used to say that are no longer true, kept here because the
+old shape still shows in places:
+
+- **It is not 30 companies.** As of 2026-08-04: **265 configured entries, 248
+  enabled** — 179 in `companies.yaml`, 69 in `companies_longtail.yaml`. Read the
+  count from the config, never from prose.
+- **The web app is built and in scope.** `webapp/` is a React 19 + Vite SPA
+  served by a FastAPI backend (ADR 0005), with Seeker accounts, Saved Roles and
+  a public board. This file described a headless backend for months after that
+  shipped.
+
+**CV matching remains out of scope here** — it is being built by another team
+member. Seeker accounts exist as the identity foundation for it (ADR 0001);
+nothing on the board is gated (ADR 0002).
+
+`CONTEXT.md` is the domain glossary — Seeker, Role, Listing, Tier, Saved Role,
+Closed. Use those words. Decisions live in `docs/adr/`; do not re-litigate one
+without reading it.
 
 ## Core domain knowledge (read this — it drives every design decision)
 
@@ -36,6 +51,25 @@ You can identify a company's ATS from its careers-page URL:
 
 Large HK financial firms almost all use Workday, Eightfold, or
 SuccessFactors. None use the tech-startup ATSs (Greenhouse, Lever, Ashby).
+
+**What that turned into in practice.** The direct-ATS route reached far fewer
+firms than expected — of 248 enabled companies, only **7** are on a first-party
+ATS (5 Workday, 1 Eightfold, 1 SuccessFactors). The rest come from aggregators
+and LLM extraction. Live enabled counts by adapter:
+
+| adapter | companies | what it is |
+|---------|-----------|------------|
+| `longtail` | 68 | LLM extraction from a boutique's own careers page |
+| `jobsdb` | 65 | JobsDB employer page (HTML) |
+| `linkedin` | 48 | LinkedIn guest job search |
+| `indeed` | 37 | Indeed employer page (embedded JSON, listing-only) |
+| `efinancialcareers` | 23 | eFinancialCareers employer page |
+| `workday` | 5 | first-party ATS, JSON API |
+| `eightfold` | 1 | first-party ATS, JSON API |
+| `successfactors` | 1 | first-party ATS, HTML parse |
+
+Plus `linkedin_posts` — recruiter posts promoted by the Secret Market pipeline,
+the one source with no adapter.
 
 ### What an API is (the key insight)
 Modern careers pages load mostly empty, then their JavaScript fetches the
@@ -75,17 +109,39 @@ an empty string, never hallucinated.
 ## Architecture (the shape of the solution)
 
 ```
+                    cli.py  ──  PipelineArgs + MODES + migrate()
+                      │
 companies.yaml  →  pipeline.py  →  [adapter per company]  →  enrich.py  →  storage.py  →  jobs.db
-   (config)        (orchestrator)   (Workday/Eightfold/        (extract     (SQLite)
-                                      JobsDB/Indeed)             features)
+   (config)        (the scrape)     (8 adapters, one per       (DeepSeek)    (SQLite)       │
+                                      source type)                                          │
+                                                                                            ▼
+                                         webapp/backend (FastAPI)  ←  job_read.py  ←────────┘
+                                                   │
+                                         webapp/frontend (React 19 + Vite)
 ```
 
-The central abstraction is the **adapter**. Every source type has one
-adapter. Every adapter implements the same method — `fetch_jobs() -> list[Job]`
-— and maps its source's native data into one canonical `Job` schema. The
-rest of the system only ever sees `Job` objects and never knows or cares
-which ATS they came from. Adding a 31st company = one new entry in
-`companies.yaml` (and a new adapter only if it uses a new ATS).
+The central abstraction is the **adapter**. Every source type has one adapter,
+each implementing `fetch_jobs() -> list[Job]` and mapping its source's native
+data into one canonical `Job` schema. The rest of the system only ever sees
+`Job` objects and never knows which ATS they came from. Adding a company = one
+entry in `companies.yaml` (a new adapter only if it uses a new source type).
+
+**Four registries you must keep in step.** Each was added because something
+drifted, and each now fails a test rather than failing quietly:
+
+- `hk_jobs/sources.py` — **every fact about a source**: apply order, display
+  order, own-site-or-board, which adapter writes it. Adding a source means one
+  entry here; `tests/test_sources.py` binds the adapter registry,
+  `companies.yaml` validation and the frontend's "Listed on" tags to it. This
+  exists because SuccessFactors was registered in two of five places and ranked
+  below a recruiter's post for two days.
+- `hk_jobs/migrations.py` — `MIGRATIONS` is the one ordered list; `migrate(db)`
+  applies whatever a database has not recorded in `schema_migrations`. Add a
+  phase by appending to that tuple. **Never edit an applied migration** — the
+  ledger will not run it again.
+- `hk_jobs/cli.py` — `PipelineArgs` (one typed field per setting) and `MODES`
+  (the 16 non-scrape modes, in precedence order).
+- `hk_jobs/adapters/__init__.py` — `ADAPTERS`, adapter name → class.
 
 ## Tech stack (decided — do not substitute without asking)
 
@@ -97,6 +153,18 @@ which ATS they came from. Adding a 31st company = one new entry in
 - Standard-library `sqlite3` for storage (Postgres-compatible SQL so we can migrate later)
 - `pytest` for tests
 - `ruff` for linting/formatting
+
+The web app, added later and under the same rule (do not substitute without
+asking):
+
+- FastAPI + uvicorn, serving both the API and the built React bundle from one
+  origin (ADR 0005)
+- React 19 + Vite 8 + TypeScript + Tailwind 4
+- Vitest + Testing Library + jsdom for frontend tests
+- Argon2id for Seeker passwords (ADR 0004); Seeker data in its own
+  `data/seekers.db` (ADR 0006)
+- `npm run build` is the real check, not `tsc --noEmit` — the build runs
+  `tsc -b`, which has caught a broken page the looser check passed
 - NO paid services, NO aggregator APIs, NO headless browser unless a source
   genuinely cannot be reached any other way (and ask first if so).
 
@@ -124,7 +192,7 @@ escalation risk, anti-bot arms race — see the plan's §3 for the full posture)
 - Adapters live in `hk_jobs/adapters/`, one file per source type.
 - All per-company settings live in `companies.yaml`, never hardcoded.
 - Every adapter must fail gracefully: log the error, return `[]`, never crash
-  the whole run. One broken company must not stop the other 29.
+  the whole run. One broken company must not stop the other 247.
 - Be polite to sources: rate-limit (≤3 req/s), real browser User-Agent,
   delays between detail calls.
 - Soft-delete only: when a job disappears, set `is_active = False`. Never
@@ -133,13 +201,19 @@ escalation risk, anti-bot arms race — see the plan's §3 for the full posture)
   (stripped text). Raw enables re-extraction later; clean is for embedding.
 - Write a test alongside every module. Network-dependent tests use recorded
   fixtures, not live calls.
+- A test must be shown to go RED on the bug it claims to catch. Two tests in
+  this repo passed for months while asserting the opposite of what the code
+  correctly did.
+- Prefer one typed object over `getattr(obj, name, default)`. A silent default
+  is how the test suite's idea of the arguments drifted from production's.
 
 ## Working agreement with the human
 
 - This is being built by someone newer to APIs/ATS concepts. Explain
   decisions in commit messages and docstrings in plain language.
-- Work ONE phase at a time (see BUILD_PLAN.md). After each phase: run the
-  tests, summarize what was built, and STOP for review before the next phase.
+- Work ONE thing at a time. After each: run the tests, summarise what was
+  built, and STOP for review. (There is no BUILD_PLAN.md — this file pointed
+  at one that does not exist. Current plans live in `docs/PLAN_*.md`.)
 - The ATS configs in `companies.yaml` are GUESSES that need human
   verification against real careers pages. Do not assume they are correct.
   When live calls fail, surface it clearly rather than silently skipping.

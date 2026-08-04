@@ -123,7 +123,7 @@ Beyond the raw board, the platform turns the data into market intelligence:
 
 ## Companies Covered
 
-**190+ active companies** across banking, insurance, and asset management, configured in `companies.yaml` (core-ATS sources) and `companies_longtail.yaml` (LLM long-tail). Representative names:
+**248 enabled companies** (265 configured) across banking, insurance, and asset management — 179 in `companies.yaml` (core-ATS and aggregator sources) and 69 in `companies_longtail.yaml` (LLM long-tail). Representative names:
 
 **Banking** — HSBC HK, Standard Chartered, DBS, Bank of China HK, Bank of East Asia, Citibank HK, ICBC Asia, CCB Asia, OCBC Wing Hang
 

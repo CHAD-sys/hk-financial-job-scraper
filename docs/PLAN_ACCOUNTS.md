@@ -1,7 +1,13 @@
 # PLAN — Seeker accounts (v1)
 
-**Status:** designed, not started
-**Date:** 2026-07-30
+**Status:** built, not yet shipped — `ACCOUNTS_LIVE = false`
+**Date:** 2026-07-30 (plan) · 2026-08-04 (status)
+
+Everything in §8's build order exists: `webapp/backend/auth.py`,
+`webapp/backend/seekers_store.py`, and the Sign in / Register / Forgot password /
+Account pages. What remains is the *ship* step — decision 17's
+`ACCOUNTS_LIVE` flag in `PrivacyNotice.tsx` is still `false`, so the privacy
+copy does not yet describe accounts. Flip it when the feature goes public.
 **Supersedes:** the 27 July accounts plan, deleted in full. No decision from it carries
 over; every decision below was re-derived from scratch.
 
@@ -42,7 +48,7 @@ Every line was a deliberate choice. Do not silently reverse one.
 | 6 | **FastAPI serves the React bundle** — one origin, one service | ADR 0005 |
 | 7 | Seeker data in its own `/data/seekers.db`, `ATTACH`-joined to `jobs.db` | ADR 0006 |
 | 8 | Railway scheduled volume backups, enabled before launch | ADR 0006 |
-| 9 | Resend, sending from `mail.finexclub.org` | ADR 0008 |
+| 9 | ~~Resend, sending from `mail.finexclub.org`~~ → **send as `amine@finexclub.org` over the existing SMTP host; no Resend, no new subdomain** | ~~ADR 0008~~ **ADR 0009** |
 | 10 | Unverified Seekers get full access; verification gates *sending*, not the account | §4 |
 | 11 | Sessions: opaque tokens, SHA-256 hashed at rest, **90 days rolling**, no "remember me" | §4 |
 | 12 | An alert would be a *saved search* reusing the existing filter params — when built | §6 |
@@ -136,7 +142,8 @@ Not in v1, but the design is settled so it is not re-litigated later:
 - **Alerts** — a weekly digest, Monday 09:00 HKT, riding the cadence
   `hk_jobs/reports/weekly.py` already uses. **An alert is a saved search**: store the
   existing filter params (`filtersToSearchParams`), so alerts inherit every filter added
-  later for free. ~800 emails/month at 200 Seekers, inside Resend's free tier; daily
+  later for free. ~800 emails/month at 200 Seekers, well inside the existing mail
+  host's limits (ADR 0009 replaced the Resend plan); daily
   would be ~6,000 and outside it. **Blocked on the open item in §9.**
 - **Application tracking** — Seeker-owned status on roles already saved. Needs no email,
   no scheduled job, no fresh `jobs.db`. The cheapest way to give the account a visible
@@ -154,7 +161,7 @@ Not in v1, but the design is settled so it is not re-litigated later:
    live, and currently tells visitors the platform holds their name, email and a
    password hash. None of that exists yet.
 2. **At ship, rewrite the account clauses** to match v1 exactly: remove "application
-   status" (deferred), and add two disclosures it lacks — **Resend** processing Seeker
+   status" (deferred), and add two disclosures it lacks — the **mail host** processing Seeker
    email addresses in the US (a cross-border transfer) and **Google** receiving data on
    Google sign-in. Then set the flag back to `true`.
 3. **`CLAUDE.md`** needs the soft-delete carve-out from ADR 0007 written into it.
@@ -169,7 +176,7 @@ Not in v1, but the design is settled so it is not re-litigated later:
 | **0** | Single origin (FastAPI serves the bundle, catch-all route) · Railway volume backups on · `ACCOUNTS_LIVE=false` | **Board works unchanged at one origin. No auth code involved** |
 | 1 | `seekers.db` schema + migrations + writable connection · hashing · session issue/verify/revoke | Unit tests pass, no HTTP yet |
 | 2 | register / login / logout / me · rate limits · honeypot · non-enumerable responses | A session obtainable with curl |
-| 3 | Resend + DNS · verification · password reset | Round trip to a real inbox |
+| 3 | SMTP (ADR 0009) · verification · password reset | Round trip to a real inbox |
 | 4 | Google OAuth | Both paths reach one Seeker record |
 | 5 | Server-side Saved Roles (`ATTACH` join) · `localStorage` migration | Existing saves survive first sign-in |
 | 6 | AuthProvider · sign-in / register pages · Nav slot · dual-mode `useSavedJobs` | Full flow in a browser |
