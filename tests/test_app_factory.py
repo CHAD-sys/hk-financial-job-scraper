@@ -192,3 +192,53 @@ def test_the_frontend_mount_is_decided_per_app(tmp_path):
 def test_cookie_policy_comes_from_settings(tmp_path, secure):
     app = make_app(_db(tmp_path, f"cookie{secure}", "HSBC"), cookie_secure=secure)
     assert app.state.settings.cookie_secure is secure
+
+
+# ── X-Forwarded-For trust ────────────────────────────────────────────────────
+#
+# Every IP-keyed rate limit in main.py reads its key from _client_ip(), which
+# used to trust X-Forwarded-For unconditionally. /api/contact is the cleanest
+# endpoint to prove the behaviour through: its limit is IP-only (no email key
+# to confuse the picture), and Starlette's TestClient always reports the same
+# "testclient" peer regardless of what headers a request carries — so a test
+# forging a fresh X-Forwarded-For value on every call is exactly the attack
+# this setting defends against.
+
+def _contact_payload(**over):
+    return {"name": "A", "email": "a@example.com", "career_stage": "3–8 years",
+            "message": "x" * 30, "website": "", **over}
+
+
+def test_trusted_proxy_headers_let_forged_xff_bypass_the_ip_limit(tmp_path):
+    """
+    Default behaviour, unchanged: trust_proxy_headers=True is the production
+    posture (Railway always sits in front). A caller who can set its own
+    X-Forwarded-For — which a caller behind Railway's real edge cannot — gets
+    treated as a fresh IP every request and never trips the limiter. This is
+    what proves the header is doing anything at all before the next test
+    proves it can be turned off.
+    """
+    client = TestClient(make_app(_db(tmp_path, "xff-trusted", "HSBC"), submissions=tmp_path))
+    codes = [
+        client.post("/api/contact", json=_contact_payload(),
+                    headers={"X-Forwarded-For": f"10.0.0.{i}"}).status_code
+        for i in range(5)
+    ]
+    assert 429 not in codes, "a distinct X-Forwarded-For per request must read as a distinct IP"
+
+
+def test_untrusted_proxy_headers_ignore_xff_and_limit_by_real_peer(tmp_path):
+    """
+    trust_proxy_headers=False — the escape hatch for a deployment reachable
+    directly. The same forged-X-Forwarded-For attack from the test above must
+    now fail to bypass anything, because every request is correctly attributed
+    to the one real peer regardless of what the header claims.
+    """
+    client = TestClient(make_app(_db(tmp_path, "xff-untrusted", "HSBC"), submissions=tmp_path,
+                                 trust_proxy_headers=False))
+    codes = [
+        client.post("/api/contact", json=_contact_payload(),
+                    headers={"X-Forwarded-For": f"10.0.0.{i}"}).status_code
+        for i in range(5)
+    ]
+    assert 429 in codes, "forging a fresh X-Forwarded-For must not evade the limit once untrusted"

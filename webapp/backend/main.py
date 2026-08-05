@@ -521,10 +521,20 @@ _RATE_WINDOW_S = 3600
 
 
 def _client_ip(request: Request) -> str:
-    """Left-most X-Forwarded-For entry when behind a proxy (Railway), else peer."""
-    fwd = request.headers.get("x-forwarded-for", "")
-    if fwd:
-        return fwd.split(",")[0].strip()
+    """
+    Left-most X-Forwarded-For entry when behind a trusted proxy (Railway), else
+    the direct peer.
+
+    Gated on settings.trust_proxy_headers — every IP-keyed rate limit in this
+    file (register, login, reset, employer register/login, contact, post-role)
+    reads its key from this function, so trusting the header unconditionally
+    would let a caller who can reach the app directly forge a fresh IP on every
+    request and route around all of them.
+    """
+    if cfg(request).trust_proxy_headers:
+        fwd = request.headers.get("x-forwarded-for", "")
+        if fwd:
+            return fwd.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
 
 
