@@ -1,50 +1,43 @@
 import { useState } from 'react'
-import { AlertCircle, Mail, UserPlus } from 'lucide-react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { AuthShell, AuthField, AuthDivider, GoogleButton } from '../components/AuthShell'
-import { useAuth } from '../auth/useAuth'
-import { useReturnTo } from '../auth/useReturnTo'
+import { AlertCircle, CheckCircle2, UserPlus } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { AuthShell, AuthField } from '../components/AuthShell'
+import { registerEmployer, ApiError } from '../api/client'
 
-type Status = 'idle' | 'sending' | 'error' | 'check-inbox'
+type Status = 'idle' | 'sending' | 'error' | 'done'
 
-const MAX = { display_name: 100, email: 200, password: 128 } as const
+const MAX = { company_name: 150, contact_name: 100, email: 200, password: 128 } as const
 const MIN_PASSWORD = 8
 
 /**
- * Create a Seeker account.
+ * Create an Employer account — the v1 identity ADR 0001 deferred until now.
  *
- * Two details are load-bearing.
- *
- * The honeypot ("website") mirrors the enquiry and post-a-role forms: off-screen
- * rather than display:none, never focusable, and a bot that fills it gets a
- * normal-looking success response.
- *
- * The confirm-password field stays even now that /forgot-password works: a
- * caught typo here is free, where a missed one costs a Seeker a trip through
- * the reset flow before they can sign in at all.
+ * Not linked from anywhere in the public UI yet, on purpose: there is no
+ * dashboard behind this account today (see employers_store.py's module
+ * docstring), so advertising "sign in" with no payoff would be the kind of
+ * vague promise the design conventions here rule out. /post-a-role works
+ * identically signed in or not until that connect work happens. This page
+ * exists so the gate can be tested end-to-end; where and how to surface it is
+ * an open product decision, not a code gap.
  */
-export default function RegisterPage() {
-  const { seeker, loading: authLoading, register } = useAuth()
-  const navigate = useNavigate()
-  const returnTo = useReturnTo()
+export default function EmployerRegisterPage() {
   const [status, setStatus] = useState<Status>('idle')
   const [error, setError] = useState('')
-
-  if (!authLoading && seeker) return <Navigate to={returnTo} replace />
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (status === 'sending') return
 
     const d = new FormData(e.currentTarget)
-    const displayName = String(d.get('display_name') ?? '').trim()
+    const companyName = String(d.get('company_name') ?? '').trim()
+    const contactName = String(d.get('contact_name') ?? '').trim()
     const email = String(d.get('email') ?? '').trim()
     const password = String(d.get('password') ?? '')
     const confirm = String(d.get('confirm_password') ?? '')
 
-    if (!displayName || !email) {
+    if (!companyName || !email) {
       setStatus('error')
-      setError('Enter your name and email.')
+      setError('Enter your company name and email.')
       return
     }
     if (password.length < MIN_PASSWORD) {
@@ -61,36 +54,30 @@ export default function RegisterPage() {
     setStatus('sending')
     setError('')
     try {
-      const created = await register({
-        display_name: displayName,
+      await registerEmployer({
+        company_name: companyName,
+        contact_name: contactName,
         email,
         password,
         website: String(d.get('website') ?? ''),
       })
-      if (created) {
-        navigate(returnTo, { replace: true })
-        return
-      }
-      // No session came back. That is what registering an address which already
-      // has an account looks like — the endpoint answers like success either
-      // way so it cannot be used to test whether an address is registered
-      // (PLAN_ACCOUNTS §5). So this message has to be true in both cases and
-      // reveal neither.
-      setStatus('check-inbox')
+      setStatus('done')
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (err) {
       setStatus('error')
       setError(
-        err instanceof Error && err.message
-          ? err.message
-          : 'Something went wrong. Please try again.',
+        err instanceof ApiError && err.status === 409
+          ? 'That email already has an employer account.'
+          : err instanceof Error && err.message
+            ? err.message
+            : 'Something went wrong. Please try again.',
       )
     }
   }
 
-  if (status === 'check-inbox') {
+  if (status === 'done') {
     return (
-      <AuthShell eyebrow="Seeker account" title="Check your inbox">
+      <AuthShell eyebrow="Employer account" title="You're in">
         <div
           className="mt-8 rounded-xl p-8 text-center"
           style={{
@@ -104,18 +91,18 @@ export default function RegisterPage() {
             className="mx-auto flex h-12 w-12 items-center justify-center rounded-full"
             style={{ backgroundColor: 'var(--color-gold-light)' }}
           >
-            <Mail size={24} strokeWidth={2.2} style={{ color: 'var(--color-gold)' }} />
+            <CheckCircle2 size={24} strokeWidth={2.2} style={{ color: 'var(--color-gold)' }} />
           </span>
           <p className="mt-4 text-sm" style={{ color: 'var(--color-ink-muted)' }}>
-            If we can set up an account for that address, an email is on its way. Follow the
-            link in it to finish, then sign in.
+            Your employer account is set up. There is no dashboard here yet — for now, post a
+            role the same way you always could.
           </p>
           <Link
-            to="/signin"
+            to="/post-a-role"
             className="mt-6 inline-flex min-h-11 items-center justify-center rounded px-5 py-2.5 text-sm font-semibold no-underline"
             style={{ backgroundColor: 'var(--color-ink)', color: 'var(--color-ink-inverse)' }}
           >
-            Go to sign in
+            Post a role
           </Link>
         </div>
       </AuthShell>
@@ -124,15 +111,9 @@ export default function RegisterPage() {
 
   return (
     <AuthShell
-      eyebrow="Seeker account"
-      title="Create an account"
-      standfirst={
-        <>
-          One thing an account does today: it keeps your Saved Roles with you instead of
-          with this browser, and keeps them current as roles close. Browsing the board needs
-          no account and never will.
-        </>
-      }
+      eyebrow="Employer account"
+      title="Create an employer account"
+      standfirst="For recruiters and employers posting roles directly. This is separate from a Seeker account — the two share nothing."
     >
       <div
         className="mt-8 rounded-xl p-6 lg:p-8"
@@ -142,21 +123,27 @@ export default function RegisterPage() {
           boxShadow: 'var(--shadow-card)',
         }}
       >
-        <GoogleButton label="Continue with Google" />
-        <AuthDivider />
-
         <form onSubmit={handleSubmit} noValidate>
-          <AuthField label="Name" htmlFor="rg-name" hint="What we call you on the site. Never published.">
+          <AuthField label="Company name" htmlFor="er-company">
             <input
-              id="rg-name" name="display_name" type="text" required maxLength={MAX.display_name}
-              autoComplete="name" className="finex-input"
+              id="er-company" name="company_name" type="text" required maxLength={MAX.company_name}
+              autoComplete="organization" className="finex-input"
             />
           </AuthField>
 
           <div className="mt-5">
-            <AuthField label="Email" htmlFor="rg-email">
+            <AuthField label="Your name" htmlFor="er-name" hint="Optional.">
               <input
-                id="rg-email" name="email" type="email" required maxLength={MAX.email}
+                id="er-name" name="contact_name" type="text" maxLength={MAX.contact_name}
+                autoComplete="name" className="finex-input"
+              />
+            </AuthField>
+          </div>
+
+          <div className="mt-5">
+            <AuthField label="Work email" htmlFor="er-email">
+              <input
+                id="er-email" name="email" type="email" required maxLength={MAX.email}
                 autoComplete="email" className="finex-input"
               />
             </AuthField>
@@ -165,11 +152,11 @@ export default function RegisterPage() {
           <div className="mt-5">
             <AuthField
               label="Password"
-              htmlFor="rg-password"
+              htmlFor="er-password"
               hint={`At least ${MIN_PASSWORD} characters.`}
             >
               <input
-                id="rg-password" name="password" type="password" required
+                id="er-password" name="password" type="password" required
                 minLength={MIN_PASSWORD} maxLength={MAX.password}
                 autoComplete="new-password" className="finex-input"
               />
@@ -177,9 +164,9 @@ export default function RegisterPage() {
           </div>
 
           <div className="mt-5">
-            <AuthField label="Confirm password" htmlFor="rg-confirm">
+            <AuthField label="Confirm password" htmlFor="er-confirm">
               <input
-                id="rg-confirm" name="confirm_password" type="password" required
+                id="er-confirm" name="confirm_password" type="password" required
                 minLength={MIN_PASSWORD} maxLength={MAX.password}
                 autoComplete="new-password" className="finex-input"
               />
@@ -188,8 +175,8 @@ export default function RegisterPage() {
 
           {/* Honeypot — never shown to a human, never focusable. */}
           <div aria-hidden="true" className="honeypot">
-            <label htmlFor="rg-website">Website</label>
-            <input id="rg-website" name="website" type="text" tabIndex={-1} autoComplete="off" />
+            <label htmlFor="er-website">Website</label>
+            <input id="er-website" name="website" type="text" tabIndex={-1} autoComplete="off" />
           </div>
 
           {status === 'error' && (
@@ -218,15 +205,11 @@ export default function RegisterPage() {
             {status !== 'sending' && <UserPlus size={15} strokeWidth={2} />}
           </button>
         </form>
-
-        <p className="mt-4 text-xs" style={{ color: 'var(--color-ink-faint)' }}>
-          We use your email to sign you in and to reach you about your account. No mailing list.
-        </p>
       </div>
 
       <p className="mt-6 text-sm" style={{ color: 'var(--color-ink-muted)' }}>
-        Already have an account?{' '}
-        <Link to="/signin" state={{ from: returnTo }} style={{ color: 'var(--color-blue)', fontWeight: 500 }}>
+        Already have an employer account?{' '}
+        <Link to="/employer/signin" style={{ color: 'var(--color-blue)', fontWeight: 500 }}>
           Sign in
         </Link>
       </p>

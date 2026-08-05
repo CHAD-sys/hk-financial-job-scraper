@@ -260,6 +260,11 @@ def _sender(client):
     return client.app.state.sender
 
 
+def _token_from(body: str) -> str:
+    """Pull the raw token out of an emailed `...?token=XYZ\n\n...` link."""
+    return body.split("token=", 1)[1].split()[0]
+
+
 def test_registering_emails_a_verification_link(client):
     _register(client)
     sent = _sender(client).sent
@@ -301,3 +306,162 @@ def test_signing_in_emails_nobody(client):
     client.post("/api/auth/logout")
     client.post("/api/auth/login", json={"email": GOOD["email"], "password": GOOD["password"]})
     assert _sender(client).sent == []
+
+
+# ── Email verification ───────────────────────────────────────────────────────
+#
+# The gap the graph audit found: register() mints and emails a verify token,
+# but nothing used to consume it — /verify had no frontend route and no
+# backend endpoint ever called auth.consume_email_token(purpose="verify").
+
+def test_verify_email_marks_seeker_verified(client):
+    _register(client)
+    token = _token_from(_sender(client).sent[-1].body)
+
+    r = client.post("/api/auth/verify-email", json={"token": token})
+    assert r.status_code == 200
+    assert r.json()["email_verified"] is True
+    assert client.get("/api/auth/me").json()["email_verified"] is True
+
+
+def test_verify_email_token_is_single_use(client):
+    _register(client)
+    token = _token_from(_sender(client).sent[-1].body)
+
+    assert client.post("/api/auth/verify-email", json={"token": token}).status_code == 200
+    assert client.post("/api/auth/verify-email", json={"token": token}).status_code == 400
+
+
+def test_verify_email_rejects_a_garbage_token(client):
+    assert client.post("/api/auth/verify-email", json={"token": "not-a-real-token"}).status_code == 400
+
+
+# ── Password reset ───────────────────────────────────────────────────────────
+#
+# ForgotPasswordPage.tsx used to be a static stub pending "email set-up" — but
+# ADR 0009's SEEKER_MAIL_READY / send_to() plumbing was already live. This is
+# the missing request+consume half.
+
+def test_forgot_password_does_not_email_an_unknown_address(client):
+    """Same non-enumeration posture as register (decision 15): a caller must
+    not learn whether an address has an account from this response."""
+    r = client.post("/api/auth/forgot-password", json={"email": "nobody@example.com"})
+    assert r.status_code == 200
+    assert r.json()["ok"] is True
+    assert _sender(client).sent == []
+
+
+def test_forgot_password_emails_a_reset_link_for_a_known_address(client):
+    _register(client)
+    _sender(client).sent.clear()
+
+    r = client.post("/api/auth/forgot-password", json={"email": GOOD["email"]})
+    assert r.status_code == 200
+    sent = _sender(client).sent
+    assert [m.to for m in sent] == ["seeker@example.com"]
+    assert "/reset-password?token=" in sent[0].body
+
+
+def test_forgot_password_rate_limit_trips_per_email(client):
+    _register(client)
+    codes = [
+        client.post("/api/auth/forgot-password", json={"email": GOOD["email"]}).status_code
+        for _ in range(12)
+    ]
+    assert 429 in codes, "per-email reset-request limiter never engaged"
+
+
+def test_reset_password_rejects_a_garbage_token(client):
+    r = client.post("/api/auth/reset-password", json={"token": "not-a-real-token", "password": "new-correct-horse"})
+    assert r.status_code == 400
+
+
+def test_reset_password_round_trip_and_revokes_other_sessions(client):
+    _register(client)
+    old_cookie = client.cookies.get("finex_session")
+
+    client.post("/api/auth/forgot-password", json={"email": GOOD["email"]})
+    token = _token_from(_sender(client).sent[-1].body)
+
+    r = client.post("/api/auth/reset-password", json={"token": token, "password": "new-correct-horse-2"})
+    assert r.status_code == 200
+    # Signed straight back in on the response that completed the reset.
+    assert client.get("/api/auth/me").status_code == 200
+
+    # The pre-reset session must not still work (auth.py: "leaving the
+    # attacker's session alive defeats the point of the reset").
+    stale = TestClient(client.app)
+    stale.cookies.set("finex_session", old_cookie)
+    assert stale.get("/api/auth/me").status_code == 401
+
+    # The old password is dead; the new one signs in.
+    fresh = TestClient(client.app)
+    assert fresh.post("/api/auth/login",
+                      json={"email": GOOD["email"], "password": GOOD["password"]}).status_code == 401
+    assert fresh.post("/api/auth/login",
+                      json={"email": GOOD["email"], "password": "new-correct-horse-2"}).status_code == 200
+
+
+def test_reset_token_is_single_use(client):
+    _register(client)
+    client.post("/api/auth/forgot-password", json={"email": GOOD["email"]})
+    token = _token_from(_sender(client).sent[-1].body)
+
+    first = client.post("/api/auth/reset-password", json={"token": token, "password": "new-correct-horse-3"})
+    assert first.status_code == 200
+    second = client.post("/api/auth/reset-password", json={"token": token, "password": "another-password-4"})
+    assert second.status_code == 400
+
+
+# ── Google OAuth (phase 4) ────────────────────────────────────────────────────
+#
+# What is testable without a real Google Cloud project: the code degrades
+# cleanly with no credentials, and the CSRF state check actually rejects a
+# mismatch. The token exchange itself needs a live `accounts.google.com`
+# round trip and is out of reach here — see PLAN_ACCOUNTS.md §9.
+
+def test_google_start_redirects_to_signin_when_not_configured(client, monkeypatch):
+    monkeypatch.delenv("GOOGLE_CLIENT_ID", raising=False)
+    monkeypatch.delenv("GOOGLE_CLIENT_SECRET", raising=False)
+    r = client.get("/api/auth/google", follow_redirects=False)
+    assert r.status_code in (302, 307)
+    assert "/signin?error=google_unavailable" in r.headers["location"]
+    # No state cookie handed out for a redirect that never reached Google.
+    assert "google_oauth_state" not in client.cookies
+
+
+def test_google_start_redirects_to_google_when_configured(client, monkeypatch):
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "test-client-id")
+    monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "test-client-secret")
+    r = client.get("/api/auth/google", follow_redirects=False)
+    assert r.status_code in (302, 307)
+    location = r.headers["location"]
+    assert location.startswith("https://accounts.google.com/o/oauth2/v2/auth?")
+    assert "client_id=test-client-id" in location
+    assert client.cookies.get("google_oauth_state")
+
+
+def test_google_callback_rejects_missing_state(client, monkeypatch):
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "test-client-id")
+    monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "test-client-secret")
+    r = client.get("/api/auth/google/callback?code=abc", follow_redirects=False)
+    assert r.status_code in (302, 307)
+    assert "/signin?error=google_failed" in r.headers["location"]
+
+
+def test_google_callback_rejects_mismatched_state(client, monkeypatch):
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "test-client-id")
+    monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "test-client-secret")
+    client.get("/api/auth/google", follow_redirects=False)  # mints a real state cookie
+    r = client.get("/api/auth/google/callback?code=abc&state=not-the-real-state", follow_redirects=False)
+    assert r.status_code in (302, 307)
+    assert "/signin?error=google_failed" in r.headers["location"]
+    assert client.get("/api/auth/me").status_code == 401
+
+
+def test_google_callback_surfaces_provider_error(client, monkeypatch):
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "test-client-id")
+    monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "test-client-secret")
+    r = client.get("/api/auth/google/callback?error=access_denied", follow_redirects=False)
+    assert r.status_code in (302, 307)
+    assert "/signin?error=google_failed" in r.headers["location"]

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AlertCircle, LogIn } from 'lucide-react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { AuthShell, AuthField, AuthDivider, GoogleButton } from '../components/AuthShell'
 import { useAuth } from '../auth/useAuth'
 import { useReturnTo } from '../auth/useReturnTo'
@@ -8,6 +8,19 @@ import { useReturnTo } from '../auth/useReturnTo'
 type Status = 'idle' | 'sending' | 'error'
 
 const MAX = { email: 200, password: 128 } as const
+
+/**
+ * The ?error= codes main.py's /api/auth/google/callback redirects here with,
+ * turned into something a Seeker can act on. Anything not in this map (or
+ * absent) shows nothing — an unrecognised code is not a licence to guess.
+ */
+const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
+  google_unavailable: 'Signing in with Google is not switched on yet. Use email and password below.',
+  google_failed: 'Something went wrong signing in with Google. Please try again.',
+  google_link_refused:
+    'That Google address already has an account here, but Google did not confirm it is verified. ' +
+    'Sign in with your password instead, or use "Forgot password?" if you never set one.',
+}
 
 /**
  * Sign in to an existing Seeker account.
@@ -20,8 +33,11 @@ export default function SignInPage() {
   const { seeker, loading: authLoading, login } = useAuth()
   const navigate = useNavigate()
   const returnTo = useReturnTo()
-  const [status, setStatus] = useState<Status>('idle')
-  const [error, setError] = useState('')
+  const [searchParams] = useSearchParams()
+  const googleErrorCode = searchParams.get('error')
+  const googleError = googleErrorCode ? GOOGLE_ERROR_MESSAGES[googleErrorCode] : undefined
+  const [status, setStatus] = useState<Status>(googleError ? 'error' : 'idle')
+  const [error, setError] = useState(googleError ?? '')
 
   // Already signed in: this page has nothing to offer.
   if (!authLoading && seeker) return <Navigate to={returnTo} replace />
