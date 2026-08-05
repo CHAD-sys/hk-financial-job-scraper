@@ -167,13 +167,21 @@ def make_jobs_db(
     A two-table stand-in rather than the real 116 MB jobs.db, so every test that
     uses it is hermetic and runs anywhere. Pass `jobs=` to seed your own rows;
     the default is the single row the older tests already assert on.
+
+    Also builds the search index (jobs_fts / search_vocab), same as migration
+    phase 32 — a real jobs.db always has it by the time the webapp reads it, so
+    a hermetic stand-in missing it would make every `search=` test exercise a
+    database shape that cannot occur outside a test.
     """
+    from hk_jobs.search_index import rebuild_search_index
+
     conn = sqlite3.connect(path)
     with conn:
         conn.execute(_JOBS_DDL)
         conn.execute(_ENRICHMENTS_DDL)
         _insert(conn, "jobs", jobs if jobs is not None else [job(**DEFAULT_JOB)])
         _insert(conn, "job_enrichments", enrichments or [])
+    rebuild_search_index(conn)
     conn.close()
 
 

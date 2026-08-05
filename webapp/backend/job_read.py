@@ -51,6 +51,8 @@ from typing import Iterable, Optional, Sequence
 
 from pydantic import BaseModel
 
+import search_index
+
 # ── Connection requirements ───────────────────────────────────────────────────
 
 
@@ -107,6 +109,10 @@ BOARD_WHERE = _VISIBILITY_SQL[Visibility.BOARD]
 
 class Sort(str, Enum):
     NEWEST = "newest"
+    #: Best-match ranking from the full-text search index (search_index.py).
+    #: Meaningless with no `search` term — `list_jobs` falls back to NEWEST
+    #: when this is requested without one, same as an unknown value would.
+    RELEVANCE = "relevance"
     SALARY_HIGH = "salary_high"
     SALARY_LOW = "salary_low"
     COMPANY = "company"
@@ -345,7 +351,21 @@ class JobFilters:
 # ── WHERE building ────────────────────────────────────────────────────────────
 
 
-def _where(filters: JobFilters, visibility: Visibility) -> tuple[str, list]:
+def _where(
+    filters: JobFilters,
+    visibility: Visibility,
+    search_rowids: Optional[list[int]] = None,
+) -> tuple[str, list]:
+    """
+    `search_rowids`: the caller's own `search_index.matching_rowids()` result,
+    already computed because `list_jobs` needs the same list a second time (to
+    build the RELEVANCE ordering). `_where` stays a pure string/param builder —
+    it does not touch `conn` — by taking that list rather than the raw query.
+
+    `None` means "no search filter requested"; `[]` means "searched, matched
+    nothing", which must exclude every row (`0`), not be skipped as if no
+    search had been requested at all.
+    """
     conditions: list[str] = []
     params: list = []
 
@@ -386,9 +406,16 @@ def _where(filters: JobFilters, visibility: Visibility) -> tuple[str, list]:
         conditions.append("json_extract(j.board_signals, '$.not_a_ghost_job') = 1")
 
     if filters.search:
-        conditions.append("(LOWER(j.title) LIKE ? OR LOWER(j.company) LIKE ?)")
-        s = f"%{filters.search.lower()}%"
-        params += [s, s]
+        # search_index.matching_rowids() is what actually decided which Roles
+        # this query reaches — full text across title/title_en/company/skills/
+        # description, stemmed and typo-corrected. This is only the filter: an
+        # `IN (…)` over its result. Literal ints, not bound params — they are
+        # this process's own rowids, never user input, and a bound-parameter
+        # list this long risks SQLite's variable-count ceiling.
+        if search_rowids:
+            conditions.append(f"j.rowid IN ({','.join(str(r) for r in search_rowids)})")
+        else:
+            conditions.append("0")
 
     if filters.sectors:
         parts = [_sector_condition(sec) for sec in filters.sectors]
@@ -462,12 +489,32 @@ _SAL_LOW = "COALESCE(e.salary_hkd_min, e.salary_estimated_min)"
 # genuinely today's postings.)
 _VALID_POSTED = "CASE WHEN date(j.posted_at) <= date('now','+1 day') THEN j.posted_at END"
 
+#: RELEVANCE has no entry here on purpose: its ordering is one search's own
+#: rowid ranking, not a fixed expression, so `list_jobs` builds it with
+#: `_relevance_order_sql` instead of looking it up in this table.
 _SORT_SQL: dict[Sort, str] = {
     Sort.NEWEST: f"{_VALID_POSTED} DESC NULLS LAST",
     Sort.SALARY_HIGH: f"CASE WHEN {_SAL_HIGH} IS NULL THEN 1 ELSE 0 END, {_SAL_HIGH} DESC",
     Sort.SALARY_LOW: f"CASE WHEN {_SAL_LOW} IS NULL THEN 1 ELSE 0 END, {_SAL_LOW} ASC",
     Sort.COMPANY: "j.company ASC",
 }
+
+
+def _relevance_order_sql(search_rowids: list[int]) -> str:
+    """
+    An `ORDER BY` expression that reproduces `search_rowids`' order exactly.
+
+    `search_rowids` already comes out of `search_index.matching_rowids` ranked
+    by BM25 — best match first. That ranking cannot be recomputed in plain SQL
+    (it lives in the FTS5 index, not on `jobs`), so this just replays the
+    Python-side order as a `CASE`: position 0 sorts first, position 1 second,
+    and so on. A rowid outside the list (impossible here, since the WHERE
+    clause already restricted to exactly this list) would sort last.
+    """
+    when_clauses = " ".join(
+        f"WHEN {rowid} THEN {position}" for position, rowid in enumerate(search_rowids)
+    )
+    return f"CASE j.rowid {when_clauses} ELSE {len(search_rowids)} END ASC"
 
 
 # ── Row mapping ───────────────────────────────────────────────────────────────
@@ -580,12 +627,26 @@ def list_jobs(
     visibility: Visibility = Visibility.BOARD,
 ) -> JobListResponse:
     """One page of the board."""
-    where_sql, params = _where(filters, visibility)
+    # One search_index lookup, used twice: to filter (in _where, via the IN
+    # clause) and, if the caller asked for RELEVANCE, to order. Computed once
+    # here rather than inside _where so _where can stay a pure string/param
+    # builder that never touches conn.
+    search_rowids = search_index.matching_rowids(conn, filters.search) if filters.search else None
+    where_sql, params = _where(filters, visibility, search_rowids)
     offset = (page - 1) * page_size
+
+    # RELEVANCE with no search term (or one that matched nothing) has no
+    # ranking to fall back on — NEWEST is the same silent fallback an unknown
+    # Sort value not in _SORT_SQL would need anyway.
+    order_sql = (
+        _relevance_order_sql(search_rowids)
+        if sort == Sort.RELEVANCE and search_rowids
+        else _SORT_SQL[Sort.NEWEST if sort == Sort.RELEVANCE else sort]
+    )
 
     total = conn.execute(f"{_COUNT_SELECT} {where_sql}", params).fetchone()[0]
     rows = conn.execute(
-        f"{BASE_SELECT} {where_sql} ORDER BY {_SORT_SQL[sort]} LIMIT ? OFFSET ?",
+        f"{BASE_SELECT} {where_sql} ORDER BY {order_sql} LIMIT ? OFFSET ?",
         params + [page_size, offset],
     ).fetchall()
 

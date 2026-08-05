@@ -15,6 +15,7 @@ from __future__ import annotations
 import concurrent.futures
 import logging
 import random
+import sqlite3
 import sys
 import time
 from dataclasses import dataclass
@@ -177,6 +178,24 @@ def run(args: PipelineArgs) -> list[CompanyResult]:
         if not dry_run and args.export:
             count = store.export_active_jsonl(args.export)
             logger.info("Exported %d active jobs → %s", count, args.export)
+
+        # Rebuild search AFTER cross-source reconciliation and the tech filter,
+        # so a Role the tech filter just soft-deleted (or whose apply_url the
+        # reconciliation just moved) doesn't get indexed in a state the board
+        # will never show it in. A fresh connection rather than store's own —
+        # JobStore keeps that private — closed immediately after; this runs
+        # once per pipeline run, not on a hot path. Skipped in dry-run for the
+        # same reason everything else here is: an in-memory store, nothing to
+        # persist.
+        if not dry_run:
+            from hk_jobs.search_index import rebuild_search_index
+
+            with db_lock:
+                fts_conn = sqlite3.connect(args.db)
+                try:
+                    rebuild_search_index(fts_conn)
+                finally:
+                    fts_conn.close()
 
         _print_report(results, store, dry_run=dry_run)
 

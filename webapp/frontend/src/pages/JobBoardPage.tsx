@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams, useLocation } from 'react-router-dom'
 import { ChevronDown, Star, EyeOff, ArrowLeft } from 'lucide-react'
 import type { Job, FiltersResponse, JobListResponse, TierTab } from '../api/client'
@@ -24,6 +24,7 @@ import RecommendedRoles from '../components/RecommendedRoles'
 
 const PAGE_SIZE = 24
 const SORT_OPTIONS = [
+  { value: 'relevance', label: 'Best match' },
   { value: 'newest', label: 'Newest first' },
   { value: 'salary_high', label: 'Salary: High → Low' },
   { value: 'salary_low', label: 'Salary: Low → High' },
@@ -104,6 +105,7 @@ export default function JobBoardPage() {
   const runSearch = useCallback((query: string) => {
     setSearchInput(query)
     setBaseFilters(DEFAULT_FILTERS)
+    setSort('relevance')
     setPage(1)
     setForceBoard(true)
   }, [])
@@ -111,6 +113,7 @@ export default function JobBoardPage() {
   const pickSector = useCallback((sector: string) => {
     setSearchInput('')
     setBaseFilters({ ...DEFAULT_FILTERS, sectors: [sector] })
+    setSort('newest') // browsing a sector is not a text query — relevance has nothing to rank
     setPage(1)
     setForceBoard(true)
   }, [])
@@ -118,9 +121,26 @@ export default function JobBoardPage() {
   const backToSearch = useCallback(() => {
     setBaseFilters(DEFAULT_FILTERS)
     setSearchInput(DEFAULT_FILTERS.search)
+    setSort('newest')
     setPage(1)
     setForceBoard(false)
   }, [])
+
+  // Typing a fresh query straight into the board's own search field (rather
+  // than starting from the hero) gets the same "best match first" treatment as
+  // `runSearch` — a search box that only ranks by relevance when you happen to
+  // arrive through the homepage would be a search box, apparently, until it isn't.
+  //
+  // Fires only on the empty -> non-empty transition, not on every keystroke of
+  // an already-active query: someone who searched, then deliberately chose
+  // "Salary: High -> Low", and is now refining the same query should not have
+  // that choice silently overwritten on the next letter typed.
+  const wasSearchEmpty = useRef(true)
+  useEffect(() => {
+    const isEmpty = searchInput.trim() === ''
+    if (wasSearchEmpty.current && !isEmpty) setSort('relevance')
+    wasSearchEmpty.current = isEmpty
+  }, [searchInput])
 
   // "Careers" in the nav asks for the search home, not the route.
   //
@@ -197,6 +217,7 @@ export default function JobBoardPage() {
   const clearFilters = useCallback(() => {
     setBaseFilters(DEFAULT_FILTERS)
     setSearchInput(DEFAULT_FILTERS.search)
+    setSort('newest')
     setPage(1)
   }, [])
 

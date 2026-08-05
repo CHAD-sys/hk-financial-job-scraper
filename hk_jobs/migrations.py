@@ -800,6 +800,34 @@ def migrate_to_phase_31(db_path: str) -> None:
         conn.close()
 
 
+def migrate_to_phase_32(db_path: str) -> None:
+    """
+    Build the full-text search index, so searching reads more than the title.
+
+    Search was `LOWER(title) LIKE '%q%' OR LOWER(company) LIKE '%q%'`, which
+    could not reach the description or the extracted skills, needed a query's
+    words to be adjacent, matched inside longer words, and had no notion of
+    relevance. `hk_jobs/search_index.py` explains each of those and why FTS5 is
+    the answer; this phase is only where the table gets built.
+
+    The DDL and the backfill both come from `rebuild_search_index` rather than
+    being spelled out again here. That is deliberate: the pipeline re-runs the
+    same function after every scrape, and an index whose CREATE lives in one
+    place and whose refresh lives in another is an index whose two copies drift.
+
+    Safe to run on a database with no jobs yet — it indexes nothing and the
+    table is there for the first scrape.
+    """
+    from .search_index import rebuild_search_index
+
+    conn = sqlite3.connect(db_path)
+    try:
+        count = rebuild_search_index(conn)
+        logger.info("Phase 32 migration: search index built over %s Role(s).", count)
+    finally:
+        conn.close()
+
+
 # ── The ledger ────────────────────────────────────────────────────────────────
 
 _SCHEMA_MIGRATIONS_DDL = """
@@ -815,7 +843,8 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 #: Order is load-bearing beyond the obvious: 10 creates `jobs` before the seven
 #: phases that alter it; 26 creates `linkedin_posts` and `recruiter_fetch_state`
 #: before 27 and 28 add columns to them; 12 creates `job_enrichments` before 29
-#: restamps rows in it.
+#: restamps rows in it; and 32 reads BOTH `jobs` and `job_enrichments` to fill
+#: the search index, so it has to sit after 10 and 12.
 MIGRATIONS: tuple[tuple[int, Callable[[str], None]], ...] = (
     (10, migrate_to_phase_10),
     (11, migrate_to_phase_11),
@@ -839,6 +868,7 @@ MIGRATIONS: tuple[tuple[int, Callable[[str], None]], ...] = (
     (29, migrate_to_phase_29),
     (30, migrate_to_phase_30),
     (31, migrate_to_phase_31),
+    (32, migrate_to_phase_32),
 )
 
 LATEST_PHASE = MIGRATIONS[-1][0]
