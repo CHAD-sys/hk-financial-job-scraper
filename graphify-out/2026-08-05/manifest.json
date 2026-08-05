@@ -65,7 +65,7 @@
     "semantic_hash": "2f7bd2146f35c55a76eea9036d963e3e"
   },
   "hk_jobs/enrichment.py": {
-    "mtime": 1785916761.3287804,
+    "mtime": 1785917050.397769,
     "ast_hash": "33f699c5c6dbba8e7b7b388c23511d64",
     "semantic_hash": ""
   },
@@ -1363,5 +1363,1370 @@
     "mtime": 1785916747.0120215,
     "ast_hash": "c86aa82d73652afa5f30e85faf1e586a",
     "semantic_hash": ""
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/bakeoff/apify_post_search_raw.json": {
+    "mtime": 1784806743.9920375,
+    "ast_hash": "1b7492177cc623edb0a109926222f9ac",
+    "semantic_hash": "1b7492177cc623edb0a109926222f9ac"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/bakeoff/apify_profile_posts_raw.json": {
+    "mtime": 1784806743.9937253,
+    "ast_hash": "13fe58b945abf4b68314e6b522719bfb",
+    "semantic_hash": "13fe58b945abf4b68314e6b522719bfb"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/__init__.py": {
+    "mtime": 1780044673.586089,
+    "ast_hash": "28a8e0fdaad12ed0d58370486b99c693",
+    "semantic_hash": "28a8e0fdaad12ed0d58370486b99c693"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/adapters/__init__.py": {
+    "mtime": 1785359614.1072955,
+    "ast_hash": "98b4c94bbf3c119a757eaa71b82fe668",
+    "semantic_hash": "98b4c94bbf3c119a757eaa71b82fe668"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/adapters/base.py": {
+    "mtime": 1780045894.342151,
+    "ast_hash": "ac5ecea996fd44123739e667d6b344b3",
+    "semantic_hash": "ac5ecea996fd44123739e667d6b344b3"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/adapters/efc.py": {
+    "mtime": 1785840435.058131,
+    "ast_hash": "ba2e23907c0898215678d20806431b19",
+    "semantic_hash": "ba2e23907c0898215678d20806431b19"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/adapters/eightfold.py": {
+    "mtime": 1784214378.1605291,
+    "ast_hash": "e3e0093f30f6a663e9db6050ba557817",
+    "semantic_hash": "e3e0093f30f6a663e9db6050ba557817"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/adapters/indeed.py": {
+    "mtime": 1784214288.765314,
+    "ast_hash": "0daac815cfd8419b06472131a3e4f947",
+    "semantic_hash": "0daac815cfd8419b06472131a3e4f947"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/adapters/jobsdb.py": {
+    "mtime": 1782495882.3120847,
+    "ast_hash": "65f89c770e73ac42f32e480805a55185",
+    "semantic_hash": "65f89c770e73ac42f32e480805a55185"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/adapters/linkedin.py": {
+    "mtime": 1784221907.5417013,
+    "ast_hash": "5f1d03fa28b2437205a0cd2fc87dd89f",
+    "semantic_hash": "5f1d03fa28b2437205a0cd2fc87dd89f"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/adapters/longtail.py": {
+    "mtime": 1783986299.7064104,
+    "ast_hash": "8bc8203301257e5e0d51814a30090eda",
+    "semantic_hash": "8bc8203301257e5e0d51814a30090eda"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/adapters/successfactors.py": {
+    "mtime": 1785361821.1171348,
+    "ast_hash": "ec228005a4dd7ff286e5c03e852d53f5",
+    "semantic_hash": "ec228005a4dd7ff286e5c03e852d53f5"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/adapters/workday.py": {
+    "mtime": 1780050270.3125165,
+    "ast_hash": "f98bc0be710611630b80dbe7f4af3aff",
+    "semantic_hash": "f98bc0be710611630b80dbe7f4af3aff"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/analytics.py": {
+    "mtime": 1780244804.652232,
+    "ast_hash": "c98019b4a1f7fdce4c41855e90db3533",
+    "semantic_hash": "c98019b4a1f7fdce4c41855e90db3533"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/backup.py": {
+    "mtime": 1783981779.1179533,
+    "ast_hash": "25237fa17ec22c82ca10a4d517a25893",
+    "semantic_hash": "25237fa17ec22c82ca10a4d517a25893"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/cli.py": {
+    "mtime": 1785916824.7759097,
+    "ast_hash": "ecc37447d4e116f49613ba0fbd240a93",
+    "semantic_hash": "ecc37447d4e116f49613ba0fbd240a93"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/config.py": {
+    "mtime": 1785359614.1080005,
+    "ast_hash": "bc9877daa0ddb84245a45a2464ade81f",
+    "semantic_hash": "bc9877daa0ddb84245a45a2464ade81f"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/description_fetcher.py": {
+    "mtime": 1784806744.024364,
+    "ast_hash": "f982ce3ab10a2cb90a0459bb284e6df8",
+    "semantic_hash": "f982ce3ab10a2cb90a0459bb284e6df8"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/enrich.py": {
+    "mtime": 1780047565.7821977,
+    "ast_hash": "d8b3d928e004a83c2001b98c3cba20fc",
+    "semantic_hash": "d8b3d928e004a83c2001b98c3cba20fc"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/enrichers/__init__.py": {
+    "mtime": 1780306764.0392601,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/enrichers/deepseek.py": {
+    "mtime": 1785791794.7851973,
+    "ast_hash": "2f7bd2146f35c55a76eea9036d963e3e",
+    "semantic_hash": "2f7bd2146f35c55a76eea9036d963e3e"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/enrichment.py": {
+    "mtime": 1785917050.397769,
+    "ast_hash": "33f699c5c6dbba8e7b7b388c23511d64",
+    "semantic_hash": "33f699c5c6dbba8e7b7b388c23511d64"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/http_utils.py": {
+    "mtime": 1780049052.5989416,
+    "ast_hash": "fff68d03499d3fd6622050489ce7f34c",
+    "semantic_hash": "fff68d03499d3fd6622050489ce7f34c"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/llm_client.py": {
+    "mtime": 1784920357.4558141,
+    "ast_hash": "2ebbd83b3558e7e9677319f864c41ad3",
+    "semantic_hash": "2ebbd83b3558e7e9677319f864c41ad3"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/migrations.py": {
+    "mtime": 1785916824.7768064,
+    "ast_hash": "f9a6a1bf0345177ade4bcfa3631210d2",
+    "semantic_hash": "f9a6a1bf0345177ade4bcfa3631210d2"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/notifications.py": {
+    "mtime": 1785790637.5292685,
+    "ast_hash": "4cb4ab7d8b9e64d55e725dcc12b90d6d",
+    "semantic_hash": "4cb4ab7d8b9e64d55e725dcc12b90d6d"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/pipeline.py": {
+    "mtime": 1785916824.7784884,
+    "ast_hash": "2cdc5186e412716d3289e09a6f9e5cb0",
+    "semantic_hash": "2cdc5186e412716d3289e09a6f9e5cb0"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/posts/__init__.py": {
+    "mtime": 1784806744.027308,
+    "ast_hash": "5b2cc520f6c4afe05ac2e6d21b0bca35",
+    "semantic_hash": "5b2cc520f6c4afe05ac2e6d21b0bca35"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/posts/budget.py": {
+    "mtime": 1784806744.0276358,
+    "ast_hash": "a8c0a0228a4d381c9bd931fc2932b86d",
+    "semantic_hash": "a8c0a0228a4d381c9bd931fc2932b86d"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/posts/cadence.py": {
+    "mtime": 1785873452.8578687,
+    "ast_hash": "6c5bc63e21d95c3be5b3a3664033cb74",
+    "semantic_hash": "6c5bc63e21d95c3be5b3a3664033cb74"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/posts/email_harvest.py": {
+    "mtime": 1784806744.028428,
+    "ast_hash": "36981b08fb225d89d3d7c6c31c724772",
+    "semantic_hash": "36981b08fb225d89d3d7c6c31c724772"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/posts/expiry.py": {
+    "mtime": 1785856494.0163927,
+    "ast_hash": "c68bca85e77e46cbfbf02d206fb33791",
+    "semantic_hash": "c68bca85e77e46cbfbf02d206fb33791"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/posts/extractor.py": {
+    "mtime": 1784806744.0308967,
+    "ast_hash": "fc0dec698e2ffb05c63f95d66bf18124",
+    "semantic_hash": "fc0dec698e2ffb05c63f95d66bf18124"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/posts/fetcher.py": {
+    "mtime": 1784806744.03429,
+    "ast_hash": "39c8705ff0496b71482e803f0050d8fd",
+    "semantic_hash": "39c8705ff0496b71482e803f0050d8fd"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/posts/ghost_check.py": {
+    "mtime": 1784806744.0347884,
+    "ast_hash": "817c96f5d612dc69d2c7c67106a96ec1",
+    "semantic_hash": "817c96f5d612dc69d2c7c67106a96ec1"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/posts/metrics.py": {
+    "mtime": 1784806744.035147,
+    "ast_hash": "85b0c238c08663ea26fafae69f652536",
+    "semantic_hash": "85b0c238c08663ea26fafae69f652536"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/posts/pilot_report.py": {
+    "mtime": 1784806744.0358398,
+    "ast_hash": "c4fee19a999b93e05808881e5b182b17",
+    "semantic_hash": "c4fee19a999b93e05808881e5b182b17"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/posts/promote.py": {
+    "mtime": 1784806744.0363016,
+    "ast_hash": "a7cb6b857a5ee5569b5a1f4202771df9",
+    "semantic_hash": "a7cb6b857a5ee5569b5a1f4202771df9"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/posts/store.py": {
+    "mtime": 1785873039.4373949,
+    "ast_hash": "b5461f0f26109ad9ef363df9fb3c66cf",
+    "semantic_hash": "b5461f0f26109ad9ef363df9fb3c66cf"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/posts/vendor_client.py": {
+    "mtime": 1784806744.037299,
+    "ast_hash": "6bb9fc3d819a173bde340b0b2a0285fd",
+    "semantic_hash": "6bb9fc3d819a173bde340b0b2a0285fd"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/recruiters_config.py": {
+    "mtime": 1784806744.038004,
+    "ast_hash": "c50dc6955d3cfe3abab93f309da29a4c",
+    "semantic_hash": "c50dc6955d3cfe3abab93f309da29a4c"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/reports/__init__.py": {
+    "mtime": 1780655202.8489363,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/reports/weekly.py": {
+    "mtime": 1780655202.8494399,
+    "ast_hash": "4cf22a30a65317272d00c78056111a34",
+    "semantic_hash": "4cf22a30a65317272d00c78056111a34"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/salary.py": {
+    "mtime": 1785791712.8582256,
+    "ast_hash": "89aec58d3e3d93b776c56c9b9c5d724a",
+    "semantic_hash": "89aec58d3e3d93b776c56c9b9c5d724a"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/salary_anchors.py": {
+    "mtime": 1785791418.7304547,
+    "ast_hash": "085fb7007fae596baaef22e4cc77bc8e",
+    "semantic_hash": "085fb7007fae596baaef22e4cc77bc8e"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/salary_audit.py": {
+    "mtime": 1785838440.6983237,
+    "ast_hash": "4fb07f896e3be3a867051ab9db6f6399",
+    "semantic_hash": "4fb07f896e3be3a867051ab9db6f6399"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/salary_clamp.py": {
+    "mtime": 1785791434.1376007,
+    "ast_hash": "d89aefa2b9249928f08f92f2dc432215",
+    "semantic_hash": "d89aefa2b9249928f08f92f2dc432215"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/schema.py": {
+    "mtime": 1785840445.1346605,
+    "ast_hash": "93dbae20c4d8a63462b063b6f5017016",
+    "semantic_hash": "93dbae20c4d8a63462b063b6f5017016"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/search_index.py": {
+    "mtime": 1785916824.7810426,
+    "ast_hash": "db11d19e8a0b3e01a646b2e89f95f429",
+    "semantic_hash": "db11d19e8a0b3e01a646b2e89f95f429"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/sources.py": {
+    "mtime": 1785840520.061684,
+    "ast_hash": "21e7b234d0be04e2553bf9c5ea635c6f",
+    "semantic_hash": "21e7b234d0be04e2553bf9c5ea635c6f"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/storage.py": {
+    "mtime": 1785858386.1221144,
+    "ast_hash": "9f240b6aabd06675ebe11711e6ff2f0f",
+    "semantic_hash": "9f240b6aabd06675ebe11711e6ff2f0f"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/sync_pocketbase.py": {
+    "mtime": 1784806744.0396354,
+    "ast_hash": "90f77593ca0be8209998cab4d70bb3c5",
+    "semantic_hash": "90f77593ca0be8209998cab4d70bb3c5"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/tech_filter.py": {
+    "mtime": 1785856494.0194108,
+    "ast_hash": "48fbd0ac0eeb89e3fab9f30db7a133a0",
+    "semantic_hash": "48fbd0ac0eeb89e3fab9f30db7a133a0"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/pyproject.toml": {
+    "mtime": 1780044652.7054415,
+    "ast_hash": "b68e34c34b0f55968a865e5de268ffe0",
+    "semantic_hash": "b68e34c34b0f55968a865e5de268ffe0"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/salary_guidlines/adecco_2026.json": {
+    "mtime": 1784806744.0402138,
+    "ast_hash": "308f351e6a32917868bb7a000101267b",
+    "semantic_hash": "308f351e6a32917868bb7a000101267b"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/salary_guidlines/hk_salary_anchors.json": {
+    "mtime": 1785254269.6403146,
+    "ast_hash": "493fc1ab7b3bb53234ad8c1a4dbf2e18",
+    "semantic_hash": "493fc1ab7b3bb53234ad8c1a4dbf2e18"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/salary_guidlines/persolkelly_2025.json": {
+    "mtime": 1784806744.0416934,
+    "ast_hash": "7f2e2e097d7be7a13cef5a3aa99916fc",
+    "semantic_hash": "7f2e2e097d7be7a13cef5a3aa99916fc"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/apply_boutique_salary_discount.py": {
+    "mtime": 1784806744.050043,
+    "ast_hash": "6289e49558a8cb83e433437e048d414e",
+    "semantic_hash": "6289e49558a8cb83e433437e048d414e"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/backup_seekers.sh": {
+    "mtime": 1785791056.9833102,
+    "ast_hash": "79f90976aa4e22fe8dcd29616e15f59c",
+    "semantic_hash": "79f90976aa4e22fe8dcd29616e15f59c"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/build_merged_salary_anchors.py": {
+    "mtime": 1784806744.050304,
+    "ast_hash": "cf0615f3e79cbe5b98876d9463153706",
+    "semantic_hash": "cf0615f3e79cbe5b98876d9463153706"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/clamp_existing_salaries.py": {
+    "mtime": 1784806707.150554,
+    "ast_hash": "73e3aee6a70aa47088220d467417c82e",
+    "semantic_hash": "73e3aee6a70aa47088220d467417c82e"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/daily_run.sh": {
+    "mtime": 1785873176.6106582,
+    "ast_hash": "2f3b8d326e92bf93cf5869a80ff256c4",
+    "semantic_hash": "2f3b8d326e92bf93cf5869a80ff256c4"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/dev_local.sh": {
+    "mtime": 1785790637.5302072,
+    "ast_hash": "bd5a82c4f182ffc070157d769529d97c",
+    "semantic_hash": "bd5a82c4f182ffc070157d769529d97c"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/discover_companies.py": {
+    "mtime": 1781956494.795637,
+    "ast_hash": "7aee9983f12b4c0cfc099ba1dfab0e0b",
+    "semantic_hash": "7aee9983f12b4c0cfc099ba1dfab0e0b"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/export_jobs_csv.py": {
+    "mtime": 1784115774.029951,
+    "ast_hash": "e6323c08a7719a52572d41a72f19263d",
+    "semantic_hash": "e6323c08a7719a52572d41a72f19263d"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/fetch_linkedin_signals.py": {
+    "mtime": 1784222007.2714434,
+    "ast_hash": "9c752333ed9abafe4db37be38eee4811",
+    "semantic_hash": "9c752333ed9abafe4db37be38eee4811"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/generate_full_report.py": {
+    "mtime": 1780370241.0766292,
+    "ast_hash": "410ff3f5b893cfa818f0c8ece48f3c68",
+    "semantic_hash": "410ff3f5b893cfa818f0c8ece48f3c68"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/generate_intelligence_report.py": {
+    "mtime": 1780565005.0276937,
+    "ast_hash": "f3d0abcb79d3fa2202e412ac6f73397a",
+    "semantic_hash": "f3d0abcb79d3fa2202e412ac6f73397a"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/generate_report.py": {
+    "mtime": 1782212214.0284176,
+    "ast_hash": "5ff8cb23b6d82fb289ff4b6b2d886c13",
+    "semantic_hash": "5ff8cb23b6d82fb289ff4b6b2d886c13"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/generate_trend_report.py": {
+    "mtime": 1782214715.5870545,
+    "ast_hash": "a5f68578369c4561cc45fea21d965bef",
+    "semantic_hash": "a5f68578369c4561cc45fea21d965bef"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/merge_indeed_entries.py": {
+    "mtime": 1784057298.4961183,
+    "ast_hash": "250418c7ee8fd0a9ee7c9699ac4ea027",
+    "semantic_hash": "250418c7ee8fd0a9ee7c9699ac4ea027"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/probe_indeed.py": {
+    "mtime": 1782965388.6118085,
+    "ast_hash": "06947f31d19c86f296e2775d3d1d9d9e",
+    "semantic_hash": "06947f31d19c86f296e2775d3d1d9d9e"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/reestimate_salaries.py": {
+    "mtime": 1784806707.150841,
+    "ast_hash": "f1e3e1f6d5fa9d45049894b5a1972232",
+    "semantic_hash": "f1e3e1f6d5fa9d45049894b5a1972232"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/remove_tech_roles.py": {
+    "mtime": 1785856494.0225673,
+    "ast_hash": "669b0f7ab41e47e1d0855ffbb4dbf1f3",
+    "semantic_hash": "669b0f7ab41e47e1d0855ffbb4dbf1f3"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/resolve_indeed_slugs.py": {
+    "mtime": 1784063965.007386,
+    "ast_hash": "4b7aa72ce0921c0b2660f8cd63b60702",
+    "semantic_hash": "4b7aa72ce0921c0b2660f8cd63b60702"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/resolve_linkedin_ids.py": {
+    "mtime": 1784099334.1367428,
+    "ast_hash": "8dcf5b15eec3d5a34d659f3d2179b8b8",
+    "semantic_hash": "8dcf5b15eec3d5a34d659f3d2179b8b8"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/review_submissions.py": {
+    "mtime": 1785184506.4911656,
+    "ast_hash": "574e8e3521449207e003e3bfc5bafe0d",
+    "semantic_hash": "574e8e3521449207e003e3bfc5bafe0d"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/run_daily.sh": {
+    "mtime": 1780049258.3267062,
+    "ast_hash": "a9d944fa1115fec2bd89df7862a97da5",
+    "semantic_hash": "a9d944fa1115fec2bd89df7862a97da5"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/test_scrapling_jobsdb.py": {
+    "mtime": 1780055332.2125082,
+    "ast_hash": "fb5b87fa6d0c3cfaa1493b2e28493165",
+    "semantic_hash": "fb5b87fa6d0c3cfaa1493b2e28493165"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/try_efc_live.py": {
+    "mtime": 1784026517.4931028,
+    "ast_hash": "7ccf3c0db6ba0875a4e3c21b496ea2be",
+    "semantic_hash": "7ccf3c0db6ba0875a4e3c21b496ea2be"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/try_eightfold_live.py": {
+    "mtime": 1780046948.534386,
+    "ast_hash": "e3bc8c2c3fa721723f5c7cc873bad0c4",
+    "semantic_hash": "e3bc8c2c3fa721723f5c7cc873bad0c4"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/try_jobsdb_live.py": {
+    "mtime": 1780050907.467418,
+    "ast_hash": "c5ca4fc9e7f0773a88aa3d72b1e08bab",
+    "semantic_hash": "c5ca4fc9e7f0773a88aa3d72b1e08bab"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/try_linkedin_posts_live.py": {
+    "mtime": 1784806744.0512311,
+    "ast_hash": "eff6da65352c8006278ed2a2ee9a9d7f",
+    "semantic_hash": "eff6da65352c8006278ed2a2ee9a9d7f"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/try_salary_estimate.py": {
+    "mtime": 1784806707.1510367,
+    "ast_hash": "78b9bc8668bc05f88b38ce1c9649d373",
+    "semantic_hash": "78b9bc8668bc05f88b38ce1c9649d373"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/scripts/try_workday_live.py": {
+    "mtime": 1780046606.8563948,
+    "ast_hash": "6e3832dffae2499664a5ec3024596ada",
+    "semantic_hash": "6e3832dffae2499664a5ec3024596ada"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/__init__.py": {
+    "mtime": 1780044739.6473465,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/conftest.py": {
+    "mtime": 1785791056.986535,
+    "ast_hash": "685e97f100f2e7df291c8803393d13b6",
+    "semantic_hash": "685e97f100f2e7df291c8803393d13b6"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/fixtures/apify/post_search_sample.json": {
+    "mtime": 1784806744.0517504,
+    "ast_hash": "a3682462decefb2488b8c05d05661778",
+    "semantic_hash": "a3682462decefb2488b8c05d05661778"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/fixtures/apify/profile_posts_sample.json": {
+    "mtime": 1784806744.0520914,
+    "ast_hash": "9f8af0131056e2587b26ecf29b9616ca",
+    "semantic_hash": "9f8af0131056e2587b26ecf29b9616ca"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/fixtures/apify/profile_scraper_email_sample.json": {
+    "mtime": 1784806744.0523677,
+    "ast_hash": "7dae47375899357249089732e7c9e969",
+    "semantic_hash": "7dae47375899357249089732e7c9e969"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/fixtures/eightfold/page0.json": {
+    "mtime": 1785836994.5926213,
+    "ast_hash": "44960ce1652fcfa89db891959457b8c1",
+    "semantic_hash": "44960ce1652fcfa89db891959457b8c1"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/fixtures/eightfold/page1.json": {
+    "mtime": 1785836994.5930424,
+    "ast_hash": "3f8faa52ed155ccf39dd2280782d34f6",
+    "semantic_hash": "3f8faa52ed155ccf39dd2280782d34f6"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/fixtures/workday/detail_jr001.json": {
+    "mtime": 1780046493.2209573,
+    "ast_hash": "3ca68ec9da07de093aeabec6f1aaf486",
+    "semantic_hash": "3ca68ec9da07de093aeabec6f1aaf486"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/fixtures/workday/detail_jr002.json": {
+    "mtime": 1780046498.2799628,
+    "ast_hash": "4da22bcb0d45db591c6e27682221a298",
+    "semantic_hash": "4da22bcb0d45db591c6e27682221a298"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/fixtures/workday/listing.json": {
+    "mtime": 1780050277.920373,
+    "ast_hash": "2500fce434dacaf1dafdd1c546bb2868",
+    "semantic_hash": "2500fce434dacaf1dafdd1c546bb2868"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/support.py": {
+    "mtime": 1785916824.7835255,
+    "ast_hash": "e24580d868cc21c43caf7082bb33dc0f",
+    "semantic_hash": "e24580d868cc21c43caf7082bb33dc0f"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_app_factory.py": {
+    "mtime": 1785791056.9894907,
+    "ast_hash": "9dc4a4beeff1fade5cf75bd7f6413fd9",
+    "semantic_hash": "9dc4a4beeff1fade5cf75bd7f6413fd9"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_auth_core.py": {
+    "mtime": 1785791056.9904835,
+    "ast_hash": "2e8e7e0eb9e4475b7404b5c7d4483e41",
+    "semantic_hash": "2e8e7e0eb9e4475b7404b5c7d4483e41"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_auth_endpoints.py": {
+    "mtime": 1785917657.8621466,
+    "ast_hash": "c912ac4bc17f4b03a8fab393eb527763",
+    "semantic_hash": "c912ac4bc17f4b03a8fab393eb527763"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_base_adapter.py": {
+    "mtime": 1780046629.2929237,
+    "ast_hash": "e5ac1aabfec64de6cbd6994ef04c5d3a",
+    "semantic_hash": "e5ac1aabfec64de6cbd6994ef04c5d3a"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_cli.py": {
+    "mtime": 1785838435.0504982,
+    "ast_hash": "3713ae59b8e09875c149d0a61c4d81d1",
+    "semantic_hash": "3713ae59b8e09875c149d0a61c4d81d1"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_config.py": {
+    "mtime": 1784123581.2626398,
+    "ast_hash": "d27399ca79bc5367479346cea1ad64c2",
+    "semantic_hash": "d27399ca79bc5367479346cea1ad64c2"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_cross_posting.py": {
+    "mtime": 1784052622.58005,
+    "ast_hash": "4f25d19223b8d4b59ea4c0c2f2a77abf",
+    "semantic_hash": "4f25d19223b8d4b59ea4c0c2f2a77abf"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_deactivation.py": {
+    "mtime": 1785858386.1230116,
+    "ast_hash": "5f8e389aba04c6a189f030494394dea1",
+    "semantic_hash": "5f8e389aba04c6a189f030494394dea1"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_efc.py": {
+    "mtime": 1784027591.546261,
+    "ast_hash": "5799eb406ef01b1fdc46515188428e8d",
+    "semantic_hash": "5799eb406ef01b1fdc46515188428e8d"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_eightfold.py": {
+    "mtime": 1785837002.2530513,
+    "ast_hash": "b9e05dacd6edf53ea8ee7b6e5ff989e2",
+    "semantic_hash": "b9e05dacd6edf53ea8ee7b6e5ff989e2"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_email_harvest.py": {
+    "mtime": 1784806744.0535882,
+    "ast_hash": "587e3e64b9ae75af2b77074724b2519b",
+    "semantic_hash": "587e3e64b9ae75af2b77074724b2519b"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_enrich.py": {
+    "mtime": 1780047577.7952003,
+    "ast_hash": "8815b4624c1e6bbd96079ca16c12dbe3",
+    "semantic_hash": "8815b4624c1e6bbd96079ca16c12dbe3"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_enrichment_persistence.py": {
+    "mtime": 1785917050.398149,
+    "ast_hash": "c86aa82d73652afa5f30e85faf1e586a",
+    "semantic_hash": "c86aa82d73652afa5f30e85faf1e586a"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_env_file.py": {
+    "mtime": 1785232424.7650552,
+    "ast_hash": "a092c76c42e68bd0b72ca9a1c0f93d56",
+    "semantic_hash": "a092c76c42e68bd0b72ca9a1c0f93d56"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_expiry.py": {
+    "mtime": 1784806744.0557313,
+    "ast_hash": "2f731fd28589eb02cf43489bee79cf9b",
+    "semantic_hash": "2f731fd28589eb02cf43489bee79cf9b"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_extractor.py": {
+    "mtime": 1784806744.0562294,
+    "ast_hash": "7d8daee637aeee3e6f5055835e3bc07d",
+    "semantic_hash": "7d8daee637aeee3e6f5055835e3bc07d"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_ghost_check.py": {
+    "mtime": 1784806744.0567067,
+    "ast_hash": "4a31d8e08ecd73a206e695961cab6cb6",
+    "semantic_hash": "4a31d8e08ecd73a206e695961cab6cb6"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_http_utils.py": {
+    "mtime": 1780049176.626127,
+    "ast_hash": "4437e0f878f0fa6cfd0e4c9e6bc50e39",
+    "semantic_hash": "4437e0f878f0fa6cfd0e4c9e6bc50e39"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_indeed.py": {
+    "mtime": 1782965215.4928625,
+    "ast_hash": "4612ec845851443f4e38fc0f491d3e17",
+    "semantic_hash": "4612ec845851443f4e38fc0f491d3e17"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_job_read.py": {
+    "mtime": 1785791056.992968,
+    "ast_hash": "655bf1f6226661d4fa39da0cc7d55e53",
+    "semantic_hash": "655bf1f6226661d4fa39da0cc7d55e53"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_jobs_api.py": {
+    "mtime": 1785791056.9938192,
+    "ast_hash": "5b3ba3f2f53393ba09d9da40569af479",
+    "semantic_hash": "5b3ba3f2f53393ba09d9da40569af479"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_jobsdb.py": {
+    "mtime": 1782495949.8580413,
+    "ast_hash": "990c5deda3134ca432265b9a4131335c",
+    "semantic_hash": "990c5deda3134ca432265b9a4131335c"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_linkedin.py": {
+    "mtime": 1784055561.4329948,
+    "ast_hash": "edeca56f20249a5026b0eb13165f032e",
+    "semantic_hash": "edeca56f20249a5026b0eb13165f032e"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_longtail.py": {
+    "mtime": 1783986973.3742418,
+    "ast_hash": "644ceb8ac52c3c1ce82e824ddcc689b1",
+    "semantic_hash": "644ceb8ac52c3c1ce82e824ddcc689b1"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_migrations.py": {
+    "mtime": 1785858386.1235242,
+    "ast_hash": "25a08aa46e76c64b5cd8125d7ccbdbab",
+    "semantic_hash": "25a08aa46e76c64b5cd8125d7ccbdbab"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_pilot_report.py": {
+    "mtime": 1784806744.0569751,
+    "ast_hash": "0156e587926f0f12efde16db1b0fb167",
+    "semantic_hash": "0156e587926f0f12efde16db1b0fb167"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_pipeline.py": {
+    "mtime": 1785838292.2613997,
+    "ast_hash": "583f6cbd9f3a78f35203f5978cd9e7fb",
+    "semantic_hash": "583f6cbd9f3a78f35203f5978cd9e7fb"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_posts_cadence.py": {
+    "mtime": 1785873145.391647,
+    "ast_hash": "19a47b13f04ccb60d0e248903ee01f60",
+    "semantic_hash": "19a47b13f04ccb60d0e248903ee01f60"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_posts_pipeline.py": {
+    "mtime": 1784806744.0572884,
+    "ast_hash": "e8333144ed5542c1fc7b17b19b5c6938",
+    "semantic_hash": "e8333144ed5542c1fc7b17b19b5c6938"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_promote.py": {
+    "mtime": 1784806744.0577383,
+    "ast_hash": "4c6439c23a5d248e572d0dad79cde3e6",
+    "semantic_hash": "4c6439c23a5d248e572d0dad79cde3e6"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_rate_limit.py": {
+    "mtime": 1785842558.6324754,
+    "ast_hash": "57fddc9156ba293090997331fc5f1ee3",
+    "semantic_hash": "57fddc9156ba293090997331fc5f1ee3"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_recruiters_config.py": {
+    "mtime": 1784806744.0580199,
+    "ast_hash": "d39f41eed192b157a845ca35f587d5d9",
+    "semantic_hash": "d39f41eed192b157a845ca35f587d5d9"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_salary.py": {
+    "mtime": 1785791744.099231,
+    "ast_hash": "610410aeae133f32125f00f4e1a15463",
+    "semantic_hash": "610410aeae133f32125f00f4e1a15463"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_salary_clamp.py": {
+    "mtime": 1785254269.640602,
+    "ast_hash": "05dfcc5bd72ff8b9764928665c62cb68",
+    "semantic_hash": "05dfcc5bd72ff8b9764928665c62cb68"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_saved_retention.py": {
+    "mtime": 1785858420.1883125,
+    "ast_hash": "168ec5718ffcf7409f20602c88d2c5d8",
+    "semantic_hash": "168ec5718ffcf7409f20602c88d2c5d8"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_schema.py": {
+    "mtime": 1780045375.2331967,
+    "ast_hash": "133be3ac194cf592cfdb2162a9619be0",
+    "semantic_hash": "133be3ac194cf592cfdb2162a9619be0"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_search_index.py": {
+    "mtime": 1785916824.7844753,
+    "ast_hash": "f4f41409b8041bb0303d00e13f033caa",
+    "semantic_hash": "f4f41409b8041bb0303d00e13f033caa"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_seekers_store.py": {
+    "mtime": 1785791056.9943209,
+    "ast_hash": "ad99a88c80de449ac8db31244f2f0811",
+    "semantic_hash": "ad99a88c80de449ac8db31244f2f0811"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_single_origin.py": {
+    "mtime": 1785791056.9948084,
+    "ast_hash": "5f766b0a071a968f00f7554677017ba5",
+    "semantic_hash": "5f766b0a071a968f00f7554677017ba5"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_sources.py": {
+    "mtime": 1785840510.3446639,
+    "ast_hash": "c982935f74c446b90dbd1ca0a53ab688",
+    "semantic_hash": "c982935f74c446b90dbd1ca0a53ab688"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_storage.py": {
+    "mtime": 1780048369.0846055,
+    "ast_hash": "3034ef5f7bffffc578349ddac824f835",
+    "semantic_hash": "3034ef5f7bffffc578349ddac824f835"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_submit_endpoints.py": {
+    "mtime": 1785182451.0816042,
+    "ast_hash": "d9824c1cb6041e407a3f232e85d0bf38",
+    "semantic_hash": "d9824c1cb6041e407a3f232e85d0bf38"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_successfactors.py": {
+    "mtime": 1785361861.4302442,
+    "ast_hash": "398374b8d56811079b351706f5ee892b",
+    "semantic_hash": "398374b8d56811079b351706f5ee892b"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_vendor_client.py": {
+    "mtime": 1784806744.058954,
+    "ast_hash": "1645548f93cd86e86a1903a9b3ae36cd",
+    "semantic_hash": "1645548f93cd86e86a1903a9b3ae36cd"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/test_workday.py": {
+    "mtime": 1780046580.4768937,
+    "ast_hash": "11b07b877614c4731cc5a009768b38a6",
+    "semantic_hash": "11b07b877614c4731cc5a009768b38a6"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/backend/auth.py": {
+    "mtime": 1785791056.9960809,
+    "ast_hash": "7be437aea3e38087c1b9bf8c72e36e42",
+    "semantic_hash": "7be437aea3e38087c1b9bf8c72e36e42"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/backend/env_file.py": {
+    "mtime": 1785232338.3684738,
+    "ast_hash": "716978ea2771f5c1e8de42335fed6ac1",
+    "semantic_hash": "716978ea2771f5c1e8de42335fed6ac1"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/backend/job_read.py": {
+    "mtime": 1785916824.7852838,
+    "ast_hash": "2adc34b507a092488c7f7c03486547bd",
+    "semantic_hash": "2adc34b507a092488c7f7c03486547bd"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/backend/mailer.py": {
+    "mtime": 1785791056.9997482,
+    "ast_hash": "4ae3f35f3fee7981c17f4fe3f8aa87f9",
+    "semantic_hash": "4ae3f35f3fee7981c17f4fe3f8aa87f9"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/backend/main.py": {
+    "mtime": 1785917616.2758515,
+    "ast_hash": "b0e1908f482cc4c5253ef0072985e2fb",
+    "semantic_hash": "b0e1908f482cc4c5253ef0072985e2fb"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/backend/railway.json": {
+    "mtime": 1784986967.643294,
+    "ast_hash": "7be325edefffa9ed32312b58a1f5007e",
+    "semantic_hash": "7be325edefffa9ed32312b58a1f5007e"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/backend/rate_limit.py": {
+    "mtime": 1785842431.2249303,
+    "ast_hash": "2399414308b604a265688b301f3c4536",
+    "semantic_hash": "2399414308b604a265688b301f3c4536"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/backend/search_index.py": {
+    "mtime": 1785916824.7885792,
+    "ast_hash": "e21513193a7ca1182d15c77039396a8f",
+    "semantic_hash": "e21513193a7ca1182d15c77039396a8f"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/backend/seekers_store.py": {
+    "mtime": 1785791057.0035198,
+    "ast_hash": "875ca585cee20c71e88e3ccd4eebaa92",
+    "semantic_hash": "875ca585cee20c71e88e3ccd4eebaa92"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/backend/sender.py": {
+    "mtime": 1785791057.0039177,
+    "ast_hash": "4f46e1dc204dd0bcd0e74fed7e89da8e",
+    "semantic_hash": "4f46e1dc204dd0bcd0e74fed7e89da8e"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/backend/settings.py": {
+    "mtime": 1785791057.0068433,
+    "ast_hash": "34d318d0321227ecea0796bfaa6b5ff0",
+    "semantic_hash": "34d318d0321227ecea0796bfaa6b5ff0"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/.oxlintrc.json": {
+    "mtime": 1782359776.9569156,
+    "ast_hash": "029f4905006c1fffd96bc863e2d98d3e",
+    "semantic_hash": "029f4905006c1fffd96bc863e2d98d3e"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/package.json": {
+    "mtime": 1785791057.01185,
+    "ast_hash": "a448c9bfda818b2c932f0ef54b4723a4",
+    "semantic_hash": "a448c9bfda818b2c932f0ef54b4723a4"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/App.tsx": {
+    "mtime": 1785791057.012423,
+    "ast_hash": "24a03079e9e22c7fc4c2863508e0011c",
+    "semantic_hash": "24a03079e9e22c7fc4c2863508e0011c"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/api/client.ts": {
+    "mtime": 1785917767.087808,
+    "ast_hash": "05062b88ac5e2a4ade0f4b20ffb8c7b5",
+    "semantic_hash": "05062b88ac5e2a4ade0f4b20ffb8c7b5"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/auth/AuthContext.ts": {
+    "mtime": 1785791057.0148695,
+    "ast_hash": "0440a05f44562a1976704099b4614b5f",
+    "semantic_hash": "0440a05f44562a1976704099b4614b5f"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/auth/AuthProvider.tsx": {
+    "mtime": 1785791057.0156536,
+    "ast_hash": "2310dc4635cc9bc33be071c87ec2b6d8",
+    "semantic_hash": "2310dc4635cc9bc33be071c87ec2b6d8"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/auth/useAuth.ts": {
+    "mtime": 1785791057.0168247,
+    "ast_hash": "7cff6e8e7e717c4e48b960b6cca41905",
+    "semantic_hash": "7cff6e8e7e717c4e48b960b6cca41905"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/auth/useReturnTo.ts": {
+    "mtime": 1785791057.0173671,
+    "ast_hash": "0dcbda522399a062e4824382643a0558",
+    "semantic_hash": "0dcbda522399a062e4824382643a0558"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/AuthShell.tsx": {
+    "mtime": 1785791057.0185003,
+    "ast_hash": "2e23a8c1864cdb4781508df9a607488f",
+    "semantic_hash": "2e23a8c1864cdb4781508df9a607488f"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/EmptyState.tsx": {
+    "mtime": 1784222303.1984298,
+    "ast_hash": "ab2a08879e4c5b9a1b2e0e31c91f98e7",
+    "semantic_hash": "ab2a08879e4c5b9a1b2e0e31c91f98e7"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/EnquiryForm.tsx": {
+    "mtime": 1785182451.084715,
+    "ast_hash": "f31295e491daaa18f991225cf285b6fd",
+    "semantic_hash": "f31295e491daaa18f991225cf285b6fd"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/FilterBar.tsx": {
+    "mtime": 1784806744.061719,
+    "ast_hash": "756d6cf8dc3998854547ed429cef8b76",
+    "semantic_hash": "756d6cf8dc3998854547ed429cef8b76"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/FilterPrimitives.tsx": {
+    "mtime": 1784806744.0622766,
+    "ast_hash": "a73457c0c8b59e93bf8978a8929ee7e5",
+    "semantic_hash": "a73457c0c8b59e93bf8978a8929ee7e5"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/Illustrations.tsx": {
+    "mtime": 1784222969.7353559,
+    "ast_hash": "077b2441df6879a30457a5205d233202",
+    "semantic_hash": "077b2441df6879a30457a5205d233202"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/JobCard.test.tsx": {
+    "mtime": 1785876282.0972993,
+    "ast_hash": "eac7689980ee5017cfa61b7524229b88",
+    "semantic_hash": "eac7689980ee5017cfa61b7524229b88"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/JobCard.tsx": {
+    "mtime": 1785876282.0545192,
+    "ast_hash": "65eb64a16f85836d4d00b9a19091f093",
+    "semantic_hash": "65eb64a16f85836d4d00b9a19091f093"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/JobDetailModal.tsx": {
+    "mtime": 1785876282.054934,
+    "ast_hash": "f52fac69e559b75ea92cf78aaa4babc0",
+    "semantic_hash": "f52fac69e559b75ea92cf78aaa4babc0"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/MobileFilterSheet.tsx": {
+    "mtime": 1784806744.0639126,
+    "ast_hash": "228f8b649c28fd090316f403a3201fa0",
+    "semantic_hash": "228f8b649c28fd090316f403a3201fa0"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/MultiSelect.tsx": {
+    "mtime": 1784806744.0645437,
+    "ast_hash": "cee52dc15a5a42561a780412975a26a4",
+    "semantic_hash": "cee52dc15a5a42561a780412975a26a4"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/Nav.tsx": {
+    "mtime": 1785876282.0554204,
+    "ast_hash": "317fc3e087a76e15acaab81ff199e219",
+    "semantic_hash": "317fc3e087a76e15acaab81ff199e219"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/Pagination.tsx": {
+    "mtime": 1784806744.066142,
+    "ast_hash": "9b2f55f4d171681c9e8c5a6c23805064",
+    "semantic_hash": "9b2f55f4d171681c9e8c5a6c23805064"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/PrivacyNotice.tsx": {
+    "mtime": 1785790637.534763,
+    "ast_hash": "508c8b8678c8390cd0cc19104f4d6bd5",
+    "semantic_hash": "508c8b8678c8390cd0cc19104f4d6bd5"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/ProductDoor.tsx": {
+    "mtime": 1785182696.5292811,
+    "ast_hash": "9a5789f4a69f193177a93388b02b1eec",
+    "semantic_hash": "9a5789f4a69f193177a93388b02b1eec"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/RecommendedRoles.tsx": {
+    "mtime": 1785791057.025703,
+    "ast_hash": "51d412ca7b70008ecab2a1909e479f2b",
+    "semantic_hash": "51d412ca7b70008ecab2a1909e479f2b"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/SearchHero.tsx": {
+    "mtime": 1785876305.4963057,
+    "ast_hash": "c9d6b076fcb481059f0b683ca33f1dfd",
+    "semantic_hash": "c9d6b076fcb481059f0b683ca33f1dfd"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/SkeletonCard.tsx": {
+    "mtime": 1782361812.0166874,
+    "ast_hash": "c2bfc316a87206802eec4d7b45a4c2e4",
+    "semantic_hash": "c2bfc316a87206802eec4d7b45a4c2e4"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/SourceBadges.test.tsx": {
+    "mtime": 1785840599.0814457,
+    "ast_hash": "99224ea1c82bc7bcd3d79c3c834481fa",
+    "semantic_hash": "99224ea1c82bc7bcd3d79c3c834481fa"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/SourceBadges.tsx": {
+    "mtime": 1785876282.0559201,
+    "ast_hash": "aa8c4b45dd75c38c36c0fd3f2f440aa3",
+    "semantic_hash": "aa8c4b45dd75c38c36c0fd3f2f440aa3"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/StatCard.tsx": {
+    "mtime": 1782360002.934512,
+    "ast_hash": "f6e7ca443b4a23d2b5edc570e8530281",
+    "semantic_hash": "f6e7ca443b4a23d2b5edc570e8530281"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/VideoFacade.tsx": {
+    "mtime": 1785182451.0854743,
+    "ast_hash": "ac858339ae3b4bb30f5cecccaa231173",
+    "semantic_hash": "ac858339ae3b4bb30f5cecccaa231173"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/content/featuredVideos.ts": {
+    "mtime": 1785252856.912378,
+    "ast_hash": "e9ac0ea3a4234213e7e2248beffff974",
+    "semantic_hash": "e9ac0ea3a4234213e7e2248beffff974"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/content/learning.ts": {
+    "mtime": 1785252894.2784953,
+    "ast_hash": "cf38e1267cd109e863624d65ad36a892",
+    "semantic_hash": "cf38e1267cd109e863624d65ad36a892"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/hooks/useDebounce.ts": {
+    "mtime": 1782361803.267449,
+    "ast_hash": "b8b19b026ba938181b60abe7bc47f233",
+    "semantic_hash": "b8b19b026ba938181b60abe7bc47f233"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/hooks/useHashScroll.ts": {
+    "mtime": 1785185101.0509243,
+    "ast_hash": "20c5d000c5742d59234b83fbf64cedcd",
+    "semantic_hash": "20c5d000c5742d59234b83fbf64cedcd"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/hooks/useModalHistoryGuard.ts": {
+    "mtime": 1784806744.066911,
+    "ast_hash": "3b3a4d71d2bcf555b401563f0c31add5",
+    "semantic_hash": "3b3a4d71d2bcf555b401563f0c31add5"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/main.tsx": {
+    "mtime": 1782359776.959303,
+    "ast_hash": "787e5a07efeb2bf6209d5937195f2f68",
+    "semantic_hash": "787e5a07efeb2bf6209d5937195f2f68"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/pages/AboutPage.tsx": {
+    "mtime": 1785790637.5359936,
+    "ast_hash": "b63390ad052c0f989cb4a4076ff03865",
+    "semantic_hash": "b63390ad052c0f989cb4a4076ff03865"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/pages/AccountPage.tsx": {
+    "mtime": 1785791057.7379935,
+    "ast_hash": "b8654373d04273b85ba9f4d744e51335",
+    "semantic_hash": "b8654373d04273b85ba9f4d744e51335"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/pages/ForgotPasswordPage.tsx": {
+    "mtime": 1785791057.0279438,
+    "ast_hash": "ae8343aa3242c4bdc711451f9f1bde41",
+    "semantic_hash": "ae8343aa3242c4bdc711451f9f1bde41"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/pages/JobBoardPage.tsx": {
+    "mtime": 1785916824.7891805,
+    "ast_hash": "17bf68b85f0afd73bea7659780449374",
+    "semantic_hash": "17bf68b85f0afd73bea7659780449374"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/pages/LandingPage.tsx": {
+    "mtime": 1785790637.5367208,
+    "ast_hash": "f50d77a9fb422d124edd16d5d632604f",
+    "semantic_hash": "f50d77a9fb422d124edd16d5d632604f"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/pages/LearningPage.tsx": {
+    "mtime": 1785790637.5370088,
+    "ast_hash": "283a64779df24b752de080d137b51333",
+    "semantic_hash": "283a64779df24b752de080d137b51333"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/pages/PostRolePage.tsx": {
+    "mtime": 1785182451.087206,
+    "ast_hash": "6f4a0674617d719f468502d87a364109",
+    "semantic_hash": "6f4a0674617d719f468502d87a364109"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/pages/RegisterPage.tsx": {
+    "mtime": 1785791057.0346344,
+    "ast_hash": "233d4264e686b7c72c6a3cf2fab9f9e6",
+    "semantic_hash": "233d4264e686b7c72c6a3cf2fab9f9e6"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/pages/SavedJobsPage.tsx": {
+    "mtime": 1785791057.0484374,
+    "ast_hash": "a13a5b4d35e869d8788f5525432b9956",
+    "semantic_hash": "a13a5b4d35e869d8788f5525432b9956"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/pages/SignInPage.tsx": {
+    "mtime": 1785791057.0496728,
+    "ast_hash": "11e4973d4370520fea7c2833197e88f5",
+    "semantic_hash": "11e4973d4370520fea7c2833197e88f5"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/savedRoles/SavedRoles.test.tsx": {
+    "mtime": 1785791057.0520427,
+    "ast_hash": "864733e35177d62866da3d4d1c21cef5",
+    "semantic_hash": "864733e35177d62866da3d4d1c21cef5"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/savedRoles/SavedRolesContext.ts": {
+    "mtime": 1785791057.0542455,
+    "ast_hash": "652ea163137abcef6f04c4b74dd2e6f3",
+    "semantic_hash": "652ea163137abcef6f04c4b74dd2e6f3"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/savedRoles/SavedRolesProvider.tsx": {
+    "mtime": 1785791057.0551758,
+    "ast_hash": "564eea387ad0a6770d99e896dcfcbdb5",
+    "semantic_hash": "564eea387ad0a6770d99e896dcfcbdb5"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/savedRoles/store.ts": {
+    "mtime": 1785791057.0587184,
+    "ast_hash": "c5fade334811f2d9bbf4fc4c129cab5e",
+    "semantic_hash": "c5fade334811f2d9bbf4fc4c129cab5e"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/savedRoles/useSavedRoles.ts": {
+    "mtime": 1785791057.060879,
+    "ast_hash": "b825ad77ddda8920e2df2240d7b55fc8",
+    "semantic_hash": "b825ad77ddda8920e2df2240d7b55fc8"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/test/setup.ts": {
+    "mtime": 1785791057.0617545,
+    "ast_hash": "feb39684b91138659281dbdcc488c7b7",
+    "semantic_hash": "feb39684b91138659281dbdcc488c7b7"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/utils/format.ts": {
+    "mtime": 1785876282.0572283,
+    "ast_hash": "e42e362bb2eed2b16a3ce93de5fa3537",
+    "semantic_hash": "e42e362bb2eed2b16a3ce93de5fa3537"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/utils/scroll.ts": {
+    "mtime": 1785790637.5378723,
+    "ast_hash": "3e5d47b8500306f858bff8716b8a683e",
+    "semantic_hash": "3e5d47b8500306f858bff8716b8a683e"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/vite-env.d.ts": {
+    "mtime": 1784986702.2406647,
+    "ast_hash": "189d395ca95c08c57941c2170267c951",
+    "semantic_hash": "189d395ca95c08c57941c2170267c951"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/tsconfig.app.json": {
+    "mtime": 1785791057.0626426,
+    "ast_hash": "23d1dc1328ed84a111ec366a2eb5f43b",
+    "semantic_hash": "23d1dc1328ed84a111ec366a2eb5f43b"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/tsconfig.json": {
+    "mtime": 1782359776.9596064,
+    "ast_hash": "a3d39fa780ebff65444de257f291ce6c",
+    "semantic_hash": "a3d39fa780ebff65444de257f291ce6c"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/tsconfig.node.json": {
+    "mtime": 1782359776.9597633,
+    "ast_hash": "f9cb81ddcea69ffdab672fc8c48dca66",
+    "semantic_hash": "f9cb81ddcea69ffdab672fc8c48dca66"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/vite.config.ts": {
+    "mtime": 1785789094.3577073,
+    "ast_hash": "1463cf855bd7c38e802d95a30adb16b8",
+    "semantic_hash": "1463cf855bd7c38e802d95a30adb16b8"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/vitest.config.ts": {
+    "mtime": 1785791057.06771,
+    "ast_hash": "1d56b10dfe982e77bee4f2d7c514dedb",
+    "semantic_hash": "1d56b10dfe982e77bee4f2d7c514dedb"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/.github/workflows/daily.yml": {
+    "mtime": 1780049336.6840792,
+    "ast_hash": "c1bd890184d3fd0dc2663ef2a83f59ee",
+    "semantic_hash": "c1bd890184d3fd0dc2663ef2a83f59ee"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/CLAUDE.md": {
+    "mtime": 1785873462.6974986,
+    "ast_hash": "61702ae112a0714676dd5c6f92bd8507",
+    "semantic_hash": "61702ae112a0714676dd5c6f92bd8507"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/CONTEXT.md": {
+    "mtime": 1785858585.6266155,
+    "ast_hash": "b1d8bd7a56c9b4dd219c586092ded357",
+    "semantic_hash": "b1d8bd7a56c9b4dd219c586092ded357"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/DEPLOY.md": {
+    "mtime": 1784986702.2357967,
+    "ast_hash": "391bd58f9bc97d8c77fe54609f801f3e",
+    "semantic_hash": "391bd58f9bc97d8c77fe54609f801f3e"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/README.md": {
+    "mtime": 1785842029.9567463,
+    "ast_hash": "0842f404ac7f26dc3ed597a9f333e5b9",
+    "semantic_hash": "0842f404ac7f26dc3ed597a9f333e5b9"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/ARCHITECTURE_GUIDE.html": {
+    "mtime": 1784823605.770337,
+    "ast_hash": "b8a0e12ae50a340c1478712bfa066e99",
+    "semantic_hash": "b8a0e12ae50a340c1478712bfa066e99"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/BAKEOFF_RESULTS.md": {
+    "mtime": 1784806743.9909716,
+    "ast_hash": "5734c4026934f478c9d1db95cf7bd5db",
+    "semantic_hash": "5734c4026934f478c9d1db95cf7bd5db"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/DATA_MODEL.md": {
+    "mtime": 1783066205.7076836,
+    "ast_hash": "f2d7fbc1e17e6ca68b9088c929ba07be",
+    "semantic_hash": "f2d7fbc1e17e6ca68b9088c929ba07be"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/EMAIL_SYSTEM.html": {
+    "mtime": 1785790637.5002785,
+    "ast_hash": "4c78a7c1b5a82b12b7f2df25728188ad",
+    "semantic_hash": "4c78a7c1b5a82b12b7f2df25728188ad"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/GRAPH_ANSWERS.md": {
+    "mtime": 1785876282.030156,
+    "ast_hash": "55ae5dd5275d3d6a81442610b0237e9b",
+    "semantic_hash": "55ae5dd5275d3d6a81442610b0237e9b"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/HK_MARKET_REPORT.html": {
+    "mtime": 1785790637.504049,
+    "ast_hash": "ac449cacfc9a06d5822baf3bc1a162ca",
+    "semantic_hash": "ac449cacfc9a06d5822baf3bc1a162ca"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/MARKET_PANEL_ANALYSIS.html": {
+    "mtime": 1785173748.215058,
+    "ast_hash": "3818484e37faa6977a89fe1de2860b68",
+    "semantic_hash": "3818484e37faa6977a89fe1de2860b68"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/PLAN_ACCOUNTS.md": {
+    "mtime": 1785872575.3578625,
+    "ast_hash": "80465ca307a594aae5ca93a145e2862c",
+    "semantic_hash": "80465ca307a594aae5ca93a145e2862c"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/PLAN_FRONT_PAGE.md": {
+    "mtime": 1785790637.5050948,
+    "ast_hash": "c9fb0497530c984aa9d9e6628169e4f7",
+    "semantic_hash": "c9fb0497530c984aa9d9e6628169e4f7"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/PLAN_LINKEDIN_POSTS.md": {
+    "mtime": 1785873233.8771827,
+    "ast_hash": "50c9c466f8835c6e32cf76ff16d615cd",
+    "semantic_hash": "50c9c466f8835c6e32cf76ff16d615cd"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/adr/0001-accounts-are-seeker-only-employers-are-a-separate-aggregate.md": {
+    "mtime": 1785790637.5057125,
+    "ast_hash": "50927017caaec6ecbc2066054ec7738b",
+    "semantic_hash": "50927017caaec6ecbc2066054ec7738b"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/adr/0002-the-board-stays-public-accounts-gate-nothing.md": {
+    "mtime": 1785790637.5061457,
+    "ast_hash": "26e6c75197505a55131ff4af653ebfc1",
+    "semantic_hash": "26e6c75197505a55131ff4af653ebfc1"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/adr/0003-google-and-password-sign-in-linkedin-deferred.md": {
+    "mtime": 1785790637.5064971,
+    "ast_hash": "d6cf5f4edf32d8aa8a39922b8c320e99",
+    "semantic_hash": "d6cf5f4edf32d8aa8a39922b8c320e99"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/adr/0004-auth-is-assembled-from-python-libraries-inside-fastapi.md": {
+    "mtime": 1785790637.5071826,
+    "ast_hash": "546172a471d4131c9214dc7d1175911a",
+    "semantic_hash": "546172a471d4131c9214dc7d1175911a"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/adr/0005-one-origin-fastapi-serves-the-frontend.md": {
+    "mtime": 1785790637.507972,
+    "ast_hash": "e4c003b89c1fdb15791b33091d4bd371",
+    "semantic_hash": "e4c003b89c1fdb15791b33091d4bd371"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/adr/0006-seeker-data-lives-in-its-own-sqlite-file.md": {
+    "mtime": 1785790637.508614,
+    "ast_hash": "5393a8c0ed6cd954baae633e03d961b5",
+    "semantic_hash": "5393a8c0ed6cd954baae633e03d961b5"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/adr/0007-seeker-deletion-is-a-real-delete.md": {
+    "mtime": 1785790637.509069,
+    "ast_hash": "f6624fff1460b7a31a0d29571978d3d6",
+    "semantic_hash": "f6624fff1460b7a31a0d29571978d3d6"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/adr/0008-transactional-email-moves-to-resend-on-a-subdomain.md": {
+    "mtime": 1785790637.509776,
+    "ast_hash": "d7066ccbcd8623232e678dbb338ccf71",
+    "semantic_hash": "d7066ccbcd8623232e678dbb338ccf71"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/adr/0009-send-as-the-pro-address-over-existing-smtp-not-a-new-subdomain.md": {
+    "mtime": 1785790637.5105073,
+    "ast_hash": "e452ba628889f3f8e460df03a596801f",
+    "semantic_hash": "e452ba628889f3f8e460df03a596801f"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/adr/0010-browsing-is-filtered-addressing-is-not.md": {
+    "mtime": 1785791056.9084513,
+    "ast_hash": "b7a1a02d4b4095ea9ece2b15fb7fa241",
+    "semantic_hash": "b7a1a02d4b4095ea9ece2b15fb7fa241"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/adr/0011-a-closed-role-leaves-saved-roles-after-a-fortnight.md": {
+    "mtime": 1785858533.3529677,
+    "ast_hash": "960da25285c8f53f102433c08ff4088f",
+    "semantic_hash": "960da25285c8f53f102433c08ff4088f"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/adr/0012-the-watchlist-poll-runs-one-pipeline-run-in-three.md": {
+    "mtime": 1785873431.897777,
+    "ast_hash": "11a2fd9b4cd9a79bfabf4daa700f10cb",
+    "semantic_hash": "11a2fd9b4cd9a79bfabf4daa700f10cb"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/analysis/run-history-2026-08-04.html": {
+    "mtime": 1785876282.0951436,
+    "ast_hash": "b7d13b0ecd404f53259007d1316211de",
+    "semantic_hash": "b7d13b0ecd404f53259007d1316211de"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/companies.yaml": {
+    "mtime": 1785362165.6887894,
+    "ast_hash": "8a7f6656e5549e985bc69316821312c1",
+    "semantic_hash": "8a7f6656e5549e985bc69316821312c1"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/companies_longtail.yaml": {
+    "mtime": 1784147174.4454782,
+    "ast_hash": "abefa7e108d1f89e62046bc887d6c470",
+    "semantic_hash": "abefa7e108d1f89e62046bc887d6c470"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/hk_jobs/recruiters.yaml": {
+    "mtime": 1784920693.1602695,
+    "ast_hash": "d34ed705211359adb08490ff4631698d",
+    "semantic_hash": "d34ed705211359adb08490ff4631698d"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/requirements.txt": {
+    "mtime": 1780572810.3042157,
+    "ast_hash": "dff8326b88b35dfb083fc283a9d43e46",
+    "semantic_hash": "dff8326b88b35dfb083fc283a9d43e46"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/salary_guidlines/HK_FINANCE_SALARY_GUIDELINES.md": {
+    "mtime": 1784806707.1494641,
+    "ast_hash": "e2483b099db617ff77c53d5cd502040e",
+    "semantic_hash": "e2483b099db617ff77c53d5cd502040e"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/fixtures/indeed/challenge.html": {
+    "mtime": 1782965165.0097616,
+    "ast_hash": "5200459fa49a7634d80eab97f8f8e767",
+    "semantic_hash": "5200459fa49a7634d80eab97f8f8e767"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/fixtures/indeed/listing_page1.html": {
+    "mtime": 1782965165.0094128,
+    "ast_hash": "40b973796c4ed39216c67fcfa93f88a4",
+    "semantic_hash": "40b973796c4ed39216c67fcfa93f88a4"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/fixtures/indeed/listing_page2.html": {
+    "mtime": 1782965165.009625,
+    "ast_hash": "25aa2d5a4b48ff816a773a3a894814a5",
+    "semantic_hash": "25aa2d5a4b48ff816a773a3a894814a5"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/fixtures/indeed/login_wall.html": {
+    "mtime": 1782965165.0098753,
+    "ast_hash": "bb9bf1fbeef0bc17f3dd9da5e8aee4e9",
+    "semantic_hash": "bb9bf1fbeef0bc17f3dd9da5e8aee4e9"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/fixtures/jobsdb/detail.html": {
+    "mtime": 1780047157.4719546,
+    "ast_hash": "5a6927df1c522b462b1b6d007c1c7bd1",
+    "semantic_hash": "5a6927df1c522b462b1b6d007c1c7bd1"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/fixtures/jobsdb/listing.html": {
+    "mtime": 1782365528.8845973,
+    "ast_hash": "2d00ed46768eceb8d55fe6389cde134b",
+    "semantic_hash": "2d00ed46768eceb8d55fe6389cde134b"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/fixtures/linkedin/authwall.html": {
+    "mtime": 1784055520.0255532,
+    "ast_hash": "be69c7b195c82713f99057b24ab41277",
+    "semantic_hash": "be69c7b195c82713f99057b24ab41277"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/fixtures/linkedin/listing_page1.html": {
+    "mtime": 1784055500.2343068,
+    "ast_hash": "1c93b7bce996c3c629108a78479aacec",
+    "semantic_hash": "1c93b7bce996c3c629108a78479aacec"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/fixtures/linkedin/listing_page2.html": {
+    "mtime": 1784055513.1846585,
+    "ast_hash": "98a407512b4b530e14570774a65d3c67",
+    "semantic_hash": "98a407512b4b530e14570774a65d3c67"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/fixtures/successfactors/detail.html": {
+    "mtime": 1785359499.2229211,
+    "ast_hash": "a0ccac501d45fab01d696d8a7c476f15",
+    "semantic_hash": "a0ccac501d45fab01d696d8a7c476f15"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/fixtures/successfactors/listing_page1.html": {
+    "mtime": 1785359499.220588,
+    "ast_hash": "2ad1f59ee2f7b94a69a6d998ba02677f",
+    "semantic_hash": "2ad1f59ee2f7b94a69a6d998ba02677f"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/tests/fixtures/successfactors/listing_page2.html": {
+    "mtime": 1785359499.2209995,
+    "ast_hash": "5dfa5c98e965a2b148192c9ec493869e",
+    "semantic_hash": "5dfa5c98e965a2b148192c9ec493869e"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/backend/requirements.txt": {
+    "mtime": 1785791057.0017989,
+    "ast_hash": "e473b9470e1b3c072da8ba449bde4c41",
+    "semantic_hash": "e473b9470e1b3c072da8ba449bde4c41"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/DESIGN.md": {
+    "mtime": 1785876282.054039,
+    "ast_hash": "1b3ef8511724bb1f7c65188989d1bfe9",
+    "semantic_hash": "1b3ef8511724bb1f7c65188989d1bfe9"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/README.md": {
+    "mtime": 1782359776.9564757,
+    "ast_hash": "10495bfcc6c568eca4dab6dd5df795d3",
+    "semantic_hash": "10495bfcc6c568eca4dab6dd5df795d3"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/index.html": {
+    "mtime": 1785184328.0525837,
+    "ast_hash": "0e4744c17e4034daf6c6547d4e5c092b",
+    "semantic_hash": "0e4744c17e4034daf6c6547d4e5c092b"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/screenshots/about.png": {
+    "mtime": 1783074312.2114139,
+    "ast_hash": "4d05b6c2766a2e0382e6c4474ac23256",
+    "semantic_hash": "4d05b6c2766a2e0382e6c4474ac23256"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/screenshots/filters-active.png": {
+    "mtime": 1783074302.4041743,
+    "ast_hash": "2c10fb77cbe1257d3e6a954aeb6ef4e2",
+    "semantic_hash": "2c10fb77cbe1257d3e6a954aeb6ef4e2"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/screenshots/job-detail.png": {
+    "mtime": 1783074310.1043723,
+    "ast_hash": "e6b39ac9bc3c82f4432cd0efb7e0534c",
+    "semantic_hash": "e6b39ac9bc3c82f4432cd0efb7e0534c"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/screenshots/main-board.png": {
+    "mtime": 1783074298.875801,
+    "ast_hash": "c3d0507a4e15f3444bc2cd5b35a32e9c",
+    "semantic_hash": "c3d0507a4e15f3444bc2cd5b35a32e9c"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/screenshots/recruiter-posts-verified.png": {
+    "mtime": 1784806744.0445936,
+    "ast_hash": "1213483ebbf1f161f1661f19b8bcecbd",
+    "semantic_hash": "1213483ebbf1f161f1661f19b8bcecbd"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/screenshots/recruiter-posts.png": {
+    "mtime": 1784806744.0497184,
+    "ast_hash": "d7d4059ea1d8b099a0aab18c18f044f1",
+    "semantic_hash": "d7d4059ea1d8b099a0aab18c18f044f1"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/screenshots/salary-sort.png": {
+    "mtime": 1783074306.0776973,
+    "ast_hash": "851be42e1e208c29c7b2e3ad35be8639",
+    "semantic_hash": "851be42e1e208c29c7b2e3ad35be8639"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/public/favicon.svg": {
+    "mtime": 1782662051.1493256,
+    "ast_hash": "850c39d09922593b943fa2cf3b39dde5",
+    "semantic_hash": "850c39d09922593b943fa2cf3b39dde5"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/public/icons.svg": {
+    "mtime": 1782359776.9577317,
+    "ast_hash": "3b4fcfcf393eca4d264dca4a4663bc37",
+    "semantic_hash": "3b4fcfcf393eca4d264dca4a4663bc37"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/assets/hero.png": {
+    "mtime": 1782359776.9584517,
+    "ast_hash": "aead493361b27e7510691c5d7072dfc1",
+    "semantic_hash": "aead493361b27e7510691c5d7072dfc1"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/assets/react.svg": {
+    "mtime": 1782359776.9587998,
+    "ast_hash": "f0402b67b6ce880f65666bb49e841696",
+    "semantic_hash": "f0402b67b6ce880f65666bb49e841696"
+  },
+  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/assets/vite.svg": {
+    "mtime": 1782359776.9589586,
+    "ast_hash": "9960a24288958394ac50e57ff638b036",
+    "semantic_hash": "9960a24288958394ac50e57ff638b036"
   }
 }
