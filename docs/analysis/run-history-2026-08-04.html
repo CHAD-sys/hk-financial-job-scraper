@@ -1,0 +1,1380 @@
+<title>Night Shift — 15 runs of the FinEx scraping pipeline</title>
+
+<style>
+  :root {
+    color-scheme: light;
+    --ground:   #E7EAEE;
+    --card:     #F5F6F8;
+    --card-2:   #EDEFF3;
+    --rule:     #CFD5DD;
+    --rule-soft:#DDE1E7;
+    --ink:      #12161C;
+    --ink-2:    #4A5462;
+    --ink-3:    #6C7684;
+    --brass:    #7A4F0A;
+    --brass-bg: #F0E6D2;
+    --s1:       #B06F00;
+    --s2:       #2A78D6;
+    --s3:       #1BAF7A;
+    --crit:     #D13B3A;
+    --inactive: #A7B0BC;
+    --grid:     #D6DBE2;
+
+    --f-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, ui-serif, serif;
+    --f-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --f-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+    --step-0: 0.8125rem;
+    --step-1: 0.9375rem;
+    --step-2: 1.0625rem;
+    --step-3: 1.375rem;
+    --step-4: 1.875rem;
+    --step-5: 2.75rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --ground:   #0F1319;
+      --card:     #171B21;
+      --card-2:   #1D222A;
+      --rule:     #2E3641;
+      --rule-soft:#242B34;
+      --ink:      #EDF0F4;
+      --ink-2:    #A2AEBD;
+      --ink-3:    #7E8A99;
+      --brass:    #E0A52E;
+      --brass-bg: #2A2317;
+      --s1:       #C98500;
+      --s2:       #3987E5;
+      --s3:       #199E70;
+      --crit:     #E66767;
+      --inactive: #4A5462;
+      --grid:     #262E38;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground:   #0F1319;
+    --card:     #171B21;
+    --card-2:   #1D222A;
+    --rule:     #2E3641;
+    --rule-soft:#242B34;
+    --ink:      #EDF0F4;
+    --ink-2:    #A2AEBD;
+    --ink-3:    #7E8A99;
+    --brass:    #E0A52E;
+    --brass-bg: #2A2317;
+    --s1:       #C98500;
+    --s2:       #3987E5;
+    --s3:       #199E70;
+    --crit:     #E66767;
+    --inactive: #4A5462;
+    --grid:     #262E38;
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --ground:   #E7EAEE;
+    --card:     #F5F6F8;
+    --card-2:   #EDEFF3;
+    --rule:     #CFD5DD;
+    --rule-soft:#DDE1E7;
+    --ink:      #12161C;
+    --ink-2:    #4A5462;
+    --ink-3:    #6C7684;
+    --brass:    #7A4F0A;
+    --brass-bg: #F0E6D2;
+    --s1:       #B06F00;
+    --s2:       #2A78D6;
+    --s3:       #1BAF7A;
+    --crit:     #D13B3A;
+    --inactive: #A7B0BC;
+    --grid:     #D6DBE2;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: var(--step-1);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: clamp(1.5rem, 4vw, 3.5rem) clamp(1rem, 4vw, 2rem) 5rem;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2.5rem, 5vw, 4rem);
+  }
+
+  /* ---------- masthead ---------- */
+  .masthead { display: flex; flex-direction: column; gap: 1.5rem; }
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: var(--step-0);
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--brass);
+    margin: 0;
+  }
+  h1 {
+    font-family: var(--f-display);
+    font-size: clamp(2rem, 6vw, var(--step-5));
+    line-height: 1.08;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 0;
+    max-width: 20ch;
+  }
+  .standfirst {
+    font-size: var(--step-2);
+    color: var(--ink-2);
+    max-width: 62ch;
+    margin: 0;
+  }
+  .masthead-meta {
+    font-family: var(--f-mono);
+    font-size: var(--step-0);
+    color: var(--ink-3);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--rule);
+  }
+  .masthead-meta b { color: var(--ink-2); font-weight: 600; }
+
+  /* ---------- stat row ---------- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .stat { background: var(--card); padding: 1.1rem 1.15rem; display: flex; flex-direction: column; gap: 0.25rem; }
+  .stat-n {
+    font-family: var(--f-mono);
+    font-size: var(--step-4);
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    color: var(--ink);
+  }
+  .stat-n .unit { font-size: 0.5em; color: var(--ink-3); letter-spacing: 0; margin-left: 0.15em; }
+  .stat-l { font-size: var(--step-0); color: var(--ink-2); line-height: 1.35; }
+  .stat-sub { font-family: var(--f-mono); font-size: 0.75rem; color: var(--ink-3); }
+
+  /* ---------- sections ---------- */
+  section { display: flex; flex-direction: column; gap: 1.75rem; }
+  .sec-head { display: flex; flex-direction: column; gap: 0.4rem; border-top: 2px solid var(--ink); padding-top: 0.9rem; }
+  h2 {
+    font-family: var(--f-display);
+    font-size: var(--step-3);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .sec-head p { margin: 0; color: var(--ink-2); max-width: 68ch; font-size: var(--step-1); }
+
+  /* ---------- finding card ---------- */
+  .finding {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 1.3rem 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+  .findings { display: grid; gap: 1rem; }
+  .findings.two { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  .claim {
+    font-family: var(--f-display);
+    font-size: var(--step-2);
+    line-height: 1.4;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .finding p:not(.claim) { margin: 0; color: var(--ink-2); font-size: var(--step-1); }
+  .evidence {
+    font-family: var(--f-mono);
+    font-size: var(--step-0);
+    line-height: 1.65;
+    color: var(--ink-2);
+    background: var(--card-2);
+    border-left: 2px solid var(--brass);
+    padding: 0.6rem 0.85rem;
+    margin: 0;
+    overflow-x: auto;
+    white-space: pre;
+    font-variant-numeric: tabular-nums;
+  }
+  .evidence b { color: var(--ink); font-weight: 600; }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    font-family: var(--f-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.2em 0.55em;
+    border-radius: 2px;
+    border: 1px solid currentColor;
+    align-self: flex-start;
+  }
+  .tag.watch { color: var(--crit); }
+  .tag.good  { color: var(--brass); }
+  .tag.note  { color: var(--ink-3); }
+
+  /* ---------- figures ---------- */
+  figure {
+    margin: 0;
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 1.3rem 1.4rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  figcaption { display: flex; flex-direction: column; gap: 0.3rem; }
+  .fig-title { font-family: var(--f-display); font-size: var(--step-2); font-weight: 600; }
+  .fig-sub { font-size: var(--step-0); color: var(--ink-2); max-width: 70ch; }
+  .plot { overflow-x: auto; }
+  .plot svg { display: block; max-width: 100%; height: auto; }
+  .plot svg text { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem; font-family: var(--f-mono); font-size: 0.75rem; color: var(--ink-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 0.45em; }
+  .swatch { width: 11px; height: 11px; border-radius: 2px; flex: none; }
+
+  details { border-top: 1px solid var(--rule-soft); padding-top: 0.6rem; }
+  summary {
+    font-family: var(--f-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    cursor: pointer;
+  }
+  summary:hover { color: var(--brass); }
+  details[open] summary { margin-bottom: 0.7rem; }
+  .tbl { overflow-x: auto; }
+  table { border-collapse: collapse; font-family: var(--f-mono); font-size: 0.78rem; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 0.3rem 0.7rem; border-bottom: 1px solid var(--rule-soft); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { color: var(--ink-3); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.7rem; }
+
+  /* ---------- tooltip ---------- */
+  #tip {
+    position: fixed;
+    z-index: 50;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.1s;
+    background: var(--ink);
+    color: var(--ground);
+    font-family: var(--f-mono);
+    font-size: 0.75rem;
+    line-height: 1.5;
+    padding: 0.45rem 0.6rem;
+    border-radius: 3px;
+    white-space: pre;
+    max-width: 280px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+  }
+  #tip.on { opacity: 1; }
+
+  .hit { cursor: crosshair; }
+  .hit:focus-visible, a:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--brass);
+    outline-offset: 2px;
+  }
+
+  /* ---------- run strip ---------- */
+  .runstrip { display: flex; flex-direction: column; gap: 0.5rem; }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.25rem;
+    font-size: var(--step-0);
+    color: var(--ink-3);
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  footer code { font-family: var(--f-mono); color: var(--ink-2); }
+  footer b { color: var(--ink-2); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div id="tip" role="status" aria-live="polite"></div>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">FinEx Careers · pipeline post-mortem · 04 Aug 2026</p>
+    <h1>Night Shift</h1>
+    <p class="standfirst">
+      Fifteen runs of the scraping pipeline, 94,672 log lines, and a 117&nbsp;MB SQLite file, read end to end.
+      The pipeline works. What it records about itself is more interesting than what it collects.
+    </p>
+    <div class="masthead-meta">
+      <span>window <b>2026-07-14 → 2026-08-03</b></span>
+      <span>runs <b>15</b></span>
+      <span>sources <b>logs/daily_runs.log</b> + <b>data/jobs.db</b></span>
+      <span>corpus <b>15,329 rows</b></span>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-n">27<span class="unit">%</span></div>
+      <div class="stat-l">of runs never reached the finish marker</div>
+      <div class="stat-sub">4 of 15 aborted</div>
+    </div>
+    <div class="stat">
+      <div class="stat-n">15.4<span class="unit">h</span></div>
+      <div class="stat-l">total pipeline runtime in 21 days</div>
+      <div class="stat-sub">median 70 min · worst 230</div>
+    </div>
+    <div class="stat">
+      <div class="stat-n">33<span class="unit">%</span></div>
+      <div class="stat-l">of the corpus is still open</div>
+      <div class="stat-sub">5,123 active of 15,329</div>
+    </div>
+    <div class="stat">
+      <div class="stat-n">$4.39</div>
+      <div class="stat-l">total spend against a $30/mo cap</div>
+      <div class="stat-sub">2,009 vendor items</div>
+    </div>
+    <div class="stat">
+      <div class="stat-n">31,035</div>
+      <div class="stat-l">Cloudflare challenge events</div>
+      <div class="stat-sub">~2,070 per run</div>
+    </div>
+  </div>
+
+  <!-- ============ 1. OPERATIONS ============ -->
+  <section>
+    <div class="sec-head">
+      <h2>The night shift is not a night shift</h2>
+      <p>
+        The pipeline is described as daily and named <code>daily_run.sh</code>. Over 21 calendar days it ran 15 times,
+        starting at nine different hours of the day, with gaps as long as 85 hours. This is not a cron job — it is
+        someone launching a script when they remember to.
+      </p>
+    </div>
+
+    <figure>
+      <figcaption>
+        <div class="fig-title">Every run, in order</div>
+        <div class="fig-sub">
+          Bar length is wall-clock duration. Runs that never logged a finish marker are drawn as an outline with a
+          hatch — they have no duration because the pipeline stopped mid-phase.
+        </div>
+      </figcaption>
+      <div class="plot" id="plot-runs"></div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--s1)"></i>completed run</span>
+        <span><i class="swatch" style="background:transparent;border:1.5px solid var(--crit)"></i>aborted — no finish marker</span>
+      </div>
+      <details>
+        <summary>Show data</summary>
+        <div class="tbl" id="tbl-runs"></div>
+      </details>
+    </figure>
+
+    <div class="findings two">
+      <div class="finding">
+        <span class="tag watch">reliability</span>
+        <p class="claim">A quarter of runs die silently, and nothing notices.</p>
+        <p>
+          Four runs logged <code>=== Daily pipeline started ===</code> and never logged the matching finish — two
+          during description fetching, two during scraping. Because the summary email is the <em>last</em> phase, an
+          aborted run sends no email. The failure signal is the absence of a message, which is exactly the signal a
+          human is worst at noticing. The email phase itself started 13 times but confirmed delivery only 8.
+        </p>
+        <pre class="evidence">aborted, and the last phase each reached:
+  07-17 13:45   Phase 2: Fetching descriptions
+  07-18 12:19   Phase 2: Fetching descriptions
+  07-26 19:50   Phase 1: Scraping listings
+  07-31 09:25   Phase 1: Scraping listings   (relaunched 72 min later)
+
+"Sending daily summary email" phase started   13
+"Email sent" confirmations logged             <b>8</b></pre>
+      </div>
+
+      <div class="finding">
+        <span class="tag watch">variance</span>
+        <p class="claim">Run duration varies nine-fold with no change in workload.</p>
+        <p>
+          The fastest complete run took 24.6 minutes; the slowest took 230.3. Both scraped the same ~248 companies.
+          The spread is not driven by volume — it is driven by how many detail fetches hit a Cloudflare challenge and
+          retry. Duration is a proxy for bot-defence luck, not for how much work there was.
+        </p>
+        <pre class="evidence">fastest  07-14   24.6 min    588 CF events
+slowest  07-31  230.3 min  2,026 CF events
+median          70.1 min
+worst single phase: descriptions <b>154.7 min</b></pre>
+      </div>
+
+      <div class="finding">
+        <span class="tag watch">instrumentation</span>
+        <p class="claim">The log double-counts one run, so the obvious way to count runs gives the wrong answer.</p>
+        <p>
+          On 25 July the pipeline wrote its start marker twice and its finish marker twice, at identical timestamps —
+          one run, logged by two handlers. Any script that counts <code>=== Daily pipeline started ===</code> reports 16
+          runs where there are 15, and reports a phantom aborted run that never existed. This page's first pass made
+          exactly that mistake. If run counts ever feed a dashboard, deduplicate on the timestamp first.
+        </p>
+        <pre class="evidence">line 56778  [2026-07-25 19:35:53] === started ===
+line 56779  [2026-07-25 19:35:53] === started ===   <b>← same second</b>
+line 66412  [2026-07-25 20:15:19] === finished ===
+line 66413  [2026-07-25 20:15:19] === finished ===  <b>← same second</b>
+
+naive count   16 runs, 5 aborted (31%)
+actual        <b>15 runs, 4 aborted (27%)</b></pre>
+      </div>
+    </div>
+
+    <figure>
+      <figcaption>
+        <div class="fig-title">Where the 15.4 hours went</div>
+        <div class="fig-sub">
+          Phase totals across the 11 completed runs, keyed by phase <em>name</em>. Phase numbers can't be trusted:
+          "Phase&nbsp;5" means "back up the database" in five runs and "fetch LinkedIn recruiter posts" in eight.
+        </div>
+      </figcaption>
+      <div class="plot" id="plot-phases"></div>
+      <details>
+        <summary>Show data</summary>
+        <div class="tbl" id="tbl-phases"></div>
+      </details>
+    </figure>
+
+    <div class="findings">
+      <div class="finding">
+        <span class="tag note">cost of attention</span>
+        <p class="claim">The Secret Market costs 13% of pipeline time for 4.5% of the board — and it is the only inventory nobody else has.</p>
+        <p>
+          Fetching and promoting LinkedIn recruiter posts takes 116.8 minutes of the 920 minutes tracked. It yields 230
+          active roles out of 5,123. On raw yield that is a bad trade. But every one of those 230 is flagged
+          <em>truly hidden</em> — not present on any board the pipeline scrapes — and 99.6% carry extraction confidence
+          ≥&nbsp;0.7. This is the only line item that buys differentiation rather than volume, and it is the one the
+          time budget should protect.
+        </p>
+        <pre class="evidence">LinkedIn posts fetch     108.1 min   11.7%
+LinkedIn posts promote     8.7 min    0.9%
+                        ─────────────────────
+yield                    230 active jobs (4.5% of board)
+truly hidden             <b>230 / 230 = 100.0%</b>
+confidence >= 0.7        229 / 230 = 99.6%</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 2. DATA QUALITY ============ -->
+  <section>
+    <div class="sec-head">
+      <h2>What the data says about itself</h2>
+      <p>
+        Three defects in the enrichment layer. The first one matters most, because it affects the single number a job
+        seeker is most likely to act on.
+      </p>
+    </div>
+
+    <figure>
+      <figcaption>
+        <div class="fig-title">The salary confidence label is inverted</div>
+        <div class="fig-sub">
+          Estimated HK$ monthly range, grouped by the confidence label the model assigned to its own estimate.
+          Higher stated confidence corresponds to <em>lower</em> salaries, not better evidence.
+        </div>
+      </figcaption>
+      <div class="plot" id="plot-conf"></div>
+      <details>
+        <summary>Show data</summary>
+        <div class="tbl" id="tbl-conf"></div>
+      </details>
+    </figure>
+
+    <div class="findings">
+      <div class="finding">
+        <span class="tag watch">the headline defect</span>
+        <p class="claim">"High confidence" does not mean the salary is well-evidenced. It means the role is junior.</p>
+        <p>
+          Only 73 of 12,819 enrichments carry a <code>high</code> confidence label — and <strong>none of them</strong>
+          has an actual salary stated on the underlying posting. Meanwhile 1,204 <code>medium</code> rows <em>do</em>
+          have a stated salary and were never upgraded. The label tracks how narrow the model believes the salary band
+          to be, and junior bands are narrow. A user reading "high confidence" reasonably infers "we checked this" —
+          the opposite is true.
+        </p>
+        <pre class="evidence">conf     n      stated salary on posting   avg max
+high     73     <b>0</b>                          31,697
+medium   9,694  1,204                      73,584
+low      1,129  54                         47,284
+none     1,923  54                              —
+
+high-confidence rows by seniority:
+  junior 59  ·  mid 12  ·  senior 2</pre>
+        <p>
+          Cheapest fix: stop surfacing this field, or rename it to what it measures — band width — and derive a real
+          <em>evidence</em> flag from <code>jobs.salary_min IS NOT NULL</code>, which is already stored and is true for
+          1,431 rows.
+        </p>
+      </div>
+
+      <div class="finding">
+        <span class="tag watch">non-comparable</span>
+        <p class="claim">A third of the corpus was enriched by a different model under a different prompt.</p>
+        <p>
+          8,602 rows carry the v10 merged prompt on <code>deepseek-v4-flash</code>. 4,217 rows — 32.9% — carry a NULL
+          prompt version on legacy <code>deepseek-chat</code>. Both populate the same columns, and every aggregate on
+          this page silently mixes them. Any salary or seniority comparison across the board is comparing two different
+          instruments until the legacy third is re-enriched.
+        </p>
+        <pre class="evidence">2026-07-21-v10-merged-3source-granular…   8,602   67.1%
+legacy (deepseek-chat, prompt_version NULL) 4,217   <b>32.9%</b>
+
+enrichment coverage: 12,819 of 15,329 rows = 83.6%
+unenriched backlog:  2,510 rows</pre>
+      </div>
+
+      <div class="finding">
+        <span class="tag watch">entity resolution</span>
+        <p class="claim">Bank of China is three companies, DBS is two, and the trend metrics believe it.</p>
+        <p>
+          315 distinct company strings collapse to 303 once you strip <code>Limited</code>, <code>Ltd</code>,
+          punctuation and brackets. Ten collision groups cover roughly 3,800 job rows. This is not cosmetic:
+          <code>company_metrics</code> keys on the raw name, so a single employer's postings are split across rows and
+          each fragment gets its own 7-day growth rate. The "biggest movers" table below is computed on fragments.
+        </p>
+        <pre class="evidence">Bank of China (Hong Kong)          ┐
+Bank of China (Hong Kong) Limited  ├─ 3 variants, 1,533 rows
+Bank Of China (Hong Kong) Limited  ┘   (note the capital O)
+
+Citibank Hong Kong / Citibank (Hong Kong) Limited   657
+Value Partners / … Limited / … Ltd                  627
+DBS Bank (Hong Kong) / … Limited                    592</pre>
+      </div>
+
+      <div class="finding">
+        <span class="tag note">coverage</span>
+        <p class="claim">One row in four has no description at all, and that is mostly by design.</p>
+        <p>
+          4,060 of 15,329 rows carry an empty <code>description_clean</code>. Indeed accounts for 1,952 of them
+          (73.3% of its own rows) because the adapter is listing-only by design — no per-job detail fetch. JobsDB
+          accounts for another 1,847. These rows can be listed but cannot be meaningfully enriched: skills, seniority
+          and salary are all inferred from a title alone.
+        </p>
+        <pre class="evidence">indeed              1,952 / 2,663 = <b>73.3%</b> empty  (by design)
+jobsdb              1,847 / 7,550 = 24.5% empty
+efinancialcareers       5 / 1,291 =  0.4% empty
+linkedin_posts          0 /   612 =  0.0% empty</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3. ECONOMICS ============ -->
+  <section>
+    <div class="sec-head">
+      <h2>Which sources actually earn their place</h2>
+      <p>
+        Every source costs run time, error volume and legal exposure. Ranked by what survives to the board — and by how
+        long it survives — the ordering is not the one the configuration implies.
+      </p>
+    </div>
+
+    <figure>
+      <figcaption>
+        <div class="fig-title">Rows ever collected, split by what is still open</div>
+        <div class="fig-sub">
+          JobsDB supplies half the corpus and closes fastest. eFinancialCareers supplies a twelfth of it, keeps
+          two-thirds open, and has near-perfect descriptions.
+        </div>
+      </figcaption>
+      <div class="plot" id="plot-sources"></div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--s1)"></i>still open</span>
+        <span><i class="swatch" style="background:var(--inactive)"></i>closed (soft-deleted)</span>
+      </div>
+      <details>
+        <summary>Show data</summary>
+        <div class="tbl" id="tbl-sources"></div>
+      </details>
+    </figure>
+
+    <div class="findings two">
+      <div class="finding">
+        <span class="tag good">best source</span>
+        <p class="claim">eFinancialCareers is the highest-quality source and it is under-weighted.</p>
+        <p>
+          It is the only source that is simultaneously low-churn (35.4% closed vs 78.7% for JobsDB), richly described
+          (5 empty descriptions out of 1,291, averaging 3,483 characters) and legally uncomplicated relative to the
+          JobsDB/Indeed posture. It runs against 23 configured employers — fewer than a third of the JobsDB count.
+        </p>
+        <pre class="evidence">source              rows   open   %closed  empty desc
+efinancialcareers  1,291    834    <b>35.4%</b>          5
+linkedin           1,803    833    53.8%         41
+jobsdb             7,550  1,665    <b>78.7%</b>      1,847
+indeed             2,663    957    64.1%      1,952</pre>
+      </div>
+
+      <div class="finding">
+        <span class="tag watch">poor trade</span>
+        <p class="claim">The long tail is 27% of the estate and 3% of the board.</p>
+        <p>
+          68 boutiques — over a quarter of all enabled companies — are scraped by LLM extraction from their own careers
+          pages. Across the window, 819 of 2,473 page extractions returned literally zero jobs: a third of the LLM calls
+          on this path produce nothing. The adapter has contributed 407 rows in its lifetime, of which 151 are open.
+        </p>
+        <pre class="evidence">configured companies       68  of 248 enabled = <b>27.4%</b>
+rows ever produced        407
+active rows               151  of 5,123 = 2.9%
+extractions returning 0   <b>819</b> of 2,473 = 33.1%</pre>
+      </div>
+
+      <div class="finding">
+        <span class="tag note">silent failure</span>
+        <p class="claim">About 45 sources are down on any given day, and the count is stable enough to be structural.</p>
+        <p>
+          The daily digest reports 42, 48, 45 and 45 sources down on its four most recent sends — roughly 18% of the
+          248 enabled companies, every day. 124 distinct company slugs logged "returned 0 jobs" at least once.
+          <code>pimco-hk</code> did it 108 times. The storage layer correctly refuses to deactivate their jobs on a
+          zero-return, so the failures cause no data loss — they just never get fixed, because a stable number looks
+          like a healthy number.
+        </p>
+        <pre class="evidence">30 Jul  · 42 sources down
+31 Jul  · 48 sources down
+02 Aug  · 45 sources down
+03 Aug  · 45 sources down          <b>≈ 18% of 248</b>
+
+chronic offenders (times logged 0 jobs):
+  pimco-hk 108 · northern-trust 36 · 18 slugs at 28 each</pre>
+      </div>
+
+      <div class="finding">
+        <span class="tag good">budget</span>
+        <p class="claim">The one paid source uses a seventh of its budget. The cap is not the constraint.</p>
+        <p>
+          Total Apify/HarvestAPI spend across the whole ledger is $4.39 for 2,009 items — $2.19 per thousand. July
+          closed at $4.29 against the self-enforced $30 monthly cap: 14.3% utilised. Whatever is limiting Secret Market
+          volume, it is not money. The 13% of pipeline wall-clock it consumes is the real ceiling.
+        </p>
+        <pre class="evidence">2026-07  watchlist       108 runs  1,908 items   $3.82
+2026-07  email_harvest    47 runs     47 items   $0.47
+2026-08  discovery         3 runs     32 items   $0.06
+2026-08  watchlist        14 runs     22 items   $0.04
+         ───────────────────────────────────────────────
+         total                       2,009 items  <b>$4.39</b>
+         July vs $30 cap                          14.3%</pre>
+      </div>
+    </div>
+
+    <div class="findings">
+      <div class="finding">
+        <span class="tag good">working well</span>
+        <p class="claim">Cross-source deduplication is quietly doing a fifth of the work.</p>
+        <p>
+          4,889 rows (31.9%) were detected as cross-posted across sources, and 3,093 of them (20.2% of the corpus) are
+          held as non-primary duplicates. Without it, one in five listings on the board would be a repeat of another.
+          This is the least visible part of the pipeline and the most obviously load-bearing.
+        </p>
+        <pre class="evidence">unique, single-source     10,440   68.1%
+cross-posted, primary      1,796   11.7%
+cross-posted, suppressed   <b>3,093</b>   <b>20.2%</b></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 4. THE MARKET ============ -->
+  <section>
+    <div class="sec-head">
+      <h2>And, incidentally, the Hong Kong finance market</h2>
+      <p>
+        Read with the caveat above in mind: a third of these estimates come from a different model, and the confidence
+        label is not a quality signal. The shapes are large enough to survive that.
+      </p>
+    </div>
+
+    <figure>
+      <figcaption>
+        <div class="fig-title">The seniority ladder, HK$ per month</div>
+        <div class="fig-sub">
+          Estimated range by seniority band. Each rung is roughly 1.8× the one below it; a lead earns about six times a
+          junior.
+        </div>
+      </figcaption>
+      <div class="plot" id="plot-ladder"></div>
+      <details>
+        <summary>Show data</summary>
+        <div class="tbl" id="tbl-ladder"></div>
+      </details>
+    </figure>
+
+    <figure>
+      <figcaption>
+        <div class="fig-title">Pay by function, against how many roles exist</div>
+        <div class="fig-sub">
+          Medium-confidence estimates only, so the two instruments are not mixed on the pay axis. Bar length is the
+          estimated maximum; the count beside each bar is how many roles sit in that function.
+        </div>
+      </figcaption>
+      <div class="plot" id="plot-cat"></div>
+      <details>
+        <summary>Show data</summary>
+        <div class="tbl" id="tbl-cat"></div>
+      </details>
+    </figure>
+
+    <div class="findings two">
+      <div class="finding">
+        <span class="tag note">market</span>
+        <p class="claim">On a financial job board, engineering out-pays finance.</p>
+        <p>
+          Engineering roles carry the highest estimated maximum of any function — HK$93,146 against HK$86,043 for
+          Finance — on a quarter of the volume. Operations is the second-largest function by headcount (3,442 roles) and
+          sits near the bottom of the pay range. The volume and the money point in different directions.
+        </p>
+        <pre class="evidence">Engineering  1,040 roles   61,248 – <b>93,146</b>
+Finance      3,688 roles   57,680 – 86,043
+Sales          988 roles   48,171 – 67,811
+Operations   2,678 roles   37,647 – 54,073
+HR             204 roles   35,933 – 54,332</pre>
+      </div>
+
+      <div class="finding">
+        <span class="tag note">classifier</span>
+        <p class="claim">The model has effectively four seniority labels, not seven.</p>
+        <p>
+          <code>mid</code>, <code>senior</code>, <code>junior</code> and <code>lead</code> account for 12,810 of 12,819
+          rows. <code>director</code> was assigned three times, <code>associate</code> once. Either Hong Kong finance
+          posts almost no director-level roles publicly — plausible, since those move through search firms — or the
+          prompt's label set is wider than the model will actually use. Worth a spot-check either way.
+        </p>
+        <pre class="evidence">mid        5,659   44.1%
+senior     4,282   33.4%
+junior     2,106   16.4%
+lead         763    6.0%
+director       <b>3</b>    0.02%
+associate      <b>1</b>    0.01%</pre>
+      </div>
+    </div>
+
+    <figure>
+      <figcaption>
+        <div class="fig-title">Daily churn: roles added and roles closed</div>
+        <div class="fig-sub">
+          From <code>job_history</code>, over the same window. The four spikes with zero closures are re-baselines —
+          the first run after a multi-day gap re-adds everything it sees, so those days are an artefact of the schedule,
+          not the market.
+        </div>
+      </figcaption>
+      <div class="plot" id="plot-churn"></div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--s2)"></i>added</span>
+        <span><i class="swatch" style="background:var(--s1)"></i>closed</span>
+      </div>
+      <details>
+        <summary>Show data</summary>
+        <div class="tbl" id="tbl-churn"></div>
+      </details>
+    </figure>
+
+    <div class="findings">
+      <div class="finding">
+        <span class="tag note">movers</span>
+        <p class="claim">The US investment banks are hiring; KPMG has fallen off a cliff.</p>
+        <p>
+          Among companies averaging five or more open roles, Morgan Stanley (+66.1%) and Goldman Sachs (+62.8%) lead
+          7-day growth. KPMG's −75.6% is by far the largest move in either direction. Treat all of these as leads to
+          verify rather than findings: they are computed on the un-deduplicated company names described above, and
+          <code>job_history</code> only covers 147 of 248 enabled companies, so 41% of the estate has no trend data at
+          all.
+        </p>
+        <pre class="evidence">growing   Morgan Stanley  +66.1%   avg 29.5 open
+          Goldman Sachs   +62.8%   avg 28.3 open
+          EY              +16.4%   avg 55.0 open
+declining KPMG            <b>-75.6%</b>   avg 41.0 open
+          Bank of East Asia -22.0%  avg 20.5 open
+          Deloitte        -18.2%   avg 44.0 open
+
+trend classification across 153 tracked companies:
+  stable 133  ·  growing 10  ·  declining 10</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 5. WHAT TO DO ============ -->
+  <section>
+    <div class="sec-head">
+      <h2>If you fix four things</h2>
+      <p>Ordered by damage prevented per hour spent.</p>
+    </div>
+    <div class="findings">
+      <div class="finding">
+        <p class="claim">1 &nbsp;·&nbsp; Make a failed run louder than a successful one.</p>
+        <p>
+          The summary email is the last phase, so failure is signalled by silence. Move a heartbeat to the
+          <em>start</em> of the run and alert on a missing finish marker instead. This is the difference between
+          "31% of runs failed" and "31% of runs failed and I found out three weeks later."
+        </p>
+      </div>
+      <div class="finding">
+        <p class="claim">2 &nbsp;·&nbsp; Retire or rename <code>salary_estimated_confidence</code>.</p>
+        <p>
+          It is anti-correlated with actual salary evidence and it is displayed to job seekers. The honest replacement
+          already exists in the schema: whether <code>jobs.salary_min</code> is populated.
+        </p>
+      </div>
+      <div class="finding">
+        <p class="claim">3 &nbsp;·&nbsp; Normalise company names before <code>company_metrics</code> reads them.</p>
+        <p>
+          Ten collision groups, ~3,800 rows, and every trend number on the board is computed on the fragments. A slug
+          normaliser at write time fixes the metrics, the "Listed on" tags and the employer pages in one move.
+        </p>
+      </div>
+      <div class="finding">
+        <p class="claim">4 &nbsp;·&nbsp; Decide what the long tail is for.</p>
+        <p>
+          27% of the configured estate returns 3% of the board with a 33% zero-extraction rate. That is defensible if
+          the goal is coverage of boutiques nobody else lists — it is not defensible as a volume play. Either narrow it
+          to the boutiques that actually post, or accept the cost explicitly and stop measuring it on yield.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      <b>Method.</b> Runs parsed from <code>logs/daily_runs.log</code> (94,672 lines) by matching
+      <code>=== Daily pipeline started ===</code> / <code>finished</code> markers and <code>--- Phase N: … ---</code>
+      boundaries; phases aggregated by name, not number. Corpus figures are a single consistent snapshot of
+      <code>data/jobs.db</code> taken on 2026-08-04. Salary figures are model estimates in HK$ per month, never
+      observed pay.
+    </p>
+    <p>
+      <b>Known limits.</b> The 15 runs are only those written to this log file — earlier runs exist in
+      <code>job_history</code> back to 2026-06-01 but have no phase timings. Phase timings cover the 11 completed runs
+      only. <code>job_history</code> tracks 147 of 248 enabled companies. Aborted runs contribute rows to the corpus but
+      no duration. A 16th run started at <b>2026-08-04 15:59</b>, while this analysis was being written; it is in flight
+      and excluded throughout.
+    </p>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------------- data ---------------- */
+
+  const RUNS = [
+    { d: "07-14", t: "00:40", min: 24.6,  ok: 1, cf: 588,  w: 432,  e: 209 },
+    { d: "07-17", t: "13:45", min: null,  ok: 0, cf: 6821, w: 352,  e: 236 },
+    { d: "07-18", t: "12:19", min: null,  ok: 0, cf: 4109, w: 413,  e: 267 },
+    { d: "07-19", t: "19:25", min: 184.3, ok: 1, cf: 7057, w: 365,  e: 390 },
+    { d: "07-20", t: "13:24", min: 38.5,  ok: 1, cf: 1751, w: 366,  e: 203 },
+    { d: "07-21", t: "13:27", min: 27.3,  ok: 1, cf: 1042, w: 297,  e: 357 },
+    { d: "07-23", t: "17:22", min: 70.1,  ok: 1, cf: 864,  w: 677,  e: 381 },
+    { d: "07-24", t: "20:52", min: 89.5,  ok: 1, cf: 1080, w: 863,  e: 690 },
+    { d: "07-25", t: "19:35", min: 39.4,  ok: 1, cf: 1868, w: 1228, e: 764 },
+    { d: "07-26", t: "19:50", min: null,  ok: 0, cf: 177,  w: 52,   e: 98  },
+    { d: "07-30", t: "09:11", min: 46.0,  ok: 1, cf: 944,  w: 724,  e: 387 },
+    { d: "07-31", t: "09:25", min: null,  ok: 0, cf: 194,  w: 52,   e: 71  },
+    { d: "07-31", t: "10:37", min: 230.3, ok: 1, cf: 2026, w: 827,  e: 283 },
+    { d: "08-02", t: "10:20", min: 87.3,  ok: 1, cf: 889,  w: 785,  e: 424 },
+    { d: "08-03", t: "18:00", min: 83.8,  ok: 1, cf: 1625, w: 812,  e: 293 }
+  ];
+
+  const PHASES = [
+    { k: "Scrape listings",        min: 365.4, n: 12, worst: 60.7  },
+    { k: "DeepSeek enrichment",    min: 212.5, n: 12, worst: 113.9 },
+    { k: "Fetch descriptions",     min: 183.0, n: 12, worst: 154.7 },
+    { k: "LinkedIn posts fetch",   min: 108.1, n: 9,  worst: 41.1  },
+    { k: "Salary outlier audit",   min: 42.0,  n: 8,  worst: 9.2   },
+    { k: "LinkedIn posts promote", min: 8.7,   n: 8,  worst: 2.9   },
+    { k: "Summary email",          min: 0.7,   n: 12, worst: 0.1   },
+    { k: "PocketBase sync",        min: 0.04,  n: 12, worst: 0.02  },
+    { k: "DB backup",              min: 0.04,  n: 12, worst: 0.02  }
+  ];
+
+  const SOURCES = [
+    { k: "jobsdb",            tot: 7550, act: 1665, nod: 1847 },
+    { k: "indeed",            tot: 2663, act: 957,  nod: 1952 },
+    { k: "linkedin",          tot: 1803, act: 833,  nod: 41   },
+    { k: "efinancialcareers", tot: 1291, act: 834,  nod: 5    },
+    { k: "eightfold",         tot: 622,  act: 284,  nod: 76   },
+    { k: "linkedin_posts",    tot: 612,  act: 230,  nod: 0    },
+    { k: "longtail",          tot: 407,  act: 151,  nod: 71   },
+    { k: "workday",           tot: 361,  act: 160,  nod: 68   },
+    { k: "successfactors",    tot: 20,   act: 9,    nod: 0    }
+  ];
+
+  const CONF = [
+    { k: "high",   n: 73,   lo: 21860, hi: 31697, stated: 0    },
+    { k: "medium", n: 9694, lo: 50055, hi: 73584, stated: 1204 },
+    { k: "low",    n: 1129, lo: 33883, hi: 47284, stated: 54   }
+  ];
+
+  const LADDER = [
+    { k: "junior", n: 1639, lo: 18303,  hi: 26551  },
+    { k: "mid",    n: 4959, lo: 36837,  hi: 53747  },
+    { k: "senior", n: 3609, lo: 66163,  hi: 96385  },
+    { k: "lead",   n: 681,  lo: 107624, hi: 162425 }
+  ];
+
+  const CATS = [
+    { k: "Engineering", n: 1040, lo: 61248, hi: 93146 },
+    { k: "Finance",     n: 3688, lo: 57680, hi: 86043 },
+    { k: "Other",       n: 1038, lo: 49073, hi: 70793 },
+    { k: "Sales",       n: 988,  lo: 48171, hi: 67811 },
+    { k: "HR",          n: 204,  lo: 35933, hi: 54332 },
+    { k: "Operations",  n: 2678, lo: 37647, hi: 54073 },
+    { k: "Marketing",   n: 15,   lo: 39267, hi: 49200 },
+    { k: "Insurance",   n: 41,   lo: 35595, hi: 46637 }
+  ];
+
+  const CHURN = [
+    { d: "07-14", a: 2616, r: 0,    base: 1 },
+    { d: "07-15", a: 319,  r: 1038, base: 0 },
+    { d: "07-16", a: 801,  r: 63,   base: 0 },
+    { d: "07-17", a: 208,  r: 174,  base: 0 },
+    { d: "07-18", a: 50,   r: 555,  base: 0 },
+    { d: "07-19", a: 261,  r: 174,  base: 0 },
+    { d: "07-20", a: 179,  r: 199,  base: 0 },
+    { d: "07-21", a: 281,  r: 191,  base: 0 },
+    { d: "07-23", a: 1479, r: 0,    base: 1 },
+    { d: "07-24", a: 202,  r: 75,   base: 0 },
+    { d: "07-25", a: 130,  r: 172,  base: 0 },
+    { d: "07-29", a: 10,   r: 0,    base: 0 },
+    { d: "07-30", a: 1396, r: 1,    base: 1 },
+    { d: "07-31", a: 497,  r: 55,   base: 0 },
+    { d: "08-02", a: 1779, r: 0,    base: 1 },
+    { d: "08-03", a: 120,  r: 130,  base: 0 }
+  ];
+
+  /* ---------------- helpers ---------------- */
+
+  const SVGNS = "http://www.w3.org/2000/svg";
+  const fmt = (n) => n.toLocaleString("en-US");
+  const el = (name, attrs) => {
+    const e = document.createElementNS(SVGNS, name);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  };
+
+  const tip = document.getElementById("tip");
+  function bindTip(node, text) {
+    node.classList.add("hit");
+    node.setAttribute("tabindex", "0");
+    const show = (x, y) => {
+      tip.textContent = text;
+      tip.classList.add("on");
+      const r = tip.getBoundingClientRect();
+      let left = x + 14, top = y + 14;
+      if (left + r.width > window.innerWidth - 8) left = x - r.width - 14;
+      if (top + r.height > window.innerHeight - 8) top = y - r.height - 14;
+      tip.style.left = Math.max(8, left) + "px";
+      tip.style.top = Math.max(8, top) + "px";
+    };
+    node.addEventListener("mousemove", (ev) => show(ev.clientX, ev.clientY));
+    node.addEventListener("mouseleave", () => tip.classList.remove("on"));
+    node.addEventListener("focus", () => {
+      const b = node.getBoundingClientRect();
+      show(b.left + b.width / 2, b.top);
+    });
+    node.addEventListener("blur", () => tip.classList.remove("on"));
+  }
+
+  function svgRoot(mount, w, h) {
+    const svg = el("svg", {
+      viewBox: "0 0 " + w + " " + h,
+      width: w, height: h, role: "img"
+    });
+    mount.appendChild(svg);
+    return svg;
+  }
+
+  // rounded only on the data end (right), square at the baseline (left)
+  function hBar(x, y, w, h, r, fill, extra) {
+    const rr = Math.min(r, w, h / 2);
+    const d = "M" + x + "," + y +
+              "H" + (x + w - rr) +
+              "a" + rr + "," + rr + " 0 0 1 " + rr + "," + rr +
+              "V" + (y + h - rr) +
+              "a" + rr + "," + rr + " 0 0 1 " + (-rr) + "," + rr +
+              "H" + x + "Z";
+    const p = el("path", Object.assign({ d: d, fill: fill }, extra || {}));
+    return p;
+  }
+
+  function label(svg, x, y, text, opts) {
+    const o = opts || {};
+    const t = el("text", {
+      x: x, y: y,
+      "text-anchor": o.anchor || "start",
+      "dominant-baseline": o.baseline || "middle",
+      "font-size": o.size || 11,
+      fill: o.fill || "var(--ink-2)",
+      "letter-spacing": o.ls || 0
+    });
+    t.textContent = text;
+    svg.appendChild(t);
+    return t;
+  }
+
+  function table(mount, cols, rows) {
+    const t = document.createElement("table");
+    const thead = document.createElement("thead");
+    const htr = document.createElement("tr");
+    cols.forEach((c) => {
+      const th = document.createElement("th");
+      th.textContent = c;
+      htr.appendChild(th);
+    });
+    thead.appendChild(htr);
+    t.appendChild(thead);
+    const tb = document.createElement("tbody");
+    rows.forEach((r) => {
+      const tr = document.createElement("tr");
+      r.forEach((v) => {
+        const td = document.createElement("td");
+        td.textContent = v;
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb);
+    const box = document.createElement("div");
+    box.className = "tbl";
+    box.appendChild(t);
+    mount.appendChild(box);
+  }
+
+  /* ---------------- 1. runs ---------------- */
+  (function () {
+    const mount = document.getElementById("plot-runs");
+    const W = 900, PADL = 96, PADR = 60, ROW = 26, TOP = 26;
+    const H = TOP + RUNS.length * ROW + 14;
+    const svg = svgRoot(mount, W, H);
+    svg.setAttribute("aria-label", "Duration of each of the 15 pipeline runs; four runs aborted with no duration.");
+
+    const max = 240;
+    const plotW = W - PADL - PADR;
+    const sx = (v) => (v / max) * plotW;
+
+    // hatch pattern for aborted runs
+    const defs = el("defs", {});
+    const pat = el("pattern", { id: "hatch", width: 6, height: 6, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" });
+    pat.appendChild(el("rect", { width: 6, height: 6, fill: "transparent" }));
+    pat.appendChild(el("line", { x1: 0, y1: 0, x2: 0, y2: 6, stroke: "var(--crit)", "stroke-width": 2, opacity: 0.55 }));
+    defs.appendChild(pat);
+    svg.appendChild(defs);
+
+    // gridlines
+    [0, 60, 120, 180, 240].forEach((v) => {
+      svg.appendChild(el("line", {
+        x1: PADL + sx(v), y1: TOP - 8, x2: PADL + sx(v), y2: H - 14,
+        stroke: "var(--grid)", "stroke-width": 1
+      }));
+      label(svg, PADL + sx(v), TOP - 16, v === 0 ? "0" : v + "m", { anchor: "middle", size: 10, fill: "var(--ink-3)" });
+    });
+
+    RUNS.forEach((r, i) => {
+      const y = TOP + i * ROW;
+      label(svg, PADL - 10, y + 9, r.d + " " + r.t, { anchor: "end", size: 10.5, fill: "var(--ink-2)" });
+      let node;
+      if (r.ok) {
+        node = hBar(PADL, y + 2, Math.max(sx(r.min), 3), 15, 4, "var(--s1)");
+        svg.appendChild(node);
+        label(svg, PADL + sx(r.min) + 8, y + 9.5, r.min.toFixed(1), { size: 10, fill: "var(--ink-2)" });
+      } else {
+        const w = sx(28);
+        node = el("rect", {
+          x: PADL, y: y + 2, width: w, height: 15, rx: 3,
+          fill: "url(#hatch)", stroke: "var(--crit)", "stroke-width": 1.4
+        });
+        svg.appendChild(node);
+        label(svg, PADL + w + 8, y + 9.5, "aborted", { size: 10, fill: "var(--crit)" });
+      }
+      bindTip(node,
+        r.d + " " + r.t + "\n" +
+        (r.ok ? "completed in " + r.min + " min" : "ABORTED — no finish marker") +
+        "\nCloudflare events: " + fmt(r.cf) +
+        "\nwarnings " + fmt(r.w) + " · errors " + fmt(r.e));
+    });
+
+    table(document.getElementById("tbl-runs"),
+      ["Run start", "Status", "Duration (min)", "CF events", "Warnings", "Errors"],
+      RUNS.map((r) => [r.d + " " + r.t, r.ok ? "completed" : "aborted",
+        r.ok ? r.min.toFixed(1) : "—", fmt(r.cf), fmt(r.w), fmt(r.e)]));
+  })();
+
+  /* ---------------- 2. phases ---------------- */
+  (function () {
+    const mount = document.getElementById("plot-phases");
+    const W = 900, PADL = 176, PADR = 96, ROW = 30, TOP = 10;
+    const H = TOP + PHASES.length * ROW + 8;
+    const svg = svgRoot(mount, W, H);
+    svg.setAttribute("aria-label", "Total minutes per pipeline phase across 11 completed runs.");
+    const total = PHASES.reduce((s, p) => s + p.min, 0);
+    const plotW = W - PADL - PADR;
+    const max = PHASES[0].min;
+
+    PHASES.forEach((p, i) => {
+      const y = TOP + i * ROW;
+      const w = Math.max((p.min / max) * plotW, 2);
+      label(svg, PADL - 12, y + 11, p.k, { anchor: "end", size: 11, fill: "var(--ink)" });
+      const bar = hBar(PADL, y + 3, w, 17, 4, "var(--s1)");
+      svg.appendChild(bar);
+      const pct = (p.min / total) * 100;
+      label(svg, PADL + w + 9, y + 11.5,
+        (p.min >= 1 ? p.min.toFixed(1) : "<0.1") + "m · " + pct.toFixed(1) + "%",
+        { size: 10, fill: "var(--ink-2)" });
+      bindTip(bar, p.k + "\n" + p.min.toFixed(1) + " min total (" + pct.toFixed(1) + "%)" +
+        "\nran in " + p.n + " of 11 completed runs" +
+        "\nworst single run: " + p.worst + " min");
+    });
+
+    table(document.getElementById("tbl-phases"),
+      ["Phase", "Total min", "Share", "Runs", "Worst run (min)"],
+      PHASES.map((p) => [p.k, p.min.toFixed(1), ((p.min / total) * 100).toFixed(1) + "%", p.n, p.worst]));
+  })();
+
+  /* ---------------- 3. sources ---------------- */
+  (function () {
+    const mount = document.getElementById("plot-sources");
+    const W = 900, PADL = 150, PADR = 150, ROW = 32, TOP = 10;
+    const H = TOP + SOURCES.length * ROW + 8;
+    const svg = svgRoot(mount, W, H);
+    svg.setAttribute("aria-label", "Rows collected per source, split into still-open and closed.");
+    const plotW = W - PADL - PADR;
+    const max = SOURCES[0].tot;
+
+    SOURCES.forEach((s, i) => {
+      const y = TOP + i * ROW;
+      const wAll = (s.tot / max) * plotW;
+      const wAct = (s.act / max) * plotW;
+      const closed = s.tot - s.act;
+      label(svg, PADL - 12, y + 12, s.k, { anchor: "end", size: 11, fill: "var(--ink)" });
+
+      // closed segment sits behind, rounded at the far end
+      const back = hBar(PADL, y + 3, Math.max(wAll, 2), 18, 4, "var(--inactive)");
+      svg.appendChild(back);
+      // active segment, square-left at baseline, 2px surface gap handled by stroke
+      const front = hBar(PADL, y + 3, Math.max(wAct, 2), 18, 4, "var(--s1)");
+      front.setAttribute("stroke", "var(--card)");
+      front.setAttribute("stroke-width", "2");
+      svg.appendChild(front);
+
+      label(svg, PADL + wAll + 10, y + 12,
+        fmt(s.tot) + " rows · " + ((closed / s.tot) * 100).toFixed(0) + "% closed",
+        { size: 10, fill: "var(--ink-2)" });
+
+      bindTip(back, s.k + "\n" + fmt(s.tot) + " rows ever" +
+        "\nstill open: " + fmt(s.act) +
+        "\nclosed: " + fmt(closed) + " (" + ((closed / s.tot) * 100).toFixed(1) + "%)" +
+        "\nempty descriptions: " + fmt(s.nod) + " (" + ((s.nod / s.tot) * 100).toFixed(1) + "%)");
+      bindTip(front, s.k + " — still open\n" + fmt(s.act) + " of " + fmt(s.tot) + " rows");
+    });
+
+    table(document.getElementById("tbl-sources"),
+      ["Source", "Rows", "Open", "Closed", "% closed", "Empty desc.", "% empty"],
+      SOURCES.map((s) => [s.k, fmt(s.tot), fmt(s.act), fmt(s.tot - s.act),
+        (((s.tot - s.act) / s.tot) * 100).toFixed(1) + "%", fmt(s.nod),
+        ((s.nod / s.tot) * 100).toFixed(1) + "%"]));
+  })();
+
+  /* ---------------- 4. confidence inversion (range bars) ---------------- */
+  (function () {
+    const mount = document.getElementById("plot-conf");
+    const W = 900, PADL = 132, PADR = 190, ROW = 48, TOP = 34;
+    const H = TOP + CONF.length * ROW + 14;
+    const svg = svgRoot(mount, W, H);
+    svg.setAttribute("aria-label", "Estimated salary range by confidence label; high confidence has the lowest range.");
+    const plotW = W - PADL - PADR;
+    const max = 90000;
+    const sx = (v) => (v / max) * plotW;
+
+    [0, 25000, 50000, 75000].forEach((v) => {
+      svg.appendChild(el("line", {
+        x1: PADL + sx(v), y1: TOP - 10, x2: PADL + sx(v), y2: H - 14,
+        stroke: "var(--grid)", "stroke-width": 1
+      }));
+      label(svg, PADL + sx(v), TOP - 20, v === 0 ? "HK$0" : (v / 1000) + "k",
+        { anchor: "middle", size: 10, fill: "var(--ink-3)" });
+    });
+
+    CONF.forEach((c, i) => {
+      const y = TOP + i * ROW;
+      label(svg, PADL - 12, y + 12, c.k, { anchor: "end", size: 12, fill: "var(--ink)" });
+      label(svg, PADL - 12, y + 27, "n=" + fmt(c.n), { anchor: "end", size: 9.5, fill: "var(--ink-3)" });
+
+      const x0 = PADL + sx(c.lo), x1 = PADL + sx(c.hi);
+      const g = el("g", {});
+      g.appendChild(el("rect", { x: x0, y: y + 8, width: Math.max(x1 - x0, 3), height: 16, rx: 4, fill: "var(--s1)" }));
+      g.appendChild(el("circle", { cx: x0, cy: y + 16, r: 5, fill: "var(--s1)", stroke: "var(--card)", "stroke-width": 2 }));
+      g.appendChild(el("circle", { cx: x1, cy: y + 16, r: 5, fill: "var(--s1)", stroke: "var(--card)", "stroke-width": 2 }));
+      svg.appendChild(g);
+
+      label(svg, x1 + 14, y + 16, fmt(c.lo) + " – " + fmt(c.hi), { size: 10.5, fill: "var(--ink-2)" });
+      label(svg, x1 + 14, y + 30,
+        c.stated === 0 ? "0 with a stated salary" : fmt(c.stated) + " with a stated salary",
+        { size: 9.5, fill: c.stated === 0 ? "var(--crit)" : "var(--ink-3)" });
+
+      bindTip(g, "confidence: " + c.k + "\n" + fmt(c.n) + " enrichments" +
+        "\nestimated HK$" + fmt(c.lo) + " – " + fmt(c.hi) +
+        "\npostings with a real stated salary: " + fmt(c.stated));
+    });
+
+    table(document.getElementById("tbl-conf"),
+      ["Confidence", "Rows", "Avg min (HK$)", "Avg max (HK$)", "With stated salary"],
+      CONF.map((c) => [c.k, fmt(c.n), fmt(c.lo), fmt(c.hi), fmt(c.stated)])
+        .concat([["none", "1,923", "—", "—", "54"]]));
+  })();
+
+  /* ---------------- 5. seniority ladder ---------------- */
+  (function () {
+    const mount = document.getElementById("plot-ladder");
+    const W = 900, PADL = 116, PADR = 180, ROW = 44, TOP = 34;
+    const H = TOP + LADDER.length * ROW + 14;
+    const svg = svgRoot(mount, W, H);
+    svg.setAttribute("aria-label", "Estimated monthly salary range by seniority band.");
+    const plotW = W - PADL - PADR;
+    const max = 170000;
+    const sx = (v) => (v / max) * plotW;
+
+    [0, 50000, 100000, 150000].forEach((v) => {
+      svg.appendChild(el("line", {
+        x1: PADL + sx(v), y1: TOP - 10, x2: PADL + sx(v), y2: H - 14,
+        stroke: "var(--grid)", "stroke-width": 1
+      }));
+      label(svg, PADL + sx(v), TOP - 20, v === 0 ? "HK$0" : (v / 1000) + "k",
+        { anchor: "middle", size: 10, fill: "var(--ink-3)" });
+    });
+
+    LADDER.forEach((c, i) => {
+      const y = TOP + i * ROW;
+      label(svg, PADL - 12, y + 12, c.k, { anchor: "end", size: 12, fill: "var(--ink)" });
+      label(svg, PADL - 12, y + 26, "n=" + fmt(c.n), { anchor: "end", size: 9.5, fill: "var(--ink-3)" });
+      const x0 = PADL + sx(c.lo), x1 = PADL + sx(c.hi);
+      const g = el("g", {});
+      g.appendChild(el("rect", { x: x0, y: y + 9, width: Math.max(x1 - x0, 3), height: 14, rx: 4, fill: "var(--s1)" }));
+      g.appendChild(el("circle", { cx: x0, cy: y + 16, r: 5, fill: "var(--s1)", stroke: "var(--card)", "stroke-width": 2 }));
+      g.appendChild(el("circle", { cx: x1, cy: y + 16, r: 5, fill: "var(--s1)", stroke: "var(--card)", "stroke-width": 2 }));
+      svg.appendChild(g);
+      label(svg, x1 + 14, y + 16, fmt(c.lo) + " – " + fmt(c.hi), { size: 10.5, fill: "var(--ink-2)" });
+      bindTip(g, c.k + "\n" + fmt(c.n) + " roles\nHK$" + fmt(c.lo) + " – " + fmt(c.hi) + " / month");
+    });
+
+    table(document.getElementById("tbl-ladder"),
+      ["Seniority", "Roles", "Avg min (HK$)", "Avg max (HK$)", "Step vs band below"],
+      LADDER.map((c, i) => [c.k, fmt(c.n), fmt(c.lo), fmt(c.hi),
+        i === 0 ? "—" : (c.hi / LADDER[i - 1].hi).toFixed(2) + "×"]));
+  })();
+
+  /* ---------------- 6. category pay ---------------- */
+  (function () {
+    const mount = document.getElementById("plot-cat");
+    const W = 900, PADL = 122, PADR = 190, ROW = 34, TOP = 32;
+    const H = TOP + CATS.length * ROW + 12;
+    const svg = svgRoot(mount, W, H);
+    svg.setAttribute("aria-label", "Estimated pay range by job function, with role counts.");
+    const plotW = W - PADL - PADR;
+    const max = 100000;
+    const sx = (v) => (v / max) * plotW;
+
+    [0, 25000, 50000, 75000, 100000].forEach((v) => {
+      svg.appendChild(el("line", {
+        x1: PADL + sx(v), y1: TOP - 10, x2: PADL + sx(v), y2: H - 12,
+        stroke: "var(--grid)", "stroke-width": 1
+      }));
+      label(svg, PADL + sx(v), TOP - 20, v === 0 ? "HK$0" : (v / 1000) + "k",
+        { anchor: "middle", size: 10, fill: "var(--ink-3)" });
+    });
+
+    CATS.forEach((c, i) => {
+      const y = TOP + i * ROW;
+      label(svg, PADL - 12, y + 14, c.k, { anchor: "end", size: 11, fill: "var(--ink)" });
+      const x0 = PADL + sx(c.lo), x1 = PADL + sx(c.hi);
+      const g = el("g", {});
+      g.appendChild(el("rect", { x: x0, y: y + 7, width: Math.max(x1 - x0, 3), height: 14, rx: 4, fill: "var(--s1)" }));
+      g.appendChild(el("circle", { cx: x1, cy: y + 14, r: 4.5, fill: "var(--s1)", stroke: "var(--card)", "stroke-width": 2 }));
+      svg.appendChild(g);
+      label(svg, x1 + 13, y + 14, fmt(c.hi) + "  ·  " + fmt(c.n) + " roles", { size: 10, fill: "var(--ink-2)" });
+      bindTip(g, c.k + "\n" + fmt(c.n) + " roles (medium confidence)\nHK$" + fmt(c.lo) + " – " + fmt(c.hi) + " / month");
+    });
+
+    table(document.getElementById("tbl-cat"),
+      ["Function", "Roles", "Avg min (HK$)", "Avg max (HK$)"],
+      CATS.map((c) => [c.k, fmt(c.n), fmt(c.lo), fmt(c.hi)]));
+  })();
+
+  /* ---------------- 7. churn ---------------- */
+  (function () {
+    const mount = document.getElementById("plot-churn");
+    const W = 900, PADL = 52, PADR = 14, TOP = 26, PLOTH = 210;
+    const H = TOP + PLOTH + 46;
+    const svg = svgRoot(mount, W, H);
+    svg.setAttribute("aria-label", "Roles added and closed per day from job_history.");
+    const plotW = W - PADL - PADR;
+    const max = 2700;
+    const sy = (v) => (v / max) * PLOTH;
+    const bandW = plotW / CHURN.length;
+    const barW = Math.min(11, (bandW - 8) / 2);
+
+    [0, 500, 1000, 1500, 2000, 2500].forEach((v) => {
+      const y = TOP + PLOTH - sy(v);
+      svg.appendChild(el("line", { x1: PADL, y1: y, x2: W - PADR, y2: y, stroke: "var(--grid)", "stroke-width": 1 }));
+      label(svg, PADL - 8, y, v === 0 ? "0" : (v / 1000).toFixed(1) + "k",
+        { anchor: "end", size: 9.5, fill: "var(--ink-3)" });
+    });
+
+    CHURN.forEach((c, i) => {
+      const cx = PADL + bandW * (i + 0.5);
+      const xa = cx - barW - 1, xr = cx + 1;
+      const ha = Math.max(sy(c.a), 2), hr = Math.max(sy(c.r), 2);
+
+      const ga = el("rect", { x: xa, y: TOP + PLOTH - ha, width: barW, height: ha, rx: 3, fill: "var(--s2)" });
+      const gr = el("rect", { x: xr, y: TOP + PLOTH - hr, width: barW, height: hr, rx: 3, fill: "var(--s1)" });
+      svg.appendChild(ga);
+      svg.appendChild(gr);
+
+      if (c.base) {
+        label(svg, cx, TOP + PLOTH - ha - 9, "re-base", { anchor: "middle", size: 8.5, fill: "var(--ink-3)" });
+      }
+      label(svg, cx, TOP + PLOTH + 14, c.d, { anchor: "middle", size: 9, fill: "var(--ink-3)" });
+
+      const txt = c.d + "\nadded " + fmt(c.a) + "\nclosed " + fmt(c.r) +
+        (c.base ? "\n\nre-baseline: first run after a gap,\nre-adds everything it sees" : "");
+      bindTip(ga, txt);
+      bindTip(gr, txt);
+    });
+
+    svg.appendChild(el("line", { x1: PADL, y1: TOP + PLOTH, x2: W - PADR, y2: TOP + PLOTH, stroke: "var(--rule)", "stroke-width": 1.5 }));
+
+    table(document.getElementById("tbl-churn"),
+      ["Date", "Added", "Closed", "Net", "Note"],
+      CHURN.map((c) => [c.d, fmt(c.a), fmt(c.r), (c.a - c.r > 0 ? "+" : "") + fmt(c.a - c.r),
+        c.base ? "re-baseline" : ""]));
+  })();
+
+})();
+</script>
