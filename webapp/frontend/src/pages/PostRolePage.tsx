@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Check, AlertCircle, ShieldCheck, Send } from 'lucide-react'
+import { Navigate } from 'react-router-dom'
 import Nav from '../components/Nav'
 import { submitRole } from '../api/client'
+import { useEmployerAuth } from '../auth/useEmployerAuth'
 
 type Status = 'idle' | 'sending' | 'sent' | 'error'
 
@@ -25,18 +27,37 @@ const MAX = {
  * LinkedIn posts we scrape. This is the first route by which a recruiter can put
  * a mandate to us directly.
  *
- * Scope is submission + moderation only, and stays that way here even now that
- * an Employer identity exists (/employer/register, /employer/signin — opened
- * ADR 0001's gate, not yet linked from anywhere in this UI): there is no
- * self-serve editing or dashboard behind it yet, so this form does not change
- * for a signed-in Employer. A submission lands pending review and a human
- * approves it before it can appear anywhere, exactly as before. Connecting a
- * signed-in Employer to their own submissions is the natural next step, not
- * done here — see employers_store.py's module docstring.
+ * Now requires a signed-in Employer — a deliberate change from when this form
+ * worked anonymously. That was fine while there was nothing an Employer
+ * account could do that anonymous submission couldn't; it stopped being true
+ * once posting on a company's behalf became a thing an account owns, not a
+ * form anyone could fill in claiming to be from anywhere. This does not
+ * reopen or contradict ADR 0002 — that decision is about the board staying
+ * free to BROWSE, which is unaffected; this gates a WRITE action instead.
+ *
+ * Scope is still submission + moderation only: a submission lands pending
+ * review and a human approves it before it can appear anywhere, exactly as
+ * before. The one thing being signed in buys today is not retyping your own
+ * name, email and company on every submission (prefilled below, still
+ * editable) — a self-serve dashboard over an Employer's own submissions
+ * remains the natural next step, not done here (employers_store.py's module
+ * docstring).
  */
 export default function PostRolePage() {
+  const { employer, loading: authLoading } = useEmployerAuth()
   const [status, setStatus] = useState<Status>('idle')
   const [error, setError] = useState('')
+
+  // Not a gate on the board (ADR 0002 is about browsing) — this page is
+  // specifically about posting on a company's behalf, which now requires
+  // being that company. Same self-guarding pattern as AccountPage.tsx, with
+  // one addition: the form below prefills from `employer` using defaultValue
+  // (uncontrolled inputs), which only takes effect on first mount — so unlike
+  // AccountPage, this page must not render the form at all until `employer`
+  // is known, or a prefill arriving a beat after mount would be silently
+  // dropped rather than shown.
+  if (authLoading) return <div style={{ backgroundColor: 'var(--color-bg)', minHeight: '100dvh' }}><Nav /></div>
+  if (!employer) return <Navigate to="/employer/signin" state={{ from: '/post-a-role' }} replace />
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -151,7 +172,10 @@ export default function PostRolePage() {
                   <input id="pr-title" name="title" type="text" required maxLength={MAX.title} className="finex-input" />
                 </Field>
                 <Field label="Company" htmlFor="pr-company">
-                  <input id="pr-company" name="company" type="text" required maxLength={MAX.company} className="finex-input" />
+                  <input
+                    id="pr-company" name="company" type="text" required maxLength={MAX.company}
+                    defaultValue={employer.company_name} className="finex-input"
+                  />
                 </Field>
                 <Field label="Location" htmlFor="pr-location">
                   <input
@@ -201,13 +225,15 @@ export default function PostRolePage() {
                 <Field label="Your name" htmlFor="pr-name">
                   <input
                     id="pr-name" name="contact_name" type="text" required
-                    maxLength={MAX.contact_name} autoComplete="name" className="finex-input"
+                    maxLength={MAX.contact_name} autoComplete="name"
+                    defaultValue={employer.contact_name} className="finex-input"
                   />
                 </Field>
                 <Field label="Your email" htmlFor="pr-email" hint="We reply here. Never published.">
                   <input
                     id="pr-email" name="contact_email" type="email" required
-                    maxLength={MAX.contact_email} autoComplete="email" className="finex-input"
+                    maxLength={MAX.contact_email} autoComplete="email"
+                    defaultValue={employer.email} className="finex-input"
                   />
                 </Field>
               </div>

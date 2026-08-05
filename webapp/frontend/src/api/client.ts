@@ -14,17 +14,24 @@ export const API = import.meta.env.VITE_API_URL ?? ''
 // ── Transport ─────────────────────────────────────────────────────────────────
 
 /**
- * Called whenever the API answers 401.
+ * Called with the request path whenever the API answers 401.
  *
- * AuthProvider registers itself here so one dead session clears the signed-in
- * state everywhere at once. It deliberately does NOT redirect: the board is
- * public (docs/adr/0002), so losing a session means you are browsing anonymously
- * again, not that you have been thrown out of the site.
+ * AuthProvider and EmployerAuthProvider each register a handler here so a dead
+ * session clears the right signed-in state — a Set, not a single slot, because
+ * two independent accounts (Seeker, Employer) can be signed in in one browser
+ * at once (main.py: "a browser can hold a Seeker session and an Employer
+ * session at the same time"), and a 401 from one must never clear the other.
+ * The path is what lets each handler tell which account it was: Seeker
+ * endpoints live under /api/auth and /api/me, Employer under /api/employer.
+ *
+ * Deliberately does NOT redirect: the board is public (docs/adr/0002), so
+ * losing a session means browsing anonymously again, not being thrown out.
  */
-let onUnauthorized: (() => void) | null = null
+const unauthorizedHandlers = new Set<(path: string) => void>()
 
-export function setUnauthorizedHandler(fn: (() => void) | null): void {
-  onUnauthorized = fn
+export function addUnauthorizedHandler(fn: (path: string) => void): () => void {
+  unauthorizedHandlers.add(fn)
+  return () => unauthorizedHandlers.delete(fn)
 }
 
 /**
@@ -39,7 +46,7 @@ export function setUnauthorizedHandler(fn: (() => void) | null): void {
  */
 async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const res = await fetch(`${API}${path}`, { credentials: 'include', ...init })
-  if (res.status === 401) onUnauthorized?.()
+  if (res.status === 401) unauthorizedHandlers.forEach(fn => fn(path))
   return res
 }
 

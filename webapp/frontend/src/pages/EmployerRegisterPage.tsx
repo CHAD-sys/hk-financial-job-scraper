@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { AlertCircle, CheckCircle2, Mail, UserPlus } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { AuthShell, AuthField, AuthDivider, GoogleButton } from '../components/AuthShell'
-import {
-  registerEmployer, ApiError, isPersonalEmailDomain, EMPLOYER_GOOGLE_SIGN_IN_PATH,
-} from '../api/client'
+import { ApiError, isPersonalEmailDomain, EMPLOYER_GOOGLE_SIGN_IN_PATH } from '../api/client'
+import { useEmployerAuth } from '../auth/useEmployerAuth'
+import { useReturnTo } from '../auth/useReturnTo'
 
 type Status = 'idle' | 'sending' | 'error' | 'done'
 
@@ -14,15 +14,15 @@ const MIN_PASSWORD = 8
 /**
  * Create an Employer account — the v1 identity ADR 0001 deferred until now.
  *
- * Not linked from anywhere in the public UI yet, on purpose: there is no
- * dashboard behind this account today (see employers_store.py's module
- * docstring), so advertising "sign in" with no payoff would be the kind of
- * vague promise the design conventions here rule out. /post-a-role works
- * identically signed in or not until that connect work happens. This page
- * exists so the gate can be tested end-to-end; where and how to surface it is
- * an open product decision, not a code gap.
+ * Now linked from the "Sign in" chooser (SignInChooserPage.tsx) — it was
+ * deliberately unlinked while /post-a-role worked identically signed in or
+ * not, which stopped being true once that page started requiring an Employer
+ * (its own docstring covers why: posting on a company's behalf is now a
+ * thing an account owns, not an anonymous form).
  */
 export default function EmployerRegisterPage() {
+  const { employer, loading: authLoading, register } = useEmployerAuth()
+  const returnTo = useReturnTo('/post-a-role')
   const [status, setStatus] = useState<Status>('idle')
   const [error, setError] = useState('')
   // Drives the "use your work email" nudge below the field — advisory only,
@@ -32,6 +32,9 @@ export default function EmployerRegisterPage() {
   // signing in with Gmail and registering FROM a gmail.com address are
   // different things (see client.ts's isPersonalEmailDomain docstring).
   const [emailHint, setEmailHint] = useState(false)
+
+  // Already signed in: nothing left for this page to do.
+  if (!authLoading && employer) return <Navigate to={returnTo} replace />
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -63,7 +66,7 @@ export default function EmployerRegisterPage() {
     setStatus('sending')
     setError('')
     try {
-      await registerEmployer({
+      await register({
         company_name: companyName,
         contact_name: contactName,
         email,

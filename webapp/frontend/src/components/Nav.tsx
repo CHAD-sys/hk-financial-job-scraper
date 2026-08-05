@@ -1,9 +1,10 @@
-import { Briefcase, Bookmark, Menu, X, ChevronDown, User, LogOut, ArrowUpRight } from 'lucide-react'
+import { Briefcase, Bookmark, Menu, X, ChevronDown, User, LogOut, ArrowUpRight, Building2 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { scrollToTop, scrollToHash } from '../utils/scroll'
-import type { Seeker } from '../api/client'
+import type { Seeker, Employer } from '../api/client'
 import { useAuth } from '../auth/useAuth'
+import { useEmployerAuth } from '../auth/useEmployerAuth'
 import { useSavedRoles } from '../savedRoles/useSavedRoles'
 
 /**
@@ -24,6 +25,15 @@ import { useSavedRoles } from '../savedRoles/useSavedRoles'
  * strip carrying identity and account actions, and a full-width nav row below
  * it. Nothing is hidden behind an overflow menu — a link the user cannot see
  * is a link they will not click. Mobile keeps its single row and flat menu.
+ *
+ * "Sign in" points at /get-started, a chooser between the two separate
+ * account kinds (SignInChooserPage.tsx), not straight at the Seeker form —
+ * this bar cannot know which one a visitor wants before they say so.
+ *
+ * "Post a role" only renders once an Employer is actually signed in. It used
+ * to be a standing link anyone could use anonymously; PostRolePage.tsx now
+ * requires an Employer account, so a link nobody-signed-in could click would
+ * just be a promise this bar could not keep.
  */
 
 const LINKS: { label: string; to: string; external?: boolean }[] = [
@@ -45,11 +55,13 @@ export default function Nav() {
   const navigate = useNavigate()
   const { pathname, hash } = useLocation()
   const { seeker, loading: authLoading, logout } = useAuth()
+  const { employer, loading: employerAuthLoading, logout: employerLogout } = useEmployerAuth()
 
   // Where sign-in should return to. The board is public, so nobody is ever sent
   // here by a wall — they came from a page they were reading and should land
   // back on it.
-  const returnTo = pathname === '/signin' || pathname === '/register' ? '/jobs' : pathname + hash
+  const returnTo = pathname === '/signin' || pathname === '/register'
+    || pathname === '/get-started' ? '/jobs' : pathname + hash
 
   /**
    * Router state a nav item carries.
@@ -60,7 +72,7 @@ export default function Nav() {
    * whatever results you were last looking at.
    */
   const linkState = (to: string) => {
-    if (to === '/signin') return { from: returnTo }
+    if (to === '/get-started') return { from: returnTo }
     if (to === '/jobs') return { discover: true }
     return undefined
   }
@@ -68,6 +80,12 @@ export default function Nav() {
   async function handleSignOut() {
     setOpen(false)
     await logout()
+    navigate('/')
+  }
+
+  async function handleEmployerSignOut() {
+    setOpen(false)
+    await employerLogout()
     navigate('/')
   }
 
@@ -183,18 +201,25 @@ export default function Nav() {
             {wordmark}
 
             <div className="flex shrink-0 items-center gap-3">
-              {/* Employer CTA — quiet on purpose; candidates are the main audience */}
-              <Link
-                to="/post-a-role"
-                onClick={e => handleClick(e, '/post-a-role')}
-                className="inline-flex min-h-9 items-center rounded px-3 py-1.5 text-sm font-medium no-underline"
-                style={{
-                  color: 'var(--color-ink-inverse)',
-                  border: '1px solid rgba(255,255,255,0.25)',
-                }}
-              >
-                Post a role
-              </Link>
+              {/* Only for a signed-in Employer now — PostRolePage.tsx redirects
+                  anyone else to /employer/signin, so a standing link nobody
+                  anonymous could use would be a promise this bar could not keep. */}
+              {!employerAuthLoading && employer && (
+                <>
+                  <Link
+                    to="/post-a-role"
+                    onClick={e => handleClick(e, '/post-a-role')}
+                    className="inline-flex min-h-9 items-center rounded px-3 py-1.5 text-sm font-medium no-underline"
+                    style={{
+                      color: 'var(--color-ink-inverse)',
+                      border: '1px solid rgba(255,255,255,0.25)',
+                    }}
+                  >
+                    Post a role
+                  </Link>
+                  <EmployerMenu employer={employer} onSignOut={handleEmployerSignOut} />
+                </>
+              )}
 
               <SavedButton
                 count={savedCount}
@@ -211,7 +236,7 @@ export default function Nav() {
                   <SeekerMenu seeker={seeker} onSignOut={handleSignOut} />
                 ) : (
                   <Link
-                    to="/signin"
+                    to="/get-started"
                     state={{ from: returnTo }}
                     className="inline-flex min-h-9 items-center rounded px-3 py-1.5 text-sm font-medium no-underline"
                     style={{ color: 'rgba(248,250,252,0.75)' }}
@@ -314,11 +339,12 @@ export default function Nav() {
           {[
             ...LINKS,
             { label: 'Saved roles', to: '/saved' },
-            { label: 'Post a role', to: '/post-a-role' },
-            // The account item, which the desktop bar keeps in its own slot.
+            // Same rule as the desktop bar: only for a signed-in Employer.
+            ...(!employerAuthLoading && employer ? [{ label: 'Post a role', to: '/post-a-role' }] : []),
+            // The account item(s), which the desktop bar keeps in its own slot.
             ...(authLoading ? [] : seeker
               ? [{ label: 'Your account', to: '/account' }]
-              : [{ label: 'Sign in', to: '/signin' }]),
+              : [{ label: 'Sign in', to: '/get-started' }]),
           ].map(({ label, to, external }) =>
             external ? (
               <a
@@ -356,7 +382,22 @@ export default function Nav() {
               className="flex min-h-11 items-center text-left text-sm font-medium cursor-pointer"
               style={{ color: 'rgba(248,250,252,0.55)', background: 'none', border: 'none', padding: 0 }}
             >
-              Sign out
+              {/* Both accounts can be signed in at once (main.py) — only say
+                  which one this button signs out of when there is a second
+                  session it could be confused with. */}
+              {employer ? 'Sign out (Seeker)' : 'Sign out'}
+            </button>
+          )}
+
+          {employer && (
+            <button
+              type="button"
+              onClick={handleEmployerSignOut}
+              className="flex min-h-11 items-center text-left text-sm font-medium cursor-pointer"
+              style={{ color: 'rgba(248,250,252,0.55)', background: 'none', border: 'none', padding: 0 }}
+            >
+              {seeker ? 'Sign out (Employer)' : 'Sign out'}
+              {' — '}{employer.company_name}
             </button>
           )}
         </nav>
@@ -521,6 +562,97 @@ function SeekerMenu({ seeker, onSignOut }: { seeker: Seeker; onSignOut: () => vo
               border: 'none',
               borderTop: '1px solid var(--color-border)',
             }}
+          >
+            <LogOut size={15} strokeWidth={2} />
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * The signed-in Employer's slot in the desktop bar — SeekerMenu's shape,
+ * deliberately smaller: there is no /employer/account or Saved-Roles
+ * equivalent to link to (employers_store.py: v1 is identity plus the
+ * submission form, nothing else), so this is company name in, sign out out,
+ * and nothing invented in between.
+ */
+function EmployerMenu({ employer, onSignOut }: { employer: Employer; onSignOut: () => void }) {
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setOpen(false)
+      buttonRef.current?.focus()
+    }
+
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="flex min-h-9 items-center gap-2 rounded px-2.5 py-1.5 text-sm font-medium cursor-pointer"
+        style={{
+          color: 'var(--color-ink-inverse)',
+          backgroundColor: open ? 'rgba(255,255,255,0.08)' : 'transparent',
+          border: '1px solid rgba(255,255,255,0.12)',
+        }}
+      >
+        <span
+          className="flex h-6 w-6 items-center justify-center rounded-full"
+          style={{ backgroundColor: 'var(--color-gold)' }}
+          aria-hidden="true"
+        >
+          <Building2 size={13} strokeWidth={2} color="#fff" />
+        </span>
+        <span className="max-w-[10rem] truncate">{employer.company_name}</span>
+        <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          aria-label="Employer account"
+          className="absolute right-0 mt-2 w-56 overflow-hidden rounded-lg py-1"
+          style={{
+            backgroundColor: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            boxShadow: 'var(--shadow-float)',
+          }}
+        >
+          <p
+            className="px-3 py-2 text-xs break-words"
+            style={{ color: 'var(--color-ink-faint)', borderBottom: '1px solid var(--color-border)' }}
+          >
+            {employer.email}
+          </p>
+          <button
+            role="menuitem"
+            type="button"
+            onClick={() => { setOpen(false); onSignOut() }}
+            className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm font-medium cursor-pointer"
+            style={{ color: 'var(--color-ink-muted)', background: 'none', border: 'none' }}
           >
             <LogOut size={15} strokeWidth={2} />
             Sign out
