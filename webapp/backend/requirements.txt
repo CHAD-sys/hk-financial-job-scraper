@@ -17,3 +17,9 @@ argon2-cffi-bindings==25.1.0
 # whatever a test-only transitive resolves to. Matches the repo's decided HTTP
 # client (CLAUDE.md: httpx, not requests) — hk_jobs already depends on it.
 httpx==0.28.1
+# Backs RedisRateLimiter (webapp/backend/rate_limit.py) — the shared rate
+# limiter used once Settings.redis_url is set (more than one replica, or
+# taking payment; see rate_limit.py's module docstring). Optional at runtime:
+# with REDIS_URL unset the app never imports this and keeps the in-process
+# RateLimiter, so a deploy with no Redis attached is unaffected.
+redis==8.1.0

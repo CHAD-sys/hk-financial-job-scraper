@@ -57,7 +57,7 @@ from mailer import RECIPIENT, SMTP_USER, send_mail  # noqa: E402
 # filtered, sorted, counted and shaped for the wire lives in this module — see
 # its docstring for why "browsing is filtered, addressing is not".
 import job_read  # noqa: E402
-from rate_limit import RateLimiter  # noqa: E402
+from rate_limit import RateLimiter, RedisRateLimiter  # noqa: E402
 from sender import Message, Sender, SmtpSender  # noqa: E402
 from settings import Settings  # noqa: E402
 from job_read import (  # noqa: E402
@@ -1643,8 +1643,12 @@ def create_app(settings: Settings | None = None, *, sender: Sender | None = None
     app.state.settings = settings
     app.state.sender = sender
     # Per-app, so two apps in one process (which is what the tests build) cannot
-    # share a rate-limit budget.
-    app.state.limiter = RateLimiter()
+    # share a rate-limit budget. Redis-backed once settings.redis_url is set —
+    # see Settings.redis_url and rate_limit.py for why that matters once this
+    # runs on more than one replica.
+    app.state.limiter = (
+        RedisRateLimiter(settings.redis_url) if settings.redis_url else RateLimiter()
+    )
 
     app.add_middleware(
         CORSMiddleware,

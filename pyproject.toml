@@ -17,6 +17,12 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "ruff>=0.4",
+    # In-memory Redis for testing webapp/backend/rate_limit.py's
+    # RedisRateLimiter without a real Redis server. The [lua] extra pulls in
+    # lupa, needed for fakeredis to execute the sliding-window Lua script the
+    # same way a real Redis server would (EVAL/EVALSHA) rather than failing
+    # with "unknown command".
+    "fakeredis[lua]>=2.37",
 ]
 
 [tool.setuptools.packages.find]
