@@ -71,14 +71,34 @@ def _has_prefix(conn: sqlite3.Connection, token: str) -> bool:
 def _correct_token(conn: sqlite3.Connection, token: str) -> str:
     if len(token) < _MIN_CORRECTABLE_LEN or not token.isascii():
         return token
-    if _has_prefix(conn, token):
-        return token
 
-    cap = _MAX_EDITS_SHORT if len(token) <= 5 else _MAX_EDITS_LONG
-    candidates = conn.execute(
-        "SELECT word, doc_count FROM search_vocab WHERE first = ? AND len BETWEEN ? AND ?",
-        (token[0], len(token) - cap, len(token) + cap),
-    ).fetchall()
+    # No vocabulary table → no correction, not an error.
+    #
+    # `matching_rowids` already promised to survive a database with no index,
+    # and guarded the jobs_fts read to keep that promise. This is the half that
+    # was left outside the guard: correction runs BEFORE the match query, so on
+    # a database predating the index it threw first and the guard never ran —
+    # which is why the production traceback named search_vocab rather than the
+    # table it was protecting. The deployed board answered every search with a
+    # 500 for exactly this reason (2026-08-05).
+    #
+    # Degraded separately from the index on purpose: a database that has
+    # jobs_fts but no vocabulary can still search the words as typed, and only
+    # loses typo tolerance. Correction is an enhancement, not a precondition.
+    try:
+        if _has_prefix(conn, token):
+            return token
+
+        cap = _MAX_EDITS_SHORT if len(token) <= 5 else _MAX_EDITS_LONG
+        candidates = conn.execute(
+            "SELECT word, doc_count FROM search_vocab WHERE first = ? AND len BETWEEN ? AND ?",
+            (token[0], len(token) - cap, len(token) + cap),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        logger.warning(
+            "Search vocabulary unavailable; %r searched without typo correction.", token
+        )
+        return token
 
     best, best_dist, best_doc = None, cap + 1, -1
     for word, doc_count in candidates:
