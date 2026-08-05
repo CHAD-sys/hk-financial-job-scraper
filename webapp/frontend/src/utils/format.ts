@@ -35,6 +35,30 @@ export function timeAgo(iso: string | null): string {
   return `${Math.floor(d / 365)}y ago`
 }
 
+/**
+ * The employer name to show for a Role.
+ *
+ * A Recruiter Post whose extractor found no named employer is stored with
+ * `company = "Confidential via {recruiter}"` (hk_jobs/posts/promote.py,
+ * decision #7). That puts the recruiter's name on the card through the one
+ * route the UI does not control by declining to render a field — it arrives
+ * inside a field the UI has every reason to render. Removing the "via
+ * {recruiter}" chip, the mailto and the profile link and then printing the name
+ * as the company would have been the whole change undone by one string.
+ *
+ * Only applied to `social`, and only splits on " via ", so an employer that
+ * genuinely contains those words elsewhere is untouched.
+ *
+ * This is a display mask, not redaction: the name is still in `company` in the
+ * API response. Taking it out at source means changing promote.py and
+ * backfilling, which is a pipeline change, not a frontend one.
+ */
+export function displayCompany(company: string, sourceTier: string): string {
+  if (sourceTier !== 'social') return company
+  const via = company.search(/\s+via\s+/i)
+  return via === -1 ? company : company.slice(0, via).trim()
+}
+
 export function monogram(company: string): string {
   const words = company.replace(/[^a-zA-Z\s]/g, '').trim().split(/\s+/)
   if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase()

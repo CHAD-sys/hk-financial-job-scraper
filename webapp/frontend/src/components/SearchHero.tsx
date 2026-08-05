@@ -67,7 +67,11 @@ export default function SearchHero({ filterData, boardTotal, onSearch }: Props) 
       }}
       aria-label="Search the Financial Careers Index"
     >
-      <div className="mx-auto max-w-3xl px-4 sm:px-6 pt-12 pb-10 sm:pt-16 sm:pb-12 lg:pt-20 lg:pb-14 text-center">
+      {/* The bottom padding is a step deeper than the top on purpose: the
+          discover page's content sheet overlaps this section (JobBoardPage),
+          so the last row of chips needs clearance from an edge that rises to
+          meet it. Change one and check the other. */}
+      <div className="mx-auto max-w-3xl px-4 sm:px-6 pt-12 pb-16 sm:pt-16 sm:pb-20 lg:pt-20 lg:pb-24 text-center">
         <p
           className="text-xs font-semibold uppercase mb-3"
           style={{ color: 'var(--color-gold-star)', letterSpacing: '0.14em' }}

@@ -58,36 +58,92 @@ function normalise(sources: string[]): string[] {
   return ORDER.filter(k => keys.has(k))
 }
 
-function BoardTag({ board }: { board: Board }) {
+/**
+ * Two densities, one tag.
+ *
+ * `compact` is the job card, where the tag sits in the meta row next to the
+ * seniority badge and must not out-weigh it. The default is the detail view's
+ * "Listed on" row. Same registry, same colours, same marks in both — a Seeker
+ * who learns the JobsDB mark on a card has to meet that same mark in the modal,
+ * which is the whole reason this is one component and not two.
+ *
+ * The two densities differ in more than size: `compact` is monochrome.
+ *
+ * A board's brand colour earns its place in the "Listed on" row, where several
+ * tags sit together and the colour is what tells them apart at a glance. On a
+ * card there is only ever ONE tag, so the hue distinguishes it from nothing —
+ * it just adds a fifth colour to a grid that already has a sector accent and a
+ * tier chip competing for attention. The letter-mark still identifies the board;
+ * it does that by shape, which is what was doing the work anyway.
+ */
+function BoardTag({
+  board,
+  compact = false,
+}: {
+  board: Board
+  compact?: boolean
+}) {
+  const color = compact ? 'var(--color-ink-muted)' : board.color
+  const mark = compact ? 14 : 18
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2.5"
-      style={{ backgroundColor: tint(board.color, 0.09), border: `1px solid ${tint(board.color, 0.28)}` }}
+      className={`inline-flex items-center rounded-full ${
+        compact ? 'gap-1 py-0.5 pl-0.5 pr-1.5' : 'gap-1.5 py-1 pl-1 pr-2.5'
+      }`}
+      style={{
+        backgroundColor: compact ? 'transparent' : tint(board.color, 0.09),
+        border: `1px solid ${compact ? 'var(--color-border)' : tint(board.color, 0.28)}`,
+      }}
     >
       <span
         className="grid place-items-center rounded"
-        style={{ width: 18, height: 18, backgroundColor: board.color }}
+        style={{ width: mark, height: mark, backgroundColor: color }}
         aria-hidden="true"
       >
-        <span style={{ color: '#fff', fontSize: 12, fontWeight: 800, lineHeight: 1, letterSpacing: '-0.04em' }}>
+        <span style={{ color: '#fff', fontSize: compact ? 9 : 12, fontWeight: 800, lineHeight: 1, letterSpacing: '-0.04em' }}>
           {board.mark}
         </span>
       </span>
-      <span style={{ fontSize: 12, fontWeight: 600, color: board.color }}>{board.label}</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color }}>{board.label}</span>
     </span>
   )
 }
 
-function CompanyTag() {
+function CompanyTag({ compact = false }: { compact?: boolean }) {
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full py-1 pl-1.5 pr-2.5"
-      style={{ backgroundColor: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}
+      className={`inline-flex items-center rounded-full ${
+        compact ? 'gap-1 py-0.5 pl-1 pr-1.5' : 'gap-1.5 py-1 pl-1.5 pr-2.5'
+      }`}
+      style={{
+        backgroundColor: compact ? 'transparent' : 'var(--color-surface-2)',
+        border: '1px solid var(--color-border)',
+      }}
     >
-      <Building2 size={13} strokeWidth={2} style={{ color: 'var(--color-ink-muted)' }} aria-hidden="true" />
+      <Building2 size={compact ? 11 : 13} strokeWidth={2} style={{ color: 'var(--color-ink-muted)' }} aria-hidden="true" />
       <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-ink-muted)' }}>Company site</span>
     </span>
   )
+}
+
+/**
+ * Where one Role was retrieved from, as a single tag.
+ *
+ * The detail view answers "which boards is this listed on" and needs the whole
+ * set. A card answers the narrower question — where did this row come from —
+ * which is `job.source`, the only provenance the list endpoint returns. Reading
+ * it through the same BOARDS/OWN_SITE registry is what stops the card growing a
+ * second, quietly divergent idea of what a source is called.
+ *
+ * Unknown sources render nothing rather than throwing, same as the section
+ * below: the registry test in tests/test_sources.py is what stops that
+ * happening, this is only the backstop.
+ */
+export function SourceTag({ source }: { source: string }) {
+  if (OWN_SITE.has(source)) return <CompanyTag compact />
+  const board = BOARDS[source]
+  if (!board) return null
+  return <BoardTag board={board} compact />
 }
 
 export default function SourceBadges({ sources }: { sources: string[] }) {

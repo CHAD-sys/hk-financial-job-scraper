@@ -1,8 +1,9 @@
-import { Bookmark, MapPin, Clock, Star, Flame, Sparkles, Repeat2, Users, EyeOff, UserRound, Mail, ShieldCheck, Archive } from 'lucide-react'
+import { Bookmark, MapPin, Briefcase, Clock, Star, Flame, Sparkles, Repeat2, Users, EyeOff, ShieldCheck, Archive } from 'lucide-react'
 import type { Job, LinkedInPostSignals } from '../api/client'
+import { SourceTag } from './SourceBadges'
 import {
-  formatSalary, formatEstimatedSalary, timeAgo, monogram,
-  getSectorColor, getSeniorityColor,
+  formatSalary, formatEstimatedSalary, timeAgo, monogram, displayCompany,
+  getSectorColor,
   formatRemoteType, shortLocation,
 } from '../utils/format'
 
@@ -13,14 +14,33 @@ interface Props {
   onClick: (job: Job) => void
 }
 
-const SKILL_LIMIT = 4
-
 type SectorColor = ReturnType<typeof getSectorColor>
 
+/**
+ * The palette a closed Role borrows in place of its sector's.
+ *
+ * The sector is still true, but on a closed card it is competing for the one
+ * thing the card needs to say. Substituting it here rather than branching at
+ * each use means the monogram, the sector chip and the hover border all go
+ * neutral from one line.
+ */
+const CLOSED_NEUTRAL: SectorColor = {
+  bg: 'var(--color-surface-2)',
+  // ink-muted, not ink-faint. Draining the colour out of these chips is the
+  // point; draining the contrast out of them is not — faint grey on surface-2
+  // measures ~2.4:1, and a closed Role's sector and seniority are still facts
+  // someone has to be able to read. Muted holds ~5.6:1 and is just as neutral.
+  text: 'var(--color-ink-muted)',
+  border: 'var(--color-border-strong)',
+  accent: 'var(--color-border-strong)',
+}
+
 export default function JobCard({ job, saved, onToggleSave, onClick }: Props) {
-  const sectorColor = getSectorColor(job.sector)
+  const sectorColor = job.closed ? CLOSED_NEUTRAL : getSectorColor(job.sector)
   // Prefer the AI English title (Chinese postings); fall back to the original.
   const displayTitle = job.title_en || job.title
+  // Masked for Recruiter Posts, which store the recruiter's name in `company`.
+  const company = displayCompany(job.company, job.source_tier)
 
   return (
     <article
@@ -29,65 +49,85 @@ export default function JobCard({ job, saved, onToggleSave, onClick }: Props) {
       // closed — greying it out and then refusing to open it would defeat the
       // reason the Role is still here at all.
       data-closed={job.closed || undefined}
-      className="job-card relative flex flex-col gap-3 rounded-lg p-5 cursor-pointer transition-all duration-200 group"
+      className="job-card relative flex flex-col gap-4 rounded-lg p-5 cursor-pointer transition-all duration-200 group"
       style={{
-        backgroundColor: job.closed ? 'var(--color-surface-2)' : 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
+        backgroundColor: job.closed ? 'var(--color-closed-surface)' : 'var(--color-surface)',
+        border: `1px solid ${job.closed ? 'var(--color-border-strong)' : 'var(--color-border)'}`,
         boxShadow: 'var(--shadow-card)',
       }}
       onMouseEnter={e => {
         const el = e.currentTarget as HTMLElement
         el.style.boxShadow = 'var(--shadow-raised)'
-        el.style.borderColor = job.closed ? 'var(--color-border-strong)' : sectorColor.accent
+        el.style.borderColor = sectorColor.accent
         el.style.transform = 'translateY(-2px)'
       }}
       onMouseLeave={e => {
         const el = e.currentTarget as HTMLElement
         el.style.boxShadow = 'var(--shadow-card)'
-        el.style.borderColor = 'var(--color-border)'
+        // Back to whichever resting border this card started with — restoring
+        // --color-border unconditionally used to strip a closed card's heavier
+        // edge the first time a cursor crossed it.
+        el.style.borderColor = job.closed ? 'var(--color-border-strong)' : 'var(--color-border)'
         el.style.transform = 'translateY(0)'
       }}
     >
-      {/* Sector accent bar. Neutral once closed — the sector is still true, but
-          the card should not read as a live opening. */}
-      <div
-        className="absolute top-0 left-0 right-0 rounded-t-lg"
-        style={{
-          height: '2px',
-          backgroundColor: job.closed ? 'var(--color-border-strong)' : sectorColor.accent,
-        }}
-        aria-hidden="true"
-      />
+      {/* The head of the card: a 2px sector accent while the Role is open, a
+          full status band once it has closed. Same slot, two very different
+          weights — which is the point. */}
+      {job.closed ? (
+        <ClosedBanner />
+      ) : (
+        <div
+          className="absolute top-0 left-0 right-0 rounded-t-lg"
+          style={{ height: '2px', backgroundColor: sectorColor.accent }}
+          aria-hidden="true"
+        />
+      )}
 
       <CardHeader job={job} sectorColor={sectorColor} saved={saved} onToggleSave={onToggleSave} />
 
-      {/* Title — a real button whose hit-area is stretched over the whole card,
-          so the card is clickable AND keyboard/screen-reader operable. */}
-      <h3
-        className="text-base font-semibold leading-snug line-clamp-2"
-        style={{
-          fontFamily: 'var(--font-display)',
-          color: 'var(--color-ink)',
-          letterSpacing: '-0.01em',
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => onClick(job)}
-          className="text-left cursor-pointer after:absolute after:inset-0 after:content-['']"
-          aria-label={`${displayTitle} at ${job.company}`}
+      {/* Title and the facts that qualify it are ONE group, so they sit closer
+          to each other (gap-2) than to anything else (the card's gap-4). The
+          card used to space all five blocks equally, which is what made a
+          fairly ordinary amount of content read as a wall: with no grouping,
+          the eye has to parse every row to find out which ones belong
+          together. */}
+      <div className="flex flex-col gap-2">
+        {/* A real button whose hit-area is stretched over the whole card, so
+            the card is clickable AND keyboard/screen-reader operable. */}
+        <h3
+          className="text-lg font-semibold leading-snug line-clamp-2"
+          style={{
+            fontFamily: 'var(--font-display)',
+            color: job.closed ? 'var(--color-ink-muted)' : 'var(--color-ink)',
+            letterSpacing: '-0.01em',
+          }}
         >
-          {displayTitle}
-        </button>
-      </h3>
+          <button
+            type="button"
+            onClick={() => onClick(job)}
+            className="text-left cursor-pointer after:absolute after:inset-0 after:content-['']"
+            aria-label={`${displayTitle} at ${company}`}
+          >
+            {displayTitle}
+          </button>
+        </h3>
 
-      <MetaRow job={job} />
-      {job.source_tier === 'social' ? (
-        <RecruiterBadge signals={job.board_signals?.linkedin_posts as unknown as LinkedInPostSignals | undefined} />
-      ) : (
+        <MetaRow job={job} />
+      </div>
+
+      {/* Market signals — "Urgently hiring", "New", an applicant count — are all
+          claims about a vacancy someone can still apply to. On a closed Role
+          every one of them is false, so they come off rather than being greyed
+          out. Dropping them is also what leaves the closed card with no chroma
+          at all.
+
+          A Recruiter Post carries none of these either: they come from job
+          boards, and a personal LinkedIn post is not one. */}
+      {!job.closed && job.source_tier !== 'social' && (
         <SignalBadges boardSignals={job.board_signals} />
       )}
-      <SkillChips skills={job.required_skills} />
+
       <CardFooter job={job} />
     </article>
   )
@@ -121,7 +161,7 @@ function CardHeader({
           }}
           aria-hidden="true"
         >
-          {monogram(job.company)}
+          {monogram(displayCompany(job.company, job.source_tier))}
         </div>
 
         <div className="min-w-0">
@@ -129,19 +169,20 @@ function CardHeader({
             className="text-xs font-medium truncate"
             style={{ color: 'var(--color-ink-muted)' }}
           >
-            {job.company}
+            {displayCompany(job.company, job.source_tier)}
           </p>
-          {/* Closed + sector label + tier badges */}
-          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-            {job.closed && <ClosedBadge />}
+          {/* Sector label + tier badges. No Closed chip here any more — the
+              band across the head of the card says it at a weight a chip in a
+              row of chips never could, and saying it twice is what made the
+              old treatment read as small print. */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5">
+            {/* Sector — the word, not a swatch. The sector is already stated
+                three times over: the accent rule at the head of the card, the
+                tinted monogram, and this. Two of those are colour, so this one
+                can just be text and the sector still reads instantly. */}
             <span
-              className="inline-block text-xs font-medium rounded-sm px-1.5 py-0.5"
-              style={{
-                backgroundColor: sectorColor.bg,
-                color: sectorColor.text,
-                fontSize: '12px',
-                letterSpacing: '0.04em',
-              }}
+              className="inline-block text-xs font-medium"
+              style={{ color: 'var(--color-ink-muted)', fontSize: '12px', letterSpacing: '0.04em' }}
             >
               {job.sector}
             </span>
@@ -149,8 +190,13 @@ function CardHeader({
               <span
                 className="inline-flex flex-shrink-0 items-center gap-0.5 whitespace-nowrap rounded-sm px-1.5 py-0.5 font-semibold"
                 style={{
-                  backgroundColor: 'var(--color-gold-light, rgba(201,162,74,0.12))',
-                  color: 'var(--color-gold)',
+                  // Provenance stays true after a Role closes, so the chip
+                  // stays — but it gives up its gold. A closed card carries no
+                  // chroma; that is the whole signal.
+                  backgroundColor: job.closed
+                    ? 'var(--color-surface-2)'
+                    : 'var(--color-gold-light, rgba(201,162,74,0.12))',
+                  color: job.closed ? 'var(--color-ink-muted)' : 'var(--color-gold)',
                   fontSize: '12px',
                   letterSpacing: '0.04em',
                 }}
@@ -164,8 +210,10 @@ function CardHeader({
               <span
                 className="inline-flex flex-shrink-0 items-center gap-0.5 whitespace-nowrap rounded-sm px-1.5 py-0.5 font-semibold"
                 style={{
-                  backgroundColor: 'rgba(107,78,255,0.12)',
-                  color: '#6B4EFF',
+                  // Same rule as the Exclusive chip above: the fact survives
+                  // the Role closing, the colour does not.
+                  backgroundColor: job.closed ? 'var(--color-surface-2)' : 'rgba(107,78,255,0.12)',
+                  color: job.closed ? 'var(--color-ink-muted)' : '#6B4EFF',
                   fontSize: '12px',
                   letterSpacing: '0.04em',
                 }}
@@ -175,13 +223,19 @@ function CardHeader({
                 Hidden market
               </span>
             )}
-            {job.source_tier === 'social'
+            {/* Verified asserts the vacancy is "real, currently-open". That is
+                exactly the claim a closed Role has stopped being able to make,
+                so unlike the two chips above it is suppressed rather than
+                greyed. */}
+            {!job.closed && job.source_tier === 'social'
               && (job.board_signals?.linkedin_posts as unknown as LinkedInPostSignals | undefined)?.not_a_ghost_job && (
               <span
-                className="inline-flex flex-shrink-0 items-center gap-0.5 whitespace-nowrap rounded-sm px-1.5 py-0.5 font-semibold"
+                className="inline-flex flex-shrink-0 items-center gap-0.5 whitespace-nowrap font-semibold"
                 style={{
-                  backgroundColor: '#DCFCE7',
-                  color: '#15803D',
+                  // Was a green fill. The shield already says "checked", and a
+                  // card carrying the Hidden-market chip does not need a second
+                  // colour arguing with it two millimetres away.
+                  color: 'var(--color-ink-muted)',
                   fontSize: '12px',
                   letterSpacing: '0.04em',
                 }}
@@ -224,19 +278,18 @@ function CardHeader({
 // ── Meta row: seniority / location / work type / internship ──────────────────
 
 function MetaRow({ job }: { job: Job }) {
-  const senColor = getSeniorityColor(job.seniority)
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-      {/* Seniority badge */}
-      {senColor && job.seniority && (
+      {/* Seniority — set, not filled.
+          It used to be one of five coloured pills (navy / blue / slate / gold /
+          grey), which spent five of the card's colours on a field that is
+          already ranked by its own words: nobody needs a hue to know LEAD sits
+          above JUNIOR. Small caps with wide tracking gives it the same
+          at-a-glance weight typographically, and hands five colours back. */}
+      {job.seniority && (
         <span
-          className="inline-flex items-center rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wide"
-          style={{
-            backgroundColor: senColor.bg,
-            color: senColor.text,
-            fontSize: '12px',
-            letterSpacing: '0.06em',
-          }}
+          className="text-xs font-bold uppercase"
+          style={{ color: 'var(--color-ink)', fontSize: '11px', letterSpacing: '0.12em' }}
         >
           {job.seniority}
         </span>
@@ -248,25 +301,30 @@ function MetaRow({ job }: { job: Job }) {
         {shortLocation(job.locations)}
       </span>
 
-      {/* Work type */}
+      {/* Work type. Plain text with an icon — and no longer blue for Hybrid.
+          Hybrid is a fact about the role, not a recommendation, and colouring
+          one of three possible values made it look like the good one. */}
       {job.remote_type && (
         <span
-          className="text-xs rounded px-1.5 py-0.5"
-          style={{
-            backgroundColor: job.remote_type === 'hybrid' ? 'var(--color-blue-light)' : 'var(--color-surface-2)',
-            color: job.remote_type === 'hybrid' ? 'var(--color-blue)' : 'var(--color-ink-muted)',
-            border: '1px solid var(--color-border)',
-          }}
+          className="flex items-center gap-1 text-xs font-medium"
+          style={{ color: 'var(--color-ink-muted)' }}
         >
+          <Briefcase size={11} strokeWidth={1.8} aria-hidden="true" />
           {formatRemoteType(job.remote_type)}
         </span>
       )}
 
-      {/* Internship badge */}
+      {/* Where this Role was retrieved from. Sits at the end of the meta row
+          rather than the head of it: provenance qualifies everything to its
+          left, and is the last thing you want when scanning, not the first. */}
+      <SourceTag source={job.source} />
+
+      {/* Internship — an outline, not amber. It is a category of role, not a
+          warning, and it was the only yellow in the interface. */}
       {job.is_internship && (
         <span
           className="text-xs rounded px-1.5 py-0.5"
-          style={{ backgroundColor: '#FEF9C3', color: '#854D0E', border: '1px solid #FDE68A' }}
+          style={{ color: 'var(--color-ink-muted)', border: '1px solid var(--color-border)' }}
         >
           Internship
         </span>
@@ -292,39 +350,39 @@ function SignalBadges({ boardSignals }: { boardSignals: Job['board_signals'] }) 
 
   if (!urgent && !isNew && !reposted && applicants === null) return null
 
+  // Four filled pills in red, green and two greys used to live here — a
+  // traffic light's worth of colour for information nobody chooses a job on.
+  // They are now set as text with their icons, and only ONE keeps a hue:
+  // urgency is the single signal that changes what you do next (apply now
+  // rather than later), so it is the only one allowed to shout. The icons carry
+  // the meaning alongside the words, so nothing here depends on colour.
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
       {urgent && (
         <span
-          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-semibold"
-          style={{ backgroundColor: '#FEE2E2', color: '#B91C1C', border: '1px solid #FECACA', fontSize: '12px' }}
+          className="inline-flex items-center gap-1 font-semibold"
+          style={{ color: 'var(--color-destructive)' }}
         >
-          <Flame size={11} strokeWidth={2} aria-hidden="true" />
+          <Flame size={11} strokeWidth={2.25} aria-hidden="true" />
           Urgently hiring
         </span>
       )}
       {isNew && (
-        <span
-          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-semibold"
-          style={{ backgroundColor: '#DCFCE7', color: '#15803D', border: '1px solid #BBF7D0', fontSize: '12px' }}
-        >
-          <Sparkles size={11} strokeWidth={2} aria-hidden="true" />
+        <span className="inline-flex items-center gap-1 font-semibold" style={{ color: 'var(--color-ink)' }}>
+          <Sparkles size={11} strokeWidth={2.25} aria-hidden="true" />
           New
         </span>
       )}
       {reposted && (
-        <span
-          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-medium"
-          style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-muted)', border: '1px solid var(--color-border)', fontSize: '12px' }}
-        >
+        <span className="inline-flex items-center gap-1" style={{ color: 'var(--color-ink-muted)' }}>
           <Repeat2 size={11} strokeWidth={2} aria-hidden="true" />
           Reposted
         </span>
       )}
       {applicants !== null && (
         <span
-          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-medium tabular-nums"
-          style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-muted)', border: '1px solid var(--color-border)', fontSize: '12px' }}
+          className="inline-flex items-center gap-1 tabular-nums"
+          style={{ color: 'var(--color-ink-muted)' }}
           title="Candidates who have started applying (across boards)"
         >
           <Users size={11} strokeWidth={2} aria-hidden="true" />
@@ -335,89 +393,35 @@ function SignalBadges({ boardSignals }: { boardSignals: Job['board_signals'] }) 
   )
 }
 
-// ── Recruiter attribution (Recruiter Posts / source_tier === 'social') ───────
+// ── Recruiter attribution ────────────────────────────────────────────────────
+//
+// There isn't any, deliberately.
+//
+// The card used to carry a "via {recruiter}" chip and a mailto link, and the
+// modal a profile link and a "DM {recruiter} to apply" CTA — LP-5 / decision #9
+// in docs/PLAN_LINKEDIN_POSTS.md. That is reversed (owner decision, 2026-08-04):
+// a Recruiter Post now names nobody and links to no inbox or profile. The only
+// route to the person who posted it is the post itself, where they published on
+// their own terms and control what happens next.
+//
+// The consequence to keep in mind: the recruiter's name is still fetched and
+// still stored in board_signals. This is a display decision, not a data one, so
+// nothing here stops the name reaching a browser through /api/jobs. If it must
+// not leave the server at all, that is a change in webapp/backend/job_read.py.
 
-function RecruiterBadge({ signals }: { signals: LinkedInPostSignals | undefined }) {
-  if (!signals?.recruiter_name) return null
-  const likes = signals.engagement?.likes
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span
-        className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-medium"
-        style={{
-          backgroundColor: 'rgba(107,78,255,0.08)',
-          color: '#6B4EFF',
-          border: '1px solid rgba(107,78,255,0.22)',
-          fontSize: '12px',
-        }}
-        title="Posted by this recruiter on LinkedIn — not a formal job board listing"
-      >
-        <UserRound size={11} strokeWidth={2} aria-hidden="true" />
-        via {signals.recruiter_name}
-      </span>
-      {signals.recruiter_email && (
-        <a
-          href={`mailto:${signals.recruiter_email}`}
-          onClick={e => e.stopPropagation()}
-          className="relative z-10 inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-medium"
-          style={{
-            backgroundColor: 'var(--color-surface-2)',
-            color: 'var(--color-ink-muted)',
-            border: '1px solid var(--color-border)',
-            fontSize: '12px',
-          }}
-          title={`Email ${signals.recruiter_name}: ${signals.recruiter_email}`}
-        >
-          <Mail size={11} strokeWidth={2} aria-hidden="true" />
-          Email
-        </a>
-      )}
-      {typeof likes === 'number' && likes > 0 && (
-        <span className="text-xs" style={{ color: 'var(--color-ink-faint)' }}>
-          {likes} like{likes === 1 ? '' : 's'}
-        </span>
-      )}
-    </div>
-  )
-}
-
-// ── Skill chips with overflow count ───────────────────────────────────────────
-
-function SkillChips({ skills }: { skills: string[] }) {
-  const visibleSkills = skills.slice(0, SKILL_LIMIT)
-  const overflowCount = skills.length - SKILL_LIMIT
-
-  if (visibleSkills.length === 0) return null
-
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {visibleSkills.map(skill => (
-        <span
-          key={skill}
-          className="text-xs rounded-full px-2.5 py-0.5"
-          style={{
-            backgroundColor: 'var(--color-surface-2)',
-            color: 'var(--color-ink-muted)',
-            border: '1px solid var(--color-border)',
-          }}
-        >
-          {skill}
-        </span>
-      ))}
-      {overflowCount > 0 && (
-        <span
-          className="text-xs rounded-full px-2.5 py-0.5"
-          style={{
-            backgroundColor: 'var(--color-border)',
-            color: 'var(--color-ink-muted)',
-          }}
-        >
-          +{overflowCount}
-        </span>
-      )}
-    </div>
-  )
-}
+// ── Skills ───────────────────────────────────────────────────────────────────
+//
+// Not on the card, on any tier.
+//
+// Five bordered pills of one or two words each was the single densest thing on
+// the card and the least useful: a grid is scanned, and nobody compares roles
+// on "Python, SQL, Credit Risk, Basel III, +1" at 12px. They were also the row
+// that made every card look identical from a distance, because the same handful
+// of skills recurs across most of the index.
+//
+// They remain in the detail view (JobDetailModal → SkillsSection), which is
+// where a Seeker has decided to actually read one Role — except on a Recruiter
+// Post, where there is no job description to extract them from at all.
 
 // ── Footer: salary + posted date ──────────────────────────────────────────────
 
@@ -429,7 +433,15 @@ function CardFooter({ job }: { job: Job }) {
     : formatEstimatedSalary(job.salary_estimated_min, job.salary_estimated_max)
 
   return (
-    <div className="flex items-center justify-between mt-auto pt-1">
+    // mt-auto pins the footer to the bottom so salary and date line up across a
+    // row of unequal cards. That leaves slack above it on the short ones, and
+    // since the skill chips went it is more slack than before — the hairline is
+    // what turns it from a gap into a margin. Everything above is the Role;
+    // below is what it pays and when it appeared.
+    <div
+      className="flex items-center justify-between mt-auto pt-3"
+      style={{ borderTop: '1px solid var(--color-border)' }}
+    >
       {salary ? (
         <span
           className="text-xs font-semibold tabular-nums"
@@ -476,30 +488,45 @@ function CardFooter({ job }: { job: Job }) {
 /**
  * A Role that is no longer open.
  *
- * Sits FIRST in the badge row, ahead of the sector and tier chips, so it is read
- * before anything that describes the Role as if it were still available.
+ * This was a chip in the badge row for a long time, sitting ahead of the sector
+ * and tier chips so it was read first. The trouble was that it was only ever
+ * read at all — at 12px among four other chips of the same size, on a card whose
+ * surface was one barely-perceptible step off white, you had to already be
+ * looking at that card to find out it had closed. In a grid of Saved Roles the
+ * question is which card, and a chip cannot answer that.
  *
- * It was briefly pinned to the card's top-right corner instead, which put it on
- * top of both the company name and the save button — the corner is already
- * spoken for.
+ * So it is a band: full card width, dark, at the very top where the eye enters
+ * the card, carrying one word at a size that survives peripheral vision. It
+ * replaces the 2px sector accent rather than sitting under it, which is why the
+ * negative margins are here — the card's own p-5 would otherwise inset it and
+ * it would read as another chip, just a wider one.
  *
- * Deliberately not colour-only: the word "Closed" carries the meaning and the
- * grey only reinforces it.
+ * Four channels, none load-bearing alone: value (a dark band on a light card),
+ * position (the head of the card, before anything else), pattern (the hatching,
+ * from index.css), and the word itself. Nothing here depends on hue, so it holds
+ * up in greyscale and for anyone who cannot separate slate from white by tone.
  */
-function ClosedBadge() {
+function ClosedBanner() {
   return (
-    <span
-      className="inline-flex flex-shrink-0 items-center gap-0.5 whitespace-nowrap rounded-sm px-1.5 py-0.5 font-semibold"
-      style={{
-        backgroundColor: 'var(--color-ink-muted)',
-        color: 'var(--color-ink-inverse)',
-        fontSize: '12px',
-        letterSpacing: '0.04em',
-      }}
-      title="This Role has closed. It stays saved so you can look back at what you applied to."
+    <div
+      className="closed-band -mx-5 -mt-5 flex items-center justify-center gap-2 rounded-t-lg px-4 py-2"
+      // Names the fortnight because that is exactly how long the promise holds:
+      // a Closed Role drops out of Saved Roles once it has been closed that long
+      // (ADR 0011). Saying "it stays saved" flat would have read as a bug the
+      // first time one quietly went.
+      title="This Role has closed. It stays in your saved roles for two weeks, so you can look back at what you applied to."
     >
-      <Archive size={10} strokeWidth={2} aria-hidden="true" />
-      Closed
-    </span>
+      <Archive size={13} strokeWidth={2.5} style={{ color: 'var(--color-ink-inverse)' }} aria-hidden="true" />
+      <span
+        className="font-bold uppercase"
+        style={{
+          color: 'var(--color-ink-inverse)',
+          fontSize: '13px',
+          letterSpacing: '0.16em',
+        }}
+      >
+        Closed
+      </span>
+    </div>
   )
 }

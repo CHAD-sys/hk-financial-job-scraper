@@ -9,6 +9,14 @@ Method: read `hk_jobs/companies.yaml` and `hk_jobs/companies_longtail.yaml` with
 PyYAML, counted adapters, and queried `data/jobs.db` with sqlite3. Verified at
 commit `7fbbc18`.
 
+> **Resolved 2026-08-04.** Every drift this file found against `CLAUDE.md` has
+> since been corrected there — the company count, the "no web UI" scope, the
+> dead `BUILD_PLAN.md` reference, and the stale "all 27 companies" comment in
+> `daily_run.sh`. The counts below are as of 2026-07-29 and have moved since
+> (248 enabled at the time of writing this note); read the live number from the
+> config, not from here. This file is kept as the record of what was found, not
+> as a current description.
+
 ## The scope is 147 companies, not 30
 
 `CLAUDE.md` opens with "the 30 largest Hong Kong financial institutions". That
