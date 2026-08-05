@@ -9,6 +9,7 @@ email a notification; neither publishes anything without human review.
 
 from __future__ import annotations
 
+import asyncio
 import hmac
 import json
 import logging
@@ -161,6 +162,42 @@ class StatsResponse(BaseModel):
 # ── App ────────────────────────────────────────────────────────────────────────
 
 
+_SESSION_PURGE_INTERVAL_S = 24 * 60 * 60  # once a day is plenty for housekeeping
+
+
+def _purge_expired_sessions() -> None:
+    """
+    Delete session rows past their expiry, in both account stores.
+
+    Both stores' `purge_expired_sessions()` were written with this exact use in
+    mind ("safe to call on startup or from a periodic task") but had no caller
+    anywhere in the codebase — expired rows were only ever removed one at a
+    time, on the read that happened to land on them (`auth.verify_session`).
+    Correct, but the table only ever grows. Imported locally so this file's
+    carefully-ordered top-of-module imports (see the comments above them) never
+    have to account for it.
+    """
+    import employers_store
+    import seekers_store
+
+    seeker_n = seekers_store.get_store().purge_expired_sessions()
+    employer_n = employers_store.get_store().purge_expired_sessions()
+    if seeker_n or employer_n:
+        logger.info(
+            "Purged expired sessions: %d seeker(s), %d employer(s)", seeker_n, employer_n
+        )
+
+
+async def _purge_expired_sessions_periodically() -> None:
+    """Repeat the startup purge for a process that stays up longer than a day."""
+    while True:
+        await asyncio.sleep(_SESSION_PURGE_INTERVAL_S)
+        try:
+            _purge_expired_sessions()
+        except Exception:
+            logger.exception("Periodic session purge failed")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -177,6 +214,8 @@ async def lifespan(app: FastAPI):
     """
     settings: Settings = app.state.settings
     _seed_db_if_missing(settings)
+    _purge_expired_sessions()
+    purge_task = asyncio.create_task(_purge_expired_sessions_periodically())
 
     if SMTP_USER:
         logger.info("Email configured — enquiries will be sent to %s", RECIPIENT)
@@ -199,7 +238,14 @@ async def lifespan(app: FastAPI):
             "at an existing dist/ directory.",
             settings.frontend_dist,
         )
-    yield
+    try:
+        yield
+    finally:
+        purge_task.cancel()
+        try:
+            await purge_task
+        except asyncio.CancelledError:
+            pass
 
 
 # ── /api/jobs ─────────────────────────────────────────────────────────────────

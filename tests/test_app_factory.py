@@ -91,7 +91,20 @@ def test_a_seed_url_is_fetched_at_startup_and_not_before(tmp_path, monkeypatch):
     test process that inherited DB_SEED_URL from the developer's env file would
     start pulling a 100 MB database just by importing the module.
     """
+    import employers_store
     import main
+    import seekers_store
+
+    # The lifespan also purges expired sessions in both account stores on every
+    # boot (see main._purge_expired_sessions). Without an explicit override,
+    # get_store() resolves to <repo>/data/{seekers,employers}.db — this is the
+    # one test in the suite that actually enters the lifespan, so it is the one
+    # place a missing override would touch a real developer database instead of
+    # a throwaway one.
+    monkeypatch.setenv("SEEKERS_DB_PATH", str(tmp_path / "seekers.db"))
+    monkeypatch.setenv("EMPLOYERS_DB_PATH", str(tmp_path / "employers.db"))
+    seekers_store.reset_store()
+    employers_store.reset_store()
 
     seeded: list[Settings] = []
     monkeypatch.setattr(main, "_seed_db_if_missing", seeded.append)
@@ -103,6 +116,49 @@ def test_a_seed_url_is_fetched_at_startup_and_not_before(tmp_path, monkeypatch):
     with TestClient(app):        # entering the context runs the lifespan
         pass
     assert [s.db_seed_url for s in seeded] == ["https://example.test/seed.db"]
+
+
+def test_startup_purges_expired_sessions_in_both_stores(tmp_path, monkeypatch):
+    """
+    seekers_store.purge_expired_sessions() and its employers_store twin were
+    written "safe to call on startup or from a periodic task" but had no caller
+    anywhere in the codebase — expired rows were only ever removed one at a
+    time, on the read that happened to land on them. This pins the fix: the
+    lifespan now calls both stores' purge on every boot, before the app starts
+    serving requests.
+    """
+    from datetime import timedelta
+
+    import employers_store
+    import main
+    import seekers_store
+
+    monkeypatch.setenv("SEEKERS_DB_PATH", str(tmp_path / "seekers.db"))
+    monkeypatch.setenv("EMPLOYERS_DB_PATH", str(tmp_path / "employers.db"))
+    seekers_store.reset_store()
+    employers_store.reset_store()
+
+    seeker_store = seekers_store.get_store()
+    seeker_id = seeker_store.create_seeker("erin@example.com")
+    now = seekers_store.utcnow()
+    seeker_store.insert_session("seeker-live", seeker_id, now + timedelta(days=90))
+    seeker_store.insert_session("seeker-dead", seeker_id, now - timedelta(seconds=1))
+
+    employer_store = employers_store.get_store()
+    employer_id = employer_store.create_employer(
+        "hr@example.com", password_hash="x", company_name="Acme"
+    )
+    employer_store.insert_session("employer-live", employer_id, now + timedelta(days=90))
+    employer_store.insert_session("employer-dead", employer_id, now - timedelta(seconds=1))
+
+    app = main.create_app(Settings(jobs_db=tmp_path / "absent.db"))
+    with TestClient(app):  # entering the context runs the lifespan
+        pass
+
+    assert seeker_store.get_session("seeker-dead") is None
+    assert seeker_store.get_session("seeker-live") is not None
+    assert employer_store.get_session("employer-dead") is None
+    assert employer_store.get_session("employer-live") is not None
 
 
 # ── The module-level app ──────────────────────────────────────────────────────
