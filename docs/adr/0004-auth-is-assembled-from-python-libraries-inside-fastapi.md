@@ -30,3 +30,18 @@ endpoints and flows written by us. No new deployed service, no ORM, no vendor.
 **Consequence:** we own the security surface permanently. The mitigation is that
 nothing cryptographic is hand-rolled — hashing, OAuth token exchange and token signing
 are all delegated. What we write is glue.
+
+**Implementation note (2026-08-05):** the specific libraries named above were the
+plan, not what shipped. `requirements.txt` installs `argon2-cffi` (as decided) and
+`httpx` (the repo's decided HTTP client, CLAUDE.md — not a new auth-specific
+dependency) for auth; `httpx-oauth`, `Authlib` and `itsdangerous` were never added.
+The Google exchange calls `https://oauth2.googleapis.com/token` and
+`.../tokeninfo` directly with a plain `httpx.Client` rather than an OAuth client
+library. Single-use tokens — email verification, password reset, sessions — are
+hand-rolled from stdlib instead of `itsdangerous`: `secrets.token_urlsafe(32)`
+generates them, `hashlib.sha256` is what gets stored (never the raw token),
+`hmac.compare_digest` does the constant-time comparisons (`webapp/backend/auth.py`).
+The decision this ADR records — delegate the *cryptography*, own the *glue* — held;
+two of the three named packages did not ship. Recorded here rather than left
+silent, because a reader trusting the list above would misjudge what is actually
+installed.
