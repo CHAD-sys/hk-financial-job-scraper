@@ -481,7 +481,7 @@ def migrate_to_phase_24(db_path: str) -> None:
                     old_max     INTEGER,
                     new_min     INTEGER,
                     new_max     INTEGER,
-                    action      TEXT NOT NULL,   -- 'lowered' | 'flag_up'
+                    action      TEXT NOT NULL,   -- 'lowered' | 'flag_up' | 'ok'
                     reason      TEXT
                 )
             """)

@@ -9,6 +9,13 @@ focused solely on "is this salary estimate right for this title?", and:
     salary_audit_log table, and
   - reports upward suggestions for human review without applying them.
 
+Every verdict is logged, including "ok" (2026-08-05) — not just the ones that changed
+something. _select_outliers uses that log to skip a job whose last audit already
+happened at-or-after its current enriched_at: nothing about its estimate could have
+changed since, so re-judging it would only reproduce the same verdict. Before this, the
+heuristic below re-selected the same ~550 stable outlier jobs every single night with no
+memory of having already cleared them — the dominant share of the daily DeepSeek spend.
+
 Selection heuristic (agreed 2026-07-21) — a job is flagged if ANY of:
   1. salary_estimated_max >= 120,000 (the senior range where errors concentrate and
      matter most to the board's credibility);
@@ -82,14 +89,30 @@ Description (may be empty):
 def _select_outliers(
     conn: sqlite3.Connection, limit: int | None = None, full: bool = False,
 ) -> list[sqlite3.Row]:
+    # Excludes a job whose last audit already happened at-or-after its current
+    # enriched_at — i.e. it was already judged against the exact estimate still on
+    # the row. Nothing about that estimate can have changed since, so re-sending it
+    # to the auditor would only ever reproduce the same verdict. This was the
+    # dominant recurring cost: the heuristic below re-selected the same ~550 stable
+    # high-salary/ambiguous-title jobs every single night regardless of whether they
+    # were already cleared, because the old query had no memory of past audits.
+    # A re-enrichment (new prompt_version, reactivated listing) bumps enriched_at
+    # past the last audit and makes the job eligible again on its own — no manual
+    # "revalidate" step needed. --full intentionally bypasses this: it exists to
+    # sweep the whole dataset for a real accuracy number, not just what changed.
     rows = conn.execute("""
         SELECT j.source, j.source_id, j.title, j.company, j.company_slug, j.source_tier,
                j.description_clean, e.seniority, e.job_category, e.salary_tier, e.salary_role,
                e.salary_estimated_min AS est_min, e.salary_estimated_max AS est_max
         FROM jobs j JOIN job_enrichments e
           ON j.source = e.source AND j.source_id = e.source_id
+        LEFT JOIN (
+            SELECT source, source_id, MAX(audited_at) AS last_audited_at
+              FROM salary_audit_log GROUP BY source, source_id
+        ) a ON j.source = a.source AND j.source_id = a.source_id
         WHERE j.is_active = 1 AND e.salary_estimated_max IS NOT NULL
-    """).fetchall()
+          AND (:full OR a.last_audited_at IS NULL OR a.last_audited_at < e.enriched_at)
+    """, {"full": full}).fetchall()
 
     if full:
         # Whole-dataset review (2026-07-22): cheap enough now (small dataset, prefix
@@ -232,6 +255,15 @@ def run_audit(db_path: str = "data/jobs.db", limit: int | None = None,
                         )
                 else:
                     ok += 1
+                    if not dry_run:
+                        conn.execute(
+                            """INSERT INTO salary_audit_log
+                                 (source, source_id, audited_at, old_min, old_max,
+                                  new_min, new_max, action, reason)
+                               VALUES (?, ?, ?, ?, ?, NULL, NULL, 'ok', ?)""",
+                            (r["source"], r["source_id"], now, r["est_min"], r["est_max"],
+                             verdict.get("reason", "")),
+                        )
 
         reviewed = len(flagged) - failed
         accuracy_pct = 100.0 * ok / reviewed if reviewed else 0.0
