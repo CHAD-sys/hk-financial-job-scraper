@@ -1,13 +1,24 @@
 """
-Seeker authentication core — passwords, sessions, single-use email tokens,
-provider-identity linking.
+Authentication core — passwords, sessions, single-use email tokens,
+provider-identity linking. Shared by both Seeker and Employer accounts.
 
 There is no web framework in this file. Nothing here knows about FastAPI,
-cookies, requests or responses; every function takes a SeekerStore and plain
-values. That is deliberate: the security-critical decisions (how long a session
-lives, whether a token has already been spent, whether a Google identity may
-attach to an existing account) are testable without spinning up an app, and the
-route layer above is left with nothing but plumbing.
+cookies, requests or responses; every function takes a store (SeekerStore or
+EmployerStore — both implement the same method names, see either store's
+module docstring) and plain values. That is deliberate: the security-critical
+decisions (how long a session lives, whether a token has already been spent,
+whether a Google identity may attach to an existing account) are testable
+without spinning up an app, and the route layer above is left with nothing
+but plumbing.
+
+Session and email-token functions below (issue_session, verify_session,
+issue_email_token, consume_email_token, ...) work unmodified against either
+store — they were already store-agnostic when this file was Seeker-only.
+link_or_create_seeker() and link_or_create_employer() are the one place the
+two accounts genuinely diverge: an Employer needs `company_name` at creation
+and no identity provider supplies one, so Employer linking is a strict subset
+of Seeker linking with "create a new account from a Google click alone"
+removed rather than adapted — see link_or_create_employer's docstring.
 
 What is delegated and what is ours (ADR 0004): hashing is `argon2-cffi`, token
 generation is `secrets`, digests are `hashlib`, constant-time comparison is
@@ -53,6 +64,8 @@ from typing import Literal
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
+from employers_store import EmployerStore
+from employers_store import normalise_email as normalise_employer_email
 from seekers_store import (
     EmailAlreadyRegistered,
     SeekerStore,
@@ -522,3 +535,84 @@ def link_or_create_seeker(
 
     store.link_identity(seeker_id, claim.provider, claim.subject, now=moment)
     return LinkResult(seeker_id=seeker_id, outcome="created")
+
+
+@dataclass(frozen=True)
+class EmployerLinkResult:
+    """link_or_create_employer's twin of LinkResult — a separate class, not a
+    reused one, because a field called seeker_id holding an employer_id would
+    be exactly the kind of silent mismatch this codebase's test suite exists
+    to catch."""
+
+    employer_id: str
+    #: 'recognised' — the identity was already linked; nothing changed.
+    #: 'linked'     — attached to an existing Employer found by verified email.
+    #: No 'created': see the function docstring for why that case cannot exist.
+    outcome: Literal["recognised", "linked"]
+
+
+def link_or_create_employer(
+    store: EmployerStore, claim: IdentityClaim, *, now: datetime | None = None
+) -> EmployerLinkResult:
+    """
+    Turn a provider identity into an Employer, or refuse — never create one.
+
+    link_or_create_seeker has three cases; this has two, and there is no
+    create_if_missing parameter because the third case is not a choice to make,
+    it is a field that cannot be filled. Registering an Employer requires
+    `company_name`, and no identity provider's claim carries one — Google
+    least of all, since it has no concept of what firm a person works for.
+    "Create a half-formed Employer with an empty company name from a Google
+    click" is not a degraded version of the Seeker flow worth having; it is
+    a broken account waiting for someone to notice. So case 3 is refused,
+    always, with a message that says what to do instead: register with a
+    password first (which is where `company_name` gets set), then connect
+    Google from the account afterward.
+
+      1. **The identity is already linked.** Return that Employer. Keyed on
+         `sub`, exactly as link_or_create_seeker's case 1 — see that
+         docstring for why email is deliberately not consulted here either.
+
+      2. **An Employer already exists on the claimed email.** Link the
+         identity to it ONLY if the provider asserted `email_verified` —
+         the identical takeover defence as link_or_create_seeker's case 2,
+         for the identical reason: a provider that will vouch for
+         `hr@victim.example` without checking must not be trusted to hand
+         over that Employer's account.
+
+      3. **Nobody matches.** Refused. There is no Google-only Employer
+         (employers_store.py: `password_hash` stays NOT NULL) and this
+         function is the reason why — it never creates the row that would
+         need one.
+    """
+    moment = now or utcnow()
+
+    existing_identity = store.get_identity(claim.provider, claim.subject)
+    if existing_identity is not None:
+        return EmployerLinkResult(
+            employer_id=str(existing_identity["employer_id"]), outcome="recognised"
+        )
+
+    email = normalise_employer_email(claim.email) if claim.email else None
+    if email:
+        existing_employer = store.get_employer_by_email(email)
+        if existing_employer is not None:
+            if not claim.email_verified:
+                logger.warning(
+                    "Refused to auto-link %s identity to existing Employer: provider did "
+                    "not assert email_verified",
+                    claim.provider,
+                )
+                raise IdentityLinkRefused(
+                    f"{claim.provider} did not assert that the email address is verified; "
+                    "refusing to link it to an existing account"
+                )
+            store.link_identity(
+                str(existing_employer["id"]), claim.provider, claim.subject, now=moment
+            )
+            return EmployerLinkResult(employer_id=str(existing_employer["id"]), outcome="linked")
+
+    raise IdentityLinkRefused(
+        "no employer account matches this Google identity — register your company "
+        "first, then connect Google from your account"
+    )

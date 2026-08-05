@@ -1380,15 +1380,22 @@ def google_callback(
 # ADR at the owner's explicit direction (2026-08-05 session), not by routing
 # around it: its own store (employers_store.py), its own table, its own
 # cookie. The only code shared with Seeker identity is auth.py's pure
-# crypto/session functions — already written to take a plain store and plain
-# values, so nothing in auth.py changed to make this work.
+# crypto/session functions and, as of phase 2, its email-token functions and
+# a dedicated link_or_create_employer() — see auth.py's module docstring for
+# what is shared and what genuinely diverges.
 #
-# v1 is identity only: register, sign in, sign out, see your own account,
-# delete it. No email verification, no password reset, no Google sign-in —
-# each is real follow-up work, deliberately not half-built here (see
-# employers_store.py's module docstring for why: this audit's other finding
-# was exactly an email link nothing consumed, and the fix is not to grow a
-# second one). No submissions dashboard yet either — connecting this to
+# v1 shipped identity only: register, sign in, sign out, see your own
+# account, delete it. Phase 2 (this section, plus the verify-email/forgot-
+# password/reset-password/Google endpoints below) adds email verification,
+# password reset and Google sign-in — each alongside the frontend page that
+# completes it, in the same change, per employers_store.py's module
+# docstring rule. Google sign-in never CREATES an Employer (see
+# auth.link_or_create_employer): registration always happens with a
+# password first, and the registration form nudges toward a work email
+# while Google — inherently Gmail-capable — stays fully available as a
+# convenience for signing back in afterward.
+#
+# Still deferred: no submissions dashboard. Connecting this to
 # data/submitted_roles.jsonl (scripts/review_submissions.py) by matching
 # contact_email is the natural next slice, held back because it wants a
 # product decision about the matching rule, not a code gap.
@@ -1459,6 +1466,7 @@ class EmployerOut(BaseModel):
     email: str
     company_name: str
     contact_name: str
+    email_verified: bool
 
 
 def _employer_out(row: dict) -> EmployerOut:
@@ -1467,7 +1475,15 @@ def _employer_out(row: dict) -> EmployerOut:
         email=row["email"],
         company_name=row["company_name"],
         contact_name=row.get("contact_name") or "",
+        email_verified=bool(row.get("email_verified")),
     )
+
+
+def _send_employer_mail(request: Request, to: str, subject: str, body: str) -> bool:
+    """Mail *to an Employer*, at an address they typed. Same shape and same
+    reasoning as _send_seeker_mail — see that docstring; nothing here differs
+    except the recipient store."""
+    return request.app.state.sender.send(Message(to=to, subject=subject, body=body))
 
 
 @router.post("/api/employer/register", response_model=EmployerOut, status_code=201, tags=["employer"])
@@ -1491,7 +1507,10 @@ def employer_register(payload: EmployerRegisterIn, request: Request, response: R
 
     if payload.website.strip():
         logger.info("Honeypot triggered on /api/employer/register from %s", ip)
-        return EmployerOut(id="", email=email, company_name=payload.company_name, contact_name="")
+        return EmployerOut(
+            id="", email=email, company_name=payload.company_name,
+            contact_name="", email_verified=False,
+        )
 
     if _auth_rate_limited(request, f"emp-reg:email:{email}", limit=3, window_s=3600) or \
        _auth_rate_limited(request, f"emp-reg:ip:{ip}", limit=10, window_s=3600):
@@ -1513,6 +1532,35 @@ def employer_register(payload: EmployerRegisterIn, request: Request, response: R
     store.log_event("employer.registered", employer_id=employer_id)
     _set_employer_session_cookie(request, response, auth.issue_session(
         store, employer_id, user_agent=request.headers.get("user-agent")))
+    raw_token = auth.issue_email_token(store, employer_id, purpose="verify")
+    _send_employer_mail(
+        request,
+        email,
+        "Confirm your email — FinEx Careers",
+        f"Welcome to FinEx Careers.\n\nConfirm this address to finish setting up "
+        f"your employer account:\n\n{_account_link_url(request, 'employer/verify', raw_token)}\n\n"
+        f"This link works once and expires in an hour.",
+    )
+    return _employer_out(store.get_employer(employer_id))
+
+
+class EmployerVerifyEmailIn(BaseModel):
+    token: str = Field(min_length=1, max_length=200)
+
+
+@router.post("/api/employer/auth/verify-email", response_model=EmployerOut, tags=["employer"])
+def employer_verify_email(payload: EmployerVerifyEmailIn, request: Request):
+    """Spend a verification token. Same shape as Seeker's verify_email() —
+    see that docstring for why this is a POST fired from script rather than
+    the GET the email link itself resolves to, and why every failure cause
+    collapses to one answer."""
+    store = employers_store.get_store()
+    employer_id = auth.consume_email_token(store, payload.token, purpose="verify")
+    if employer_id is None:
+        raise HTTPException(status_code=400, detail="This link is no longer valid.")
+
+    store.set_email_verified(employer_id, True)
+    store.log_event("employer.email_verified", employer_id=employer_id)
     return _employer_out(store.get_employer(employer_id))
 
 
@@ -1531,11 +1579,80 @@ def employer_login(payload: EmployerLoginIn, request: Request, response: Respons
         store.log_event("employer.login_failed", employer_id=row["id"] if row else None)
         raise HTTPException(status_code=401, detail="Email or password is incorrect")
 
+    # Same rehash-on-login as Seeker's login() — the plaintext is only ever
+    # available right here.
+    if auth.password_needs_rehash(row["password_hash"]):
+        store.set_password_hash(row["id"], auth.hash_password(payload.password))
+
     store.touch_last_login(row["id"])
     store.log_event("employer.login", employer_id=row["id"])
     _set_employer_session_cookie(request, response, auth.issue_session(
         store, row["id"], user_agent=request.headers.get("user-agent")))
     return _employer_out(store.get_employer(row["id"]))
+
+
+class EmployerForgotPasswordIn(BaseModel):
+    email: EmailStr
+
+
+@router.post("/api/employer/auth/forgot-password", response_model=SubmitResponse, tags=["employer"])
+def employer_forgot_password(payload: EmployerForgotPasswordIn, request: Request):
+    """
+    Request a password-reset email.
+
+    Unlike employer_register()'s honest 409, this DOES answer the same way
+    whether or not the address has an account — the two endpoints made
+    opposite trade-offs on purpose. Register's 409 costs an enumeration
+    signal register()'s own docstring judges cheap (most of these addresses
+    are already semi-public on a company careers page); a forgot-password
+    endpoint that confirms "no account" is a stronger signal for the same
+    cost, and unlike register there is no fake-success value being lost —
+    nobody expects a substantive response from this one either way.
+    """
+    email = employers_store.normalise_email(payload.email)
+    ip = _client_ip(request)
+    if _auth_rate_limited(request, f"emp-reset:email:{email}", limit=3, window_s=3600) or \
+       _auth_rate_limited(request, f"emp-reset:ip:{ip}", limit=10, window_s=3600):
+        raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
+
+    store = employers_store.get_store()
+    row = store.get_employer_by_email(email)
+    if row is not None:
+        raw_token = auth.issue_email_token(store, row["id"], purpose="reset")
+        _send_employer_mail(
+            request,
+            email,
+            "Reset your password — FinEx Careers",
+            f"Reset your FinEx Careers employer password:\n\n"
+            f"{_account_link_url(request, 'employer/reset-password', raw_token)}\n\n"
+            f"This link works once and expires in an hour. If you did not request this, "
+            f"you can ignore this message — your password has not changed.",
+        )
+    return SubmitResponse(ok=True)
+
+
+class EmployerResetPasswordIn(BaseModel):
+    token: str = Field(min_length=1, max_length=200)
+    password: str = Field(min_length=8, max_length=200)
+
+
+@router.post("/api/employer/auth/reset-password", response_model=EmployerOut, tags=["employer"])
+def employer_reset_password(payload: EmployerResetPasswordIn, request: Request, response: Response):
+    """Spend a reset token, set the new password, sign out every other
+    session, and sign the caller back in. Same shape as Seeker's
+    reset_password() — see that docstring."""
+    store = employers_store.get_store()
+    employer_id = auth.consume_email_token(store, payload.token, purpose="reset")
+    if employer_id is None:
+        raise HTTPException(status_code=400, detail="This link is no longer valid.")
+
+    store.set_password_hash(employer_id, auth.hash_password(payload.password))
+    auth.revoke_all_sessions(store, employer_id)
+    store.log_event("employer.password_reset", employer_id=employer_id)
+
+    _set_employer_session_cookie(request, response, auth.issue_session(
+        store, employer_id, user_agent=request.headers.get("user-agent")))
+    return _employer_out(store.get_employer(employer_id))
 
 
 @router.post("/api/employer/logout", status_code=204, tags=["employer"])
@@ -1561,6 +1678,162 @@ def employer_delete_account(request: Request, response: Response):
     _clear_employer_session_cookie(response)
     logger.info("Employer %s deleted their account", employer["id"])
     return Response(status_code=204)
+
+
+# ── Employer Google sign-in ─────────────────────────────────────────────────
+#
+# Reuses GOOGLE_AUTH_URL / GOOGLE_TOKEN_URL / GOOGLE_TOKENINFO_URL /
+# _google_configured() from the Seeker Google section above — the exchange
+# mechanics (delegate signature verification to Google's tokeninfo endpoint,
+# ADR 0004) do not differ by account type, only what happens with the result
+# does. That is why this is a SEPARATE registered redirect URI
+# (/api/employer/auth/google/callback) rather than reusing the Seeker one
+# with a query flag: Google's own consent screen enforces an exact match
+# against a URI actually registered on the OAuth client, so branching inside
+# one callback would still need two URIs registered anyway, and a wrong
+# branch there is exactly the kind of bug worth making structurally
+# impossible instead of tested for.
+#
+# WHAT THIS NEEDS, same as the Seeker version: GOOGLE_CLIENT_ID/SECRET are
+# shared (one OAuth client serves both), but the REDIRECT URI below must be
+# separately registered on that client in Google Cloud Console, or Google
+# rejects the callback before this code ever runs.
+
+EMPLOYER_GOOGLE_STATE_COOKIE = "google_employer_oauth_state"
+EMPLOYER_GOOGLE_STATE_COOKIE_PATH = "/api/employer/auth/google"
+
+
+def _employer_google_redirect_uri(request: Request) -> str:
+    override = os.environ.get("EMPLOYER_GOOGLE_REDIRECT_URI", "").strip()
+    return override or f"{_public_base(request)}/api/employer/auth/google/callback"
+
+
+def _employer_google_failure_redirect(request: Request, reason: str) -> RedirectResponse:
+    logger.warning("Employer Google sign-in did not complete: %s", reason)
+    resp = RedirectResponse(f"{_public_base(request)}/employer/signin?error=google_failed")
+    resp.delete_cookie(EMPLOYER_GOOGLE_STATE_COOKIE, path=EMPLOYER_GOOGLE_STATE_COOKIE_PATH)
+    return resp
+
+
+@router.get("/api/employer/auth/google", tags=["employer"], include_in_schema=False)
+def employer_google_start(request: Request):
+    """Redirect to Google's consent screen. Same shape as google_start() —
+    see that docstring for why this must be a real navigation, not a fetch."""
+    client_id, _ = _google_configured()
+    if not client_id:
+        logger.warning(
+            "GET /api/employer/auth/google called but GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET "
+            "are not set"
+        )
+        return RedirectResponse(f"{_public_base(request)}/employer/signin?error=google_unavailable")
+
+    state = secrets.token_urlsafe(24)
+    params = {
+        "client_id": client_id,
+        "redirect_uri": _employer_google_redirect_uri(request),
+        "response_type": "code",
+        "scope": "openid email profile",
+        "state": state,
+        "prompt": "select_account",
+    }
+    resp = RedirectResponse(f"{GOOGLE_AUTH_URL}?{urlencode(params)}")
+    resp.set_cookie(
+        EMPLOYER_GOOGLE_STATE_COOKIE,
+        state,
+        max_age=600,
+        httponly=True,
+        secure=cfg(request).cookie_secure,
+        samesite="lax",
+        path=EMPLOYER_GOOGLE_STATE_COOKIE_PATH,
+    )
+    return resp
+
+
+@router.get("/api/employer/auth/google/callback", tags=["employer"], include_in_schema=False)
+def employer_google_callback(
+    request: Request,
+    code: Optional[str] = None,
+    state: Optional[str] = None,
+    error: Optional[str] = None,
+):
+    """
+    Exchange the code, verify the identity token, and hand the result to
+    auth.link_or_create_employer — which, unlike the Seeker version, can only
+    recognise or link, never create (see that function's docstring for why).
+    """
+    if error:
+        return _employer_google_failure_redirect(request, f"provider returned error={error}")
+
+    cookie_state = request.cookies.get(EMPLOYER_GOOGLE_STATE_COOKIE)
+    if not code or not state or not cookie_state or not hmac.compare_digest(state, cookie_state):
+        return _employer_google_failure_redirect(request, "missing or mismatched state (CSRF)")
+
+    client_id, client_secret = _google_configured()
+    if not client_id:
+        logger.warning(
+            "Employer Google callback reached but GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET "
+            "are not set"
+        )
+        resp = RedirectResponse(f"{_public_base(request)}/employer/signin?error=google_unavailable")
+        resp.delete_cookie(EMPLOYER_GOOGLE_STATE_COOKIE, path=EMPLOYER_GOOGLE_STATE_COOKIE_PATH)
+        return resp
+
+    try:
+        with httpx.Client(timeout=10) as http:
+            token_res = http.post(
+                GOOGLE_TOKEN_URL,
+                data={
+                    "code": code,
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "redirect_uri": _employer_google_redirect_uri(request),
+                    "grant_type": "authorization_code",
+                },
+            )
+            token_res.raise_for_status()
+            id_token = token_res.json().get("id_token", "")
+
+            info_res = http.get(GOOGLE_TOKENINFO_URL, params={"id_token": id_token})
+            info_res.raise_for_status()
+            info = info_res.json()
+    except httpx.HTTPError as exc:
+        return _employer_google_failure_redirect(request, f"token exchange failed: {exc}")
+
+    if info.get("aud") != client_id:
+        return _employer_google_failure_redirect(request, "id_token audience mismatch")
+
+    subject = info.get("sub", "")
+    if not subject:
+        return _employer_google_failure_redirect(request, "id_token carried no subject")
+
+    claim = auth.IdentityClaim(
+        provider="google",
+        subject=subject,
+        email=info.get("email"),
+        # Same string-not-bool gotcha as google_callback() — see that
+        # function's comment.
+        email_verified=info.get("email_verified") == "true",
+        display_name=info.get("name"),
+    )
+
+    store = employers_store.get_store()
+    try:
+        result = auth.link_or_create_employer(store, claim)
+    except auth.IdentityLinkRefused as exc:
+        logger.warning("Employer Google identity link refused for subject %s: %s", subject, exc)
+        target = f"{_public_base(request)}/employer/register?error=google_link_refused"
+        resp = RedirectResponse(target)
+        resp.delete_cookie(EMPLOYER_GOOGLE_STATE_COOKIE, path=EMPLOYER_GOOGLE_STATE_COOKIE_PATH)
+        return resp
+
+    store.touch_last_login(result.employer_id)
+    store.log_event(f"employer.google_{result.outcome}", employer_id=result.employer_id)
+
+    resp = RedirectResponse(f"{_public_base(request)}/post-a-role")
+    resp.delete_cookie(EMPLOYER_GOOGLE_STATE_COOKIE, path=EMPLOYER_GOOGLE_STATE_COOKIE_PATH)
+    _set_employer_session_cookie(request, resp, auth.issue_session(
+        store, result.employer_id, user_agent=request.headers.get("user-agent")))
+    return resp
 
 
 # ── The factory ───────────────────────────────────────────────────────────────

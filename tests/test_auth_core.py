@@ -37,6 +37,7 @@ from auth import (  # noqa: E402
     hash_token,
     issue_email_token,
     issue_session,
+    link_or_create_employer,
     link_or_create_seeker,
     password_needs_rehash,
     revoke_all_sessions,
@@ -44,6 +45,7 @@ from auth import (  # noqa: E402
     verify_password,
     verify_session,
 )
+from employers_store import EmployerStore  # noqa: E402
 from seekers_store import SeekerStore, from_iso, utcnow  # noqa: E402
 
 PASSWORD = "correct horse battery staple"
@@ -57,6 +59,18 @@ def store(tmp_path) -> SeekerStore:
 @pytest.fixture()
 def seeker_id(store) -> str:
     return store.create_seeker("alice@example.com", password_hash=hash_password(PASSWORD))
+
+
+@pytest.fixture()
+def employer_store(tmp_path) -> EmployerStore:
+    return EmployerStore(tmp_path / "employers.db")
+
+
+@pytest.fixture()
+def employer_id(employer_store) -> str:
+    return employer_store.create_employer(
+        "hr@acme.example", password_hash=hash_password(PASSWORD), company_name="Acme"
+    )
 
 
 # ── Passwords ─────────────────────────────────────────────────────────────────
@@ -418,3 +432,86 @@ def test_two_providers_reach_one_seeker(store, seeker_id):
 def test_the_same_sub_from_a_different_provider_is_a_different_identity(store, seeker_id):
     link_or_create_seeker(store, _claim(provider="google", subject="shared-sub"))
     assert store.get_identity("linkedin", "shared-sub") is None
+
+
+# ── Employer provider identities ─────────────────────────────────────────────
+#
+# link_or_create_employer's cases 1 and 2 mirror link_or_create_seeker's exactly
+# (same _claim() helper, same email used in the employer_id fixture below), so
+# these tests pin the same two claims. Case 3 is where it genuinely differs:
+# there is no "creates" outcome to test, only a refusal — see the function's
+# docstring for why company_name makes that impossible rather than just unbuilt.
+
+
+def _employer_claim(**overrides) -> IdentityClaim:
+    base = dict(
+        provider="google",
+        subject="google-sub-1",
+        email="hr@acme.example",
+        email_verified=True,
+        display_name="Jamie",
+    )
+    base.update(overrides)
+    return IdentityClaim(**base)  # type: ignore[arg-type]
+
+
+def test_employer_unverified_provider_email_does_not_auto_link(employer_store, employer_id):
+    """Same takeover defence as the Seeker version — see that test's docstring."""
+    with pytest.raises(IdentityLinkRefused):
+        link_or_create_employer(employer_store, _employer_claim(email_verified=False))
+
+    assert employer_store.get_identity("google", "google-sub-1") is None
+    assert employer_store.get_employer(employer_id)["password_hash"] is not None
+
+
+def test_employer_verified_provider_email_links_to_the_existing_employer(
+    employer_store, employer_id,
+):
+    result = link_or_create_employer(employer_store, _employer_claim(email_verified=True))
+    assert result.outcome == "linked"
+    assert result.employer_id == employer_id
+    assert employer_store.get_identity("google", "google-sub-1")["employer_id"] == employer_id
+
+
+def test_employer_known_identity_is_recognised_without_consulting_the_email(
+    employer_store, employer_id,
+):
+    link_or_create_employer(employer_store, _employer_claim(email_verified=True))
+
+    result = link_or_create_employer(
+        employer_store, _employer_claim(email="hr-new@acme.example", email_verified=False)
+    )
+    assert result.outcome == "recognised"
+    assert result.employer_id == employer_id
+    assert employer_store.get_employer(employer_id)["email"] == "hr@acme.example"  # unchanged
+
+
+def test_employer_no_match_is_always_refused_never_created(employer_store):
+    """
+    The load-bearing difference from the Seeker version: there is no
+    create_if_missing=True escape hatch, because there is no company_name to
+    create the row with. This must raise, not return a LinkResult with a
+    'created' outcome — that outcome does not exist on EmployerLinkResult at
+    all (see its Literal type), so a caller mistakenly expecting one would
+    fail statically before this test could even catch it at runtime.
+    """
+    with pytest.raises(IdentityLinkRefused):
+        link_or_create_employer(
+            employer_store, _employer_claim(subject="sub-new", email="new@acme.example")
+        )
+
+
+def test_employer_claim_with_no_email_and_no_known_identity_is_refused(employer_store):
+    with pytest.raises(IdentityLinkRefused):
+        link_or_create_employer(
+            employer_store, _employer_claim(subject="sub-anon", email=None, email_verified=False)
+        )
+
+
+def test_employer_two_providers_reach_one_employer(employer_store, employer_id):
+    link_or_create_employer(employer_store, _employer_claim(provider="google", subject="g-1"))
+    google_again = link_or_create_employer(
+        employer_store, _employer_claim(provider="google", subject="g-1")
+    )
+    assert google_again.outcome == "recognised"
+    assert google_again.employer_id == employer_id

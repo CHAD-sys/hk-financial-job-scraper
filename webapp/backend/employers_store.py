@@ -8,15 +8,20 @@ docs/adr/0001-accounts-are-seeker-only-employers-are-a-separate-aggregate.md
 before touching the shape of this module; that ADR is what this file is
 consciously reopening, not routing around.
 
-Deliberately smaller than seekers_store.py. What ships here is identity only —
-register, sign in, sign out, know who you are, delete your account. No email
-verification, no password-reset flow, no provider identities (Google/LinkedIn),
-no saved-anything. Each of those is either genuinely deferred (self-serve,
-billing, seat management — PLAN_FRONT_PAGE decision 20's own 20-25 day
-estimate) or a deliberate v1 cut to avoid the exact bug this session's audit
-found on the Seeker side: an email flow that mints a link nothing ever
-consumes. Add verify/reset here only alongside the endpoint AND the frontend
-page that completes it, in the same change.
+Was identity-only through phase 1 — register, sign in, sign out, know who you
+are, delete your account. Phase 2 adds email verification, password reset and
+Google sign-in, each shipped alongside the endpoint AND the frontend page that
+completes it, in the same change — the rule this docstring used to warn about
+staying missing is what phase 2 exists to satisfy, not to route around.
+Self-serve billing and seat management remain genuinely deferred
+(PLAN_FRONT_PAGE decision 20's own 20-25 day estimate) and are not part of
+this phase.
+
+Google sign-in never creates an Employer from nothing the way it can for a
+Seeker: registration requires `company_name`, which no Google claim carries.
+It only ever LINKS to an Employer who already registered with a password —
+see auth.link_or_create_employer for the enforced version of that rule.
+`password_hash` therefore stays NOT NULL; there is no Google-only Employer.
 
 Same storage conventions as seekers_store.py, and for the same reasons:
   - stdlib sqlite3, hand-written SQL, no ORM (ADR 0004).
@@ -51,6 +56,9 @@ _BUSY_TIMEOUT_SECONDS = 5.0
 
 class EmailAlreadyRegistered(Exception):
     """Raised by create_employer() when the address already has an account."""
+
+
+VALID_TOKEN_PURPOSES = ("verify", "reset")
 
 
 # ── Where the file lives ──────────────────────────────────────────────────────
@@ -139,9 +147,70 @@ def migrate_to_phase_1(conn: sqlite3.Connection) -> None:
         conn.execute(statement)
 
 
-# One phase today. A phase 2 (email verification, password reset, provider
-# identities) appends here — same rule as seekers_store.py: never edit phase 1.
-_MIGRATIONS = (migrate_to_phase_1,)
+_EMPLOYER_IDENTITIES_DDL = """
+CREATE TABLE IF NOT EXISTS employer_identities (
+    employer_id   TEXT NOT NULL REFERENCES employers (id) ON DELETE CASCADE,
+    provider      TEXT NOT NULL,
+    provider_sub  TEXT NOT NULL,
+    linked_at     TEXT NOT NULL,
+    PRIMARY KEY (provider, provider_sub)
+);
+"""
+
+_EMPLOYER_EMAIL_TOKENS_DDL = """
+CREATE TABLE IF NOT EXISTS employer_email_tokens (
+    token_hash   TEXT PRIMARY KEY,
+    employer_id  TEXT NOT NULL REFERENCES employers (id) ON DELETE CASCADE,
+    purpose      TEXT NOT NULL CHECK (purpose IN ('verify', 'reset')),
+    created_at   TEXT NOT NULL,
+    expires_at   TEXT NOT NULL,
+    used_at      TEXT
+);
+"""
+
+_PHASE_2_INDEXES = [
+    "CREATE INDEX IF NOT EXISTS idx_employer_identities_employer "
+    "ON employer_identities (employer_id);",
+    "CREATE INDEX IF NOT EXISTS idx_employer_email_tokens_employer "
+    "ON employer_email_tokens (employer_id);",
+]
+
+
+def migrate_to_phase_2(conn: sqlite3.Connection) -> None:
+    """
+    Email verification, password reset, Google sign-in.
+
+    `email_verified` is added with ALTER TABLE ADD COLUMN — additive, safe on
+    SQLite, and idempotent-guarded against PRAGMA table_info so a database
+    already on phase 2 does nothing on re-run (the same guard style
+    hk_jobs/migrations.py uses for jobs.db).
+
+    Deliberately NOT here: relaxing `password_hash` to nullable. SQLite has no
+    ALTER COLUMN for that, so it would need the standard rebuild-and-swap
+    (new table, copy rows, drop old, rename) — and a DROP TABLE on the
+    employers side cascades through employer_sessions' ON DELETE CASCADE even
+    mid-transaction, silently deleting every live session (verified by
+    running exactly that sequence against a throwaway db before writing this
+    function). It also is not needed: Google sign-in for an Employer only
+    ever links to a Employer who already registered with a password
+    (auth.link_or_create_employer never creates one), so no row can end up
+    needing a NULL password_hash in the first place.
+    """
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(employers)").fetchall()}
+    if "email_verified" not in cols:
+        conn.execute(
+            "ALTER TABLE employers ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0"
+        )
+    conn.execute(_EMPLOYER_IDENTITIES_DDL)
+    conn.execute(_EMPLOYER_EMAIL_TOKENS_DDL)
+    for statement in _PHASE_2_INDEXES:
+        conn.execute(statement)
+
+
+# Every phase, in order. Never edit an applied one — see migrate_to_phase_1's
+# comment in seekers_store.py for why (this file has the same no-second-copy
+# constraint, ADR 0006).
+_MIGRATIONS = (migrate_to_phase_1, migrate_to_phase_2)
 
 
 # ── Time / normalisation helpers — identical contract to seekers_store.py ──────
@@ -280,6 +349,125 @@ class EmployerStore:
                 (to_iso(now or utcnow()), employer_id),
             )
 
+    def set_password_hash(self, employer_id: str, password_hash: str) -> None:
+        """
+        Store a new password hash. Unlike SeekerStore's twin, never None — see
+        this module's docstring for why an Employer always has a password.
+
+        The caller is responsible for revoking sessions afterwards on a reset —
+        that is a policy decision (auth.revoke_all_sessions), not a storage one.
+        """
+        with self._write() as conn:
+            conn.execute(
+                "UPDATE employers SET password_hash = ? WHERE id = ?",
+                (password_hash, employer_id),
+            )
+
+    def set_email_verified(self, employer_id: str, verified: bool = True) -> None:
+        with self._write() as conn:
+            conn.execute(
+                "UPDATE employers SET email_verified = ? WHERE id = ?",
+                (1 if verified else 0, employer_id),
+            )
+
+    # -- provider identities ------------------------------------------------
+
+    def get_identity(self, provider: str, provider_sub: str) -> dict[str, Any] | None:
+        row = (
+            self._conn()
+            .execute(
+                "SELECT * FROM employer_identities WHERE provider = ? AND provider_sub = ?",
+                (provider, provider_sub),
+            )
+            .fetchone()
+        )
+        return dict(row) if row else None
+
+    def link_identity(
+        self, employer_id: str, provider: str, provider_sub: str, *, now: datetime | None = None
+    ) -> None:
+        """
+        Attach a provider identity to an Employer.
+
+        Raw storage only, no policy — the rule that this may only happen for an
+        Employer who already exists, with a provider-verified email, lives in
+        auth.link_or_create_employer(). See SeekerStore.link_identity for why
+        that split exists.
+        """
+        with self._write() as conn:
+            conn.execute(
+                """
+                INSERT INTO employer_identities (employer_id, provider, provider_sub, linked_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (employer_id, provider, provider_sub, to_iso(now or utcnow())),
+            )
+
+    # -- single-use email tokens (verify / reset) ----------------------------
+
+    def insert_email_token(
+        self,
+        token_hash: str,
+        employer_id: str,
+        purpose: str,
+        expires_at: datetime,
+        *,
+        now: datetime | None = None,
+    ) -> None:
+        if purpose not in VALID_TOKEN_PURPOSES:
+            raise ValueError(f"unknown token purpose {purpose!r}")
+        with self._write() as conn:
+            conn.execute(
+                """
+                INSERT INTO employer_email_tokens
+                    (token_hash, employer_id, purpose, created_at, expires_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (token_hash, employer_id, purpose, to_iso(now or utcnow()), to_iso(expires_at)),
+            )
+
+    def get_email_token(self, token_hash: str) -> dict[str, Any] | None:
+        # employer_id AS seeker_id: the same alias trick get_session() below
+        # uses, and for the same reason — it is what lets auth.py's generic
+        # issue_email_token()/consume_email_token() work against this store
+        # with zero changes, exactly as they do against SeekerStore.
+        row = (
+            self._conn()
+            .execute(
+                "SELECT *, employer_id AS seeker_id FROM employer_email_tokens "
+                "WHERE token_hash = ?",
+                (token_hash,),
+            )
+            .fetchone()
+        )
+        return dict(row) if row else None
+
+    def claim_email_token(self, token_hash: str, *, now: datetime | None = None) -> bool:
+        """Atomically mark a token spent. True only for the caller that won it —
+        see SeekerStore.claim_email_token for why this must be a single UPDATE."""
+        with self._write() as conn:
+            cursor = conn.execute(
+                "UPDATE employer_email_tokens SET used_at = ? "
+                "WHERE token_hash = ? AND used_at IS NULL",
+                (to_iso(now or utcnow()), token_hash),
+            )
+            return cursor.rowcount == 1
+
+    def delete_email_tokens(self, employer_id: str, purpose: str | None = None) -> int:
+        """Drop an Employer's outstanding tokens — issuing a fresh one kills any
+        old one of the same purpose immediately."""
+        with self._write() as conn:
+            if purpose is None:
+                cursor = conn.execute(
+                    "DELETE FROM employer_email_tokens WHERE employer_id = ?", (employer_id,)
+                )
+            else:
+                cursor = conn.execute(
+                    "DELETE FROM employer_email_tokens WHERE employer_id = ? AND purpose = ?",
+                    (employer_id, purpose),
+                )
+            return cursor.rowcount
+
     # -- sessions ----------------------------------------------------------
     # Method names match SeekerStore exactly — this is the seam that lets
     # auth.issue_session()/verify_session()/revoke_session() work unmodified
@@ -367,6 +555,8 @@ class EmployerStore:
             if exists is None:
                 return False
             conn.execute("DELETE FROM employer_sessions WHERE employer_id = ?", (employer_id,))
+            conn.execute("DELETE FROM employer_email_tokens WHERE employer_id = ?", (employer_id,))
+            conn.execute("DELETE FROM employer_identities WHERE employer_id = ?", (employer_id,))
             conn.execute("DELETE FROM employers WHERE id = ?", (employer_id,))
             conn.execute(
                 "INSERT INTO employer_events (name, employer_id, created_at) VALUES (?, ?, ?)",

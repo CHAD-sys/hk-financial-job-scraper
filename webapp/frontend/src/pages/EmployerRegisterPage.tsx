@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { AlertCircle, CheckCircle2, UserPlus } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Mail, UserPlus } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { AuthShell, AuthField } from '../components/AuthShell'
-import { registerEmployer, ApiError } from '../api/client'
+import { AuthShell, AuthField, AuthDivider, GoogleButton } from '../components/AuthShell'
+import {
+  registerEmployer, ApiError, isPersonalEmailDomain, EMPLOYER_GOOGLE_SIGN_IN_PATH,
+} from '../api/client'
 
 type Status = 'idle' | 'sending' | 'error' | 'done'
 
@@ -23,6 +25,13 @@ const MIN_PASSWORD = 8
 export default function EmployerRegisterPage() {
   const [status, setStatus] = useState<Status>('idle')
   const [error, setError] = useState('')
+  // Drives the "use your work email" nudge below the field — advisory only,
+  // never blocks handleSubmit. A candidate reading a role posted from a
+  // recognisable company address trusts it faster than one from a personal
+  // inbox; Google sign-in a few lines up is unaffected either way, since
+  // signing in with Gmail and registering FROM a gmail.com address are
+  // different things (see client.ts's isPersonalEmailDomain docstring).
+  const [emailHint, setEmailHint] = useState(false)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -123,6 +132,13 @@ export default function EmployerRegisterPage() {
           boxShadow: 'var(--shadow-card)',
         }}
       >
+        <GoogleButton label="Continue with Google" href={EMPLOYER_GOOGLE_SIGN_IN_PATH} />
+        <p className="mt-2.5 text-xs" style={{ color: 'var(--color-ink-faint)' }}>
+          Only for signing back in to an account that already exists — Google can't set up
+          your company name, so start with the form below the first time.
+        </p>
+        <AuthDivider />
+
         <form onSubmit={handleSubmit} noValidate>
           <AuthField label="Company name" htmlFor="er-company">
             <input
@@ -145,8 +161,16 @@ export default function EmployerRegisterPage() {
               <input
                 id="er-email" name="email" type="email" required maxLength={MAX.email}
                 autoComplete="email" className="finex-input"
+                onChange={e => setEmailHint(isPersonalEmailDomain(e.currentTarget.value))}
               />
             </AuthField>
+            {emailHint && (
+              <p className="mt-1.5 flex items-start gap-1.5 text-xs" style={{ color: 'var(--color-ink-faint)' }}>
+                <Mail size={13} strokeWidth={2} className="mt-0.5 shrink-0" />
+                A company address builds more trust with candidates than a personal one — but
+                this works fine too.
+              </p>
+            )}
           </div>
 
           <div className="mt-5">

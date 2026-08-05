@@ -604,15 +604,17 @@ export function countActiveFilters(filters: JobFilters): number {
 // ── Employer / recruiter accounts ───────────────────────────────────────────
 //
 // A separate identity from Seeker (docs/adr/0001) — its own cookie
-// (finex_employer_session), its own endpoints, no shared session. v1 is
-// identity only: no password reset, no Google, no dashboard yet — see
+// (finex_employer_session), its own endpoints, no shared session. Email
+// verification, password reset and Google sign-in shipped in phase 2 — see
 // main.py's "Employer / recruiter accounts" section for the full scope note.
+// Still no submissions dashboard.
 
 export interface Employer {
   id: string
   email: string
   company_name: string
   contact_name: string
+  email_verified: boolean
 }
 
 export interface EmployerRegisterPayload {
@@ -675,4 +677,63 @@ export async function logoutEmployer(): Promise<void> {
   if (!res.ok && res.status !== 401) {
     throw new ApiError(res.status, `Could not sign you out (${res.status}).`)
   }
+}
+
+/** Where "Continue with Google" points for an Employer — a separate redirect
+ * URI from the Seeker one (see main.py's Employer Google section), but the
+ * same reasoning: a plain link, not a fetch, so Google's own consent-screen
+ * navigation completes. */
+export const EMPLOYER_GOOGLE_SIGN_IN_PATH = `${API}/api/employer/auth/google`
+
+/** Spend the token from an Employer "confirm your email" link. Same POST-
+ * from-script reasoning as verifyEmail() — see that docstring. */
+export async function verifyEmployerEmail(token: string): Promise<Employer> {
+  const res = await apiFetch('/api/employer/auth/verify-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+  })
+  if (!res.ok) throw await employerAuthError(res, `Could not verify your email (${res.status}).`)
+  return res.json()
+}
+
+/** Ask for an Employer password-reset email. Always resolves the same way
+ * whether or not the address has an account — see main.py's employer_
+ * forgot_password() docstring for why this one differs from register's
+ * honest 409. */
+export async function requestEmployerPasswordReset(email: string): Promise<void> {
+  const res = await apiFetch('/api/employer/auth/forgot-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+  if (!res.ok) throw await employerAuthError(res, `Could not send a reset link (${res.status}).`)
+}
+
+/** Spend an Employer reset token and set a new password. Signs the caller
+ * back in. */
+export async function resetEmployerPassword(token: string, password: string): Promise<Employer> {
+  const res = await apiFetch('/api/employer/auth/reset-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, password }),
+  })
+  if (!res.ok) throw await employerAuthError(res, `Could not reset your password (${res.status}).`)
+  return res.json()
+}
+
+/**
+ * Domains common enough that a registration against one is almost certainly a
+ * personal inbox, not a company one. A hint, never a rule — nothing here
+ * blocks submission, and "Continue with Google" a few lines below is fully
+ * Gmail-capable regardless of what this returns.
+ */
+const PERSONAL_EMAIL_DOMAINS = new Set([
+  'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com',
+  'aol.com', 'live.com', 'msn.com', 'qq.com', '163.com',
+])
+
+export function isPersonalEmailDomain(email: string): boolean {
+  const domain = email.split('@')[1]?.toLowerCase().trim()
+  return !!domain && PERSONAL_EMAIL_DOMAINS.has(domain)
 }

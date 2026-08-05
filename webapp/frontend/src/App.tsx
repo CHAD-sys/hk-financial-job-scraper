@@ -15,6 +15,9 @@ import ResetPasswordPage from './pages/ResetPasswordPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
 import EmployerRegisterPage from './pages/EmployerRegisterPage'
 import EmployerSignInPage from './pages/EmployerSignInPage'
+import EmployerForgotPasswordPage from './pages/EmployerForgotPasswordPage'
+import EmployerResetPasswordPage from './pages/EmployerResetPasswordPage'
+import EmployerVerifyEmailPage from './pages/EmployerVerifyEmailPage'
 
 /**
  * AuthProvider sits inside the router because Nav — which every page renders —
@@ -49,6 +52,9 @@ export default function App() {
                 not linked from anywhere above — see EmployerRegisterPage.tsx. */}
             <Route path="/employer/register" element={<EmployerRegisterPage />} />
             <Route path="/employer/signin" element={<EmployerSignInPage />} />
+            <Route path="/employer/forgot-password" element={<EmployerForgotPasswordPage />} />
+            <Route path="/employer/reset-password" element={<EmployerResetPasswordPage />} />
+            <Route path="/employer/verify" element={<EmployerVerifyEmailPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </SavedRolesProvider>

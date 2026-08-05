@@ -78,11 +78,17 @@ export function AuthField({
  * consent screen, and a full page navigation is the only thing that can follow
  * it. Google is the only third-party provider — LinkedIn is a deliberate
  * fast-follow, not a v1 button (docs/adr/0003).
+ *
+ * `href` defaults to the Seeker path; the Employer pages pass
+ * EMPLOYER_GOOGLE_SIGN_IN_PATH explicitly — a separate registered redirect
+ * URI on Google's side, not just a separate frontend route (see main.py's
+ * Employer Google section for why one callback branching on account type
+ * was rejected in favour of two).
  */
-export function GoogleButton({ label }: { label: string }) {
+export function GoogleButton({ label, href = GOOGLE_SIGN_IN_PATH }: { label: string; href?: string }) {
   return (
     <a
-      href={GOOGLE_SIGN_IN_PATH}
+      href={href}
       className="flex min-h-11 w-full items-center justify-center gap-2.5 rounded px-6 py-3 text-sm font-semibold no-underline"
       style={{
         backgroundColor: 'var(--color-surface)',
