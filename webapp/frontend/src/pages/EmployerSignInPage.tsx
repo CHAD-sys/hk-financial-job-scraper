@@ -1,19 +1,36 @@
 import { useState } from 'react'
 import { AlertCircle, LogIn } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
-import { AuthShell, AuthField } from '../components/AuthShell'
-import { loginEmployer } from '../api/client'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { AuthShell, AuthField, AuthDivider, GoogleButton } from '../components/AuthShell'
+import { loginEmployer, EMPLOYER_GOOGLE_SIGN_IN_PATH } from '../api/client'
 
 type Status = 'idle' | 'sending' | 'error'
 
 const MAX = { email: 200, password: 128 } as const
 
+/**
+ * The ?error= codes main.py's /api/employer/auth/google/callback redirects
+ * here with — same map shape as SignInPage.tsx's Seeker version, but
+ * google_link_refused reads differently: auth.link_or_create_employer()
+ * never creates an account, so "refused" here always means "register first."
+ */
+const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
+  google_unavailable: 'Signing in with Google is not switched on yet. Use email and password below.',
+  google_failed: 'Something went wrong signing in with Google. Please try again.',
+  google_link_refused:
+    'No employer account matches that Google address yet. Register your company first, ' +
+    'then connect Google from your account.',
+}
+
 /** Sign in to an existing Employer account. See EmployerRegisterPage.tsx for
  * why this is not linked from the public UI yet. */
 export default function EmployerSignInPage() {
   const navigate = useNavigate()
-  const [status, setStatus] = useState<Status>('idle')
-  const [error, setError] = useState('')
+  const [searchParams] = useSearchParams()
+  const googleErrorCode = searchParams.get('error')
+  const googleError = googleErrorCode ? GOOGLE_ERROR_MESSAGES[googleErrorCode] : undefined
+  const [status, setStatus] = useState<Status>(googleError ? 'error' : 'idle')
+  const [error, setError] = useState(googleError ?? '')
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -58,6 +75,9 @@ export default function EmployerSignInPage() {
           boxShadow: 'var(--shadow-card)',
         }}
       >
+        <GoogleButton label="Continue with Google" href={EMPLOYER_GOOGLE_SIGN_IN_PATH} />
+        <AuthDivider />
+
         <form onSubmit={handleSubmit} noValidate>
           <AuthField label="Work email" htmlFor="es-email">
             <input
@@ -101,6 +121,12 @@ export default function EmployerSignInPage() {
             {status !== 'sending' && <LogIn size={15} strokeWidth={2} />}
           </button>
         </form>
+
+        <p className="mt-4 text-xs" style={{ color: 'var(--color-ink-faint)' }}>
+          <Link to="/employer/forgot-password" style={{ color: 'var(--color-blue)' }}>
+            Forgot password?
+          </Link>
+        </p>
       </div>
 
       <p className="mt-6 text-sm" style={{ color: 'var(--color-ink-muted)' }}>
