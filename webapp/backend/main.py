@@ -987,6 +987,12 @@ def login(payload: LoginIn, request: Request, response: Response):
         store.log_event("seeker.login_failed", seeker_id=row["id"] if row else None)
         raise HTTPException(status_code=401, detail="Email or password is incorrect")
 
+    # The plaintext is only ever available right here, on a successful login —
+    # this is the one place Argon2 parameters can be strengthened for the whole
+    # Seeker base without forcing anyone through a password reset.
+    if auth.password_needs_rehash(row["password_hash"]):
+        store.set_password_hash(row["id"], auth.hash_password(payload.password))
+
     store.touch_last_login(row["id"])
     store.log_event("seeker.login", seeker_id=row["id"])
     _set_session_cookie(request, response, auth.issue_session(store, row["id"],

@@ -139,6 +139,40 @@ def test_login_rate_limit_trips_per_email(client):
     assert 429 in codes, "per-email login limiter never engaged"
 
 
+def test_login_rehashes_a_weakly_hashed_password(client):
+    """
+    auth.password_needs_rehash() existed with no caller anywhere in the
+    codebase — a Seeker hashed with weaker-than-current Argon2 parameters (an
+    old library default, a cost lowered during an incident, a future
+    downgrade) would carry that weak hash forever, since nothing ever
+    re-hashed it. Login is the only moment the plaintext is available to fix
+    that transparently, with no forced reset.
+    """
+    import seekers_store
+    from argon2 import PasswordHasher
+
+    # A hasher weaker than auth.py's real one, standing in for "hashed years
+    # ago under different parameters" without needing to wait years.
+    weak_hash = PasswordHasher(time_cost=1, memory_cost=8, parallelism=1).hash(GOOD["password"])
+
+    store = seekers_store.get_store()
+    seeker_id = store.create_seeker(GOOD["email"], password_hash=weak_hash, display_name="Ada")
+
+    r = client.post("/api/auth/login", json={"email": GOOD["email"], "password": GOOD["password"]})
+    assert r.status_code == 200
+
+    import auth
+
+    stored_hash = store.get_seeker(seeker_id)["password_hash"]
+    assert stored_hash != weak_hash, "login should have upgraded the stored hash"
+    assert not auth.password_needs_rehash(stored_hash)
+
+    # The upgrade must be invisible to the Seeker: the same password still works.
+    client.cookies.clear()
+    r2 = client.post("/api/auth/login", json={"email": GOOD["email"], "password": GOOD["password"]})
+    assert r2.status_code == 200
+
+
 # ── Session ───────────────────────────────────────────────────────────────────
 
 def test_session_cookie_is_httponly_and_lax(client):
