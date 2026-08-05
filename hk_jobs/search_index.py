@@ -253,14 +253,29 @@ def _correct_token(conn: sqlite3.Connection, token: str) -> str:
     """
     if len(token) < _MIN_CORRECTABLE_LEN or not token.isascii():
         return token
-    if _has_prefix(conn, token):
-        return token
 
-    cap = _MAX_EDITS_SHORT if len(token) <= 5 else _MAX_EDITS_LONG
-    candidates = conn.execute(
-        "SELECT word, doc_count FROM search_vocab WHERE first = ? AND len BETWEEN ? AND ?",
-        (token[0], len(token) - cap, len(token) + cap),
-    ).fetchall()
+    # No vocabulary table → no correction, not an error. Kept identical to
+    # webapp/backend/search_index.py, per this module's "keep them identical"
+    # rule; that copy is where it matters, because the backend reads databases
+    # it did not build (a hand-uploaded volume snapshot predating the index
+    # answered every live search with a 500 on 2026-08-05). Scraper-side this
+    # branch should never fire — rebuild_search_index() creates both tables —
+    # but the two implementations drifting is the failure this rule exists to
+    # prevent, so the guard lives in both.
+    try:
+        if _has_prefix(conn, token):
+            return token
+
+        cap = _MAX_EDITS_SHORT if len(token) <= 5 else _MAX_EDITS_LONG
+        candidates = conn.execute(
+            "SELECT word, doc_count FROM search_vocab WHERE first = ? AND len BETWEEN ? AND ?",
+            (token[0], len(token) - cap, len(token) + cap),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        logger.warning(
+            "Search vocabulary unavailable; %r searched without typo correction.", token
+        )
+        return token
 
     best, best_dist, best_doc = None, cap + 1, -1
     for word, doc_count in candidates:
