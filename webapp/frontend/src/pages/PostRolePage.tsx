@@ -25,10 +25,14 @@ const MAX = {
  * LinkedIn posts we scrape. This is the first route by which a recruiter can put
  * a mandate to us directly.
  *
- * Scope is submission + moderation only. There are no employer accounts, no
- * self-serve editing and no billing; a submission lands pending review and a
- * human approves it before it can appear anywhere. Self-serve and paid inventory
- * are a separate, much larger piece of work.
+ * Scope is submission + moderation only, and stays that way here even now that
+ * an Employer identity exists (/employer/register, /employer/signin — opened
+ * ADR 0001's gate, not yet linked from anywhere in this UI): there is no
+ * self-serve editing or dashboard behind it yet, so this form does not change
+ * for a signed-in Employer. A submission lands pending review and a human
+ * approves it before it can appear anywhere, exactly as before. Connecting a
+ * signed-in Employer to their own submissions is the natural next step, not
+ * done here — see employers_store.py's module docstring.
  */
 export default function PostRolePage() {
   const [status, setStatus] = useState<Status>('idle')

@@ -28,6 +28,12 @@ outputs/
 
 # Build / packaging
 dist/
+# NOTE: webapp/backend/frontend_dist/ (the frontend bundle folded into the
+# backend's Railway upload for single-origin, ADR 0005) is deliberately NOT
+# listed here. `railway up` respects .gitignore when building its upload
+# snapshot, so ignoring it here silently excludes it from the deploy. It
+# stays untracked by discipline (never `git add`ed) instead — see the
+# "Committing" section of the rail-it skill for the same convention.
 build/
 *.egg-info/
 .ruff_cache/

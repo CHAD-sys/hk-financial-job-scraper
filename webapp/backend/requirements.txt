@@ -11,3 +11,9 @@ email-validator==2.3.0
 # so the build is reproducible rather than "whatever resolved today".
 argon2-cffi==25.1.0
 argon2-cffi-bindings==25.1.0
+# The Google OAuth code/token exchange (webapp/backend/main.py, PLAN_ACCOUNTS
+# phase 4). Was already present transitively via starlette's TestClient; now a
+# real production dependency, so it is pinned explicitly rather than left to
+# whatever a test-only transitive resolves to. Matches the repo's decided HTTP
+# client (CLAUDE.md: httpx, not requests) — hk_jobs already depends on it.
+httpx==0.28.1

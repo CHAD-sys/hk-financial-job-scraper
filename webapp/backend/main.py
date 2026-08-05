@@ -9,18 +9,22 @@ email a notification; neither publishes anything without human review.
 
 from __future__ import annotations
 
+import hmac
 import json
 import logging
 import os
+import secrets
 import sqlite3
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlencode
 
+import httpx
 from fastapi import APIRouter, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
@@ -862,9 +866,57 @@ def register(payload: RegisterIn, request: Request, response: Response):
     return _seeker_out(store.get_seeker(seeker_id))
 
 
+def _public_base(request: Request) -> str:
+    """
+    The externally-reachable origin the frontend is served from.
+
+    PUBLIC_BASE_URL in production — Railway sits behind a proxy, so
+    request.base_url would answer with the internal host, not the address a
+    Seeker's browser can actually reach. Falls back to the request's own
+    base_url for local dev, where there is no proxy in the way. Shared by
+    every place this backend builds a link back into the single-page app: the
+    verify and reset emails, and the Google OAuth redirect below.
+    """
+    return os.environ.get("PUBLIC_BASE_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
+
+
 def _verify_url(request: Request, raw_token: str) -> str:
-    base = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
-    return f"{base}/verify?token={raw_token}"
+    return _account_link_url(request, "verify", raw_token)
+
+
+def _account_link_url(request: Request, path: str, raw_token: str) -> str:
+    """Build a link into a single-page-app route that carries a raw email token."""
+    return f"{_public_base(request)}/{path}?token={raw_token}"
+
+
+class VerifyEmailIn(BaseModel):
+    token: str = Field(min_length=1, max_length=200)
+
+
+@router.post("/api/auth/verify-email", response_model=SeekerOut, tags=["auth"])
+def verify_email(payload: VerifyEmailIn, request: Request):
+    """
+    Spend a verification token and mark the Seeker's email verified.
+
+    Deliberately a POST the frontend page fires from JS, not a GET the email
+    link itself resolves to. Some mail clients pre-fetch links to scan them for
+    malware, which would silently burn a single-use GET token before the Seeker
+    ever clicked it — a POST triggered by page script is invisible to that kind
+    of prefetch.
+
+    Not gated on being signed in: the token itself is the credential, the same
+    way a password-reset link is. One failure message for every cause — unknown,
+    expired, already used — for the same reason login collapses its failures:
+    nothing here should let a caller distinguish them.
+    """
+    store = seekers_store.get_store()
+    seeker_id = auth.consume_email_token(store, payload.token, purpose="verify")
+    if seeker_id is None:
+        raise HTTPException(status_code=400, detail="This link is no longer valid.")
+
+    store.set_email_verified(seeker_id, True)
+    store.log_event("seeker.email_verified", seeker_id=seeker_id)
+    return _seeker_out(store.get_seeker(seeker_id))
 
 
 @router.post("/api/auth/login", response_model=SeekerOut, tags=["auth"])
@@ -894,6 +946,67 @@ def login(payload: LoginIn, request: Request, response: Response):
     _set_session_cookie(request, response, auth.issue_session(store, row["id"],
                                                      user_agent=request.headers.get("user-agent")))
     return _seeker_out(store.get_seeker(row["id"]))
+
+
+class ForgotPasswordIn(BaseModel):
+    email: EmailStr
+
+
+@router.post("/api/auth/forgot-password", response_model=SubmitResponse, tags=["auth"])
+def forgot_password(payload: ForgotPasswordIn, request: Request):
+    """
+    Request a password-reset email. Always answers the same way, same as
+    register's account-enumeration defence (decision 15): whether or not the
+    address has an account is not something a caller may learn from this
+    response, only from whether an email arrives.
+    """
+    email = seekers_store.normalise_email(payload.email)
+    ip = _client_ip(request)
+    if _auth_rate_limited(request, f"reset:email:{email}", limit=3, window_s=3600) or \
+       _auth_rate_limited(request, f"reset:ip:{ip}", limit=10, window_s=3600):
+        raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
+
+    store = seekers_store.get_store()
+    row = store.get_seeker_by_email(email)
+    if row is not None:
+        raw_token = auth.issue_email_token(store, row["id"], purpose="reset")
+        _send_seeker_mail(
+            request,
+            email,
+            "Reset your password — FinEx Careers",
+            f"Reset your FinEx Careers password:\n\n{_account_link_url(request, 'reset-password', raw_token)}\n\n"
+            f"This link works once and expires in an hour. If you did not request this, "
+            f"you can ignore this message — your password has not changed.",
+        )
+    return SubmitResponse(ok=True)
+
+
+class ResetPasswordIn(BaseModel):
+    token: str = Field(min_length=1, max_length=200)
+    password: str = Field(min_length=8, max_length=200)
+
+
+@router.post("/api/auth/reset-password", response_model=SeekerOut, tags=["auth"])
+def reset_password(payload: ResetPasswordIn, request: Request, response: Response):
+    """
+    Spend a reset token, set the new password, and sign out every other
+    session (auth.py: "leaving the attacker's session alive defeats the point
+    of the reset"). Signs the caller straight back in on this one, same as
+    register — a reset that ends at a sign-in form is a worse flow than the
+    one it replaced.
+    """
+    store = seekers_store.get_store()
+    seeker_id = auth.consume_email_token(store, payload.token, purpose="reset")
+    if seeker_id is None:
+        raise HTTPException(status_code=400, detail="This link is no longer valid.")
+
+    store.set_password_hash(seeker_id, auth.hash_password(payload.password))
+    auth.revoke_all_sessions(store, seeker_id)
+    store.log_event("seeker.password_reset", seeker_id=seeker_id)
+
+    _set_session_cookie(request, response, auth.issue_session(store, seeker_id,
+                                                     user_agent=request.headers.get("user-agent")))
+    return _seeker_out(store.get_seeker(seeker_id))
 
 
 @router.post("/api/auth/logout", status_code=204, tags=["auth"])
@@ -1005,6 +1118,386 @@ def delete_account(request: Request, response: Response):
     seekers_store.get_store().delete_seeker(seeker["id"])
     _clear_session_cookie(response)
     logger.info("Seeker %s deleted their account", seeker["id"])
+    return Response(status_code=204)
+
+
+# ── Google OAuth (phase 4 of PLAN_ACCOUNTS.md) ────────────────────────────────
+#
+# Wires the redirect GoogleButton (AuthShell.tsx) has pointed at since it was
+# built — GOOGLE_SIGN_IN_PATH is `${API}/api/auth/google` on the frontend
+# already; nothing there needs to change for this to light up.
+#
+# WHAT THIS NEEDS THAT NO AMOUNT OF CODE CAN SUPPLY: a Google Cloud project
+# with an OAuth consent screen, and GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET in
+# the environment. PLAN_ACCOUNTS.md §9 lists creating that project as an owner
+# task with lead time — it needs a Google account with billing/console access
+# this process does not have. Until those two variables are set, /api/auth/
+# google answers with a redirect to an error state instead of attempting
+# anything, on every environment including production: this is not a
+# feature-flagged code path, it is the only thing correct to do with no
+# credentials.
+#
+# The exchange delegates signature verification to Google's own tokeninfo
+# endpoint rather than hand-rolling JWKS verification (ADR 0004: delegate
+# crypto, do not reimplement it). That endpoint is documented by Google as
+# suitable for server-side verification, not only debugging; the one thing
+# worth knowing if this is hardened later is that it is one extra round trip
+# per sign-in, which a local JWKS-based verifier (e.g. the `google-auth`
+# package) would avoid at the cost of a new dependency — deliberately not
+# added here without asking, per this repo's "no substitution without asking"
+# rule on the tech stack.
+
+GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo"
+#: Scoped to the OAuth start/callback pair, not path="/" — this cookie carries
+#: no identity, only a CSRF nonce, and has no reason to ride along on every
+#: other request for the ten minutes it lives.
+GOOGLE_STATE_COOKIE = "google_oauth_state"
+GOOGLE_STATE_COOKIE_PATH = "/api/auth/google"
+
+
+def _google_configured() -> tuple[str, str]:
+    """(client_id, client_secret), or ("", "") if either is unset."""
+    client_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
+    if not client_id or not client_secret:
+        return "", ""
+    return client_id, client_secret
+
+
+def _google_redirect_uri(request: Request) -> str:
+    """
+    Where Google sends the browser back to. Must match a URI registered on the
+    OAuth client EXACTLY (Google rejects anything else at the consent screen,
+    before this code ever runs) — GOOGLE_REDIRECT_URI overrides the computed
+    default for an operator who needs a value that PUBLIC_BASE_URL cannot
+    express.
+    """
+    override = os.environ.get("GOOGLE_REDIRECT_URI", "").strip()
+    return override or f"{_public_base(request)}/api/auth/google/callback"
+
+
+def _google_failure_redirect(request: Request, reason: str) -> RedirectResponse:
+    logger.warning("Google sign-in did not complete: %s", reason)
+    resp = RedirectResponse(f"{_public_base(request)}/signin?error=google_failed")
+    resp.delete_cookie(GOOGLE_STATE_COOKIE, path=GOOGLE_STATE_COOKIE_PATH)
+    return resp
+
+
+@router.get("/api/auth/google", tags=["auth"], include_in_schema=False)
+def google_start(request: Request):
+    """
+    Redirect to Google's consent screen.
+
+    A GET matched to GoogleButton's plain `<a href>`: only a full page
+    navigation can carry the browser to accounts.google.com and back with
+    Google's own cookies intact, which is why the button is a link rather than
+    a fetch call (see AuthShell.tsx).
+    """
+    client_id, _ = _google_configured()
+    if not client_id:
+        logger.warning("GET /api/auth/google called but GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET are not set")
+        return RedirectResponse(f"{_public_base(request)}/signin?error=google_unavailable")
+
+    state = secrets.token_urlsafe(24)
+    params = {
+        "client_id": client_id,
+        "redirect_uri": _google_redirect_uri(request),
+        "response_type": "code",
+        "scope": "openid email profile",
+        "state": state,
+        "prompt": "select_account",
+    }
+    resp = RedirectResponse(f"{GOOGLE_AUTH_URL}?{urlencode(params)}")
+    resp.set_cookie(
+        GOOGLE_STATE_COOKIE,
+        state,
+        max_age=600,  # the consent screen round trip, generously bounded
+        httponly=True,
+        secure=cfg(request).cookie_secure,
+        samesite="lax",
+        path=GOOGLE_STATE_COOKIE_PATH,
+    )
+    return resp
+
+
+@router.get("/api/auth/google/callback", tags=["auth"], include_in_schema=False)
+def google_callback(
+    request: Request,
+    code: Optional[str] = None,
+    state: Optional[str] = None,
+    error: Optional[str] = None,
+):
+    """
+    Exchange the code, verify the identity token, and hand the result to
+    auth.link_or_create_seeker — the same three-case rule a Google sign-in and
+    a future LinkedIn one will both go through.
+    """
+    if error:
+        return _google_failure_redirect(request, f"provider returned error={error}")
+
+    cookie_state = request.cookies.get(GOOGLE_STATE_COOKIE)
+    if not code or not state or not cookie_state or not hmac.compare_digest(state, cookie_state):
+        return _google_failure_redirect(request, "missing or mismatched state (possible CSRF)")
+
+    client_id, client_secret = _google_configured()
+    if not client_id:
+        logger.warning("Google callback reached but GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET are not set")
+        resp = RedirectResponse(f"{_public_base(request)}/signin?error=google_unavailable")
+        resp.delete_cookie(GOOGLE_STATE_COOKIE, path=GOOGLE_STATE_COOKIE_PATH)
+        return resp
+
+    try:
+        with httpx.Client(timeout=10) as http:
+            token_res = http.post(
+                GOOGLE_TOKEN_URL,
+                data={
+                    "code": code,
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "redirect_uri": _google_redirect_uri(request),
+                    "grant_type": "authorization_code",
+                },
+            )
+            token_res.raise_for_status()
+            id_token = token_res.json().get("id_token", "")
+
+            info_res = http.get(GOOGLE_TOKENINFO_URL, params={"id_token": id_token})
+            info_res.raise_for_status()
+            info = info_res.json()
+    except httpx.HTTPError as exc:
+        return _google_failure_redirect(request, f"token exchange failed: {exc}")
+
+    # tokeninfo validated the signature; this is us checking WHO it was issued
+    # for, which tokeninfo does not do on our behalf. A mismatch means the
+    # token was minted for a different OAuth client and must not be trusted.
+    if info.get("aud") != client_id:
+        return _google_failure_redirect(request, "id_token audience mismatch")
+
+    subject = info.get("sub", "")
+    if not subject:
+        return _google_failure_redirect(request, "id_token carried no subject")
+
+    claim = auth.IdentityClaim(
+        provider="google",
+        subject=subject,
+        email=info.get("email"),
+        # Google's tokeninfo returns this as the STRING "true"/"false", not a
+        # JSON boolean — a truthy-string bug here would silently treat every
+        # claim as verified, which is exactly the assumption auth.py's module
+        # docstring says must never be made for granted.
+        email_verified=info.get("email_verified") == "true",
+        display_name=info.get("name"),
+    )
+
+    store = seekers_store.get_store()
+    try:
+        result = auth.link_or_create_seeker(store, claim)
+    except auth.IdentityLinkRefused as exc:
+        logger.warning("Google identity link refused for subject %s: %s", subject, exc)
+        resp = RedirectResponse(f"{_public_base(request)}/signin?error=google_link_refused")
+        resp.delete_cookie(GOOGLE_STATE_COOKIE, path=GOOGLE_STATE_COOKIE_PATH)
+        return resp
+
+    store.touch_last_login(result.seeker_id)
+    store.log_event(f"seeker.google_{result.outcome}", seeker_id=result.seeker_id)
+
+    resp = RedirectResponse(f"{_public_base(request)}/account")
+    resp.delete_cookie(GOOGLE_STATE_COOKIE, path=GOOGLE_STATE_COOKIE_PATH)
+    _set_session_cookie(request, resp, auth.issue_session(store, result.seeker_id,
+                                                     user_agent=request.headers.get("user-agent")))
+    return resp
+
+
+# ── Employer / recruiter accounts (opening ADR 0001's gate) ────────────────────
+#
+# A second, deliberately separate identity system — see docs/adr/0001:
+# "Employer accounts stay out of scope until there is paid inventory to
+# sell... Employers get their own table when they arrive." This reopens that
+# ADR at the owner's explicit direction (2026-08-05 session), not by routing
+# around it: its own store (employers_store.py), its own table, its own
+# cookie. The only code shared with Seeker identity is auth.py's pure
+# crypto/session functions — already written to take a plain store and plain
+# values, so nothing in auth.py changed to make this work.
+#
+# v1 is identity only: register, sign in, sign out, see your own account,
+# delete it. No email verification, no password reset, no Google sign-in —
+# each is real follow-up work, deliberately not half-built here (see
+# employers_store.py's module docstring for why: this audit's other finding
+# was exactly an email link nothing consumed, and the fix is not to grow a
+# second one). No submissions dashboard yet either — connecting this to
+# data/submitted_roles.jsonl (scripts/review_submissions.py) by matching
+# contact_email is the natural next slice, held back because it wants a
+# product decision about the matching rule, not a code gap.
+
+import employers_store  # noqa: E402
+
+EMPLOYER_SESSION_COOKIE = "finex_employer_session"
+
+
+def _set_employer_session_cookie(request: Request, response: Response, raw_token: str) -> None:
+    """
+    Same shape as _set_session_cookie, on a DIFFERENT cookie name. Deliberate:
+    a browser can hold a Seeker session and an Employer session at the same
+    time, which is the real case of someone who is both a candidate and posts
+    roles for their firm.
+    """
+    response.set_cookie(
+        EMPLOYER_SESSION_COOKIE,
+        raw_token,
+        max_age=int(auth.SESSION_TTL.total_seconds()),
+        httponly=True,
+        secure=cfg(request).cookie_secure,
+        samesite="lax",
+        path="/",
+    )
+
+
+def _clear_employer_session_cookie(response: Response) -> None:
+    response.delete_cookie(EMPLOYER_SESSION_COOKIE, path="/", samesite="lax")
+
+
+def _current_employer(request: Request) -> Optional[dict]:
+    raw = request.cookies.get(EMPLOYER_SESSION_COOKIE)
+    if not raw:
+        return None
+    try:
+        store = employers_store.get_store()
+        employer_id = auth.verify_session(store, raw)
+        return store.get_employer(employer_id) if employer_id else None
+    except Exception:  # noqa: BLE001 — a bad cookie is anonymous, not a 500
+        logger.warning("Employer session verification failed", exc_info=True)
+        return None
+
+
+def _require_employer(request: Request) -> dict:
+    employer = _current_employer(request)
+    if employer is None:
+        raise HTTPException(status_code=401, detail="Not signed in")
+    return employer
+
+
+class EmployerRegisterIn(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=200)
+    company_name: str = Field(min_length=1, max_length=150)
+    contact_name: str = Field(default="", max_length=100)
+    # Honeypot, same convention as every other form in this file.
+    website: str = ""
+
+
+class EmployerLoginIn(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=1, max_length=200)
+
+
+class EmployerOut(BaseModel):
+    id: str
+    email: str
+    company_name: str
+    contact_name: str
+
+
+def _employer_out(row: dict) -> EmployerOut:
+    return EmployerOut(
+        id=row["id"],
+        email=row["email"],
+        company_name=row["company_name"],
+        contact_name=row.get("contact_name") or "",
+    )
+
+
+@router.post("/api/employer/register", response_model=EmployerOut, status_code=201, tags=["employer"])
+def employer_register(payload: EmployerRegisterIn, request: Request, response: Response):
+    """
+    Create an Employer and sign them straight in.
+
+    Deliberately NOT the Seeker flow's non-enumerable "answers like success
+    either way": that trick only pays for itself when there is a mail path to
+    tell the real owner someone tried (register() does, via
+    _send_seeker_mail). There is no Employer mail path yet, so a fake-success
+    response here would leave a legitimate Employer who forgot they had an
+    account looking at a silent dead end instead of a "sign in instead" you
+    can act on. A real 409 costs an email-enumeration signal this recruiter
+    directory does not have much to protect — most of these addresses are
+    already semi-public on a company's own careers page. Revisit if that
+    changes.
+    """
+    email = employers_store.normalise_email(payload.email)
+    ip = _client_ip(request)
+
+    if payload.website.strip():
+        logger.info("Honeypot triggered on /api/employer/register from %s", ip)
+        return EmployerOut(id="", email=email, company_name=payload.company_name, contact_name="")
+
+    if _auth_rate_limited(request, f"emp-reg:email:{email}", limit=3, window_s=3600) or \
+       _auth_rate_limited(request, f"emp-reg:ip:{ip}", limit=10, window_s=3600):
+        raise HTTPException(status_code=429, detail="Too many attempts. Try again later.")
+
+    store = employers_store.get_store()
+    try:
+        employer_id = store.create_employer(
+            email,
+            password_hash=auth.hash_password(payload.password),
+            company_name=payload.company_name.strip(),
+            contact_name=payload.contact_name.strip() or None,
+        )
+    except employers_store.EmailAlreadyRegistered:
+        raise HTTPException(
+            status_code=409, detail="That email already has an employer account. Sign in instead."
+        ) from None
+
+    store.log_event("employer.registered", employer_id=employer_id)
+    _set_employer_session_cookie(request, response, auth.issue_session(
+        store, employer_id, user_agent=request.headers.get("user-agent")))
+    return _employer_out(store.get_employer(employer_id))
+
+
+@router.post("/api/employer/login", response_model=EmployerOut, tags=["employer"])
+def employer_login(payload: EmployerLoginIn, request: Request, response: Response):
+    """One failure message for every cause, same reasoning as Seeker login."""
+    email = employers_store.normalise_email(payload.email)
+    ip = _client_ip(request)
+    if _auth_rate_limited(request, f"emp-login:email:{email}", limit=10, window_s=900) or \
+       _auth_rate_limited(request, f"emp-login:ip:{ip}", limit=30, window_s=900):
+        raise HTTPException(status_code=429, detail="Too many attempts. Try again in a few minutes.")
+
+    store = employers_store.get_store()
+    row = store.get_employer_by_email(email)
+    if not auth.verify_password(row["password_hash"] if row else None, payload.password):
+        store.log_event("employer.login_failed", employer_id=row["id"] if row else None)
+        raise HTTPException(status_code=401, detail="Email or password is incorrect")
+
+    store.touch_last_login(row["id"])
+    store.log_event("employer.login", employer_id=row["id"])
+    _set_employer_session_cookie(request, response, auth.issue_session(
+        store, row["id"], user_agent=request.headers.get("user-agent")))
+    return _employer_out(store.get_employer(row["id"]))
+
+
+@router.post("/api/employer/logout", status_code=204, tags=["employer"])
+def employer_logout(request: Request, response: Response):
+    """Always 204. Logging out of a session you don't have is not an error."""
+    auth.revoke_session(employers_store.get_store(), request.cookies.get(EMPLOYER_SESSION_COOKIE))
+    _clear_employer_session_cookie(response)
+    return Response(status_code=204)
+
+
+@router.get("/api/employer/me", response_model=EmployerOut, tags=["employer"])
+def employer_whoami(request: Request):
+    return _employer_out(_require_employer(request))
+
+
+@router.delete("/api/employer/me", status_code=204, tags=["employer"])
+def employer_delete_account(request: Request, response: Response):
+    """Real delete, same posture as Seeker deletion (ADR 0007's reasoning
+    applies here too: an Employer's own account is not a Role — CLAUDE.md's
+    soft-delete rule does not cover it)."""
+    employer = _require_employer(request)
+    employers_store.get_store().delete_employer(employer["id"])
+    _clear_employer_session_cookie(response)
+    logger.info("Employer %s deleted their account", employer["id"])
     return Response(status_code=204)
 
 

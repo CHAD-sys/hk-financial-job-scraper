@@ -422,6 +422,50 @@ export async function deleteAccount(): Promise<void> {
   if (!res.ok) throw await authError(res, `Could not delete your account (${res.status}).`)
 }
 
+/**
+ * Spend the token from a "confirm your email" link.
+ *
+ * A POST the page fires from script, not the GET the link itself would be —
+ * see main.py's verify_email() docstring: some mail clients pre-fetch links to
+ * scan them, which would burn a single-use GET token before a human ever
+ * clicked it.
+ */
+export async function verifyEmail(token: string): Promise<Seeker> {
+  const res = await apiFetch('/api/auth/verify-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+  })
+  if (!res.ok) throw await authError(res, `Could not verify your email (${res.status}).`)
+  return res.json()
+}
+
+/**
+ * Ask for a password-reset email. Always resolves the same way whether or not
+ * the address has an account — same non-enumeration posture as register
+ * (PLAN_ACCOUNTS §5) — so the caller has nothing to branch on beyond a genuine
+ * transport/server error.
+ */
+export async function requestPasswordReset(email: string): Promise<void> {
+  const res = await apiFetch('/api/auth/forgot-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+  if (!res.ok) throw await authError(res, `Could not send a reset link (${res.status}).`)
+}
+
+/** Spend a reset token and set a new password. Signs the caller back in. */
+export async function resetPassword(token: string, password: string): Promise<Seeker> {
+  const res = await apiFetch('/api/auth/reset-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, password }),
+  })
+  if (!res.ok) throw await authError(res, `Could not reset your password (${res.status}).`)
+  return res.json()
+}
+
 // ── Saved Roles (server-side) ─────────────────────────────────────────────────
 // The server stores only (source, source_id) and joins the Role's fields from
 // jobs.db at read time, so a Saved Role is a reference and never a frozen copy
@@ -555,4 +599,80 @@ export function countActiveFilters(filters: JobFilters): number {
   if (filters.hidden_only) n++
   if (filters.verified_only) n++
   return n
+}
+
+// ── Employer / recruiter accounts ───────────────────────────────────────────
+//
+// A separate identity from Seeker (docs/adr/0001) — its own cookie
+// (finex_employer_session), its own endpoints, no shared session. v1 is
+// identity only: no password reset, no Google, no dashboard yet — see
+// main.py's "Employer / recruiter accounts" section for the full scope note.
+
+export interface Employer {
+  id: string
+  email: string
+  company_name: string
+  contact_name: string
+}
+
+export interface EmployerRegisterPayload {
+  email: string
+  password: string
+  company_name: string
+  contact_name: string
+  /** Honeypot. Always sent, always empty for a human. */
+  website: string
+}
+
+/** Turn a non-OK employer-auth response into an ApiError carrying the reason. */
+async function employerAuthError(res: Response, fallback: string): Promise<ApiError> {
+  const detail = await readDetail(res)
+  if (res.status === 429) {
+    return new ApiError(429, detail || 'Too many attempts. Please try again later.')
+  }
+  if (res.status === 409) {
+    return new ApiError(409, detail || 'That email already has an employer account.')
+  }
+  return new ApiError(res.status, detail || fallback)
+}
+
+/** Who is signed in as an Employer, or `null`. A 401 is the ordinary anonymous
+ * answer, not a failure. */
+export async function fetchEmployerMe(): Promise<Employer | null> {
+  const res = await apiFetch('/api/employer/me')
+  if (res.status === 401) return null
+  if (!res.ok) throw new ApiError(res.status, `Could not load your account (${res.status}).`)
+  return res.json()
+}
+
+export async function registerEmployer(payload: EmployerRegisterPayload): Promise<Employer> {
+  const res = await apiFetch('/api/employer/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  // Unlike registerSeeker(), a duplicate address is an honest 409 here — see
+  // main.py's employer_register() docstring for why that trade differs.
+  if (!res.ok) throw await employerAuthError(res, `Could not create your account (${res.status}).`)
+  return res.json()
+}
+
+export async function loginEmployer(email: string, password: string): Promise<Employer> {
+  const res = await apiFetch('/api/employer/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  if (res.status === 401) {
+    throw new ApiError(401, 'That email and password combination is not right.')
+  }
+  if (!res.ok) throw await employerAuthError(res, `Could not sign you in (${res.status}).`)
+  return res.json()
+}
+
+export async function logoutEmployer(): Promise<void> {
+  const res = await apiFetch('/api/employer/logout', { method: 'POST' })
+  if (!res.ok && res.status !== 401) {
+    throw new ApiError(res.status, `Could not sign you out (${res.status}).`)
+  }
 }
