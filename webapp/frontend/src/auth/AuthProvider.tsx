@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { RegisterPayload, Seeker } from '../api/client'
 import {
-  fetchMe, loginSeeker, logoutSeeker, registerSeeker, setUnauthorizedHandler,
+  fetchMe, loginSeeker, logoutSeeker, registerSeeker, addUnauthorizedHandler,
 } from '../api/client'
 import { AuthContext } from './AuthContext'
 import type { AuthValue } from './AuthContext'
@@ -25,13 +25,14 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const [seeker, setSeeker] = useState<Seeker | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Any 401 from any endpoint means the session is gone (expired, revoked, or
-  // the account was deleted from another tab). Clear the Seeker and let the
+  // A 401 from a SEEKER endpoint means that session is gone (expired, revoked,
+  // or the account was deleted from another tab). Clear the Seeker and let the
   // visitor carry on anonymously — we never redirect them to a sign-in wall.
-  useEffect(() => {
-    setUnauthorizedHandler(() => setSeeker(null))
-    return () => setUnauthorizedHandler(null)
-  }, [])
+  // Scoped to /api/auth and /api/me: an Employer-endpoint 401 must not sign
+  // the Seeker out of a session that is still perfectly live (client.ts).
+  useEffect(() => addUnauthorizedHandler(path => {
+    if (path.startsWith('/api/auth/') || path.startsWith('/api/me')) setSeeker(null)
+  }), [])
 
   useEffect(() => {
     let cancelled = false

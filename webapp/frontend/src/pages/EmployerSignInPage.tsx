@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { AlertCircle, LogIn } from 'lucide-react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { AuthShell, AuthField, AuthDivider, GoogleButton } from '../components/AuthShell'
-import { loginEmployer, EMPLOYER_GOOGLE_SIGN_IN_PATH } from '../api/client'
+import { EMPLOYER_GOOGLE_SIGN_IN_PATH } from '../api/client'
+import { useEmployerAuth } from '../auth/useEmployerAuth'
+import { useReturnTo } from '../auth/useReturnTo'
 
 type Status = 'idle' | 'sending' | 'error'
 
@@ -22,15 +24,21 @@ const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
     'then connect Google from your account.',
 }
 
-/** Sign in to an existing Employer account. See EmployerRegisterPage.tsx for
- * why this is not linked from the public UI yet. */
+/** Sign in to an existing Employer account. Reached from the "Sign in"
+ * chooser (SignInChooserPage.tsx) or, for a recruiter without one yet, by
+ * PostRolePage.tsx redirecting itself here. */
 export default function EmployerSignInPage() {
+  const { employer, loading: authLoading, login } = useEmployerAuth()
   const navigate = useNavigate()
+  const returnTo = useReturnTo('/post-a-role')
   const [searchParams] = useSearchParams()
   const googleErrorCode = searchParams.get('error')
   const googleError = googleErrorCode ? GOOGLE_ERROR_MESSAGES[googleErrorCode] : undefined
   const [status, setStatus] = useState<Status>(googleError ? 'error' : 'idle')
   const [error, setError] = useState(googleError ?? '')
+
+  // Already signed in as this Employer: nothing left for this page to do.
+  if (!authLoading && employer) return <Navigate to={returnTo} replace />
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -49,8 +57,8 @@ export default function EmployerSignInPage() {
     setStatus('sending')
     setError('')
     try {
-      await loginEmployer(email, password)
-      navigate('/post-a-role', { replace: true })
+      await login(email, password)
+      navigate(returnTo, { replace: true })
     } catch (err) {
       setStatus('error')
       setError(
