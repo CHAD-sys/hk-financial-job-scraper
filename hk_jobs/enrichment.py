@@ -187,13 +187,24 @@ class EnrichmentPipeline:
                                 source_tier=row["source_tier"],
                             )
                             est_confidence = data.get("salary_estimated_confidence")
-                            if row["source"] == "linkedin_posts":
-                                # Recruiter posts: only ever show a salary the recruiter
-                                # actually disclosed (salary_hkd_min/max, detected from the
-                                # post text above) — never an AI guess. A post with no
-                                # figure stated should show no salary, not a fabricated one.
-                                est_salary_min = est_salary_max = None
-                                est_confidence = None
+                            # Recruiter posts used to have their estimate discarded here —
+                            # "never an AI guess, a post with no figure stated should show
+                            # no salary, not a fabricated one". Reversed by owner decision
+                            # (2026-08-05): they now estimate like every other source.
+                            #
+                            # What changed is not the risk but where it is answered. The
+                            # objection was that a number derived from a title and a few
+                            # lines of social copy would be read as a disclosed figure.
+                            # It is not: the UI renders an estimate muted, in mono, behind
+                            # an explicit "AI est." tag, and a disclosed salary always wins
+                            # over it (webapp/frontend/src/components/JobCard.tsx →
+                            # CardFooter). Withholding the number entirely told a Seeker
+                            # nothing at all about a fifth of the Secret Market; labelling
+                            # it tells them what it is worth.
+                            #
+                            # The estimate still goes through salary.finalise() above like
+                            # every other row, so the clamp and the magnitude fix apply —
+                            # these are not raw model output.
                             conn.execute(
                                 """
                                 INSERT INTO job_enrichments
