@@ -66,8 +66,24 @@ class Settings:
     #: Submissions per hour, per key. In-memory, so per-process.
     submit_rate_limit: int = 3
 
+    #: Trust X-Forwarded-For for rate-limit keys and logging. True by default
+    #: because production (Railway) always sits behind a proxy that sets it
+    #: honestly. The escape hatch is for a deployment reachable directly,
+    #: where the header is caller-controlled and every IP-keyed rate limit
+    #: (register, login, reset, employer register/login) could otherwise be
+    #: routed around by forging a fresh value on every request.
+    trust_proxy_headers: bool = True
+
     #: Optional one-time download to seed an empty volume on first boot.
     db_seed_url: str = ""
+
+    #: Redis connection string for the rate limiter. Empty (the default) means
+    #: the in-process RateLimiter — correct for one replica, resets on deploy.
+    #: Set this once the app runs more than one replica, or takes payment, so
+    #: every replica shares one count instead of each starting from zero
+    #: (rate_limit.py). Railway's Redis plugin sets this automatically once
+    #: attached and referenced via a variable reference on the backend service.
+    redis_url: str = ""
 
     def __post_init__(self) -> None:
         # Submissions default to sitting beside the database, which is the
@@ -98,6 +114,8 @@ class Settings:
             cookie_secure=_flag("SESSION_COOKIE_SECURE", default=True),
             submit_rate_limit=int(os.environ.get("SUBMIT_RATE_LIMIT", "3")),
             db_seed_url=os.environ.get("DB_SEED_URL", "").strip(),
+            trust_proxy_headers=_flag("TRUST_PROXY_HEADERS", default=True),
+            redis_url=os.environ.get("REDIS_URL", "").strip(),
         )
 
     # ── Derived ───────────────────────────────────────────────────────────────

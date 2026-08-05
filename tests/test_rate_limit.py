@@ -25,7 +25,7 @@ from .support import BACKEND, make_app
 if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 
-from rate_limit import RateLimiter  # noqa: E402
+from rate_limit import RateLimiter, RedisRateLimiter  # noqa: E402
 
 
 class Clock:
@@ -293,3 +293,160 @@ def test_the_endpoints_no_longer_leak_a_key_per_attempt(tmp_path, endpoint, payl
     client.post(endpoint, json={**payload, "email": "final@example.com"})
 
     assert app.state.limiter.stats()["keys"] <= 2
+
+
+# ── RedisRateLimiter — the shared implementation ────────────────────────────
+#
+# Same sliding-window contract as RateLimiter above, proven against a real
+# Lua interpreter (fakeredis[lua], not a Python stand-in) so these tests catch
+# a script bug the same way a real Redis server would. `capacity`/sweep tests
+# have no equivalent here — see RedisRateLimiter's docstring for why a shared
+# store does not have that problem the same way a per-process dict does.
+
+def redis_limiter(**kw) -> tuple[RedisRateLimiter, Clock]:
+    import fakeredis
+
+    clock = Clock()
+    rl = RedisRateLimiter("redis://unused", client=fakeredis.FakeRedis(), clock=clock, **kw)
+    return rl, clock
+
+
+def test_redis_calls_up_to_the_limit_are_allowed():
+    rl, _ = redis_limiter()
+    assert [rl.allow("k", limit=3, window_s=60) for _ in range(3)] == [True, True, True]
+
+
+def test_redis_the_call_after_the_limit_is_refused():
+    rl, _ = redis_limiter()
+    for _ in range(3):
+        rl.allow("k", limit=3, window_s=60)
+    assert rl.allow("k", limit=3, window_s=60) is False
+
+
+def test_redis_the_window_reopens():
+    rl, clock = redis_limiter()
+    for _ in range(3):
+        rl.allow("k", limit=3, window_s=60)
+    assert rl.allow("k", limit=3, window_s=60) is False
+
+    clock.advance(61)
+    assert rl.allow("k", limit=3, window_s=60) is True
+
+
+def test_redis_the_window_slides_rather_than_resetting():
+    rl, clock = redis_limiter()
+    rl.allow("k", limit=2, window_s=60)          # t=0
+    clock.advance(45)
+    rl.allow("k", limit=2, window_s=60)          # t=45
+    assert rl.allow("k", limit=2, window_s=60) is False
+
+    clock.advance(20)                             # t=65 — only t=0 has expired
+    assert rl.allow("k", limit=2, window_s=60) is True
+    assert rl.allow("k", limit=2, window_s=60) is False
+
+
+def test_redis_keys_are_independent():
+    rl, _ = redis_limiter()
+    for _ in range(3):
+        rl.allow("a", limit=3, window_s=60)
+    assert rl.allow("a", limit=3, window_s=60) is False
+    assert rl.allow("b", limit=3, window_s=60) is True
+
+
+def test_redis_one_key_can_carry_two_different_limits():
+    rl, _ = redis_limiter()
+    for _ in range(3):
+        assert rl.allow("k", limit=10, window_s=900) is True
+    assert rl.allow("k", limit=3, window_s=900) is False
+    assert rl.allow("k", limit=10, window_s=900) is True
+
+
+def test_redis_a_key_expires_on_its_own_instead_of_needing_a_sweep():
+    """
+    The replacement for RateLimiter's capacity/sweep pair: Redis is told
+    (via PEXPIRE) to drop the key itself once it can no longer be limiting
+    anyone, so a flood of distinct keys costs memory for one window's length,
+    not forever.
+    """
+    import fakeredis
+
+    fake = fakeredis.FakeRedis()
+    rl = RedisRateLimiter("redis://unused", client=fake)
+    rl.allow("k", limit=3, window_s=60)
+    ttl_ms = fake.pttl("k")
+    assert 0 < ttl_ms <= 61_000
+
+
+def test_redis_fails_open_when_unreachable():
+    """
+    A rate limiter that is down must not become a second way to take the site
+    down. `object()` has no `register_script`/EVAL support, standing in for a
+    Redis connection that raises on every call.
+    """
+    import redis as redis_module
+
+    class _BrokenScript:
+        def __call__(self, *a, **kw):
+            raise redis_module.RedisError("connection refused")
+
+    class _BrokenRedis:
+        def register_script(self, _lua):
+            return _BrokenScript()
+
+    rl = RedisRateLimiter("redis://unused", client=_BrokenRedis())
+    assert rl.allow("k", limit=1, window_s=60) is True
+    assert rl.allow("k", limit=1, window_s=60) is True, "must keep failing open, not just once"
+
+
+def test_redis_the_limit_holds_under_concurrent_callers():
+    """
+    The atomicity guarantee this class exists for: two replicas (simulated
+    here as two threads sharing one fake Redis) racing on the same key must
+    not both slip through on a stale count. Correctness comes from the Lua
+    script running atomically inside Redis, not from a Python-side lock.
+
+    max_connections is raised because fakeredis's default pool is small
+    enough that 200 real threads exhaust it — a real Redis server has no such
+    ceiling, and a starved connection here would surface as a fail-open
+    (correct behaviour, tested separately) rather than the race this test is
+    actually checking for.
+    """
+    import threading
+
+    import fakeredis
+
+    fake = fakeredis.FakeRedis(max_connections=250)
+    rl = RedisRateLimiter("redis://unused", client=fake)
+    allowed: list[bool] = []
+    lock = threading.Lock()
+
+    def hit() -> None:
+        ok = rl.allow("shared", limit=20, window_s=3600)
+        with lock:
+            allowed.append(ok)
+
+    threads = [threading.Thread(target=hit) for _ in range(200)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert sum(allowed) == 20
+
+
+# ── Wiring ────────────────────────────────────────────────────────────────────
+
+def test_app_uses_redis_limiter_once_redis_url_is_set(tmp_path):
+    """
+    Construction alone must not require a live Redis connection — register_script
+    only wraps the script text, so a app can boot even if Redis is briefly
+    unreachable (the actual connection attempt happens lazily, on the first
+    allow() call, which is where the fail-open behaviour takes over).
+    """
+    app = make_app(tmp_path / "db.sqlite", redis_url="redis://localhost:1")
+    assert isinstance(app.state.limiter, RedisRateLimiter)
+
+
+def test_app_uses_in_process_limiter_when_redis_url_is_unset(tmp_path):
+    app = make_app(tmp_path / "db.sqlite")
+    assert isinstance(app.state.limiter, RateLimiter)

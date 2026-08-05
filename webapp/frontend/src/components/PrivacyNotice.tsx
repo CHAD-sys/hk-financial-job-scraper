@@ -9,20 +9,23 @@ import { ShieldCheck } from 'lucide-react'
  *
  * 1. This is NOT legal advice and has not been reviewed by a lawyer. It is a
  *    good-faith, accurate description of what the software actually does, which
- *    is the hard part — but a solicitor should read it before launch.
+ *    is the hard part.
  *
- * 2. ACCOUNTS_LIVE below controls whether this notice describes the account
- *    system. Accounts do NOT exist yet, so it is false: DPP1 requires a data
- *    user to state the purposes for which data is ACTUALLY collected, and a
- *    notice telling visitors we hold their name, email and a password hash when
- *    we hold none of it is itself inaccurate. Set it back to true the day
- *    accounts ship — and rewrite the account clauses at the same time, since
- *    they were drafted before the build and still describe things v1 does not do
- *    (see docs/PLAN_ACCOUNTS.md §7).
+ * 2. ACCOUNTS_LIVE controls whether this notice describes the account system.
+ *    Accounts shipped (docs/PLAN_ACCOUNTS.md), so this is true, and the account
+ *    clauses below were rewritten to match v1 exactly at the same time — not
+ *    just flipped — per §7: "application status" is gone (not built, see §10's
+ *    non-goals), and two disclosures the pre-launch draft lacked were added —
+ *    the mail host that sends Seeker account email (US-based, so it is a
+ *    cross-border transfer) in clause 6, and Google as a party when someone
+ *    signs in with Google, in clauses 2 and 6. If accounts are ever pulled back
+ *    out, set this back to false FIRST and match the clause text to it, not the
+ *    other way round — DPP1 requires the notice to describe what is actually
+ *    collected, not what may return later.
  */
-const ACCOUNTS_LIVE = false
+const ACCOUNTS_LIVE = true
 
-const LAST_UPDATED = '27 July 2026'
+const LAST_UPDATED = '5 August 2026'
 const CONTACT_EMAIL = 'amine@finexclub.org'
 
 interface Clause {
@@ -53,11 +56,11 @@ const CLAUSES: Clause[] = [
         <ul className="mt-2 flex flex-col gap-2">
           {[
             ACCOUNTS_LIVE &&
-              'Account details — your name, email address and a password, which is stored only as a cryptographic hash. We never see or store your password in readable form.',
+              'Account details — your name and email address always; a password, stored only as a cryptographic hash we can never read back, if you set one. If you sign in with Google instead, we receive your name and email address from Google and store no password at all.',
             'Consultation enquiries — the name, email address, career stage and message you type into the enquiry form.',
             'Role submissions — if you post a role, your name and email address alongside the role details you supply.',
             ACCOUNTS_LIVE
-              ? 'Saved roles and application status — held against your account so they follow you between devices. Without an account they stay in your own browser and never reach us.'
+              ? 'Saved roles — held against your account so they follow you between devices. Without an account they stay in your own browser and never reach us.'
               : 'Saved roles — held in your own browser only. They never reach our servers.',
             'Technical data — your IP address and request details, recorded briefly by the server to rate-limit abuse of the public forms.',
           ]
@@ -122,9 +125,15 @@ const CLAUSES: Clause[] = [
     body: (
       <>
         Only the service providers needed to run the platform: our email provider, which
-        delivers your enquiry to us, and our hosting provider. They act on our instructions
-        and for no other purpose. Job listings themselves come from employers' own public
-        postings and are not personal data about you.
+        delivers your enquiry to us, and our hosting provider
+        {ACCOUNTS_LIVE
+          ? ', and the mail host that sends Seeker account email — verification and password reset — from a server based in the United States, which means your email address is transferred outside Hong Kong for that purpose'
+          : ''}
+        . They act on our instructions and for no other purpose.{' '}
+        {ACCOUNTS_LIVE &&
+          'If you choose to sign in with Google instead of a password, Google is also party to that exchange under its own privacy policy — we receive only your name, email address and a Google account identifier from it, never your Google password. '}
+        Job listings themselves come from employers' own public postings and are not personal
+        data about you.
       </>
     ),
   },

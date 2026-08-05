@@ -39,11 +39,22 @@ already a denial of service, and this fails in the safe direction.
 from __future__ import annotations
 
 import logging
+import secrets
 import threading
 import time
 from collections.abc import Callable
+from typing import Protocol
 
 logger = logging.getLogger(__name__)
+
+
+class Limiter(Protocol):
+    """What every rate limiter implementation offers — see sender.py's `Sender`
+    for the same pattern. `RateLimiter` (in-process) and `RedisRateLimiter`
+    (shared) both satisfy this; `create_app()` picks one from `Settings`."""
+
+    def allow(self, key: str, *, limit: int, window_s: float) -> bool: ...
+    def stats(self) -> dict[str, int]: ...
 
 #: Distinct keys tracked at once. 100k costs ~22 MiB, which is affordable on the
 #: single instance this runs on, and is far more distinct emails than a real hour
@@ -152,3 +163,100 @@ class RateLimiter:
                 "capacity": self._capacity,
                 "refused": self._refusals,
             }
+
+
+# ── The shared implementation, for when a process is not the only one ─────────
+#
+# One Lua script, run atomically by Redis itself: drop hits older than the
+# window, count what is left, and only record the new hit if that count is
+# still under `limit`. Atomic matters here for the same reason `RateLimiter`
+# above takes a lock — two replicas must not both read "9 of 10 used" and both
+# let a 10th and 11th attempt through.
+_SLIDING_WINDOW_LUA = """
+local key = KEYS[1]
+local now = tonumber(ARGV[1])
+local window = tonumber(ARGV[2])
+local limit = tonumber(ARGV[3])
+local member = ARGV[4]
+
+redis.call('ZREMRANGEBYSCORE', key, '-inf', now - window)
+local count = redis.call('ZCARD', key)
+if count >= limit then
+  return 0
+end
+redis.call('ZADD', key, now, member)
+redis.call('PEXPIRE', key, math.ceil(window * 1000) + 1000)
+return 1
+"""
+
+
+class RedisRateLimiter:
+    """
+    The same sliding-window limit as `RateLimiter`, backed by Redis instead of
+    a per-process dict — so every replica, and a process that just redeployed,
+    shares one count instead of each starting from zero (see this module's
+    docstring — that gap is the whole reason this class exists).
+
+    Each key is a Redis sorted set: member = one call, score = when it
+    happened. There is no `capacity`/sweep pair to reason about the way
+    `RateLimiter` needs one: Redis expires each key a little past its own
+    window (`PEXPIRE` below), so a flood of distinct keys costs memory for at
+    most one window's length, never forever — the unbounded-growth problem
+    `RateLimiter`'s docstring describes does not exist the same way against a
+    real store.
+
+    If Redis is unreachable, `allow()` fails OPEN rather than refusing every
+    request in the process: a rate limiter going down should not become a
+    second way to take the whole site down.
+    """
+
+    def __init__(
+        self,
+        redis_url: str,
+        *,
+        client: object | None = None,
+        clock: Callable[[], float] = time.time,
+    ) -> None:
+        if client is not None:
+            self._redis = client
+        else:
+            import redis as redis_module
+
+            self._redis = redis_module.Redis.from_url(
+                redis_url, socket_connect_timeout=2, socket_timeout=2,
+            )
+        self._script = self._redis.register_script(_SLIDING_WINDOW_LUA)
+        self._clock = clock
+        self._refused = 0
+        self._lock = threading.Lock()
+
+    def allow(self, key: str, *, limit: int, window_s: float) -> bool:
+        import redis as redis_module
+
+        now = self._clock()
+        # secrets.token_hex, not a counter: two threads racing on the same
+        # process must never generate the same sorted-set member, or the
+        # second ZADD silently overwrites the first instead of adding a hit.
+        member = f"{now}-{secrets.token_hex(4)}"
+        try:
+            result = self._script(keys=[key], args=[now, window_s, limit, member])
+        except redis_module.RedisError:
+            logger.warning("Redis rate limiter unreachable — failing open for %r", key,
+                            exc_info=True)
+            return True
+        allowed = bool(result)
+        if not allowed:
+            with self._lock:
+                self._refused += 1
+        return allowed
+
+    def stats(self) -> dict[str, int]:
+        """
+        Best-effort only. Unlike `RateLimiter`, there is no single "this
+        table's keys" to count — Redis holds every replica's keys together,
+        and counting them exactly means an O(keys) SCAN this method has no
+        reason to pay for. `refused` is this process's count since it started,
+        not the shared total.
+        """
+        with self._lock:
+            return {"refused": self._refused}

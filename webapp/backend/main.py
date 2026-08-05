@@ -9,6 +9,7 @@ email a notification; neither publishes anything without human review.
 
 from __future__ import annotations
 
+import asyncio
 import hmac
 import json
 import logging
@@ -56,7 +57,7 @@ from mailer import RECIPIENT, SMTP_USER, send_mail  # noqa: E402
 # filtered, sorted, counted and shaped for the wire lives in this module — see
 # its docstring for why "browsing is filtered, addressing is not".
 import job_read  # noqa: E402
-from rate_limit import RateLimiter  # noqa: E402
+from rate_limit import RateLimiter, RedisRateLimiter  # noqa: E402
 from sender import Message, Sender, SmtpSender  # noqa: E402
 from settings import Settings  # noqa: E402
 from job_read import (  # noqa: E402
@@ -161,6 +162,42 @@ class StatsResponse(BaseModel):
 # ── App ────────────────────────────────────────────────────────────────────────
 
 
+_SESSION_PURGE_INTERVAL_S = 24 * 60 * 60  # once a day is plenty for housekeeping
+
+
+def _purge_expired_sessions() -> None:
+    """
+    Delete session rows past their expiry, in both account stores.
+
+    Both stores' `purge_expired_sessions()` were written with this exact use in
+    mind ("safe to call on startup or from a periodic task") but had no caller
+    anywhere in the codebase — expired rows were only ever removed one at a
+    time, on the read that happened to land on them (`auth.verify_session`).
+    Correct, but the table only ever grows. Imported locally so this file's
+    carefully-ordered top-of-module imports (see the comments above them) never
+    have to account for it.
+    """
+    import employers_store
+    import seekers_store
+
+    seeker_n = seekers_store.get_store().purge_expired_sessions()
+    employer_n = employers_store.get_store().purge_expired_sessions()
+    if seeker_n or employer_n:
+        logger.info(
+            "Purged expired sessions: %d seeker(s), %d employer(s)", seeker_n, employer_n
+        )
+
+
+async def _purge_expired_sessions_periodically() -> None:
+    """Repeat the startup purge for a process that stays up longer than a day."""
+    while True:
+        await asyncio.sleep(_SESSION_PURGE_INTERVAL_S)
+        try:
+            _purge_expired_sessions()
+        except Exception:
+            logger.exception("Periodic session purge failed")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -177,6 +214,8 @@ async def lifespan(app: FastAPI):
     """
     settings: Settings = app.state.settings
     _seed_db_if_missing(settings)
+    _purge_expired_sessions()
+    purge_task = asyncio.create_task(_purge_expired_sessions_periodically())
 
     if SMTP_USER:
         logger.info("Email configured — enquiries will be sent to %s", RECIPIENT)
@@ -199,7 +238,14 @@ async def lifespan(app: FastAPI):
             "at an existing dist/ directory.",
             settings.frontend_dist,
         )
-    yield
+    try:
+        yield
+    finally:
+        purge_task.cancel()
+        try:
+            await purge_task
+        except asyncio.CancelledError:
+            pass
 
 
 # ── /api/jobs ─────────────────────────────────────────────────────────────────
@@ -475,10 +521,20 @@ _RATE_WINDOW_S = 3600
 
 
 def _client_ip(request: Request) -> str:
-    """Left-most X-Forwarded-For entry when behind a proxy (Railway), else peer."""
-    fwd = request.headers.get("x-forwarded-for", "")
-    if fwd:
-        return fwd.split(",")[0].strip()
+    """
+    Left-most X-Forwarded-For entry when behind a trusted proxy (Railway), else
+    the direct peer.
+
+    Gated on settings.trust_proxy_headers — every IP-keyed rate limit in this
+    file (register, login, reset, employer register/login, contact, post-role)
+    reads its key from this function, so trusting the header unconditionally
+    would let a caller who can reach the app directly forge a fresh IP on every
+    request and route around all of them.
+    """
+    if cfg(request).trust_proxy_headers:
+        fwd = request.headers.get("x-forwarded-for", "")
+        if fwd:
+            return fwd.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
 
 
@@ -940,6 +996,12 @@ def login(payload: LoginIn, request: Request, response: Response):
     if not auth.verify_password(row["password_hash"] if row else None, payload.password):
         store.log_event("seeker.login_failed", seeker_id=row["id"] if row else None)
         raise HTTPException(status_code=401, detail="Email or password is incorrect")
+
+    # The plaintext is only ever available right here, on a successful login —
+    # this is the one place Argon2 parameters can be strengthened for the whole
+    # Seeker base without forcing anyone through a password reset.
+    if auth.password_needs_rehash(row["password_hash"]):
+        store.set_password_hash(row["id"], auth.hash_password(payload.password))
 
     store.touch_last_login(row["id"])
     store.log_event("seeker.login", seeker_id=row["id"])
@@ -1581,8 +1643,12 @@ def create_app(settings: Settings | None = None, *, sender: Sender | None = None
     app.state.settings = settings
     app.state.sender = sender
     # Per-app, so two apps in one process (which is what the tests build) cannot
-    # share a rate-limit budget.
-    app.state.limiter = RateLimiter()
+    # share a rate-limit budget. Redis-backed once settings.redis_url is set —
+    # see Settings.redis_url and rate_limit.py for why that matters once this
+    # runs on more than one replica.
+    app.state.limiter = (
+        RedisRateLimiter(settings.redis_url) if settings.redis_url else RateLimiter()
+    )
 
     app.add_middleware(
         CORSMiddleware,
