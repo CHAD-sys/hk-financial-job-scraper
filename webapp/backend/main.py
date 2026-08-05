@@ -203,7 +203,11 @@ async def lifespan(app: FastAPI):
 @router.get("/api/jobs", response_model=JobListResponse, tags=["jobs"])
 def list_jobs(
     request: Request,
-    search: Optional[str] = Query(None, description="Full-text search on title + company"),
+    search: Optional[str] = Query(
+        None,
+        description="Full-text search across title, company, skills and description. "
+                    "Tolerates typos and word order; sort=relevance ranks by match quality.",
+    ),
     sectors: list[str] = Query(default=[], description="Filter by sector(s)"),
     companies: list[str] = Query(default=[], description="Filter by company name(s)"),
     seniority: list[str] = Query(default=[], description="Filter by seniority level(s)"),

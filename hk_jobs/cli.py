@@ -551,6 +551,26 @@ def _analytics(args: PipelineArgs) -> None:
         logger.info("Exported %d trend records → %s", count, args.export_trends)
 
 
+def _rebuild_search_index(args: PipelineArgs) -> None:
+    """
+    Refresh jobs_fts/search_vocab after a mode that touched what they index.
+
+    Modes call this directly rather than relying on the next scrape's own
+    rebuild (pipeline.run) because `--enrich`/`--fetch-descriptions` are
+    routinely run standalone, hours or days apart from a scrape — search would
+    serve stale skills/descriptions for however long that gap is otherwise.
+    """
+    import sqlite3
+
+    from hk_jobs.search_index import rebuild_search_index
+
+    conn = sqlite3.connect(args.db)
+    try:
+        rebuild_search_index(conn)
+    finally:
+        conn.close()
+
+
 def _enrich(args: PipelineArgs) -> None:
     from hk_jobs.enrichment import EnrichmentPipeline
 
@@ -560,6 +580,7 @@ def _enrich(args: PipelineArgs) -> None:
         re_enrich=args.re_enrich,
         boutique_only=args.enrich_boutique,
     )
+    _rebuild_search_index(args)
 
 
 def _audit_salaries(args: PipelineArgs) -> None:
@@ -575,6 +596,7 @@ def _fetch_descriptions(args: PipelineArgs) -> None:
         limit=args.fetch_limit,
         incremental=args.incremental,
     )
+    _rebuild_search_index(args)
 
 
 def _fetch_posts(args: PipelineArgs) -> None:
