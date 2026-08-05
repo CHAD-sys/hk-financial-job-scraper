@@ -51,6 +51,20 @@ export default function Nav() {
   // back on it.
   const returnTo = pathname === '/signin' || pathname === '/register' ? '/jobs' : pathname + hash
 
+  /**
+   * Router state a nav item carries.
+   *
+   * `/jobs` is two screens behind one route — a search home and a results page
+   * (JobBoardPage's discover/board modes) — so "Careers" has to say WHICH of
+   * them it means. Without this it means "the route", and the route hands back
+   * whatever results you were last looking at.
+   */
+  const linkState = (to: string) => {
+    if (to === '/signin') return { from: returnTo }
+    if (to === '/jobs') return { discover: true }
+    return undefined
+  }
+
   async function handleSignOut() {
     setOpen(false)
     await logout()
@@ -100,8 +114,20 @@ export default function Nav() {
       return
     }
 
-    // A page link: drop any fragment so the URL matches where we end up, then
-    // go to the top.
+    // Careers, pressed while already on the board, means "start over" — not
+    // "scroll up". You are two screens into a results page; the thing you are
+    // reaching for is the search box you started from, and scrolling to the top
+    // of your own results does not get you there. A real navigation (rather
+    // than the preventDefault above) is what clears the filters out of the URL
+    // and gives JobBoardPage a location it can recognise as a reset.
+    if (to === '/jobs') {
+      navigate('/jobs', { state: { discover: true } })
+      scrollToTop()
+      return
+    }
+
+    // Any other page link: drop any fragment so the URL matches where we end
+    // up, then go to the top.
     if (hash) navigate(to, { replace: true })
     scrollToTop()
   }
@@ -231,6 +257,7 @@ export default function Nav() {
                   <Link
                     key={label}
                     to={to}
+                    state={linkState(to)}
                     onClick={e => handleClick(e, to)}
                     className="flex items-center text-sm font-medium no-underline transition-colors duration-150"
                     style={{
@@ -309,7 +336,7 @@ export default function Nav() {
               <Link
                 key={label}
                 to={to}
-                state={to === '/signin' ? { from: returnTo } : undefined}
+                state={linkState(to)}
                 onClick={e => {
                   setOpen(false)
                   handleClick(e, to)

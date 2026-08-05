@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useLocation } from 'react-router-dom'
 import { ChevronDown, Star, EyeOff, ArrowLeft } from 'lucide-react'
 import type { Job, FiltersResponse, JobListResponse, TierTab } from '../api/client'
 import {
@@ -10,6 +10,7 @@ import {
 import type { JobFilters } from '../api/client'
 import { useSavedRoles } from '../savedRoles/useSavedRoles'
 import { useDebounce } from '../hooks/useDebounce'
+import { scrollToTop } from '../utils/scroll'
 import Nav from '../components/Nav'
 import FilterBar from '../components/FilterBar'
 import JobCard from '../components/JobCard'
@@ -121,6 +122,36 @@ export default function JobBoardPage() {
     setForceBoard(false)
   }, [])
 
+  // "Careers" in the nav asks for the search home, not the route.
+  //
+  // Both screens live behind /jobs, so arriving at /jobs is not by itself a
+  // request for either one — landing on the board is right for a deep link
+  // carrying filters, and wrong for someone who just pressed Careers. Nav says
+  // which it means with `state.discover`, and this is where that is honoured.
+  //
+  // Keyed on location.key rather than the state object: every navigation gets a
+  // fresh key, so pressing Careers twice resets twice. Nothing else needs
+  // guarding — the URL sync below replaces the location without state, so a
+  // filter change cannot re-trigger this.
+  //
+  // Deliberately NOT "reset whenever the URL has no params". That would put a
+  // second, implicit route back to discover mode next to this explicit one, and
+  // the two would disagree the moment either changed.
+  //
+  // Note what it would collide with: `showBoard` already falls back to discover
+  // when the last filter goes, so "Clear all" on a Role reached by deep link
+  // does return to the hero (forceBoard is only set by the search box and the
+  // sector chips, never by a deep link). That is this page's existing
+  // behaviour, not something this effect does — verified in the browser — and
+  // whether it is right is a separate question from what Careers should do.
+  const location = useLocation()
+  useEffect(() => {
+    if (!(location.state as { discover?: boolean } | null)?.discover) return
+    backToSearch()
+    scrollToTop()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key])
+
   // Sync URL whenever the applied filters / sort / page change
   useEffect(() => {
     setSearchParams(filtersToSearchParams(activeFilters, sort, page), { replace: true })
@@ -190,7 +221,31 @@ export default function JobBoardPage() {
             boardTotal={boardTotal}
             onSearch={runSearch}
           />
-          <main id="main-content" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+          {/* The page rises over the masthead rather than starting after it.
+              A full-width navy block ending on a hairline, with a bold serif
+              heading and a card grid beginning immediately underneath, read as
+              two pages stacked — the value jump from #16223A to #FFFDF9 is
+              about as large as this palette allows, and nothing mediated it.
+              Overlapping the hero by one spacing step and rounding the top
+              corners turns that seam into a join: the navy is still visible
+              either side of the sheet for those few dozen pixels, so the two
+              sections are seen to be layered rather than merely adjacent.
+              The eye reads depth, and depth reads deliberate.
+
+              Why an overlap and not a gradient: navy fading to cream passes
+              through a muddy mid-grey that suits neither, and DESIGN.md keeps
+              dark surfaces stepping monotonically instead of blending. */}
+          <main
+            id="main-content"
+            className="relative mx-auto max-w-7xl -mt-8 rounded-t-3xl px-4 pt-8 pb-8 sm:-mt-12 sm:px-6 sm:pt-12 sm:pb-12 lg:px-8"
+            style={{
+              backgroundColor: 'var(--color-bg)',
+              // Structural, not decorative: it is what makes the sheet read as
+              // ABOVE the masthead rather than cut into it. Only visible in the
+              // overlap — below the join it is cream on cream.
+              boxShadow: 'var(--shadow-float)',
+            }}
+          >
             <RecommendedRoles
               filterData={filterData}
               saved={isSaved}

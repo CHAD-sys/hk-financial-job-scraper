@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   X, Bookmark, ExternalLink, MapPin, Briefcase,
-  GraduationCap, DollarSign, Tag, Calendar, MessageCircle, UserRound, EyeOff, Mail, ShieldCheck,
+  GraduationCap, DollarSign, Tag, Calendar, EyeOff, ShieldCheck,
   Archive,
 } from 'lucide-react'
 import type { Job, JobDetail, LinkedInPostSignals } from '../api/client'
@@ -10,7 +10,7 @@ import SourceBadges from './SourceBadges'
 import { useModalHistoryGuard } from '../hooks/useModalHistoryGuard'
 import {
   formatSalary, formatEstimatedSalary, timeAgo, getSectorColor,
-  getSeniorityColor, formatRemoteType, shortLocation,
+  getSeniorityColor, formatRemoteType, shortLocation, displayCompany,
 } from '../utils/format'
 
 interface Props {
@@ -142,7 +142,11 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
             )}
 
             <SeniorityBadge seniority={job.seniority} />
-            <SkillsSection skills={d.required_skills} />
+            {/* Withheld on a Recruiter Post — there is no job description behind
+                these, only a few lines of social copy, so they are the model's
+                guess rather than the employer's requirement. Same rule as the
+                card; the reasoning is written out in JobCard.tsx. */}
+            {job.source_tier !== 'social' && <SkillsSection skills={d.required_skills} />}
             <DescriptionSection
               loading={loading}
               text={
@@ -211,7 +215,7 @@ function ModalHeader({
           {displayTitle}
         </h2>
         <p className="text-sm font-medium" style={{ color: 'var(--color-ink-muted)' }}>
-          {job.company}
+          {displayCompany(job.company, job.source_tier)}
         </p>
       </div>
 
@@ -255,7 +259,10 @@ function ModalHeader({
 // PLAN_LINKEDIN_POSTS.md decision #9.
 
 function RecruiterAttribution({ signals }: { signals: LinkedInPostSignals | undefined }) {
-  if (!signals?.recruiter_name) return null
+  // Was `!signals?.recruiter_name` — the block existed to introduce a named
+  // person, so no name meant nothing to say. It now explains what kind of
+  // listing this is, which is worth saying whether or not a name was harvested.
+  if (!signals) return null
   return (
     <div
       className="flex items-start gap-3 rounded-lg p-4"
@@ -278,34 +285,18 @@ function RecruiterAttribution({ signals }: { signals: LinkedInPostSignals | unde
             </span>
           )}
         </div>
+        {/* No name, no profile link, no email. The poster is described by what
+            they did, not who they are; the post itself is the only way through
+            to them. See the note in JobCard.tsx for why. */}
         <p className="text-sm mt-1" style={{ color: 'var(--color-ink)' }}>
-          Sourced from a LinkedIn post by{' '}
-          {signals.recruiter_profile_url ? (
-            <a
-              href={signals.recruiter_profile_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold underline"
-              style={{ color: '#6B4EFF' }}
-            >
-              {signals.recruiter_name}
-            </a>
-          ) : (
-            <span className="font-semibold">{signals.recruiter_name}</span>
-          )}
-          {signals.employer_hint ? ` — described only as "${signals.employer_hint}"` : ''}.
+          Sourced from a recruiter's own LinkedIn post
+          {signals.employer_hint ? ` — the employer is described only as "${signals.employer_hint}"` : ''}.
           This role doesn't appear on any public job board.
         </p>
-        {signals.recruiter_email && (
-          <a
-            href={`mailto:${signals.recruiter_email}`}
-            className="inline-flex items-center gap-1.5 text-sm font-medium mt-2"
-            style={{ color: '#6B4EFF' }}
-          >
-            <Mail size={13} strokeWidth={2} aria-hidden="true" />
-            {signals.recruiter_email}
-          </a>
-        )}
+        <p className="text-sm mt-1" style={{ color: 'var(--color-ink-muted)' }}>
+          Read the original post to see what was actually said about the role,
+          and reply there if you want to be considered.
+        </p>
       </div>
     </div>
   )
@@ -509,17 +500,18 @@ function DescriptionSection({ loading, text }: { loading: boolean; text: string 
 // recruiter), with the original post as a secondary link, per decision #9.
 
 function ApplyFooter({ job }: { job: Job }) {
-  const signals = job.board_signals?.linkedin_posts as unknown as LinkedInPostSignals | undefined
-  const profileUrl = job.source_tier === 'social' ? signals?.recruiter_profile_url : null
-
-  if (profileUrl) {
+  // A Recruiter Post has exactly one destination: the post. The profile link
+  // ("DM {recruiter} to apply") and the mailto that used to sit here are gone —
+  // see the note in JobCard.tsx. job.url is the post permalink for this source,
+  // set in hk_jobs/posts/promote.py.
+  if (job.source_tier === 'social' && job.url) {
     return (
       <div
-        className="flex-shrink-0 px-6 py-4 flex flex-col gap-2"
+        className="flex-shrink-0 px-6 py-4"
         style={{ borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)' }}
       >
         <a
-          href={profileUrl}
+          href={job.url}
           target="_blank"
           rel="noopener noreferrer"
           className="flex w-full items-center justify-center gap-2 rounded py-3 text-sm font-semibold transition-all duration-200 cursor-pointer"
@@ -527,35 +519,12 @@ function ApplyFooter({ job }: { job: Job }) {
           onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#5A3FE0')}
           onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#6B4EFF')}
         >
-          <MessageCircle size={15} strokeWidth={2} />
-          DM {signals?.recruiter_name ?? 'the recruiter'} to apply
+          View the original LinkedIn post
+          <ExternalLink size={15} strokeWidth={2} />
         </a>
-        {signals?.recruiter_email && (
-          <a
-            href={`mailto:${signals.recruiter_email}`}
-            className="flex w-full items-center justify-center gap-2 rounded py-2.5 text-sm font-medium transition-all duration-200 cursor-pointer"
-            style={{
-              backgroundColor: 'var(--color-surface)',
-              color: '#6B4EFF',
-              border: '1px solid rgba(107,78,255,0.35)',
-            }}
-          >
-            <Mail size={14} strokeWidth={2} />
-            Email {signals.recruiter_name}
-          </a>
-        )}
-        {job.url && (
-          <a
-            href={job.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-1.5 text-xs font-medium py-1"
-            style={{ color: 'var(--color-ink-faint)' }}
-          >
-            <UserRound size={12} strokeWidth={1.8} />
-            View original LinkedIn post
-          </a>
-        )}
+        <p className="text-center text-xs mt-2" style={{ color: 'var(--color-ink-faint)' }}>
+          There is no formal application for this Role. Respond to the post itself.
+        </p>
       </div>
     )
   }

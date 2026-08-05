@@ -42,6 +42,8 @@ All tokens are defined as CSS custom properties in `src/index.css` via `@theme {
 | `--color-border-strong` | `#CBD5E1` | Emphasis borders, focused inputs |
 | `--color-ring` | `#1E3A8A` | Keyboard focus ring |
 | `--color-destructive` | `#DC2626` | Errors, danger actions |
+| `--color-closed` | `#334155` | The status band on a closed Role's card |
+| `--color-closed-surface` | `#F1EFEA` | The card surface of a closed Role |
 
 > **Source**: ui-ux-pro-max `--domain color "fintech institutional premium"` → Banking/Traditional Finance palette,
 > adjusted gold from `#CA8A04` → `#9A6F00` for WCAG AA 4.5:1 compliance on white.
@@ -210,6 +212,30 @@ Defined in `--shadow-*` tokens. Each level adds depth without heavy drop shadows
 - Padding: `0.75rem 1.5rem`
 - Radius: `0.25rem` (4px — Swiss, not rounded-full)
 - Transition: `200ms ease-out` background-color
+
+### Closed Roles
+A Role that has closed appears only in Saved Roles and on a direct detail URL —
+the board never returns one (ADR 0010). The card must therefore be identifiable
+*across a grid*, not on inspection, which a badge cannot do.
+
+- **Band, not badge.** `--color-closed` fills a full-width band across the head
+  of the card, in the slot the 2px sector accent occupies on a live card. One
+  word, `CLOSED`, uppercase 13px/700 at `0.16em` tracking, `--color-ink-inverse`.
+- **No chroma.** The card gives up its sector palette, its gold/purple tier
+  chips and its seniority colour, all substituted for neutrals in one place
+  (`CLOSED_NEUTRAL` in `JobCard.tsx`). Surrounding live cards keep theirs, and
+  that absence is the signal that carries at distance.
+- **No liveness claims.** "Urgently hiring", "New", applicant counts, recruiter
+  attribution and the "Verified" chip are all assertions about a vacancy someone
+  can still apply to. They are removed, not greyed.
+- **Four redundant channels**: value (dark band on a recessed surface), position
+  (head of the card), pattern (45° hatching on the band), and the word itself.
+  Nothing depends on hue — it survives greyscale.
+- Neutralised chip text is `--color-ink-muted` (~5.6:1 on `--color-surface-2`),
+  never `--color-ink-faint` (~2.4:1). Removing colour must not remove contrast.
+- **Not the disabled treatment.** No opacity wash, no `not-allowed` cursor: the
+  card stays clickable, because revisiting what you applied to after it closed
+  is the reason the Role is still saved at all. Archived, not switched off.
 
 ### Section Dividers
 - Use `1px solid --color-border` — never bold rules

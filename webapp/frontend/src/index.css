@@ -43,6 +43,14 @@
   --color-ring:          #1E3A8A;
   --color-destructive:   #DC2626;
 
+  /* A closed Role is neither an error nor a disabled control — it is archived.
+     Slate rather than --color-destructive, and dark enough that a solid band of
+     it reads across a grid of white cards before anyone reads the word on it.
+     The surface is one step below --color-surface-2, so a closed card is a
+     different value from every live card around it. */
+  --color-closed:         #334155;
+  --color-closed-surface: #F1EFEA;
+
   /* ── Typography ───────────────────────────────────────────── */
   --font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
   --font-sans:    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -234,6 +242,33 @@ select.finex-input {
   transition: box-shadow 200ms, border-color 200ms, transform 200ms var(--ease-out-expo);
 }
 .job-card:active { transform: scale(0.985); }
+
+/* ── Closed Roles (Saved Roles grid) ───────────────────────────
+   A Role that has closed must be identifiable across a full grid without
+   reading any of it, so the signal is shape and saturation rather than a
+   badge: a solid band across the head of the card, and a body carrying no
+   colour at all. Every live card around it has a sector accent, a gold or
+   purple tier chip, sometimes a red "Urgently hiring" — the closed one has
+   none of that, and the absence is what the eye lands on first.
+
+   Three redundant channels, so none of them has to work alone: value (dark
+   band, dimmer surface), saturation (no chroma anywhere on the card), and
+   the word CLOSED. Colour is never the only carrier.
+
+   Deliberately NOT the disabled treatment — no opacity wash, no
+   not-allowed cursor. The card is still clickable, because revisiting what
+   you applied to after it closed is the entire reason the Role is still
+   here. Archived, not switched off. */
+.closed-band {
+  background-color: var(--color-closed);
+  /* Hatching: a fourth channel, and the one that survives being seen in
+     greyscale, at low brightness, or out of the corner of an eye. */
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.09) 0 5px,
+    transparent 5px 10px
+  );
+}
 
 /* ── Mobile filter sheet (full-screen overlay, z-300 — above Nav's
    z-200 since it takes over the whole screen including the nav) ── */
