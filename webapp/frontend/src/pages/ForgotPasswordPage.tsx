@@ -110,7 +110,7 @@ export default function ForgotPasswordPage() {
           <AuthField label="Email" htmlFor="fp-email">
             <input
               id="fp-email" name="email" type="email" required maxLength={MAX_EMAIL}
-              autoComplete="email" autoFocus className="finex-input"
+              autoComplete="email" className="finex-input"
             />
           </AuthField>
 

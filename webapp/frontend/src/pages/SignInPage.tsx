@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { AlertCircle, LogIn } from 'lucide-react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
-import { AuthShell, AuthField, AuthDivider, GoogleButton } from '../components/AuthShell'
+import { AuthShell, AuthField, AuthDivider, GoogleButton, LinkedInButton } from '../components/AuthShell'
 import { useAuth } from '../auth/useAuth'
 import { useReturnTo } from '../auth/useReturnTo'
 
@@ -10,15 +10,21 @@ type Status = 'idle' | 'sending' | 'error'
 const MAX = { email: 200, password: 128 } as const
 
 /**
- * The ?error= codes main.py's /api/auth/google/callback redirects here with,
- * turned into something a Seeker can act on. Anything not in this map (or
- * absent) shows nothing — an unrecognised code is not a licence to guess.
+ * The ?error= codes main.py's /api/auth/google/callback and
+ * /api/auth/linkedin/callback redirect here with, turned into something a
+ * Seeker can act on. Anything not in this map (or absent) shows nothing — an
+ * unrecognised code is not a licence to guess.
  */
-const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   google_unavailable: 'Signing in with Google is not switched on yet. Use email and password below.',
   google_failed: 'Something went wrong signing in with Google. Please try again.',
   google_link_refused:
     'That Google address already has an account here, but Google did not confirm it is verified. ' +
+    'Sign in with your password instead, or use "Forgot password?" if you never set one.',
+  linkedin_unavailable: 'Signing in with LinkedIn is not switched on yet. Use email and password below.',
+  linkedin_failed: 'Something went wrong signing in with LinkedIn. Please try again.',
+  linkedin_link_refused:
+    'That LinkedIn address already has an account here, but LinkedIn did not confirm it is verified. ' +
     'Sign in with your password instead, or use "Forgot password?" if you never set one.',
 }
 
@@ -34,13 +40,17 @@ export default function SignInPage() {
   const navigate = useNavigate()
   const returnTo = useReturnTo()
   const [searchParams] = useSearchParams()
-  const googleErrorCode = searchParams.get('error')
-  const googleError = googleErrorCode ? GOOGLE_ERROR_MESSAGES[googleErrorCode] : undefined
-  const [status, setStatus] = useState<Status>(googleError ? 'error' : 'idle')
-  const [error, setError] = useState(googleError ?? '')
+  const oauthErrorCode = searchParams.get('error')
+  const oauthError = oauthErrorCode ? OAUTH_ERROR_MESSAGES[oauthErrorCode] : undefined
+  const [status, setStatus] = useState<Status>(oauthError ? 'error' : 'idle')
+  const [error, setError] = useState(oauthError ?? '')
 
-  // Already signed in: this page has nothing to offer.
-  if (!authLoading && seeker) return <Navigate to={returnTo} replace />
+  // Already signed in: this page has nothing to offer. An admin goes to the
+  // chooser, not straight to /admin — ModeChooserPage.tsx is what asks "which
+  // view do you want", every time, rather than assuming last time's answer.
+  if (!authLoading && seeker) {
+    return <Navigate to={seeker.is_admin ? '/choose-view' : returnTo} state={{ from: returnTo }} replace />
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -52,15 +62,23 @@ export default function SignInPage() {
 
     if (!email || !password) {
       setStatus('error')
-      setError('Enter your email and password.')
+      setError('Enter your email (or username) and password.')
       return
     }
 
     setStatus('sending')
     setError('')
     try {
-      await login(email, password)
-      navigate(returnTo, { replace: true })
+      const me = await login(email, password)
+      // Admin Mode is the same sign-in, so the branch happens here rather than
+      // at the route level. An admin is ASKED which view they want — every
+      // sign-in, not just the first — rather than being dropped straight into
+      // /admin on an assumption. ModeChooserPage carries returnTo forward for
+      // whichever answer they give.
+      navigate(me?.is_admin ? '/choose-view' : returnTo, {
+        replace: true,
+        state: { from: returnTo },
+      })
     } catch (err) {
       setStatus('error')
       setError(
@@ -90,14 +108,23 @@ export default function SignInPage() {
           boxShadow: 'var(--shadow-card)',
         }}
       >
-        <GoogleButton label="Continue with Google" />
+        <div className="flex flex-col gap-3">
+          <GoogleButton label="Continue with Google" />
+          <LinkedInButton label="Continue with LinkedIn" />
+        </div>
         <AuthDivider />
 
         <form onSubmit={handleSubmit} noValidate>
-          <AuthField label="Email" htmlFor="si-email">
+          {/* type="text", not "email": Admin Mode's accounts sign in with a
+              plain username (seekers_store.migrate_to_phase_3), and a browser
+              enforces email-shaped input client-side on type="email" — it
+              would block "kenson" before this form ever saw it. autoComplete
+              "username" is the correct token for a login field either way per
+              the WHATWG autofill spec; "email" is for account-creation forms. */}
+          <AuthField label="Email or username" htmlFor="si-email">
             <input
-              id="si-email" name="email" type="email" required maxLength={MAX.email}
-              autoComplete="email" autoFocus className="finex-input"
+              id="si-email" name="email" type="text" required maxLength={MAX.email}
+              autoComplete="username" className="finex-input"
             />
           </AuthField>
 

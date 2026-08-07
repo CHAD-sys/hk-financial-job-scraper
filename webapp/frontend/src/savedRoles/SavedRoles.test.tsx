@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Job, Seeker } from '../api/client'
 
@@ -19,6 +19,7 @@ const KEY = 'finex_saved_roles:v1'
 
 const SEEKER: Seeker = {
   id: 's-1', email: 'seeker@example.com', display_name: 'Ada', email_verified: true,
+  is_admin: false, is_super_admin: false,
 }
 
 function makeJob(over: Partial<Job> = {}): Job {
@@ -65,13 +66,16 @@ vi.mock('../api/client', async (importOriginal) => ({
 const { default: SavedRolesProvider } = await import('./SavedRolesProvider')
 const { useSavedRoles } = await import('./useSavedRoles')
 
+const TOGGLE_JOB = makeJob({ source_id: 'TOGGLE_ME', title: 'Toggle target' })
+
 /** Renders the context and prints what it holds, so assertions read off the DOM. */
 function Readout() {
-  const { savedList, count } = useSavedRoles()
+  const { savedList, count, toggle } = useSavedRoles()
   return (
     <div>
       <span data-testid="count">{count}</span>
       <span data-testid="ids">{savedList.map(j => j.source_id).sort().join(',')}</span>
+      <button data-testid="toggle" onClick={() => toggle(TOGGLE_JOB)}>toggle</button>
     </div>
   )
 }
@@ -176,5 +180,53 @@ describe('signed in', () => {
     render(<Probe />)
     await waitFor(() => expect(mergeSavedRoles).toHaveBeenCalled())
     expect(storedIds()).toContain('FROM_BROWSER')
+  })
+})
+
+// ── toggle() ────────────────────────────────────────────────────────────────────
+// react-doctor/no-impure-state-updater flagged the old implementation: it read
+// AND wrote an outer `wasSaved` variable from inside the setState updater,
+// which React may invoke more than once. The fix moved that read/write into
+// the event handler itself (via a ref), which is what these two tests pin —
+// the guarantee toggle() has always claimed in its own comment ("two quick
+// presses cannot both act on the same stale snapshot") is now backed by a test.
+
+describe('toggle', () => {
+  // Signed in (server store) specifically so saveRole/unsaveRole — the two
+  // mocks that prove which request actually fired — are the ones in play.
+  // The initial load seeds SERVER_ROLE, so the baseline count is 1; TOGGLE_JOB
+  // is a second, distinct role neither test touches at load time.
+  it('saves on the first press and calls only saveRole', async () => {
+    authState = { seeker: SEEKER, loading: false }
+    render(<Probe />)
+    await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('1'))
+
+    fireEvent.click(screen.getByTestId('toggle'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('count')).toHaveTextContent('2')
+      expect(saveRole).toHaveBeenCalledTimes(1)
+    })
+    expect(unsaveRole).not.toHaveBeenCalled()
+  })
+
+  it('two presses in the same tick save once then unsave once, never both the same way', async () => {
+    authState = { seeker: SEEKER, loading: false }
+    render(<Probe />)
+    await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('1'))
+
+    // No await between the two clicks: both onClick handlers — and both
+    // toggle() calls — run synchronously inside this one act(), with no
+    // commit in between. This is the exact race the original comment named.
+    act(() => {
+      fireEvent.click(screen.getByTestId('toggle'))
+      fireEvent.click(screen.getByTestId('toggle'))
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('count')).toHaveTextContent('1')
+      expect(saveRole).toHaveBeenCalledTimes(1)
+      expect(unsaveRole).toHaveBeenCalledTimes(1)
+    })
   })
 })

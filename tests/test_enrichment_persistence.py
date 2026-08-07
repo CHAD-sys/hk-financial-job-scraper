@@ -31,7 +31,7 @@ CREATE TABLE job_enrichments (
     enriched_at TEXT, model_used TEXT,
     salary_estimated_min INTEGER, salary_estimated_max INTEGER,
     salary_estimated_confidence TEXT, description_summary TEXT, title_en TEXT,
-    prompt_version TEXT, salary_tier TEXT, salary_role TEXT,
+    prompt_version TEXT, salary_tier TEXT, salary_role TEXT, manually_edited_at TEXT,
     UNIQUE (source, source_id)
 );
 """
@@ -117,3 +117,24 @@ def test_recruiter_post_is_estimated_like_any_other_source(db: Path):
     EnrichmentPipeline(db_path=str(db), api_key="test").run()
 
     assert _estimate(db, "linkedin_posts") == _estimate(db, "jobsdb")
+
+
+def test_manually_edited_row_survives_even_a_forced_re_enrich(db: Path):
+    """
+    Ultimate Admin's correction (webapp/backend/job_edit.py, manually_edited_at)
+    must not be the thing `--re-enrich` erases. `--re-enrich` exists to force
+    everything ELSE to be reconsidered — a human's decision on this one row is
+    not "everything else."
+    """
+    conn = sqlite3.connect(db)
+    conn.execute(
+        "INSERT INTO job_enrichments (source, source_id, salary_estimated_min, "
+        "salary_estimated_max, salary_estimated_confidence, manually_edited_at) "
+        "VALUES ('jobsdb', 'J-1', 55000, 65000, 'high', '2026-08-06T00:00:00+00:00')"
+    )
+    conn.commit()
+    conn.close()
+
+    EnrichmentPipeline(db_path=str(db), api_key="test").run(re_enrich=True)
+
+    assert _estimate(db, "jobsdb") == (55000, 65000, "high")

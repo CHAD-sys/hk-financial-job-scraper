@@ -828,6 +828,65 @@ def migrate_to_phase_32(db_path: str) -> None:
         conn.close()
 
 
+_ADMIN_EDITS_DDL = """
+CREATE TABLE IF NOT EXISTS admin_edits (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    source       TEXT NOT NULL,
+    source_id    TEXT NOT NULL,
+    seeker_id    TEXT NOT NULL,   -- webapp/backend seekers.id, not a FK: seekers
+                                   -- live in a different database (ADR 0006).
+    field        TEXT NOT NULL,
+    old_value    TEXT,
+    new_value    TEXT,
+    edited_at    TEXT NOT NULL    -- ISO 8601 UTC
+);
+"""
+
+
+def migrate_to_phase_33(db_path: str) -> None:
+    """
+    Add `job_enrichments.manually_edited_at`, and the `admin_edits` audit log.
+
+    Ultimate Admin (webapp/backend/job_edit.py) is the one caller who can hand-
+    edit a job's enrichment directly — a corrected salary estimate, most often.
+    Without a marker, that correction is indistinguishable from an ordinary
+    DeepSeek estimate to the two passes that already touch job_enrichments on
+    their own schedule:
+
+      - `_fetch_unenriched` (hk_jobs/enrichment.py) skips a row once it has
+        current-`prompt_version` enrichment, but a `--re-enrich` run bypasses
+        that skip entirely and reprocesses everything.
+      - `_select_outliers` (hk_jobs/salary_audit.py) exists SPECIFICALLY to
+        re-judge unusual salaries — and a hand-corrected number is exactly the
+        shape of an "outlier" it looks for. Reached it before shipping the
+        editor: a human's correction would have been the audit's next target,
+        silently reverted the following night.
+
+    Both are updated (this migration only adds the column) to exclude any row
+    with `manually_edited_at IS NOT NULL`, unconditionally — including under
+    `--re-enrich` and `--full` audit, which exist to force everything ELSE to
+    be reconsidered and would otherwise erase the one thing a human already
+    decided. Clearing the marker (re-opening the row to automated correction)
+    is not built: the only way back today is another manual edit.
+
+    `admin_edits` is the accountability half — every field Ultimate Admin ever
+    changes, who changed it, and what it was before. Same reasoning as
+    `salary_audit_log` (phase 25) and seekers.db's `events` table: a mutation
+    with this much reach must leave a trail, not just a new value.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        with conn:
+            cols = {row[1] for row in conn.execute("PRAGMA table_info(job_enrichments)").fetchall()}
+            if "manually_edited_at" not in cols:
+                conn.execute("ALTER TABLE job_enrichments ADD COLUMN manually_edited_at TEXT")
+                logger.info("Phase 33 migration: added job_enrichments.manually_edited_at")
+            conn.execute(_ADMIN_EDITS_DDL)
+        logger.debug("Phase 33 migration: admin_edits ready")
+    finally:
+        conn.close()
+
+
 # ── The ledger ────────────────────────────────────────────────────────────────
 
 _SCHEMA_MIGRATIONS_DDL = """
@@ -869,6 +928,7 @@ MIGRATIONS: tuple[tuple[int, Callable[[str], None]], ...] = (
     (30, migrate_to_phase_30),
     (31, migrate_to_phase_31),
     (32, migrate_to_phase_32),
+    (33, migrate_to_phase_33),
 )
 
 LATEST_PHASE = MIGRATIONS[-1][0]

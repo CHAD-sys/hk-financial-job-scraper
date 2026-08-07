@@ -320,3 +320,19 @@ def test_phase_30_clears_a_date_left_on_a_reopened_listing(tmp_path: Path):
     migrations.migrate_to_phase_30(db)
 
     assert _closed_at(db, "OPEN") is None
+
+
+def test_phase_33_adds_the_column_and_the_audit_table(tmp_path: Path):
+    db = _db(tmp_path)
+    migrate(db)
+    assert "manually_edited_at" in _columns(db, "job_enrichments")
+    assert "admin_edits" in _tables(db)
+    assert {"source", "source_id", "seeker_id", "field", "old_value", "new_value", "edited_at"} \
+        <= _columns(db, "admin_edits")
+
+
+def test_phase_33_is_idempotent_on_a_database_that_already_has_the_column(tmp_path: Path):
+    db = _db(tmp_path)
+    migrate(db)
+    migrations.migrate_to_phase_33(db)  # explicit re-run must not raise
+    assert "manually_edited_at" in _columns(db, "job_enrichments")

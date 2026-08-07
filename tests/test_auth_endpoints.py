@@ -118,6 +118,52 @@ def test_login_round_trip(client):
     assert client.get("/api/auth/me").status_code == 200
 
 
+def test_login_with_username_instead_of_email(client):
+    """
+    Admin Mode's whole point (seekers_store.migrate_to_phase_3): scripts/
+    create_admin.py sets a username for its five accounts so signing in does
+    not require remembering an address. Nothing in the HTTP layer here is
+    admin-specific — `login()` just tries username after email — so this test
+    only needs a username set, not `is_admin`.
+    """
+    import seekers_store
+
+    _register(client)
+    client.post("/api/auth/logout")
+    client.cookies.clear()
+
+    store = seekers_store.get_store()
+    seeker_id = store.get_seeker_by_email(GOOD["email"])["id"]
+    store.set_username(seeker_id, "kenson")
+
+    r = client.post("/api/auth/login", json={"email": "kenson", "password": GOOD["password"]})
+    assert r.status_code == 200
+    assert client.get("/api/auth/me").json()["email"] == GOOD["email"]
+
+
+def test_username_login_is_case_and_whitespace_insensitive(client):
+    import seekers_store
+
+    _register(client)
+    client.post("/api/auth/logout")
+    client.cookies.clear()
+
+    store = seekers_store.get_store()
+    seeker_id = store.get_seeker_by_email(GOOD["email"])["id"]
+    store.set_username(seeker_id, "kenson")
+
+    r = client.post("/api/auth/login", json={"email": " Kenson ", "password": GOOD["password"]})
+    assert r.status_code == 200
+
+
+def test_unknown_username_gives_the_same_answer_as_unknown_email(client):
+    _register(client)
+    client.cookies.clear()
+    r = client.post("/api/auth/login", json={"email": "not-a-real-username", "password": "x"})
+    assert r.status_code == 401
+    assert r.json()["detail"] == "Email or password is incorrect"
+
+
 def test_wrong_password_and_unknown_account_give_the_same_answer(client):
     _register(client)
     client.cookies.clear()
@@ -499,3 +545,76 @@ def test_google_callback_surfaces_provider_error(client, monkeypatch):
     r = client.get("/api/auth/google/callback?error=access_denied", follow_redirects=False)
     assert r.status_code in (302, 307)
     assert "/signin?error=google_failed" in r.headers["location"]
+
+
+# ── LinkedIn OIDC (the fast-follow docs/adr/0003 scheduled) ───────────────────
+#
+# Same shape as the Google tests above, for the same reason: what is testable
+# without a real LinkedIn Developer app is that the code degrades cleanly with
+# no credentials and that the CSRF state check actually rejects a mismatch.
+# The token exchange itself needs a live linkedin.com round trip. The
+# identity-linking core (auth.link_or_create_seeker with provider="linkedin")
+# is covered separately in test_auth_core.py — this file only owns the HTTP
+# surface in front of it.
+
+def test_linkedin_start_redirects_to_signin_when_not_configured(client, monkeypatch):
+    monkeypatch.delenv("LINKEDIN_CLIENT_ID", raising=False)
+    monkeypatch.delenv("LINKEDIN_CLIENT_SECRET", raising=False)
+    r = client.get("/api/auth/linkedin", follow_redirects=False)
+    assert r.status_code in (302, 307)
+    assert "/signin?error=linkedin_unavailable" in r.headers["location"]
+    # No state cookie handed out for a redirect that never reached LinkedIn.
+    assert "linkedin_oauth_state" not in client.cookies
+
+
+def test_linkedin_start_redirects_to_linkedin_when_configured(client, monkeypatch):
+    monkeypatch.setenv("LINKEDIN_CLIENT_ID", "test-client-id")
+    monkeypatch.setenv("LINKEDIN_CLIENT_SECRET", "test-client-secret")
+    r = client.get("/api/auth/linkedin", follow_redirects=False)
+    assert r.status_code in (302, 307)
+    location = r.headers["location"]
+    assert location.startswith("https://www.linkedin.com/oauth/v2/authorization?")
+    assert "client_id=test-client-id" in location
+    assert "scope=openid+profile+email" in location
+    assert client.cookies.get("linkedin_oauth_state")
+
+
+def test_linkedin_callback_rejects_missing_state(client, monkeypatch):
+    monkeypatch.setenv("LINKEDIN_CLIENT_ID", "test-client-id")
+    monkeypatch.setenv("LINKEDIN_CLIENT_SECRET", "test-client-secret")
+    r = client.get("/api/auth/linkedin/callback?code=abc", follow_redirects=False)
+    assert r.status_code in (302, 307)
+    assert "/signin?error=linkedin_failed" in r.headers["location"]
+
+
+def test_linkedin_callback_rejects_mismatched_state(client, monkeypatch):
+    monkeypatch.setenv("LINKEDIN_CLIENT_ID", "test-client-id")
+    monkeypatch.setenv("LINKEDIN_CLIENT_SECRET", "test-client-secret")
+    client.get("/api/auth/linkedin", follow_redirects=False)  # mints a real state cookie
+    r = client.get("/api/auth/linkedin/callback?code=abc&state=not-the-real-state", follow_redirects=False)
+    assert r.status_code in (302, 307)
+    assert "/signin?error=linkedin_failed" in r.headers["location"]
+    assert client.get("/api/auth/me").status_code == 401
+
+
+def test_linkedin_callback_surfaces_provider_error(client, monkeypatch):
+    monkeypatch.setenv("LINKEDIN_CLIENT_ID", "test-client-id")
+    monkeypatch.setenv("LINKEDIN_CLIENT_SECRET", "test-client-secret")
+    r = client.get("/api/auth/linkedin/callback?error=user_cancelled_login", follow_redirects=False)
+    assert r.status_code in (302, 307)
+    assert "/signin?error=linkedin_failed" in r.headers["location"]
+
+
+def test_linkedin_callback_not_configured_when_reached_directly(client, monkeypatch):
+    """Reachable if someone hits the callback URL with a state cookie from a
+    stale/forged request but no credentials configured server-side."""
+    monkeypatch.setenv("LINKEDIN_CLIENT_ID", "test-client-id")
+    monkeypatch.setenv("LINKEDIN_CLIENT_SECRET", "test-client-secret")
+    client.get("/api/auth/linkedin", follow_redirects=False)
+    state = client.cookies.get("linkedin_oauth_state")
+
+    monkeypatch.delenv("LINKEDIN_CLIENT_ID", raising=False)
+    monkeypatch.delenv("LINKEDIN_CLIENT_SECRET", raising=False)
+    r = client.get(f"/api/auth/linkedin/callback?code=abc&state={state}", follow_redirects=False)
+    assert r.status_code in (302, 307)
+    assert "/signin?error=linkedin_unavailable" in r.headers["location"]

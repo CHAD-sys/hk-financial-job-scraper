@@ -121,6 +121,20 @@ def get_db(request: Request) -> sqlite3.Connection:
     return conn
 
 
+def get_write_db(request: Request) -> sqlite3.Connection:
+    """
+    A WRITABLE connection to jobs.db — the one exception to "read access to
+    jobs.db" in this module's own docstring, alongside submissions.py's INSERT
+    on approval. Used only by admin.py's job_edit routes, gated by
+    `_require_super_admin`: nowhere else in this API writes to jobs.db through
+    a connection this file hands out.
+    """
+    conn = sqlite3.connect(cfg(request).jobs_db, check_same_thread=False)
+    job_read.prepare(conn)
+    conn.execute("PRAGMA journal_mode=WAL")
+    return conn
+
+
 # ── Pydantic models ────────────────────────────────────────────────────────────
 
 class NameCount(BaseModel):
@@ -730,6 +744,11 @@ def health(request: Request):
 import auth  # noqa: E402 — same local-module convention as mailer/env_file above
 import seekers_store  # noqa: E402
 
+# Admin Mode's router. admin.py takes cfg/get_db/_require_admin as arguments
+# (see build_router's docstring) rather than importing them, specifically so
+# THIS import stays one-directional — admin.py never imports main.py back.
+import admin  # noqa: E402
+
 SESSION_COOKIE = "finex_session"
 
 def _set_session_cookie(request: Request, response: Response, raw_token: str) -> None:
@@ -787,6 +806,33 @@ def _require_seeker(request: Request) -> dict:
     return seeker
 
 
+def _require_admin(request: Request) -> dict:
+    """
+    The signed-in Seeker, and only if Admin Mode is on for them.
+
+    401 for "not signed in at all" and 403 for "signed in but not an admin" are
+    kept distinct here — unlike login's deliberately-uniform failures, there is
+    no enumeration risk in telling an ordinary Seeker they lack a privilege they
+    already know they don't have.
+    """
+    seeker = _require_seeker(request)
+    if not seeker.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return seeker
+
+
+def _require_super_admin(request: Request) -> dict:
+    """
+    Admin Mode plus is_super_admin — Ultimate Admin, and only Ultimate Admin.
+    Gates webapp/backend/job_edit.py's direct read/write onto a job row: the
+    other four admins see the same dashboard but never this.
+    """
+    seeker = _require_admin(request)
+    if not seeker.get("is_super_admin"):
+        raise HTTPException(status_code=403, detail="Ultimate Admin access required")
+    return seeker
+
+
 def _auth_rate_limited(request: Request, key: str, *, limit: int, window_s: int) -> bool:
     """
     The same sliding window as the submit endpoints, with per-call limits —
@@ -830,7 +876,12 @@ class RegisterIn(BaseModel):
 
 
 class LoginIn(BaseModel):
-    email: EmailStr
+    # NOT EmailStr, unlike RegisterIn — this field doubles as a username for
+    # the handful of accounts scripts/create_admin.py gives one to (see
+    # seekers_store.migrate_to_phase_3). Registration and password reset stay
+    # EmailStr-only: those genuinely need a deliverable address, sign-in does
+    # not, it needs the address you have already proven once.
+    email: str = Field(min_length=1, max_length=200)
     password: str = Field(min_length=1, max_length=200)
 
 
@@ -839,6 +890,8 @@ class SeekerOut(BaseModel):
     email: str
     display_name: str
     email_verified: bool
+    is_admin: bool
+    is_super_admin: bool
 
 
 class SaveRoleIn(BaseModel):
@@ -856,6 +909,8 @@ def _seeker_out(row: dict) -> SeekerOut:
         email=row["email"],
         display_name=row.get("display_name") or "",
         email_verified=bool(row.get("email_verified")),
+        is_admin=bool(row.get("is_admin")),
+        is_super_admin=bool(row.get("is_super_admin")),
     )
 
 
@@ -879,7 +934,7 @@ def register(payload: RegisterIn, request: Request, response: Response):
 
     if payload.website:
         logger.info("Honeypot triggered on /api/auth/register from %s", ip)
-        return SeekerOut(id="", email=email, display_name="", email_verified=False)
+        return SeekerOut(id="", email=email, display_name="", email_verified=False, is_admin=False, is_super_admin=False)
 
     # Per-EMAIL first: the target is the constant in an inbox-bombing attempt,
     # the source IP is not.
@@ -905,7 +960,7 @@ def register(payload: RegisterIn, request: Request, response: Response):
             "instead — or reset your password if you've forgotten it.\n\n"
             "If it wasn't you, you can ignore this message.",
         )
-        return SeekerOut(id="", email=email, display_name="", email_verified=False)
+        return SeekerOut(id="", email=email, display_name="", email_verified=False, is_admin=False, is_super_admin=False)
 
     store.log_event("seeker.registered", seeker_id=seeker_id)
     _set_session_cookie(request, response, auth.issue_session(store, seeker_id,
@@ -978,21 +1033,28 @@ def verify_email(payload: VerifyEmailIn, request: Request):
 @router.post("/api/auth/login", response_model=SeekerOut, tags=["auth"])
 def login(payload: LoginIn, request: Request, response: Response):
     """
-    Sign in. One failure message for every cause — wrong password, no such
-    account, Google-only account with no password set — because distinguishing
-    them is the same oracle problem as register.
+    Sign in with an email OR a username. One failure message for every cause —
+    wrong password, no such account, Google-only account with no password set —
+    because distinguishing them is the same oracle problem as register.
+
+    Username is the exception to "this field is an email": Admin Mode's five
+    accounts (seekers_store.migrate_to_phase_3) each have one, precisely so
+    signing in does not require remembering an address nobody ever mails. The
+    lookup tries email first because that is what almost every caller sends;
+    falling through to username costs one extra indexed query only for the
+    identifiers that were never a registered email to begin with.
     """
-    email = seekers_store.normalise_email(payload.email)
+    identifier = seekers_store.normalise_email(payload.email)
     ip = _client_ip(request)
-    if _auth_rate_limited(request, f"login:email:{email}", limit=10, window_s=900) or \
+    if _auth_rate_limited(request, f"login:email:{identifier}", limit=10, window_s=900) or \
        _auth_rate_limited(request, f"login:ip:{ip}", limit=30, window_s=900):
         raise HTTPException(status_code=429,
                             detail="Too many attempts. Try again in a few minutes.")
 
     store = seekers_store.get_store()
-    row = store.get_seeker_by_email(email)
+    row = store.get_seeker_by_email(identifier) or store.get_seeker_by_username(identifier)
     # verify_password() hashes against a dummy when the row is absent, so the
-    # response time does not reveal whether the address exists.
+    # response time does not reveal whether the address/username exists.
     if not auth.verify_password(row["password_hash"] if row else None, payload.password):
         store.log_event("seeker.login_failed", seeker_id=row["id"] if row else None)
         raise HTTPException(status_code=401, detail="Email or password is incorrect")
@@ -1367,6 +1429,181 @@ def google_callback(
 
     resp = RedirectResponse(f"{_public_base(request)}/account")
     resp.delete_cookie(GOOGLE_STATE_COOKIE, path=GOOGLE_STATE_COOKIE_PATH)
+    _set_session_cookie(request, resp, auth.issue_session(store, result.seeker_id,
+                                                     user_agent=request.headers.get("user-agent")))
+    return resp
+
+
+# ── LinkedIn OIDC (the fast-follow docs/adr/0003 scheduled) ───────────────────
+#
+# The identity-linking core never needed to change for this: auth.IdentityClaim
+# and auth.link_or_create_seeker were written provider-agnostic from the start
+# (test_auth_core.py's test_two_providers_reach_one_seeker already exercised
+# provider="linkedin" before this file had a route for it). This section is
+# only the OIDC exchange itself — the "generic OIDC slot" PLAN_ACCOUNTS.md §6
+# described, filled in.
+#
+# WHAT THIS NEEDS THAT NO AMOUNT OF CODE CAN SUPPLY: a LinkedIn Company Page,
+# a LinkedIn Developer app with the "Sign In with LinkedIn using OpenID
+# Connect" product added, and LINKEDIN_CLIENT_ID / LINKEDIN_CLIENT_SECRET in
+# the environment (docs/adr/0003's exact prerequisite). Until both are set,
+# /api/auth/linkedin answers with a redirect to an error state instead of
+# attempting anything — same posture as Google above, for the same reason.
+#
+# Why a userinfo call and not a decoded id_token: LinkedIn's OIDC userinfo
+# endpoint (https://api.linkedin.com/v2/userinfo) returns the claims directly
+# once called with the access token this exchange already obtained under our
+# own client_secret — so there is no bare, self-issued id_token to verify the
+# audience of the way Google's tokeninfo endpoint requires (ADR 0004: delegate
+# verification to the provider rather than hand-rolling JWT signature checks).
+#
+# email_verified is read with `bool(...)`, never assumed true when absent —
+# PLAN_ACCOUNTS.md §3's fact about this provider, and IdentityClaim's own
+# docstring: LinkedIn "does not verify user identities," and includes
+# email/email_verified only optionally at all.
+
+LINKEDIN_AUTH_URL = "https://www.linkedin.com/oauth/v2/authorization"
+LINKEDIN_TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken"
+LINKEDIN_USERINFO_URL = "https://api.linkedin.com/v2/userinfo"
+#: Same reasoning as GOOGLE_STATE_COOKIE — a CSRF nonce, not identity, scoped
+#: to the start/callback pair rather than path="/".
+LINKEDIN_STATE_COOKIE = "linkedin_oauth_state"
+LINKEDIN_STATE_COOKIE_PATH = "/api/auth/linkedin"
+
+
+def _linkedin_configured() -> tuple[str, str]:
+    """(client_id, client_secret), or ("", "") if either is unset."""
+    client_id = os.environ.get("LINKEDIN_CLIENT_ID", "").strip()
+    client_secret = os.environ.get("LINKEDIN_CLIENT_SECRET", "").strip()
+    if not client_id or not client_secret:
+        return "", ""
+    return client_id, client_secret
+
+
+def _linkedin_redirect_uri(request: Request) -> str:
+    """Must match a redirect URL registered on the LinkedIn app EXACTLY —
+    LinkedIn rejects anything else at the consent screen, before this code
+    ever runs. LINKEDIN_REDIRECT_URI overrides the computed default for an
+    operator who needs a value PUBLIC_BASE_URL cannot express."""
+    override = os.environ.get("LINKEDIN_REDIRECT_URI", "").strip()
+    return override or f"{_public_base(request)}/api/auth/linkedin/callback"
+
+
+def _linkedin_failure_redirect(request: Request, reason: str) -> RedirectResponse:
+    logger.warning("LinkedIn sign-in did not complete: %s", reason)
+    resp = RedirectResponse(f"{_public_base(request)}/signin?error=linkedin_failed")
+    resp.delete_cookie(LINKEDIN_STATE_COOKIE, path=LINKEDIN_STATE_COOKIE_PATH)
+    return resp
+
+
+@router.get("/api/auth/linkedin", tags=["auth"], include_in_schema=False)
+def linkedin_start(request: Request):
+    """Redirect to LinkedIn's consent screen. A GET matched to LinkedInButton's
+    plain `<a href>`, same reasoning as google_start: only a full page
+    navigation can carry the browser to linkedin.com and back with LinkedIn's
+    own cookies intact."""
+    client_id, _ = _linkedin_configured()
+    if not client_id:
+        logger.warning("GET /api/auth/linkedin called but LINKEDIN_CLIENT_ID/LINKEDIN_CLIENT_SECRET are not set")
+        return RedirectResponse(f"{_public_base(request)}/signin?error=linkedin_unavailable")
+
+    state = secrets.token_urlsafe(24)
+    params = {
+        "client_id": client_id,
+        "redirect_uri": _linkedin_redirect_uri(request),
+        "response_type": "code",
+        "scope": "openid profile email",
+        "state": state,
+    }
+    resp = RedirectResponse(f"{LINKEDIN_AUTH_URL}?{urlencode(params)}")
+    resp.set_cookie(
+        LINKEDIN_STATE_COOKIE,
+        state,
+        max_age=600,  # the consent screen round trip, generously bounded
+        httponly=True,
+        secure=cfg(request).cookie_secure,
+        samesite="lax",
+        path=LINKEDIN_STATE_COOKIE_PATH,
+    )
+    return resp
+
+
+@router.get("/api/auth/linkedin/callback", tags=["auth"], include_in_schema=False)
+def linkedin_callback(
+    request: Request,
+    code: Optional[str] = None,
+    state: Optional[str] = None,
+    error: Optional[str] = None,
+):
+    """Exchange the code, fetch the userinfo claims, and hand the result to
+    auth.link_or_create_seeker — the same three-case rule Google sign-in
+    already goes through."""
+    if error:
+        return _linkedin_failure_redirect(request, f"provider returned error={error}")
+
+    cookie_state = request.cookies.get(LINKEDIN_STATE_COOKIE)
+    if not code or not state or not cookie_state or not hmac.compare_digest(state, cookie_state):
+        return _linkedin_failure_redirect(request, "missing or mismatched state (possible CSRF)")
+
+    client_id, client_secret = _linkedin_configured()
+    if not client_id:
+        logger.warning("LinkedIn callback reached but LINKEDIN_CLIENT_ID/LINKEDIN_CLIENT_SECRET are not set")
+        resp = RedirectResponse(f"{_public_base(request)}/signin?error=linkedin_unavailable")
+        resp.delete_cookie(LINKEDIN_STATE_COOKIE, path=LINKEDIN_STATE_COOKIE_PATH)
+        return resp
+
+    try:
+        with httpx.Client(timeout=10) as http:
+            token_res = http.post(
+                LINKEDIN_TOKEN_URL,
+                data={
+                    "code": code,
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "redirect_uri": _linkedin_redirect_uri(request),
+                    "grant_type": "authorization_code",
+                },
+            )
+            token_res.raise_for_status()
+            access_token = token_res.json().get("access_token", "")
+
+            info_res = http.get(
+                LINKEDIN_USERINFO_URL,
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            info_res.raise_for_status()
+            info = info_res.json()
+    except httpx.HTTPError as exc:
+        return _linkedin_failure_redirect(request, f"token exchange failed: {exc}")
+
+    subject = info.get("sub", "")
+    if not subject:
+        return _linkedin_failure_redirect(request, "userinfo carried no subject")
+
+    claim = auth.IdentityClaim(
+        provider="linkedin",
+        subject=subject,
+        email=info.get("email"),
+        # Never assumed true when absent — see this section's own header
+        # comment and IdentityClaim's docstring for why.
+        email_verified=bool(info.get("email_verified")),
+        display_name=info.get("name"),
+    )
+
+    store = seekers_store.get_store()
+    try:
+        result = auth.link_or_create_seeker(store, claim)
+    except auth.IdentityLinkRefused as exc:
+        logger.warning("LinkedIn identity link refused for subject %s: %s", subject, exc)
+        resp = RedirectResponse(f"{_public_base(request)}/signin?error=linkedin_link_refused")
+        resp.delete_cookie(LINKEDIN_STATE_COOKIE, path=LINKEDIN_STATE_COOKIE_PATH)
+        return resp
+
+    store.touch_last_login(result.seeker_id)
+    store.log_event(f"seeker.linkedin_{result.outcome}", seeker_id=result.seeker_id)
+
+    resp = RedirectResponse(f"{_public_base(request)}/account")
+    resp.delete_cookie(LINKEDIN_STATE_COOKIE, path=LINKEDIN_STATE_COOKIE_PATH)
     _set_session_cookie(request, resp, auth.issue_session(store, result.seeker_id,
                                                      user_agent=request.headers.get("user-agent")))
     return resp
@@ -1936,6 +2173,12 @@ def create_app(settings: Settings | None = None, *, sender: Sender | None = None
     )
 
     app.include_router(router)
+    app.include_router(
+        admin.build_router(
+            cfg=cfg, get_db=get_db, get_write_db=get_write_db,
+            require_admin=_require_admin, require_super_admin=_require_super_admin,
+        )
+    )
     _mount_frontend(app, settings)
     return app
 

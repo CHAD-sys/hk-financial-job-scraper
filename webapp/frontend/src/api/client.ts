@@ -352,6 +352,10 @@ export interface Seeker {
   email: string
   display_name: string | null
   email_verified: boolean
+  /** Admin Mode. Same account, same sign-in — this is the one privilege bit. */
+  is_admin: boolean
+  /** Ultimate Admin only: direct read/write onto a job's row and enrichment. */
+  is_super_admin: boolean
 }
 
 export interface RegisterPayload {
@@ -364,6 +368,8 @@ export interface RegisterPayload {
 
 /** Where "Continue with Google" points. A plain link — the backend redirects. */
 export const GOOGLE_SIGN_IN_PATH = `${API}/api/auth/google`
+/** Seeker-only — no Employer equivalent (docs/adr/0003, PLAN_ACCOUNTS.md §6). */
+export const LINKEDIN_SIGN_IN_PATH = `${API}/api/auth/linkedin`
 
 /** Turn a non-OK auth response into an ApiError carrying the backend's reason. */
 async function authError(res: Response, fallback: string): Promise<ApiError> {
@@ -526,6 +532,229 @@ export async function unsaveRole(source: string, sourceId: string): Promise<void
   if (!res.ok && res.status !== 404) {
     throw new ApiError(res.status, `Could not remove that Saved Role (${res.status}).`)
   }
+}
+
+// ── Admin Mode ─────────────────────────────────────────────────────────────────
+// Every call below only ever succeeds for a Seeker whose `is_admin` bit is set
+// (webapp/backend/main.py's `_require_admin`) — an ordinary Seeker gets 403, an
+// anonymous caller gets 401. AdminPage is the only thing that calls these.
+
+export interface AdminSubmission {
+  id: string
+  status: 'pending' | 'approved' | 'rejected'
+  contact_name: string
+  contact_email: string
+  company: string
+  title: string
+  location: string
+  employment_type: string
+  salary_range: string
+  description: string
+  apply_url: string
+  received_at: string
+  decided_at?: string
+  reason?: string
+  source_id?: string
+}
+
+export async function fetchAdminSubmissions(
+  status: 'pending' | 'approved' | 'rejected' | 'all' = 'pending',
+): Promise<AdminSubmission[]> {
+  const res = await apiFetch(`/api/admin/submissions?status=${status}`)
+  if (!res.ok) throw new ApiError(res.status, `Could not load submissions (${res.status}).`)
+  return res.json()
+}
+
+export async function approveSubmission(id: string): Promise<AdminSubmission> {
+  const res = await apiFetch(`/api/admin/submissions/${encodeURIComponent(id)}/approve`, {
+    method: 'POST',
+  })
+  if (!res.ok) throw new ApiError(res.status, await readDetail(res) || `Could not approve (${res.status}).`)
+  return res.json()
+}
+
+export async function rejectSubmission(id: string, reason: string): Promise<AdminSubmission> {
+  const res = await apiFetch(`/api/admin/submissions/${encodeURIComponent(id)}/reject`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  })
+  if (!res.ok) throw new ApiError(res.status, await readDetail(res) || `Could not reject (${res.status}).`)
+  return res.json()
+}
+
+export interface AdminRunToday {
+  date: string
+  ran_today: boolean
+  companies_scraped_today: number
+  companies_zero_today: number
+  zero_companies: string[]
+  jobs_added_today: number
+  jobs_removed_today: number
+  active_jobs: number
+  companies_active: number
+  description_coverage_pct: number
+  enrichment_coverage_pct: number
+  log: {
+    available: boolean
+    last_run_found?: boolean
+    finished?: boolean
+    crashed?: boolean
+    last_phase?: string | null
+    phases_seen?: string[]
+  }
+}
+
+export async function fetchAdminRunToday(): Promise<AdminRunToday> {
+  const res = await apiFetch('/api/admin/run/today')
+  if (!res.ok) throw new ApiError(res.status, `Could not load today's run (${res.status}).`)
+  return res.json()
+}
+
+export interface AdminRunHistoryPoint {
+  scraped_date: string
+  total_jobs: number
+  companies_scraped: number
+  companies_down: number
+}
+
+export async function fetchAdminRunHistory(days = 30): Promise<AdminRunHistoryPoint[]> {
+  const res = await apiFetch(`/api/admin/run/history?days=${days}`)
+  if (!res.ok) throw new ApiError(res.status, `Could not load run history (${res.status}).`)
+  const body = await res.json()
+  return body.points
+}
+
+export interface AdminAnalyticsOverview {
+  total_board_roles: number
+  total_active_rows: number
+  cross_posting_rate_pct: number
+  duplicate_rows_suppressed: number
+  by_source: Record<string, number>
+  by_board_source: Record<string, number>
+  by_sector: Record<string, number>
+  by_seniority: Record<string, number>
+  by_remote_type: Record<string, number>
+  top_companies: { name: string; count: number }[]
+  company_concentration_hhi: number
+  company_concentration_label: 'unconcentrated' | 'moderately concentrated' | 'concentrated'
+  company_entity_count: number
+  top5_company_share_pct: number
+  salary_distribution: Record<string, number>
+  salary_confidence: Record<string, number>
+  salary_median_hkd: number
+  salary_p25_hkd: number
+  salary_p75_hkd: number
+  salary_sample_size: number
+  sector_salary: {
+    name: string
+    median_hkd: number
+    p25_hkd: number
+    p75_hkd: number
+    sample_size: number
+  }[]
+  top_skills: { name: string; count: number; share_pct: number }[]
+  dominant_sector: { name: string; count: number; share_pct: number }
+  remote_friendly_pct: number
+  data_quality: {
+    description_coverage_pct: number
+    enrichment_coverage_pct: number
+    salary_coverage_pct: number
+    high_confidence_salary_pct: number
+    skills_coverage_pct: number
+    seniority_coverage_pct: number
+    workplace_coverage_pct: number
+  }
+  market_movers: {
+    current_date: string | null
+    comparison_date: string | null
+    gainers: AdminMarketMover[]
+    decliners: AdminMarketMover[]
+  }
+}
+
+export interface AdminMarketMover {
+  name: string
+  current: number
+  previous: number
+  change: number
+  change_pct: number | null
+}
+
+export async function fetchAdminAnalyticsOverview(): Promise<AdminAnalyticsOverview> {
+  const res = await apiFetch('/api/admin/analytics/overview')
+  if (!res.ok) throw new ApiError(res.status, `Could not load analytics (${res.status}).`)
+  return res.json()
+}
+
+// ── Ultimate Admin: direct job edit ────────────────────────────────────────────
+// Behind is_super_admin only — the other four admins never call these. The
+// wire shape mirrors webapp/backend/job_edit.py's raw dict(row) exactly: it is
+// not the same Job shape /api/jobs returns (e.g. `locations`/`required_skills`
+// arrive as a raw JSON string here, not a parsed array — the backend never
+// parses them on the read side, only on write).
+
+export interface AdminJobRecord {
+  source: string
+  source_id: string
+  company: string
+  title: string
+  description_clean: string
+  description_raw: string
+  locations: string // JSON-encoded array
+  employment_type: string
+  apply_url: string
+  is_active: number
+  source_tier: string
+  category: string | null
+  seniority: string | null
+  remote_type: string | null
+  salary_min: number | null
+  salary_max: number | null
+  salary_currency: string | null
+  // job_enrichments (aliased e_seniority/e_remote_type to avoid colliding with
+  // the jobs.* columns above — see job_edit.py's _ENRICHMENT_ALIASES)
+  e_seniority: string | null
+  e_remote_type: string | null
+  required_skills: string | null // JSON-encoded array
+  salary_hkd_min: number | null
+  salary_hkd_max: number | null
+  job_category: string | null
+  salary_estimated_min: number | null
+  salary_estimated_max: number | null
+  salary_estimated_confidence: string | null
+  years_experience_required: number | null
+  description_summary: string | null
+  title_en: string | null
+  manually_edited_at: string | null
+}
+
+export async function fetchAdminJob(source: string, sourceId: string): Promise<AdminJobRecord> {
+  const res = await apiFetch(
+    `/api/admin/jobs/${encodeURIComponent(source)}/${encodeURIComponent(sourceId)}`,
+  )
+  if (res.status === 404) throw new ApiError(404, 'That job could not be found.')
+  if (!res.ok) throw new ApiError(res.status, `Could not load that job (${res.status}).`)
+  return res.json()
+}
+
+export async function patchAdminJob(
+  source: string,
+  sourceId: string,
+  changes: { job?: Record<string, unknown>; enrichment?: Record<string, unknown> },
+): Promise<AdminJobRecord> {
+  const res = await apiFetch(
+    `/api/admin/jobs/${encodeURIComponent(source)}/${encodeURIComponent(sourceId)}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(changes),
+    },
+  )
+  if (!res.ok) {
+    throw new ApiError(res.status, await readDetail(res) || `Could not save that job (${res.status}).`)
+  }
+  return res.json()
 }
 
 // ── URL serialisation ─────────────────────────────────────────────────────────

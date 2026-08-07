@@ -49,7 +49,12 @@ export default function JobCard({ job, saved, onToggleSave, onClick }: Props) {
       // closed — greying it out and then refusing to open it would defeat the
       // reason the Role is still here at all.
       data-closed={job.closed || undefined}
-      className="job-card relative flex flex-col gap-4 rounded-lg p-5 cursor-pointer transition-all duration-200 group"
+      // The .job-card class (index.css) already declares its own transition —
+      // box-shadow, border-color and transform, the exact three properties
+      // onMouseEnter/onMouseLeave below change, with its own easing curve.
+      // transition-all here was fully redundant with it (same specificity,
+      // .job-card wins on source order) rather than an intentional override.
+      className="job-card relative flex flex-col gap-4 rounded-lg p-5 cursor-pointer group"
       style={{
         backgroundColor: job.closed ? 'var(--color-closed-surface)' : 'var(--color-surface)',
         border: `1px solid ${job.closed ? 'var(--color-border-strong)' : 'var(--color-border)'}`,

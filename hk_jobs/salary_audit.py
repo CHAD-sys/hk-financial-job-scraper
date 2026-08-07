@@ -100,6 +100,12 @@ def _select_outliers(
     # past the last audit and makes the job eligible again on its own — no manual
     # "revalidate" step needed. --full intentionally bypasses this: it exists to
     # sweep the whole dataset for a real accuracy number, not just what changed.
+    #
+    # manually_edited_at IS NULL is excluded unconditionally, --full included: a
+    # hand-corrected salary (webapp/backend/job_edit.py, Ultimate Admin) is
+    # exactly the shape of an "outlier" this function looks for, and would
+    # otherwise be sent right back to the judge that just got overruled by a
+    # human — reverting the correction the next time this runs.
     rows = conn.execute("""
         SELECT j.source, j.source_id, j.title, j.company, j.company_slug, j.source_tier,
                j.description_clean, e.seniority, e.job_category, e.salary_tier, e.salary_role,
@@ -111,6 +117,7 @@ def _select_outliers(
               FROM salary_audit_log GROUP BY source, source_id
         ) a ON j.source = a.source AND j.source_id = a.source_id
         WHERE j.is_active = 1 AND e.salary_estimated_max IS NOT NULL
+          AND e.manually_edited_at IS NULL
           AND (:full OR a.last_audited_at IS NULL OR a.last_audited_at < e.enriched_at)
     """, {"full": full}).fetchall()
 

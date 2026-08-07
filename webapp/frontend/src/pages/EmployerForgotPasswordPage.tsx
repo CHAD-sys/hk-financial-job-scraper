@@ -97,7 +97,7 @@ export default function EmployerForgotPasswordPage() {
           <AuthField label="Work email" htmlFor="efp-email">
             <input
               id="efp-email" name="email" type="email" required maxLength={MAX_EMAIL}
-              autoComplete="email" autoFocus className="finex-input"
+              autoComplete="email" className="finex-input"
             />
           </AuthField>
 

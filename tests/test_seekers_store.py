@@ -147,6 +147,65 @@ def test_password_hash_is_nullable_for_oauth_only_seekers(store):
     assert store.get_seeker(seeker_id)["email_verified"] == 1
 
 
+# ── Admin Mode (is_admin, username) ───────────────────────────────────────────
+
+
+def test_new_seekers_are_not_admin_by_default(store):
+    seeker_id = store.create_seeker("alice@example.com")
+    assert store.get_seeker(seeker_id)["is_admin"] == 0
+
+
+def test_set_admin_toggles_is_admin(store):
+    seeker_id = store.create_seeker("alice@example.com")
+    store.set_admin(seeker_id, True)
+    assert store.get_seeker(seeker_id)["is_admin"] == 1
+    store.set_admin(seeker_id, False)
+    assert store.get_seeker(seeker_id)["is_admin"] == 0
+
+
+def test_username_starts_unset(store):
+    seeker_id = store.create_seeker("alice@example.com")
+    assert store.get_seeker(seeker_id)["username"] is None
+    assert store.get_seeker_by_username("alice") is None
+
+
+def test_set_username_and_look_it_up(store):
+    seeker_id = store.create_seeker("kenson@finexclub.org")
+    store.set_username(seeker_id, "kenson")
+    assert store.get_seeker_by_username("kenson")["id"] == seeker_id
+
+
+def test_username_lookup_is_case_and_whitespace_insensitive(store):
+    seeker_id = store.create_seeker("kenson@finexclub.org")
+    store.set_username(seeker_id, "Kenson")
+    assert store.get_seeker(seeker_id)["username"] == "kenson"  # stored normalised
+    assert store.get_seeker_by_username(" KENSON ")["id"] == seeker_id
+
+
+def test_duplicate_username_is_refused_by_the_database(store):
+    a = store.create_seeker("a@example.com")
+    b = store.create_seeker("b@example.com")
+    store.set_username(a, "kenson")
+    with pytest.raises(sqlite3.IntegrityError):
+        store.set_username(b, "KENSON")  # same handle, different casing
+
+
+def test_seekers_with_no_username_never_collide(store):
+    """SQLite's UNIQUE index treats every NULL as distinct — the near-totality
+    of Seekers, who never set a username, must not be limited to one account."""
+    store.create_seeker("a@example.com")
+    store.create_seeker("b@example.com")  # neither call raises
+
+
+def test_clearing_a_username_frees_it_for_reuse(store):
+    a = store.create_seeker("a@example.com")
+    b = store.create_seeker("b@example.com")
+    store.set_username(a, "kenson")
+    store.set_username(a, None)
+    store.set_username(b, "kenson")  # does not raise: a's claim was released
+    assert store.get_seeker_by_username("kenson")["id"] == b
+
+
 def test_set_password_and_verification_and_login(store):
     seeker_id = store.create_seeker("carol@example.com")
     store.set_password_hash(seeker_id, "hash-v2")

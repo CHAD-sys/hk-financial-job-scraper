@@ -1,5 +1,5 @@
 import Nav from './Nav'
-import { GOOGLE_SIGN_IN_PATH } from '../api/client'
+import { GOOGLE_SIGN_IN_PATH, LINKEDIN_SIGN_IN_PATH } from '../api/client'
 
 /**
  * The frame the three account screens share: nav, a narrow centred column, an
@@ -76,8 +76,7 @@ export function AuthField({
  *
  * A plain <a>, not a fetch: the backend answers with a redirect to Google's
  * consent screen, and a full page navigation is the only thing that can follow
- * it. Google is the only third-party provider — LinkedIn is a deliberate
- * fast-follow, not a v1 button (docs/adr/0003).
+ * it.
  *
  * `href` defaults to the Seeker path; the Employer pages pass
  * EMPLOYER_GOOGLE_SIGN_IN_PATH explicitly — a separate registered redirect
@@ -114,6 +113,48 @@ function GoogleMark() {
       <path fill="#4285F4" d="M46.9 24.5c0-1.6-.1-3.2-.4-4.7H24v9h12.9c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 6.9-10.1 6.9-17.3z" />
       <path fill="#FBBC05" d="M10.4 28.7c-.5-1.5-.8-3-.8-4.7s.3-3.2.8-4.7l-7.8-6.1C1 16.3 0 20 0 24s1 7.7 2.6 10.8l7.8-6.1z" />
       <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.8 2.2-8.4 2.2-6.4 0-11.7-3.7-13.6-9.9l-7.8 6.1C6.5 42.6 14.6 48 24 48z" />
+    </svg>
+  )
+}
+
+/**
+ * "Continue with LinkedIn" — the fast-follow docs/adr/0003 scheduled, now
+ * built. Seeker-only: there is no Employer equivalent, so unlike GoogleButton
+ * this takes no `href` override.
+ *
+ * A plain <a>, same reasoning as GoogleButton: only a full page navigation
+ * carries the browser to linkedin.com and back with its own cookies intact.
+ */
+export function LinkedInButton({ label }: { label: string }) {
+  return (
+    <a
+      href={LINKEDIN_SIGN_IN_PATH}
+      className="flex min-h-11 w-full items-center justify-center gap-2.5 rounded px-6 py-3 text-sm font-semibold no-underline"
+      style={{
+        backgroundColor: 'var(--color-surface)',
+        color: 'var(--color-ink)',
+        border: '1px solid var(--color-border-strong)',
+      }}
+    >
+      <LinkedInMark />
+      {label}
+    </a>
+  )
+}
+
+/**
+ * LinkedIn's "in" mark. Like GoogleMark, a literal-hex exception to "no raw
+ * hex in components" (DESIGN.md) — this is LinkedIn's own brand blue, not a
+ * design token, and must not shift if our palette ever does.
+ */
+function LinkedInMark() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <rect width="24" height="24" rx="3" fill="#0A66C2" />
+      <path
+        fill="#fff"
+        d="M7.12 9.4H4.2v10.5h2.92V9.4Zm-1.46-4.7a1.69 1.69 0 1 0 0 3.38 1.69 1.69 0 0 0 0-3.38ZM19.8 19.9h-2.92v-5.66c0-1.35-.02-3.08-1.88-3.08-1.88 0-2.17 1.47-2.17 2.98v5.76H9.91V9.4h2.8v1.43h.04c.39-.74 1.36-1.53 2.8-1.53 3 0 3.55 1.97 3.55 4.54v6.06Z"
+      />
     </svg>
   )
 }

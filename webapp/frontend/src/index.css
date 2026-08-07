@@ -271,13 +271,36 @@ select.finex-input {
 }
 
 /* ── Mobile filter sheet (full-screen overlay, z-300 — above Nav's
-   z-200 since it takes over the whole screen including the nav) ── */
+   z-200 since it takes over the whole screen including the nav) ──
+   A native <dialog> now (react-doctor/prefer-html-dialog: the previous
+   role="dialog" div had no focus trap, so Tab could reach page content
+   behind it). The resets below undo the browser's own <dialog> defaults
+   (centered box, margin, padding, border, a max-width/height cap).
+   height/width/top/left are set explicitly here rather than trusted to
+   Tailwind's `fixed inset-0` utility classes on the element: measured live,
+   a shown <dialog> sized itself to its CONTENT (1600px, one long scroll)
+   instead of stretching to the viewport the way a plain positioned div
+   would — top:0/bottom:0 alone did not constrain its height. Same reasoning
+   as .job-detail-dialog below, which sets its box explicitly for the same
+   element type rather than leaning on inset utilities. */
 .mobile-filter-sheet {
+  margin: 0;
+  padding: 0;
+  border: none;
+  max-width: none;
+  max-height: none;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100dvh;
   animation: mobile-sheet-in 220ms var(--ease-out-expo);
 }
 @keyframes mobile-sheet-in {
   from { transform: translateY(12px); opacity: 0; }
   to   { transform: translateY(0); opacity: 1; }
+}
+.mobile-filter-sheet::backdrop {
+  background-color: rgba(11, 22, 40, 0.55);
 }
 
 /* ── Job detail modal (native <dialog>) ───────────────────────── */

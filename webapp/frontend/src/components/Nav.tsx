@@ -1,4 +1,7 @@
-import { Briefcase, Bookmark, Menu, X, ChevronDown, User, LogOut, ArrowUpRight, Building2 } from 'lucide-react'
+import {
+  Briefcase, Bookmark, Menu, X, ChevronDown, User, LogOut, ArrowUpRight, Building2,
+  LayoutDashboard, Search,
+} from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { scrollToTop, scrollToHash } from '../utils/scroll'
@@ -35,6 +38,15 @@ import { useSavedRoles } from '../savedRoles/useSavedRoles'
  * to be a standing link anyone could use anonymously; PostRolePage.tsx now
  * requires an Employer account, so a link nobody-signed-in could click would
  * just be a promise this bar could not keep.
+ *
+ * `AdminModeSwitch` is the same privilege one step further in: a single
+ * button, not a link in the six-item row, because it is not a destination
+ * among equals — it is the one control an admin needs reachable from every
+ * page, in both directions. Which direction it points is read from the
+ * CURRENT route rather than stored anywhere: on /admin (or under it) it goes
+ * to the board; everywhere else it goes to /admin. ModeChooserPage.tsx is the
+ * one-time fork right after signing in; this button is what covers every
+ * visit after that.
  */
 
 const LINKS: { label: string; to: string; external?: boolean }[] = [
@@ -202,6 +214,10 @@ export default function Nav() {
             {wordmark}
 
             <div className="flex shrink-0 items-center gap-3">
+              {!authLoading && seeker?.is_admin && (
+                <AdminModeSwitch pathname={pathname} onNavigate={() => setOpen(false)} compact />
+              )}
+
               {/* Only for a signed-in Employer now — PostRolePage.tsx redirects
                   anyone else to /employer/signin, so a standing link nobody
                   anonymous could use would be a promise this bar could not keep. */}
@@ -309,6 +325,10 @@ export default function Nav() {
             {wordmark}
 
             <div className="flex shrink-0 items-center gap-3">
+              {!authLoading && seeker?.is_admin && (
+                <AdminModeSwitch pathname={pathname} onNavigate={() => setOpen(false)} />
+              )}
+
               <SavedButton
                 count={savedCount}
                 active={pathname === '/saved'}
@@ -448,6 +468,43 @@ function SavedButton({
         </span>
       )}
     </button>
+  )
+}
+
+/**
+ * The persistent Admin ⇄ Seeker toggle. Direction is read from the CURRENT
+ * route, not stored: under /admin it points at the board, everywhere else it
+ * points at /admin. Solid gold rather than the outline/ghost treatment every
+ * other item in this bar gets — the five people who ever see this button
+ * need it to read as "the special control," not blend into ordinary nav.
+ */
+function AdminModeSwitch({
+  pathname,
+  onNavigate,
+  compact = false,
+}: {
+  pathname: string
+  onNavigate: () => void
+  compact?: boolean
+}) {
+  const inAdmin = pathname === '/admin' || pathname.startsWith('/admin/')
+  const to = inAdmin ? '/jobs' : '/admin'
+  const label = inAdmin ? 'Seeker view' : 'Admin Mode'
+  const Icon = inAdmin ? Search : LayoutDashboard
+
+  return (
+    <Link
+      to={to}
+      state={to === '/jobs' ? { discover: true } : undefined}
+      onClick={onNavigate}
+      className={`flex items-center justify-center gap-1.5 rounded font-semibold no-underline transition-colors duration-150 ${
+        compact ? 'min-h-9 px-3 py-1.5 text-sm' : 'min-h-11 min-w-11 px-3 text-sm max-[440px]:px-0'
+      }`}
+      style={{ backgroundColor: 'var(--color-gold)', color: '#fff' }}
+    >
+      <Icon size={14} strokeWidth={2} aria-hidden="true" />
+      <span className={compact ? undefined : 'max-[440px]:sr-only'}>{label}</span>
+    </Link>
   )
 }
 

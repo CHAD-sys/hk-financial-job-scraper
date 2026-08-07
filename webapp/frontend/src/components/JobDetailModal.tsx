@@ -223,7 +223,7 @@ function ModalHeader({
         <button
           type="button"
           onClick={() => onToggleSave(job)}
-          className="flex items-center gap-1.5 rounded px-3 py-2 text-sm font-medium transition-all duration-150 cursor-pointer"
+          className="flex items-center gap-1.5 rounded px-3 py-2 text-sm font-medium transition-colors duration-150 cursor-pointer"
           style={{
             border: '1px solid var(--color-border)',
             color: saved ? 'var(--color-gold)' : 'var(--color-ink-muted)',
@@ -514,7 +514,7 @@ function ApplyFooter({ job }: { job: Job }) {
           href={job.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex w-full items-center justify-center gap-2 rounded py-3 text-sm font-semibold transition-all duration-200 cursor-pointer"
+          className="flex w-full items-center justify-center gap-2 rounded py-3 text-sm font-semibold transition-colors duration-200 cursor-pointer"
           style={{ backgroundColor: '#6B4EFF', color: '#fff' }}
           onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#5A3FE0')}
           onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#6B4EFF')}
@@ -538,7 +538,7 @@ function ApplyFooter({ job }: { job: Job }) {
         href={job.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex w-full items-center justify-center gap-2 rounded py-3 text-sm font-semibold transition-all duration-200 cursor-pointer"
+        className="flex w-full items-center justify-center gap-2 rounded py-3 text-sm font-semibold transition-colors duration-200 cursor-pointer"
         style={{ backgroundColor: '#059669', color: '#fff' }}
         onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#047857')}
         onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#059669')}

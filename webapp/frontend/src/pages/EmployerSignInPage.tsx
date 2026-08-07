@@ -90,7 +90,7 @@ export default function EmployerSignInPage() {
           <AuthField label="Work email" htmlFor="es-email">
             <input
               id="es-email" name="email" type="email" required maxLength={MAX.email}
-              autoComplete="email" autoFocus className="finex-input"
+              autoComplete="email" className="finex-input"
             />
           </AuthField>
 

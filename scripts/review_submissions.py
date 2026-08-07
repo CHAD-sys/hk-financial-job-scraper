@@ -26,127 +26,38 @@ Usage
 from __future__ import annotations
 
 import argparse
-import hashlib
-import json
-import re
-import sqlite3
-from datetime import datetime, timezone
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 QUEUE = ROOT / "data" / "submitted_roles.jsonl"
 DB = ROOT / "data" / "jobs.db"
 
-SOURCE = "direct"
+# The write path (the INSERT, the dedup-hash formula, the queue file format) now
+# lives in webapp/backend/submissions.py, shared with Admin Mode's
+# /api/admin/submissions endpoints (webapp/backend/admin.py) — one definition of
+# "how a submission becomes a board row" instead of two copies drifting apart.
+sys.path.insert(0, str(ROOT / "webapp" / "backend"))
+from submissions import (  # noqa: E402
+    SOURCE,
+    approve_submission,
+    load_queue as _load_queue,
+    mark_approved,
+    mark_rejected,
+    save_queue as _save_queue,
+)
 
 
 def load_queue() -> list[dict]:
-    if not QUEUE.exists():
-        return []
-    rows = []
-    for line in QUEUE.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if line:
-            rows.append(json.loads(line))
-    return rows
+    return _load_queue(QUEUE)
 
 
 def save_queue(rows: list[dict]) -> None:
-    """Rewrite the queue atomically — a half-written queue would lose submissions."""
-    tmp = QUEUE.with_suffix(".jsonl.tmp")
-    tmp.write_text(
-        "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows), encoding="utf-8"
-    )
-    tmp.replace(QUEUE)
-
-
-def source_id_for(row: dict) -> str:
-    """
-    Stable id from the submission's own content.
-
-    Deterministic so that approving the same submission twice cannot create two
-    board entries — the INSERT OR IGNORE below then simply does nothing.
-    """
-    basis = f"{row.get('company','')}|{row.get('title','')}|{row.get('received_at','')}"
-    return hashlib.sha1(basis.encode("utf-8")).hexdigest()[:16]
-
-
-def slugify(company: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", (company or "").lower()).strip("-")
-
-
-def dedup_hash_for(company_slug: str, title: str, location: str) -> str:
-    """
-    Same fingerprint the scraper uses — see Job.dedup_hash() in hk_jobs/schema.py:
-    sha256 of "company_slug|lowercased title|first location", first 12 hex chars.
-
-    Recomputed here rather than imported so this script does not drag the whole
-    hk_jobs package (and its dependencies) in just to hash three strings. If that
-    definition ever changes, this must change with it.
-    """
-    key = f"{company_slug}|{(title or '').lower()}|{(location or '').lower()}"
-    return hashlib.sha256(key.encode()).hexdigest()[:12]
+    _save_queue(QUEUE, rows)
 
 
 def approve(row: dict) -> str:
-    """
-    Insert the submission into jobs.db. Returns the source_id used.
-
-    Raises on failure. Note there is no INSERT OR IGNORE here: `dedup_hash` is
-    NOT NULL with no default, and an OR IGNORE swallowed exactly that violation
-    during development while still reporting success to the operator. A
-    moderation tool that says "published" without publishing is worse than one
-    that crashes.
-    """
-    sid = source_id_for(row)
-    now = datetime.now(timezone.utc).isoformat()
-    company = row.get("company", "")
-    slug = slugify(company)
-    location = row.get("location", "Hong Kong")
-
-    with sqlite3.connect(DB) as conn:
-        try:
-            cur = conn.execute(
-                """
-                INSERT INTO jobs (
-                    source, source_id, company, company_slug, url, dedup_hash, title,
-                    description_raw, description_clean, locations,
-                    employment_type, apply_url, posted_at, fetched_at,
-                    is_active, source_tier, is_primary, cross_posted,
-                    extraction_confidence
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,1,0,1.0)
-                """,
-                (
-                    SOURCE,
-                    sid,
-                    company,
-                    slug,
-                    row.get("apply_url", ""),
-                    dedup_hash_for(slug, row.get("title", ""), location),
-                    row.get("title", ""),
-                    row.get("description", ""),
-                    row.get("description", ""),
-                    json.dumps([location]),
-                    row.get("employment_type", ""),
-                    row.get("apply_url", ""),
-                    row.get("received_at", now),
-                    now,
-                    # Vetted by a person, so these sit in the Exclusive tier
-                    # rather than with scraped mainstream listings.
-                    "boutique",
-                ),
-            )
-        except sqlite3.IntegrityError as exc:
-            # The (source, source_id) primary key makes re-approval a no-op, which
-            # is fine. Anything else is a real problem and must not be swallowed.
-            if "UNIQUE" in str(exc) or "PRIMARY KEY" in str(exc):
-                return sid
-            raise
-
-        if cur.rowcount != 1:
-            raise RuntimeError(f"insert affected {cur.rowcount} rows, expected 1")
-
-    return sid
+    return approve_submission(DB, row)
 
 
 def fmt(i: int, row: dict) -> str:
@@ -184,9 +95,7 @@ def main() -> None:
             print(f"Already approved: {row.get('title')}")
             return
         sid = approve(row)
-        row["status"] = "approved"
-        row["decided_at"] = datetime.now(timezone.utc).isoformat()
-        row["source_id"] = sid
+        rows[args.approve] = mark_approved(row, sid)
         save_queue(rows)
         print(f"Approved and published: {row.get('title')} @ {row.get('company')}")
         print(f"  on the board as {SOURCE}/{sid}")
@@ -194,10 +103,7 @@ def main() -> None:
 
     if args.reject is not None:
         row = rows[args.reject]
-        row["status"] = "rejected"
-        row["decided_at"] = datetime.now(timezone.utc).isoformat()
-        if args.reason:
-            row["reason"] = args.reason
+        rows[args.reject] = mark_rejected(row, reason=args.reason)
         save_queue(rows)
         print(f"Rejected: {row.get('title')} @ {row.get('company')}")
         return

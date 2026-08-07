@@ -12,6 +12,8 @@ import SignInChooserPage from './pages/SignInChooserPage'
 import SignInPage from './pages/SignInPage'
 import RegisterPage from './pages/RegisterPage'
 import AccountPage from './pages/AccountPage'
+import AdminPage from './pages/AdminPage'
+import ModeChooserPage from './pages/ModeChooserPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
@@ -30,11 +32,12 @@ import EmployerVerifyEmailPage from './pages/EmployerVerifyEmailPage'
  * of the Seeker, not the Employer.
  *
  * Almost every route below is unprotected: the board is public and accounts
- * gate nothing for a Seeker (docs/adr/0002). /account (Seeker) and
- * /post-a-role (Employer, as of the Employer sign-in surfacing this file's
- * own history records) are the two pages that need someone signed in, and
- * each redirects itself rather than being wrapped in a guard component — see
- * AccountPage.tsx and PostRolePage.tsx.
+ * gate nothing for a Seeker (docs/adr/0002). /account (Seeker), /post-a-role
+ * (Employer), and /admin + /choose-view (a Seeker with is_admin set) are the
+ * pages that need someone signed in — with the right privilege, in the admin
+ * pages' case — and each redirects itself rather than being wrapped in a
+ * guard component. See AccountPage.tsx, PostRolePage.tsx, AdminPage.tsx and
+ * ModeChooserPage.tsx.
  *
  * Nav's "Sign in" points at /get-started, not directly at /signin — see
  * SignInChooserPage.tsx for why a chooser sits in front of both sign-in
@@ -60,6 +63,8 @@ export default function App() {
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/verify" element={<VerifyEmailPage />} />
               <Route path="/account" element={<AccountPage />} />
+              <Route path="/admin" element={<AdminPage />} />
+              <Route path="/choose-view" element={<ModeChooserPage />} />
               <Route path="/employer/register" element={<EmployerRegisterPage />} />
               <Route path="/employer/signin" element={<EmployerSignInPage />} />
               <Route path="/employer/forgot-password" element={<EmployerForgotPasswordPage />} />

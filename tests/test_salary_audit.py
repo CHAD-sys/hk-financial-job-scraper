@@ -33,6 +33,7 @@ CREATE TABLE job_enrichments (
     salary_tier TEXT, salary_role TEXT,
     salary_estimated_min INTEGER, salary_estimated_max INTEGER,
     enriched_at TEXT,
+    manually_edited_at TEXT,
     UNIQUE (source, source_id)
 );
 CREATE TABLE salary_audit_log (
@@ -123,6 +124,34 @@ def test_full_mode_ignores_audit_history(conn):
     flagged = salary_audit._select_outliers(conn, full=True)
 
     assert [r["source_id"] for r in flagged] == ["J-1"]
+
+
+def test_manually_edited_row_is_never_flagged(conn):
+    """
+    A hand-corrected salary (webapp/backend/job_edit.py) must never be sent
+    back to the judge that just got overruled — that would silently revert
+    the correction the next time this runs. Never audited, never in
+    salary_audit_log, well past the >=120k heuristic bar: every other signal
+    says "flag this," and manually_edited_at alone must still suppress it.
+    """
+    conn.execute(
+        "UPDATE job_enrichments SET manually_edited_at = '2026-08-06T00:00:00+00:00' "
+        "WHERE source='jobsdb' AND source_id='J-1'"
+    )
+    conn.commit()
+
+    assert salary_audit._select_outliers(conn) == []
+
+
+def test_manually_edited_row_is_excluded_even_in_full_mode(conn):
+    """--full exists to bypass audit HISTORY, not a human's decision."""
+    conn.execute(
+        "UPDATE job_enrichments SET manually_edited_at = '2026-08-06T00:00:00+00:00' "
+        "WHERE source='jobsdb' AND source_id='J-1'"
+    )
+    conn.commit()
+
+    assert salary_audit._select_outliers(conn, full=True) == []
 
 
 def test_run_audit_logs_ok_verdict_and_next_selection_skips_it(conn, db_path, monkeypatch):

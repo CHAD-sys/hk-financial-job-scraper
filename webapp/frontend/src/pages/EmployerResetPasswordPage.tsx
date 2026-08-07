@@ -97,7 +97,7 @@ export default function EmployerResetPasswordPage() {
             <input
               id="erp-password" name="password" type="password" required
               minLength={MIN_PASSWORD} maxLength={MAX_PASSWORD}
-              autoComplete="new-password" autoFocus className="finex-input"
+              autoComplete="new-password" className="finex-input"
             />
           </AuthField>
 

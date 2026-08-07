@@ -43,7 +43,7 @@ Every line was a deliberate choice. Do not silently reverse one.
 | 1 | Seekers only. Employers are a separate aggregate later, **not a `role` column** | ADR 0001 |
 | 2 | Carrot = durable Saved Roles. Alerts, application tracking, CV matching all deferred | ADR 0001 |
 | 3 | **Nothing is gated.** The board stays fully public to anonymous visitors | ADR 0002 |
-| 4 | Google + email/password. LinkedIn is a fast-follow, not v1 | ADR 0003 |
+| 4 | Google + email/password. LinkedIn is a fast-follow, not v1 — **shipped 2026-08-07**, once a Company Page + Developer app existed | ADR 0003 |
 | 5 | Auth assembled from Python libraries inside the existing FastAPI service | ADR 0004 |
 | 6 | **FastAPI serves the React bundle** — one origin, one service | ADR 0005 |
 | 7 | Seeker data in its own `/data/seekers.db`, `ATTACH`-joined to `jobs.db` | ADR 0006 |
@@ -152,8 +152,13 @@ Not in v1, but the design is settled so it is not re-litigated later:
 - **Application tracking** — Seeker-owned status on roles already saved. Needs no email,
   no scheduled job, no fresh `jobs.db`. The cheapest way to give the account a visible
   purpose if signups disappoint.
-- **LinkedIn sign-in** — third provider against the same Seeker record, configured
-  through a generic OIDC slot. Brand value, not data value.
+- ~~**LinkedIn sign-in** — third provider against the same Seeker record, configured
+  through a generic OIDC slot. Brand value, not data value.~~ **Shipped 2026-08-07**:
+  `webapp/backend/main.py`'s `linkedin_start`/`linkedin_callback`, `LinkedInButton`
+  (`AuthShell.tsx`), on `/signin` and `/register`. Needs `LINKEDIN_CLIENT_ID` /
+  `LINKEDIN_CLIENT_SECRET` in the environment (docs/adr/0003's prerequisite) before
+  it does anything but redirect to `?error=linkedin_unavailable` — same posture
+  Google sign-in shipped with before its own credentials existed.
 - **Employer accounts and billing** — a different aggregate, gated on paid inventory
   existing (`docs/PLAN_FRONT_PAGE.md` decision 20).
 
@@ -214,8 +219,9 @@ propagation is waiting, not coding.
 ## 10. Non-goals for v1
 
 Stated as refusals, not omissions: **no gating · no alerts · no application tracking ·
-no CV upload or matching · no employer accounts · no billing · no admin UI · no LinkedIn ·
-no CAPTCHA · no self-serve data export.**
+no CV upload or matching · no employer accounts · no billing · no admin UI ·
+no CAPTCHA · no self-serve data export.** (LinkedIn sign-in was on this list for v1;
+see §6 — it shipped as the fast-follow it was always scheduled to be.)
 
 ---
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 
 /**
  * Makes a modal closeable via the phone/browser back gesture. Without this,
@@ -38,8 +38,17 @@ export function useModalHistoryGuard(onClose: () => void) {
   // calling the latest onClose — the parent passes a fresh arrow every
   // render, and depending on it directly would re-push a history entry
   // on every re-render instead of once per modal open.
+  //
+  // Written from a layout effect, not directly in the render body: render
+  // must stay pure because React can replay or discard it (StrictMode does
+  // exactly that on every mount, per the module docstring above), and a ref
+  // write is a side effect that would leak from a discarded render. A layout
+  // effect still runs synchronously before the browser paints, so the ref is
+  // never stale by the time 'popstate' could fire.
   const onCloseRef = useRef(onClose)
-  onCloseRef.current = onClose
+  useLayoutEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
 
   useEffect(() => {
     let cancelled = false

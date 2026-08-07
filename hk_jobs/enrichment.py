@@ -284,7 +284,11 @@ class EnrichmentPipeline:
         # PROMPT_VERSION — this is what lets a job reactivated after soft-delete (or any
         # job enriched under an older prompt/model) get automatically refreshed by a
         # regular run, not just an explicit --re-enrich. re_enrich/boutique_only still
-        # reprocess everything matching (the ON CONFLICT DO UPDATE upserts).
+        # reprocess everything matching (the ON CONFLICT DO UPDATE upserts) — EXCEPT a
+        # row Ultimate Admin has hand-edited (job_enrichments.manually_edited_at, phase
+        # 33), which the WHERE clause below excludes unconditionally, re_enrich/
+        # boutique_only included: those flags exist to force everything ELSE to be
+        # reconsidered, not to erase a correction a human already made.
         enriched_filter = (
             ""
             if (re_enrich or boutique_only)
@@ -298,6 +302,7 @@ class EnrichmentPipeline:
               LEFT JOIN job_enrichments e
                 ON j.source = e.source AND j.source_id = e.source_id
              WHERE j.is_active = 1
+               AND e.manually_edited_at IS NULL
                {enriched_filter}
                {boutique_filter}
                {today_filter}

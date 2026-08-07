@@ -276,10 +276,90 @@ def migrate_to_phase_1(conn: sqlite3.Connection) -> None:
         logger.debug("seekers.db phase 1 migration: tables already exist")
 
 
-# Every phase, in order. A future phase 2 appends here; it never edits phase 1,
-# because phase 1 has already run against a file with no backup but the volume
-# snapshot.
-_MIGRATIONS = (migrate_to_phase_1,)
+def migrate_to_phase_2(conn: sqlite3.Connection) -> None:
+    """
+    Add `seekers.is_admin` — a privilege flag, not a new account type.
+
+    Admin Mode reuses the ordinary Seeker sign-in (same email/password, same
+    session cookie); the only difference is this one column. That is
+    deliberately NOT the same shape as Employer (ADR 0001's separate aggregate):
+    an Employer is a different kind of accountholder with its own required
+    fields (company_name) and its own table. An admin is the same kind of
+    accountholder with one extra bit of trust — a column fits, a second table
+    or a `role` enum would not.
+
+    `ALTER TABLE ... ADD COLUMN` is not idempotent on its own (it errors if the
+    column already exists), unlike every DDL statement in phase 1, so this
+    checks `PRAGMA table_info` first rather than relying on IF NOT EXISTS,
+    which SQLite's ALTER TABLE does not support.
+    """
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(seekers)").fetchall()}
+    if "is_admin" not in columns:
+        conn.execute("ALTER TABLE seekers ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
+        logger.info("seekers.db phase 2 migration: added seekers.is_admin")
+    else:
+        logger.debug("seekers.db phase 2 migration: is_admin already present")
+
+
+def migrate_to_phase_3(conn: sqlite3.Connection) -> None:
+    """
+    Add `seekers.username` — a short alternate login handle, alongside email.
+
+    Built for Admin Mode: the five accounts scripts/create_admin.py creates get
+    one ("kenson", not "kenson@finexclub.org") so signing in does not require
+    remembering an email address for an account that was never given one to
+    receive mail at. Nothing stops an ordinary Seeker having one too, but
+    nothing offers it to them either — there is no self-serve way to set this
+    column, on purpose, until there is an actual feature asking for one.
+
+    A plain nullable column, not UNIQUE at the column level: SQLite's
+    `ALTER TABLE ADD COLUMN` cannot carry a UNIQUE constraint on an existing
+    table, only a fresh CREATE TABLE can — so uniqueness is a separate index,
+    same two-step every other constraint this file has ever added takes.
+    SQLite treats every NULL in a UNIQUE index as distinct from every other
+    NULL, which is exactly right here: the near-totality of Seekers with no
+    username must never collide with each other.
+    """
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(seekers)").fetchall()}
+    if "username" not in columns:
+        conn.execute("ALTER TABLE seekers ADD COLUMN username TEXT")
+        logger.info("seekers.db phase 3 migration: added seekers.username")
+    else:
+        logger.debug("seekers.db phase 3 migration: username already present")
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_seekers_username ON seekers (username)")
+
+
+def migrate_to_phase_4(conn: sqlite3.Connection) -> None:
+    """
+    Add `seekers.is_super_admin` — Ultimate Admin's one privilege beyond
+    ordinary Admin Mode.
+
+    Deliberately a SEPARATE bit from `is_admin` (phase 2), not a wider value on
+    the same column: every super-admin is also an admin (Ultimate Admin still
+    sees the same dashboard the other four do), but the reverse must never be
+    true by construction. A single `role` column with an "ultimate" value would
+    make that guarantee something every caller has to remember to check
+    correctly; two independent booleans make "admin but not super-admin" the
+    default shape of the other four rows, not a rule someone has to enforce.
+
+    is_super_admin is what `webapp/backend/job_edit.py` requires: the direct
+    read/write path onto a job's own row and its enrichment — the one place
+    this backend lets a human overwrite what the pipeline computed, everything
+    from the title to the AI's salary estimate. See its module docstring for
+    why that write needs its own privilege bit rather than riding on is_admin.
+    """
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(seekers)").fetchall()}
+    if "is_super_admin" not in columns:
+        conn.execute("ALTER TABLE seekers ADD COLUMN is_super_admin INTEGER NOT NULL DEFAULT 0")
+        logger.info("seekers.db phase 4 migration: added seekers.is_super_admin")
+    else:
+        logger.debug("seekers.db phase 4 migration: is_super_admin already present")
+
+
+# Every phase, in order. A future phase 5 appends here; it never edits phases 1
+# through 4, because all four have already run against a file with no backup
+# but the volume snapshot.
+_MIGRATIONS = (migrate_to_phase_1, migrate_to_phase_2, migrate_to_phase_3, migrate_to_phase_4)
 
 
 # ── Time helpers ──────────────────────────────────────────────────────────────
@@ -325,6 +405,14 @@ def normalise_email(email: str) -> str:
     letting one person hold two.
     """
     return email.strip().lower()
+
+
+def normalise_username(username: str) -> str:
+    """Lowercase and strip — same rule as normalise_email(), same reason:
+    the UNIQUE index is case-sensitive at the SQLite level, so "Kenson" and
+    "kenson" must be stored (and looked up) as one canonical form or the
+    constraint stops meaning what it looks like it means."""
+    return username.strip().lower()
 
 
 def new_seeker_id() -> str:
@@ -478,6 +566,37 @@ class SeekerStore:
         )
         return dict(row) if row else None
 
+    def get_seeker_by_username(self, username: str) -> dict[str, Any] | None:
+        """
+        None for the near-totality of Seekers, who have no username at all —
+        see migrate_to_phase_3. `username IS NOT NULL` is not needed in the
+        WHERE clause: an empty/None `username` argument would only match a row
+        whose username is also NULL by `=` semantics in standard SQL, except
+        SQLite's `=` against NULL is never true for ANY value including NULL
+        itself, so a blank identifier here simply matches nothing — the caller
+        does not need to special-case it.
+        """
+        row = (
+            self._conn()
+            .execute(
+                "SELECT * FROM seekers WHERE username = ?", (normalise_username(username),)
+            )
+            .fetchone()
+        )
+        return dict(row) if row else None
+
+    def set_username(self, seeker_id: str, username: str | None) -> None:
+        """
+        Set or clear a Seeker's login username. Raises `sqlite3.IntegrityError`
+        if another account already holds it — the UNIQUE index is the arbiter,
+        same pattern as create_seeker() and the email UNIQUE constraint.
+        """
+        with self._write() as conn:
+            conn.execute(
+                "UPDATE seekers SET username = ? WHERE id = ?",
+                (normalise_username(username) if username else None, seeker_id),
+            )
+
     def set_password_hash(self, seeker_id: str, password_hash: str | None) -> None:
         """
         Store a new password hash (or None to clear it).
@@ -495,6 +614,29 @@ class SeekerStore:
             conn.execute(
                 "UPDATE seekers SET email_verified = ? WHERE id = ?",
                 (1 if verified else 0, seeker_id),
+            )
+
+    def set_admin(self, seeker_id: str, is_admin: bool = True) -> None:
+        """
+        Grant or revoke Admin Mode for a Seeker. Ordinary ops, not a self-serve
+        endpoint — the only caller today is scripts/create_admin.py, run by hand.
+        """
+        with self._write() as conn:
+            conn.execute(
+                "UPDATE seekers SET is_admin = ? WHERE id = ?",
+                (1 if is_admin else 0, seeker_id),
+            )
+
+    def set_super_admin(self, seeker_id: str, is_super_admin: bool = True) -> None:
+        """
+        Grant or revoke Ultimate Admin's direct-edit privilege. Same caller and
+        the same "by hand, not self-serve" rule as set_admin() — see phase 4's
+        docstring for why this is its own bit rather than a wider is_admin.
+        """
+        with self._write() as conn:
+            conn.execute(
+                "UPDATE seekers SET is_super_admin = ? WHERE id = ?",
+                (1 if is_super_admin else 0, seeker_id),
             )
 
     def touch_last_login(self, seeker_id: str, *, now: datetime | None = None) -> None:

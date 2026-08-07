@@ -131,7 +131,7 @@ function pickSector(filterData: FiltersResponse | null): { name: string; count: 
   if (!filterData || filterData.sectors.length === 0) return null
   const banking = filterData.sectors.find(s => /banking/i.test(s.name) && !/investment/i.test(s.name))
   if (banking) return banking
-  return [...filterData.sectors].sort((a, b) => b.count - a.count)[0]
+  return filterData.sectors.toSorted((a, b) => b.count - a.count)[0]
 }
 
 export default function RecommendedRoles({

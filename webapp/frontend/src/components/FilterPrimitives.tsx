@@ -6,7 +6,12 @@ import type { JobFilters } from '../api/client'
 // (same fields rendered always-expanded, full width). Keeping them here means
 // the two surfaces can never drift out of sync with each other.
 
-export const PILL_PALETTES = {
+// Not exported: nothing outside this file references the map itself, only
+// PillButton's `palette` prop (a `keyof typeof PILL_PALETTES` string, which
+// carries its own type without needing this constant re-imported). Keeping
+// it private is also what lets this file export only components, which Fast
+// Refresh needs to preserve component state across edits.
+const PILL_PALETTES = {
   ink: { bg: 'var(--color-ink)', fg: 'var(--color-ink-inverse)', border: 'var(--color-ink)' },
   blue: { bg: 'var(--color-blue)', fg: '#fff', border: 'var(--color-blue)' },
   amber: { bg: '#FEF3C7', fg: '#854D0E', border: '#F5C451' },
@@ -61,7 +66,9 @@ export function FilterRow({ label, children }: { label: string; children: ReactN
   )
 }
 
-export function RangeInput({
+// Not exported: only SalaryFields/ExpFields/ApplicantsFields below use it,
+// all in this same file — nothing imports it from elsewhere.
+function RangeInput({
   placeholder,
   value,
   onChange,

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { AlertCircle, Mail, UserPlus } from 'lucide-react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { AuthShell, AuthField, AuthDivider, GoogleButton } from '../components/AuthShell'
+import { AuthShell, AuthField, AuthDivider, GoogleButton, LinkedInButton } from '../components/AuthShell'
 import { useAuth } from '../auth/useAuth'
 import { useReturnTo } from '../auth/useReturnTo'
 
@@ -142,7 +142,10 @@ export default function RegisterPage() {
           boxShadow: 'var(--shadow-card)',
         }}
       >
-        <GoogleButton label="Continue with Google" />
+        <div className="flex flex-col gap-3">
+          <GoogleButton label="Continue with Google" />
+          <LinkedInButton label="Continue with LinkedIn" />
+        </div>
         <AuthDivider />
 
         <form onSubmit={handleSubmit} noValidate>

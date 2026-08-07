@@ -27,19 +27,29 @@ export default function MobileFilterSheet({
   onClear,
   onClose,
 }: Props) {
+  const dialogRef = useRef<HTMLDialogElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
 
+  // Native <dialog> + showModal() gives focus trapping for free — the div it
+  // replaced (role="dialog" + a manual keydown listener) let Tab reach page
+  // content behind the sheet, because nothing actually contained focus.
+  // showModal() also handles Escape (fired as a 'cancel' event, intercepted
+  // below so it goes through the same onClose the Close button uses) and
+  // opens the top-layer ::backdrop declared in index.css.
   useEffect(() => {
+    const dlg = dialogRef.current
+    if (!dlg) return
+    dlg.showModal()
     document.body.style.overflow = 'hidden'
     closeRef.current?.focus()
-    return () => { document.body.style.overflow = '' }
+    const onCancel = (e: Event) => { e.preventDefault(); onClose() }
+    dlg.addEventListener('cancel', onCancel)
+    return () => {
+      dlg.removeEventListener('cancel', onCancel)
+      document.body.style.overflow = ''
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
 
   const sectorSet = new Set(filters.sectors)
   const senSet = new Set(filters.seniority)
@@ -60,11 +70,10 @@ export default function MobileFilterSheet({
   }
 
   return (
-    <div
+    <dialog
+      ref={dialogRef}
       className="mobile-filter-sheet fixed inset-0 flex flex-col md:hidden"
       style={{ zIndex: 300, backgroundColor: 'var(--color-bg)' }}
-      role="dialog"
-      aria-modal="true"
       aria-label="Filters"
     >
       {/* Header */}
@@ -200,7 +209,7 @@ export default function MobileFilterSheet({
           Show results
         </button>
       </div>
-    </div>
+    </dialog>
   )
 }
 

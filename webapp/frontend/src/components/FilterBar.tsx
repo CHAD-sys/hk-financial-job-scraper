@@ -169,17 +169,21 @@ export default function FilterBar({ filters, filterData, activeCount, onUpdate, 
 function SearchInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <div className="relative flex-1 max-w-md">
+      <label htmlFor="filter-bar-search" className="sr-only">
+        Search roles, companies
+      </label>
       <Search
         size={15}
         className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
         style={{ color: 'var(--color-ink-faint)' }}
       />
       <input
+        id="filter-bar-search"
         type="search"
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder="Search roles, companies…"
-        className="w-full rounded-md pl-9 pr-3 py-2 text-sm outline-none transition-all duration-150"
+        className="w-full rounded-md pl-9 pr-3 py-2 text-sm outline-none transition-[background-color,border-color,box-shadow] duration-150"
         style={{
           backgroundColor: 'var(--color-surface-2)',
           border: '1px solid var(--color-border-strong)',

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Job } from '../api/client'
 import { useAuth } from '../auth/useAuth'
@@ -32,6 +32,15 @@ export default function SavedRolesProvider({ children }: { children: ReactNode }
 
   const [saved, setSaved] = useState<Record<string, Job>>({})
 
+  // Mirrors `saved` for toggle() to read synchronously. A ref, not the `saved`
+  // closure, is what lets two rapid presses stay correct without an impure
+  // setState updater (see toggle() below) — kept in sync by the effect right
+  // after this, so it is never stale by the time any handler reads it.
+  const savedRef = useRef(saved)
+  useEffect(() => {
+    savedRef.current = saved
+  }, [saved])
+
   // Load from whichever store is current. Signing in first lifts the browser's
   // Roles into the account, so the list we then read already contains them.
   useEffect(() => {
@@ -55,29 +64,30 @@ export default function SavedRolesProvider({ children }: { children: ReactNode }
 
   const toggle = useCallback((job: Job) => {
     const key = roleKey(job)
-    let wasSaved = false
 
     // Optimistic: the bookmark has to respond on the same tick it is pressed.
-    // Read the previous state inside the updater rather than closing over it,
-    // so two quick presses cannot both act on the same stale snapshot.
-    setSaved(prev => {
-      wasSaved = Boolean(prev[key])
-      const next = { ...prev }
-      if (wasSaved) delete next[key]
-      else next[key] = job
-      return next
-    })
+    // Read AND write `savedRef` synchronously here, in the event handler —
+    // never inside a setState updater, which React may invoke more than once
+    // (StrictMode does, on purpose, to catch exactly this class of bug) and
+    // whose side effects can then repeat or run out of order. Updating the
+    // ref immediately is what keeps two rapid presses correct: the second
+    // press reads what the first one just wrote, not a stale snapshot.
+    const wasSaved = Boolean(savedRef.current[key])
+    const next = { ...savedRef.current }
+    if (wasSaved) delete next[key]
+    else next[key] = job
+    savedRef.current = next
+    setSaved(next)
 
     const request = wasSaved ? store.unsave(job) : store.save(job)
     request.catch((err: unknown) => {
       console.error('Saved Role update failed', err)
       // Put the UI back where the store actually is.
-      setSaved(prev => {
-        const reverted = { ...prev }
-        if (wasSaved) reverted[key] = job
-        else delete reverted[key]
-        return reverted
-      })
+      const reverted = { ...savedRef.current }
+      if (wasSaved) reverted[key] = job
+      else delete reverted[key]
+      savedRef.current = reverted
+      setSaved(reverted)
     })
   }, [store])
 
