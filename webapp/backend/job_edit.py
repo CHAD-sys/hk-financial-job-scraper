@@ -60,9 +60,43 @@ _JSON_FIELDS = frozenset({"locations", "required_skills"})
 #: below aliases the enrichment side to keep them apart in one flat dict.
 _ENRICHMENT_ALIASES = {"seniority": "e_seniority", "remote_type": "e_remote_type"}
 
+_ADMIN_EDITS_DDL = """
+CREATE TABLE IF NOT EXISTS admin_edits (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    source    TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    seeker_id TEXT NOT NULL,
+    field     TEXT NOT NULL,
+    old_value TEXT,
+    new_value TEXT,
+    edited_at TEXT NOT NULL
+)
+"""
+
 
 class JobNotFound(Exception):
     """Raised when (source, source_id) has no row in `jobs`."""
+
+
+def ensure_schema(conn: sqlite3.Connection) -> None:
+    """Install the editor's phase-33 schema on deployments with an older volume.
+
+    The Railway web service uploads only ``webapp/backend``; it does not ship
+    ``hk_jobs/migrations.py``.  A long-lived production volume can therefore
+    predate the editor even when the current backend code is live.  Keeping this
+    tiny, idempotent compatibility check beside the only feature that needs the
+    schema prevents an authorized request from failing with a 500.
+    """
+    columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(job_enrichments)").fetchall()
+    }
+    if not columns:
+        raise RuntimeError("job_enrichments table is missing; run the base database migrations")
+
+    with conn:
+        if "manually_edited_at" not in columns:
+            conn.execute("ALTER TABLE job_enrichments ADD COLUMN manually_edited_at TEXT")
+        conn.execute(_ADMIN_EDITS_DDL)
 
 
 def _to_storage(field: str, value: Any) -> Any:
@@ -91,6 +125,7 @@ def get_job_for_edit(conn: sqlite3.Connection, source: str, source_id: str) -> d
     be reachable here — those are exactly the rows a correction is often
     needed on, and job_read.Visibility.BOARD would hide them.
     """
+    ensure_schema(conn)
     row = conn.execute(
         """
         SELECT j.*,

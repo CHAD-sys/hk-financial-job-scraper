@@ -90,6 +90,23 @@ def test_get_job_for_edit_works_with_no_enrichment_row_yet(conn):
     assert job["manually_edited_at"] is None
 
 
+def test_get_job_for_edit_self_heals_an_older_deployment_schema(conn):
+    """The backend-only Railway upload must work against a pre-phase-33 volume."""
+    conn.execute("DROP TABLE admin_edits")
+    conn.execute("ALTER TABLE job_enrichments DROP COLUMN manually_edited_at")
+    conn.commit()
+
+    job = job_edit.get_job_for_edit(conn, "workday", "W1")
+
+    assert job["title"] == "Credit Analyst"
+    assert "manually_edited_at" in {
+        row[1] for row in conn.execute("PRAGMA table_info(job_enrichments)")
+    }
+    assert conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='admin_edits'"
+    ).fetchone()
+
+
 # ── apply_edit: validation ────────────────────────────────────────────────────
 
 
