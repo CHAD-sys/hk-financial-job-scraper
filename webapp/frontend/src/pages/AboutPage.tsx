@@ -11,6 +11,10 @@ import PrivacyNotice from '../components/PrivacyNotice'
 import useHashScroll from '../hooks/useHashScroll'
 import { fetchStats, fetchFilters } from '../api/client'
 
+// Consultation points off-site to the Club's mentor programme now, rather
+// than the on-page enquiry form it used to open (see LandingPage.tsx).
+const CONSULTATION_URL = 'https://www.finexclub.org/mentor-program'
+
 // What the single daily AI pass adds to every posting.
 const ENRICHMENTS = [
   { icon: Puzzle, title: 'Skills', body: '7–10 concrete skills per role — from AML and IFRS to Bloomberg, Murex and CFA.' },
@@ -42,7 +46,7 @@ const PRODUCTS = [
     icon: MessageSquare,
     title: 'Executive career consultation',
     body: 'Confidential one-to-one guidance for senior finance professionals weighing a move, a change of function, or the step up to the next seat. By enquiry.',
-    to: '/#consultation',
+    to: CONSULTATION_URL,
     cta: 'Make an enquiry',
   },
   {
@@ -141,11 +145,29 @@ export default function AboutPage() {
                   </span>
                   <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--color-ink)' }}>{title}</h3>
                   <p className="text-sm leading-relaxed grow" style={{ color: 'var(--color-ink-muted)' }}>{body}</p>
-                  <button type="button" onClick={() => navigate(to)}
-                          className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold cursor-pointer self-start"
-                          style={{ color: 'var(--color-blue)' }}>
-                    {cta} <ArrowRight size={14} strokeWidth={2} />
-                  </button>
+                  {to.startsWith('http') ? (
+                    // A real anchor, not an onClick + window.open — Chrome's
+                    // popup blocker can suppress a JS-triggered window.open
+                    // even from a genuine click; a real <a target="_blank">
+                    // has no such failure mode (same reasoning as
+                    // ProductDoor.tsx's external-link branch).
+                    <a
+                      href={to}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold self-start no-underline"
+                      style={{ color: 'var(--color-blue)' }}>
+                      {cta} <ArrowRight size={14} strokeWidth={2} />
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => navigate(to)}
+                      className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold cursor-pointer self-start"
+                      style={{ color: 'var(--color-blue)' }}>
+                      {cta} <ArrowRight size={14} strokeWidth={2} />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -315,11 +337,11 @@ export default function AboutPage() {
                     onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--color-ink)')}>
               Browse all roles <ArrowRight size={15} />
             </button>
-            <button type="button" onClick={() => navigate('/#consultation')}
-                    className="inline-flex items-center gap-1.5 text-sm font-semibold cursor-pointer"
-                    style={{ color: 'var(--color-blue)' }}>
+            <a href={CONSULTATION_URL} target="_blank" rel="noopener noreferrer"
+               className="inline-flex items-center gap-1.5 text-sm font-semibold no-underline"
+               style={{ color: 'var(--color-blue)' }}>
               <MessageSquare size={14} strokeWidth={2} /> Talk to us
-            </button>
+            </a>
             <button type="button" onClick={() => navigate('/learning')}
                     className="inline-flex items-center gap-1.5 text-sm font-semibold cursor-pointer"
                     style={{ color: 'var(--color-blue)' }}>
