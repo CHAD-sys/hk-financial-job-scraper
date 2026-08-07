@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react'
-import { ArrowUpRight, Briefcase } from 'lucide-react'
+import { Briefcase } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import Nav from '../components/Nav'
 import ProductDoor from '../components/ProductDoor'
-import EnquiryForm from '../components/EnquiryForm'
 import useHashScroll from '../hooks/useHashScroll'
 import { fetchStats, fetchFilters } from '../api/client'
 import { SUBSCRIBER_LINE } from '../content/featuredVideos'
 
-const CONSULTING_URL = 'https://www.finexclub.org/consulting'
+const CONSULTATION_URL = 'https://www.finexclub.org/mentor-program'
 
 /** One of the three named offerings inside the hero's positioning statement. */
 function Pillar({ children }: { children: React.ReactNode }) {
@@ -23,8 +22,13 @@ function Pillar({ children }: { children: React.ReactNode }) {
  * them. The board is still the traffic engine and still leads, but it is one
  * door of three rather than the whole site.
  *
- * Consultation is a section on this same page, so its door scrolls. Careers and
- * Learning are real pages (/jobs, /learning), so theirs navigate.
+ * Consultation's door points off-site, to the Club's mentor programme
+ * (CONSULTATION_URL) — it used to be a section on this same page with its own
+ * enquiry form; that form (EnquiryForm.tsx) and the endpoint behind it
+ * (POST /api/contact, mailer.py) are deliberately left in place, just no
+ * longer linked to, so the redirect can be reverted without rebuilding
+ * anything. Careers and Learning are real pages (/jobs, /learning), so theirs
+ * navigate.
  */
 export default function LandingPage() {
   useHashScroll()
@@ -34,7 +38,6 @@ export default function LandingPage() {
       <Nav />
       <main id="main-content">
         <PortalHero />
-        <ConsultationSection />
         <PostRoleStripe />
       </main>
       <LandingFooter />
@@ -144,7 +147,7 @@ function PortalHero() {
             title="Executive career consultation"
             description="Confidential one-to-one guidance for senior finance professionals weighing a move, a change of function, or the step up to the next seat."
             figure="By enquiry"
-            href="#consultation"
+            href={CONSULTATION_URL}
           />
           <ProductDoor
             index="03"
@@ -154,73 +157,6 @@ function PortalHero() {
             figure={SUBSCRIBER_LINE}
             href="/learning"
           />
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ── 02 · Executive Career Consultation ────────────────────────────────────────
-
-function ConsultationSection() {
-  return (
-    <section
-      id="consultation"
-      aria-labelledby="consultation-heading"
-      className="scroll-mt-20 lg:scroll-mt-26"
-      style={{ backgroundColor: 'var(--color-surface-2)', borderTop: '1px solid var(--color-border)' }}
-    >
-      <div className="mx-auto max-w-7xl px-6 lg:px-8 py-16 lg:py-20">
-        {/* items-start: without it the grid stretches the form column to the
-            text column's height, which leaves the short success card as a tall
-            mostly-empty box after submitting. */}
-        <div className="grid items-start gap-12 lg:grid-cols-[1fr_1fr] lg:gap-16">
-          <div>
-            <span
-              className="text-xs font-semibold uppercase"
-              style={{ color: 'var(--color-gold)', letterSpacing: '0.14em' }}
-            >
-              02 · Executive Career Consultation
-            </span>
-
-            <h2
-              id="consultation-heading"
-              className="mt-3 text-3xl lg:text-4xl tracking-tight"
-              style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--color-ink)', letterSpacing: '-0.025em' }}
-            >
-              The conversation before the decision
-            </h2>
-
-            <div className="mt-5 space-y-4 text-base leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
-              <p>
-                Senior moves in Hong Kong finance are rarely decided on a job description.
-                They turn on what a desk is really being built for, who you would answer to,
-                and whether the mandate survives the next budget.
-              </p>
-              <p>
-                We sit down with a small number of senior professionals each month — one to one,
-                in confidence — to work through exactly that. Not CV formatting. The judgement
-                calls: whether to move, where the function is heading, and what the seat you are
-                being offered is actually worth.
-              </p>
-              <p style={{ color: 'var(--color-ink)' }}>
-                Tell us what you are weighing up. We read every enquiry personally.
-              </p>
-            </div>
-
-            <a
-              href={CONSULTING_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-8 inline-flex items-center gap-1.5 text-sm font-semibold"
-              style={{ color: 'var(--color-blue)' }}
-            >
-              FinEx Consulting — our institutional advisory practice
-              <ArrowUpRight size={15} strokeWidth={2} />
-            </a>
-          </div>
-
-          <EnquiryForm />
         </div>
       </div>
     </section>
@@ -288,7 +224,7 @@ function LandingFooter() {
         {/* Real destinations only. The previous footer linked five dead "#"s. */}
         <nav className="flex flex-wrap gap-x-6 gap-y-2" aria-label="Footer navigation">
           <FooterLink to="/jobs">Browse roles</FooterLink>
-          <FooterLink to="/#consultation">Consultation</FooterLink>
+          <FooterLink to={CONSULTATION_URL}>Consultation</FooterLink>
           <FooterLink to="/learning">Learning</FooterLink>
           <FooterLink to="/post-a-role">Post a role</FooterLink>
           <FooterLink to="/about">About</FooterLink>
@@ -304,6 +240,23 @@ function LandingFooter() {
 }
 
 function FooterLink({ to, children }: { to: string; children: React.ReactNode }) {
+  // An external URL stays a plain <a> — react-router's <Link> resolves `to`
+  // against the current route, so a full https:// URL passed to it would be
+  // treated as an internal path rather than actually leaving the site.
+  if (to.startsWith('http')) {
+    return (
+      <a
+        href={to}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-xs font-medium no-underline"
+        style={{ color: 'var(--color-ink-faint)' }}
+      >
+        {children}
+      </a>
+    )
+  }
+
   return (
     <Link
       to={to}

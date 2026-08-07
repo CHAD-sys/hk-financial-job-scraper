@@ -10,9 +10,10 @@ import { useSavedRoles } from '../savedRoles/useSavedRoles'
 /**
  * Primary navigation.
  *
- * Consultation is a section on `/`, not a route, so it is a hash link. From `/`
- * the browser scrolls natively; from any other route this is a client-side
- * navigation and LandingPage's useHashScroll() does the scrolling on arrival.
+ * Consultation points off-site to the Club's mentor programme
+ * (finexclub.org/mentor-program) — external, same treatment as Market
+ * Research, while the on-page enquiry form it used to open stays in the
+ * codebase (EnquiryForm.tsx, POST /api/contact) rather than being deleted.
  * Careers and Learning are real pages (/jobs, /learning) and navigate normally.
  *
  * Home points at the portal (the "Asia's 1st Premier Career Centre" statement).
@@ -39,7 +40,7 @@ import { useSavedRoles } from '../savedRoles/useSavedRoles'
 const LINKS: { label: string; to: string; external?: boolean }[] = [
   { label: 'Home', to: '/' },
   { label: 'Careers', to: '/jobs' },
-  { label: 'Consultation', to: '/#consultation' },
+  { label: 'Consultation', to: 'https://www.finexclub.org/mentor-program', external: true },
   { label: 'Learning', to: '/learning' },
   { label: 'Market Research', to: 'https://www.finexclub.org/research', external: true },
   { label: 'About', to: '/about' },
@@ -90,8 +91,8 @@ export default function Nav() {
   }
 
   // A hash link is active only when its fragment is the current one. Home is the
-  // portal with NO fragment — otherwise scrolling to Consultation (which leaves
-  // pathname as '/') would light up Home and Consultation at the same time.
+  // portal with NO fragment — otherwise scrolling to a hash-linked section
+  // (which leaves pathname as '/') would light up Home at the same time.
   const isActive = (to: string) => {
     if (to.startsWith('/#')) return pathname === '/' && hash === to.slice(1)
     if (to === '/') return pathname === '/' && !hash

@@ -21,7 +21,7 @@ interface Props {
   description: string
   /** Live figure (e.g. "3,612 live roles"). Rendered in mono. Optional. */
   figure?: ReactNode
-  /** Internal route ("/jobs") or same-page anchor ("#consultation"). */
+  /** Internal route ("/jobs"), same-page anchor ("#consultation"), or an external URL ("https://..."). */
   href: string
 }
 
@@ -31,9 +31,13 @@ interface Props {
  * Rendered as a real anchor, not a div with onClick, so it is keyboard
  * reachable, middle-clickable, and crawlable. Internal routes go through
  * react-router's Link; same-page anchors stay plain <a href="#..."> and rely on
- * the native smooth scrolling already set on `html` in index.css.
+ * the native smooth scrolling already set on `html` in index.css. An external
+ * URL also stays a plain <a> — react-router's <Link> resolves `to` against the
+ * current route, so a full https:// URL passed to it would be treated as an
+ * (nonexistent) internal path rather than actually leaving the site.
  */
 export default function ProductDoor({ index, eyebrow, title, description, figure, href }: Props) {
+  const isExternal = href.startsWith('http')
   const isAnchor = href.startsWith('#')
 
   const body = (
@@ -89,6 +93,14 @@ export default function ProductDoor({ index, eyebrow, title, description, figure
       </span>
     </>
   )
+
+  if (isExternal) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className={DOOR_CLASS} style={DOOR_STYLE}>
+        {body}
+      </a>
+    )
+  }
 
   if (isAnchor) {
     return (

@@ -520,7 +520,16 @@ function LearningFooter() {
         </span>
         <nav className="flex flex-wrap gap-x-6 gap-y-2" aria-label="Footer navigation">
           <Link to="/jobs" className="text-xs font-medium no-underline" style={{ color: 'var(--color-ink-faint)' }}>Browse roles</Link>
-          <Link to="/#consultation" className="text-xs font-medium no-underline" style={{ color: 'var(--color-ink-faint)' }}>Consultation</Link>
+          <a
+            href="https://www.finexclub.org/mentor-program"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs font-medium no-underline"
+            style={{ color: 'var(--color-ink-faint)' }}
+          >
+            Consultation
+            <ArrowUpRight size={11} strokeWidth={2} aria-hidden="true" />
+          </a>
           <Link to="/about" className="text-xs font-medium no-underline" style={{ color: 'var(--color-ink-faint)' }}>About</Link>
         </nav>
       </div>
