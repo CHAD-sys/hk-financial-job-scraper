@@ -5,9 +5,10 @@ import type { Job, FiltersResponse, JobListResponse, TierTab } from '../api/clie
 import {
   DEFAULT_FILTERS, fetchJobs, fetchFilters, fetchStats,
   filtersToSearchParams, searchParamsToFilters,
-  countActiveFilters,
+  countActiveFilters, recordDiscovery,
 } from '../api/client'
 import type { JobFilters } from '../api/client'
+import { useAuth } from '../auth/useAuth'
 import { useSavedRoles } from '../savedRoles/useSavedRoles'
 import { useDebounce } from '../hooks/useDebounce'
 import { scrollToTop } from '../utils/scroll'
@@ -70,6 +71,7 @@ export default function JobBoardPage() {
   const [recruiterPosts, setRecruiterPosts] = useState<JobListResponse | null>(null)
 
   const { toggle: toggleSave, isSaved } = useSavedRoles()
+  const { seeker } = useAuth()
 
   // Load filter options + unfiltered board total once
   useEffect(() => {
@@ -110,20 +112,20 @@ export default function JobBoardPage() {
     setForceBoard(true)
   }, [])
 
-  const pickSector = useCallback((sector: string) => {
-    setSearchInput('')
-    setBaseFilters({ ...DEFAULT_FILTERS, sectors: [sector] })
-    setSort('newest') // browsing a sector is not a text query — relevance has nothing to rank
-    setPage(1)
-    setForceBoard(true)
-  }, [])
-
   const backToSearch = useCallback(() => {
     setBaseFilters(DEFAULT_FILTERS)
     setSearchInput(DEFAULT_FILTERS.search)
     setSort('newest')
     setPage(1)
     setForceBoard(false)
+  }, [])
+
+  const browseAll = useCallback(() => {
+    setBaseFilters(DEFAULT_FILTERS)
+    setSearchInput(DEFAULT_FILTERS.search)
+    setSort('newest')
+    setPage(1)
+    setForceBoard(true)
   }, [])
 
   // Typing a fresh query straight into the board's own search field (rather
@@ -183,13 +185,30 @@ export default function JobBoardPage() {
   useEffect(() => {
     if (!showBoard) return
     let cancelled = false
+    let discoveryTimer: ReturnType<typeof setTimeout> | null = null
     setLoading(true)
     fetchJobs(activeFilters, sort, page, PAGE_SIZE)
-      .then(r => { if (!cancelled) setResult(r) })
+      .then(r => {
+        if (cancelled) return
+        setResult(r)
+
+        // Recommendation learning records completed intent, not keystrokes.
+        // Waiting until a result page has settled also gives rapid filter
+        // changes a chance to cancel this timer. Page 2+ is navigation through
+        // the same intent, so only page 1 becomes a discovery event.
+        if (seeker && page === 1 && activeCount > 0) {
+          discoveryTimer = setTimeout(() => {
+            recordDiscovery(activeFilters, r.total).catch(console.error)
+          }, 1_200)
+        }
+      })
       .catch(console.error)
       .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [activeFilters, sort, page, showBoard])
+    return () => {
+      cancelled = true
+      if (discoveryTimer) clearTimeout(discoveryTimer)
+    }
+  }, [activeCount, activeFilters, page, seeker, showBoard, sort])
 
   // Recruiter Posts preview strip: same active filters (sector/search/
   // seniority/etc.), tier forced to 'social', small page. Skipped entirely
@@ -268,11 +287,10 @@ export default function JobBoardPage() {
             }}
           >
             <RecommendedRoles
-              filterData={filterData}
               saved={isSaved}
               onToggleSave={toggleSave}
               onSelect={setSelectedJob}
-              onSeeAll={pickSector}
+              onExploreAll={browseAll}
             />
             <IndexStats boardTotal={boardTotal} filterData={filterData} />
           </main>

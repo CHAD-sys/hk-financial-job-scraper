@@ -85,6 +85,8 @@ def test_migrations_create_every_table(store):
         "sessions",
         "email_tokens",
         "saved_roles",
+        "seeker_discovery_events",
+        "recommendation_impressions",
         "events",
     } <= names
 
@@ -357,6 +359,90 @@ def test_merge_is_a_union_and_idempotent(store):
     assert len(store.list_saved_roles(seeker_id)) == 2
 
 
+# ── Recommendation signals ───────────────────────────────────────────────────
+
+
+def test_discovery_events_persist_search_filters_and_result_count(store):
+    seeker_id = store.create_seeker("hana@example.com")
+    now = utcnow()
+
+    created = store.record_discovery(
+        seeker_id,
+        search_query=" Credit Risk ",
+        filters={"sectors": ["Banking"], "seniority": ["mid"]},
+        result_count=42,
+        now=now,
+    )
+
+    assert created is True
+    assert store.list_discovery_events(seeker_id) == [
+        {
+            "id": 1,
+            "seeker_id": seeker_id,
+            "search_query": "credit risk",
+            "filters_json": '{"sectors":["Banking"],"seniority":["mid"]}',
+            "result_count": 42,
+            "created_at": now.isoformat(),
+        }
+    ]
+
+
+def test_discovery_events_suppress_refresh_duplicates_but_keep_changed_intent(store):
+    seeker_id = store.create_seeker("hana@example.com")
+    now = utcnow()
+    kwargs = {
+        "search_query": "risk",
+        "filters": {"sectors": ["Banking"]},
+        "result_count": 10,
+    }
+
+    assert store.record_discovery(seeker_id, **kwargs, now=now) is True
+    assert store.record_discovery(
+        seeker_id, **kwargs, now=now + timedelta(minutes=2)
+    ) is False
+    assert store.record_discovery(
+        seeker_id,
+        search_query="risk",
+        filters={"sectors": ["Insurance"]},
+        result_count=3,
+        now=now + timedelta(minutes=2),
+    ) is True
+    assert len(store.list_discovery_events(seeker_id)) == 2
+
+
+def test_recommendation_impressions_and_click_are_auditable(store):
+    seeker_id = store.create_seeker("hana@example.com")
+    now = utcnow()
+    batch_id = store.record_recommendation_impressions(
+        seeker_id,
+        [
+            {
+                "source": "workday",
+                "source_id": "job-1",
+                "score": 12.5,
+                "reasons": ["Matches your Banking searches", "Uses credit risk"],
+                "position": 1,
+            }
+        ],
+        model_version="signals-v1",
+        now=now,
+    )
+
+    impressions = store.list_recommendation_impressions(seeker_id)
+    assert len(impressions) == 1
+    assert impressions[0]["batch_id"] == batch_id
+    assert impressions[0]["reasons_json"] == (
+        '["Matches your Banking searches","Uses credit risk"]'
+    )
+    assert impressions[0]["clicked_at"] is None
+
+    assert store.mark_recommendation_clicked(
+        seeker_id, "workday", "job-1", now=now + timedelta(seconds=5)
+    ) is True
+    assert store.list_recommendation_impressions(seeker_id)[0]["clicked_at"] == (
+        now + timedelta(seconds=5)
+    ).isoformat()
+
 # ── Events ────────────────────────────────────────────────────────────────────
 
 
@@ -391,6 +477,23 @@ def test_deletion_really_deletes(store):
     store.insert_session("sess-jane", seeker_id, utcnow() + timedelta(days=90))
     store.insert_email_token("tok-jane", seeker_id, "verify", utcnow() + timedelta(hours=1))
     store.save_role(seeker_id, "jobsdb", "job-1")
+    store.record_discovery(
+        seeker_id,
+        search_query="risk",
+        filters={"sectors": ["Banking"]},
+        result_count=1,
+    )
+    store.record_recommendation_impressions(
+        seeker_id,
+        [{
+            "source": "jobsdb",
+            "source_id": "job-1",
+            "score": 1.0,
+            "reasons": ["Matches Banking"],
+            "position": 1,
+        }],
+        model_version="signals-v1",
+    )
     store.log_event("login.succeeded", seeker_id)
 
     assert store.delete_seeker(seeker_id) is True
@@ -401,6 +504,8 @@ def test_deletion_really_deletes(store):
     assert store.count_sessions(seeker_id) == 0
     assert store.get_email_token("tok-jane") is None
     assert store.list_saved_roles(seeker_id) == []
+    assert store.list_discovery_events(seeker_id) == []
+    assert store.list_recommendation_impressions(seeker_id) == []
     assert store.get_identity("google", "sub-jane") is None
     assert store.list_identities(seeker_id) == []
 

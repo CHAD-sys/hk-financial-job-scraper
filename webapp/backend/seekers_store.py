@@ -39,13 +39,14 @@ storage layer; policy lives in auth.py and in the route handlers above it.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sqlite3
 import threading
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable, Iterator
 
@@ -356,10 +357,71 @@ def migrate_to_phase_4(conn: sqlite3.Connection) -> None:
         logger.debug("seekers.db phase 4 migration: is_super_admin already present")
 
 
-# Every phase, in order. A future phase 5 appends here; it never edits phases 1
-# through 4, because all four have already run against a file with no backup
-# but the volume snapshot.
-_MIGRATIONS = (migrate_to_phase_1, migrate_to_phase_2, migrate_to_phase_3, migrate_to_phase_4)
+def migrate_to_phase_5(conn: sqlite3.Connection) -> None:
+    """Persist the first-party signals behind explainable Role recommendations.
+
+    `seeker_discovery_events` is the settled intent trail: one search/filter
+    state after the results came back, never keystrokes and never anonymous
+    browsing. `recommendation_impressions` is the audit/evaluation trail: the
+    Role references shown, their scores and human-readable reasons, plus an
+    optional click timestamp. Neither table copies a Role from jobs.db.
+
+    Both tables cascade with the Seeker and are also named explicitly in
+    `delete_seeker`; recommendations are useful product data, not an exception
+    to the account's deletion promise.
+    """
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS seeker_discovery_events (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            seeker_id     TEXT NOT NULL REFERENCES seekers (id) ON DELETE CASCADE,
+            search_query  TEXT NOT NULL,
+            filters_json  TEXT NOT NULL,
+            result_count  INTEGER NOT NULL,
+            created_at    TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS recommendation_impressions (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            batch_id      TEXT NOT NULL,
+            seeker_id     TEXT NOT NULL REFERENCES seekers (id) ON DELETE CASCADE,
+            source        TEXT NOT NULL,
+            source_id     TEXT NOT NULL,
+            score         REAL NOT NULL,
+            reasons_json  TEXT NOT NULL,
+            model_version TEXT NOT NULL,
+            position      INTEGER NOT NULL,
+            created_at    TEXT NOT NULL,
+            clicked_at    TEXT
+        )
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_discovery_seeker_recent "
+        "ON seeker_discovery_events (seeker_id, created_at DESC)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_impressions_seeker_recent "
+        "ON recommendation_impressions (seeker_id, created_at DESC)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_impressions_role "
+        "ON recommendation_impressions (seeker_id, source, source_id, id DESC)"
+    )
+
+
+# Every phase, in order. A future phase appends here; it never edits an applied
+# phase because seekers.db is irreplaceable first-party account data.
+_MIGRATIONS = (
+    migrate_to_phase_1,
+    migrate_to_phase_2,
+    migrate_to_phase_3,
+    migrate_to_phase_4,
+    migrate_to_phase_5,
+)
 
 
 # ── Time helpers ──────────────────────────────────────────────────────────────
@@ -912,6 +974,158 @@ class SeekerStore:
             ).fetchone()[0]
         return int(after - before)
 
+    # -- recommendation signals --------------------------------------------
+
+    def record_discovery(
+        self,
+        seeker_id: str,
+        *,
+        search_query: str,
+        filters: dict[str, Any],
+        result_count: int,
+        now: datetime | None = None,
+    ) -> bool:
+        """Store one settled search/filter state; return whether it was new.
+
+        A browser refresh repeats the same `/api/jobs` read. Treating that as a
+        second preference signal makes refresh-heavy users look artificially
+        certain, so an exact repeat inside five minutes is suppressed. A real
+        change of query or filter remains a separate event immediately.
+        """
+        moment = now or utcnow()
+        query = " ".join(search_query.strip().lower().split())[:200]
+        filters_json = json.dumps(
+            filters, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
+        if len(filters_json) > 4_000:
+            raise ValueError("Discovery filters are too large")
+
+        with self._write() as conn:
+            latest = conn.execute(
+                """
+                SELECT search_query, filters_json, created_at
+                FROM seeker_discovery_events
+                WHERE seeker_id = ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (seeker_id,),
+            ).fetchone()
+            if (
+                latest
+                and latest["search_query"] == query
+                and latest["filters_json"] == filters_json
+                and from_iso(latest["created_at"]) >= moment - timedelta(minutes=5)
+            ):
+                return False
+
+            conn.execute(
+                """
+                INSERT INTO seeker_discovery_events
+                    (seeker_id, search_query, filters_json, result_count, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (seeker_id, query, filters_json, max(0, int(result_count)), to_iso(moment)),
+            )
+        return True
+
+    def list_discovery_events(self, seeker_id: str, *, limit: int = 100) -> list[dict[str, Any]]:
+        rows = self._conn().execute(
+            """
+            SELECT * FROM seeker_discovery_events
+            WHERE seeker_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (seeker_id, max(1, min(int(limit), 500))),
+        )
+        return [dict(row) for row in rows]
+
+    def record_recommendation_impressions(
+        self,
+        seeker_id: str,
+        items: Iterable[dict[str, Any]],
+        *,
+        model_version: str,
+        now: datetime | None = None,
+    ) -> str:
+        """Append one recommendation batch and return its opaque batch id."""
+        batch_id = str(uuid.uuid4())
+        created_at = to_iso(now or utcnow())
+        rows = []
+        for item in items:
+            reasons_json = json.dumps(
+                list(item.get("reasons") or []),
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+            rows.append(
+                (
+                    batch_id,
+                    seeker_id,
+                    str(item["source"]),
+                    str(item["source_id"]),
+                    float(item["score"]),
+                    reasons_json,
+                    model_version,
+                    int(item["position"]),
+                    created_at,
+                )
+            )
+        if len(rows) > 100:
+            raise ValueError("A recommendation batch cannot exceed 100 Roles")
+        if rows:
+            with self._write() as conn:
+                conn.executemany(
+                    """
+                    INSERT INTO recommendation_impressions
+                        (batch_id, seeker_id, source, source_id, score, reasons_json,
+                         model_version, position, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    rows,
+                )
+        return batch_id
+
+    def list_recommendation_impressions(
+        self, seeker_id: str, *, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        rows = self._conn().execute(
+            """
+            SELECT * FROM recommendation_impressions
+            WHERE seeker_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (seeker_id, max(1, min(int(limit), 500))),
+        )
+        return [dict(row) for row in rows]
+
+    def mark_recommendation_clicked(
+        self,
+        seeker_id: str,
+        source: str,
+        source_id: str,
+        *,
+        now: datetime | None = None,
+    ) -> bool:
+        """Mark the newest matching impression clicked, idempotently."""
+        with self._write() as conn:
+            cursor = conn.execute(
+                """
+                UPDATE recommendation_impressions
+                SET clicked_at = COALESCE(clicked_at, ?)
+                WHERE id = (
+                    SELECT id FROM recommendation_impressions
+                    WHERE seeker_id = ? AND source = ? AND source_id = ?
+                    ORDER BY id DESC
+                    LIMIT 1
+                )
+                """,
+                (to_iso(now or utcnow()), seeker_id, source, source_id),
+            )
+            return cursor.rowcount == 1
+
     # -- events (first-party analytics, decision 19) -------------------------
 
     def log_event(
@@ -981,6 +1195,12 @@ class SeekerStore:
             conn.execute("DELETE FROM sessions WHERE seeker_id = ?", (seeker_id,))
             conn.execute("DELETE FROM email_tokens WHERE seeker_id = ?", (seeker_id,))
             conn.execute("DELETE FROM saved_roles WHERE seeker_id = ?", (seeker_id,))
+            conn.execute(
+                "DELETE FROM seeker_discovery_events WHERE seeker_id = ?", (seeker_id,)
+            )
+            conn.execute(
+                "DELETE FROM recommendation_impressions WHERE seeker_id = ?", (seeker_id,)
+            )
             conn.execute("DELETE FROM seeker_identities WHERE seeker_id = ?", (seeker_id,))
             conn.execute("DELETE FROM seekers WHERE id = ?", (seeker_id,))
             conn.execute(

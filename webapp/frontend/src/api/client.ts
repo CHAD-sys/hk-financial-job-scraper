@@ -151,6 +151,28 @@ export interface StatsResponse {
   internship_count: number
 }
 
+export interface RecommendedRole {
+  job: Job
+  score: number
+  /** Plain-language evidence for this ranking, strongest signal first. */
+  reasons: string[]
+}
+
+export interface RecommendationsResponse {
+  personalized: boolean
+  model_version: string
+  signal_count: number
+  saved_role_count: number
+  activity_count: number
+  eligible_count: number
+  page: number
+  page_size: number
+  total_pages: number
+  generated_at: string
+  batch_id: string | null
+  items: RecommendedRole[]
+}
+
 export type TierTab = 'all' | 'boutique' | 'mainstream' | 'social'
 
 // board_signals.linkedin_posts shape, set by hk_jobs/posts/promote.py — recruiter
@@ -273,6 +295,53 @@ export async function fetchStats(): Promise<StatsResponse> {
   const res = await apiFetch('/api/stats')
   if (!res.ok) throw new Error(`Stats fetch failed: ${res.status}`)
   return res.json()
+}
+
+/**
+ * A small, explainable feed. The backend personalizes it when the Seeker
+ * cookie is present and returns an explicitly non-personalized market fallback
+ * otherwise, so the discover page can keep one honest rendering path.
+ */
+export async function fetchRecommendations(
+  page = 1,
+  pageSize = 6,
+): Promise<RecommendationsResponse> {
+  const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+  const res = await apiFetch(`/api/recommendations?${params}`)
+  if (!res.ok) {
+    throw new ApiError(res.status, `Could not load recommended Roles (${res.status}).`)
+  }
+  return res.json()
+}
+
+/**
+ * Persist one settled search/filter state for recommendation learning.
+ * Callers debounce before invoking this; the server also coalesces an exact
+ * refresh inside five minutes, so reloads do not masquerade as repeated intent.
+ */
+export async function recordDiscovery(filters: JobFilters, resultCount: number): Promise<void> {
+  const { search, ...structuredFilters } = filters
+  const res = await apiFetch('/api/me/discovery', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      search_query: search.trim(),
+      filters: structuredFilters,
+      result_count: resultCount,
+    }),
+  })
+  if (!res.ok) {
+    throw new ApiError(res.status, `Could not remember this search (${res.status}).`)
+  }
+}
+
+/** Attribute an opened card to the latest recommendation impression. */
+export async function trackRecommendationClick(source: string, sourceId: string): Promise<void> {
+  const path = `/api/me/recommendations/${encodeURIComponent(source)}/${encodeURIComponent(sourceId)}/click`
+  const res = await apiFetch(path, { method: 'POST' })
+  if (!res.ok) {
+    throw new ApiError(res.status, `Could not record this recommendation (${res.status}).`)
+  }
 }
 
 // ── Write endpoints ───────────────────────────────────────────────────────────

@@ -57,6 +57,7 @@ from mailer import RECIPIENT, SMTP_USER, send_mail  # noqa: E402
 # filtered, sorted, counted and shaped for the wire lives in this module — see
 # its docstring for why "browsing is filtered, addressing is not".
 import job_read  # noqa: E402
+import recommendations as role_recommendations  # noqa: E402
 from rate_limit import RateLimiter, RedisRateLimiter  # noqa: E402
 from sender import Message, Sender, SmtpSender  # noqa: E402
 from settings import Settings  # noqa: E402
@@ -320,6 +321,175 @@ def list_jobs(
             conn, filters, sort=sort, page=page, page_size=page_size,
             visibility=Visibility.BOARD,
         )
+
+
+# ── /api/recommendations + discovery signals ─────────────────────────────────
+
+
+class DiscoveryFiltersIn(BaseModel):
+    """The user-controlled filters worth retaining as recommendation intent."""
+
+    tier: str = Field(default="all", max_length=20)
+    sectors: list[str] = Field(default_factory=list, max_length=20)
+    companies: list[str] = Field(default_factory=list, max_length=20)
+    seniority: list[str] = Field(default_factory=list, max_length=20)
+    remote_type: list[str] = Field(default_factory=list, max_length=20)
+    skills: list[str] = Field(default_factory=list, max_length=20)
+    salary_min: Optional[int] = None
+    salary_max: Optional[int] = None
+    salary_disclosed_only: bool = False
+    exp_min: Optional[int] = None
+    exp_max: Optional[int] = None
+    is_internship: Optional[bool] = None
+    is_new: bool = False
+    urgently_hiring: bool = False
+    max_applicants: Optional[int] = None
+    hidden_only: bool = False
+    verified_only: bool = False
+
+
+class DiscoveryIn(BaseModel):
+    search_query: str = Field(default="", max_length=200)
+    filters: DiscoveryFiltersIn = Field(default_factory=DiscoveryFiltersIn)
+    result_count: int = Field(ge=0, le=1_000_000)
+
+
+class RecommendedRoleOut(BaseModel):
+    job: JobSummary
+    score: float
+    reasons: list[str]
+
+
+class RecommendationsOut(BaseModel):
+    personalized: bool
+    model_version: str
+    signal_count: int
+    saved_role_count: int
+    activity_count: int
+    eligible_count: int
+    page: int
+    page_size: int
+    total_pages: int
+    generated_at: str
+    batch_id: Optional[str]
+    items: list[RecommendedRoleOut]
+
+
+@router.post("/api/me/discovery", status_code=204, tags=["recommendations"])
+def record_discovery(payload: DiscoveryIn, request: Request):
+    """Persist one settled search/filter state for the signed-in Seeker."""
+    seeker = _require_seeker(request)
+    filters = payload.filters.model_dump(exclude_defaults=True, exclude_none=True)
+    if not payload.search_query.strip() and not filters:
+        return Response(status_code=204)
+    seekers_store.get_store().record_discovery(
+        seeker["id"],
+        search_query=payload.search_query,
+        filters=filters,
+        result_count=payload.result_count,
+    )
+    return Response(status_code=204)
+
+
+@router.get(
+    "/api/recommendations",
+    response_model=RecommendationsOut,
+    tags=["recommendations"],
+)
+def recommended_roles(
+    request: Request,
+    page: int = Query(1, ge=1, le=10),
+    page_size: int = Query(6, ge=1, le=24),
+):
+    """Return a diverse, explainable Role page; personalize when signed in."""
+    seeker = _current_seeker(request)
+    store = seekers_store.get_store() if seeker else None
+    refs = store.list_saved_roles(seeker["id"]) if store and seeker else []
+    saved_refs = {(row["source"], row["source_id"]) for row in refs}
+    activity = store.list_discovery_events(seeker["id"]) if store and seeker else []
+
+    with get_db(request) as conn:
+        # Recommendations emphasize the recent market. One thousand candidates
+        # is broad enough for this board while keeping the homepage request
+        # cheap and avoiding an unbounded Python ranking pass as the corpus grows.
+        candidates = job_read.list_jobs(
+            conn,
+            JobFilters(),
+            sort=Sort.NEWEST,
+            page=1,
+            page_size=1_000,
+            visibility=Visibility.BOARD,
+        ).jobs
+        saved_jobs = job_read.jobs_by_refs(
+            conn, saved_refs, visibility=Visibility.ADDRESSABLE
+        )
+
+    generated_at = datetime.now(timezone.utc)
+    ranked = role_recommendations.rank_roles(
+        candidates,
+        saved_roles=saved_jobs,
+        discovery_events=activity,
+        saved_refs=saved_refs,
+        page=page,
+        page_size=page_size,
+        now=generated_at,
+    )
+    items = [
+        RecommendedRoleOut(job=item.job, score=item.score, reasons=list(item.reasons))
+        for item in ranked.items
+    ]
+
+    batch_id = None
+    if store and seeker and items:
+        batch_id = store.record_recommendation_impressions(
+            seeker["id"],
+            [
+                {
+                    "source": item.job.source,
+                    "source_id": item.job.source_id,
+                    "score": item.score,
+                    "reasons": item.reasons,
+                    "position": position,
+                }
+                for position, item in enumerate(items, start=1)
+            ],
+            model_version=role_recommendations.MODEL_VERSION,
+            now=generated_at,
+        )
+
+    return RecommendationsOut(
+        personalized=ranked.personalized,
+        model_version=role_recommendations.MODEL_VERSION,
+        signal_count=ranked.signal_count,
+        saved_role_count=len(saved_jobs),
+        activity_count=len(activity),
+        eligible_count=ranked.eligible_count,
+        page=page,
+        page_size=page_size,
+        # The endpoint intentionally exposes a ten-page recommendation window,
+        # even when the candidate pool is larger. This matches the validated
+        # `page` range above and keeps "Show me others" cycling through the
+        # strongest 240 Roles rather than walking into a page-11 validation
+        # error or dredging the tail of the market.
+        total_pages=min(10, (ranked.eligible_count + page_size - 1) // page_size),
+        generated_at=generated_at.isoformat(),
+        batch_id=batch_id,
+        items=items,
+    )
+
+
+@router.post(
+    "/api/me/recommendations/{source}/{source_id}/click",
+    status_code=204,
+    tags=["recommendations"],
+)
+def recommendation_clicked(source: str, source_id: str, request: Request):
+    """Attribute a card-open to the newest matching recommendation impression."""
+    seeker = _require_seeker(request)
+    seekers_store.get_store().mark_recommendation_clicked(
+        seeker["id"], source, source_id
+    )
+    return Response(status_code=204)
 
 
 # ── /api/jobs/{source}/{source_id} ────────────────────────────────────────────
