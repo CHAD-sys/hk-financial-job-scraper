@@ -4,21 +4,15 @@ does not: the recruiter-submission queue (Verification), today's pipeline run,
 a deep read-only analytics pass over jobs.db, and — for Ultimate Admin only —
 direct read/write onto a single job's row and its enrichment.
 
-Every route here sits behind `require_admin` (the job_edit routes ALSO sit
-behind `require_super_admin`), both dependencies main.py hands to
-`build_router()` — nothing in this module decides who is an admin, it only
-decides what an admin can see and do once main.py has already said yes. That
-split is what keeps this file free of any import from main.py (which would be
-circular, since main.py imports THIS module's router): `build_router` takes
-main's `cfg`, `get_db`, `get_write_db`, `require_admin` and `require_super_admin`
-as plain arguments at app-creation time instead.
+Every human-facing route here sits behind `require_admin` (the job_edit routes
+ALSO sit behind `require_super_admin`), both dependencies main.py hands to
+`build_router()`.  The sole machine-facing exception is `/pipeline/snapshot`:
+it uses a separate timing-safe shared secret so the scheduled GitHub pipeline
+can publish its completed daily facts without possessing a human session.
 
-Nothing here writes to jobs.db except submission approval and the job_edit
-routes — both go through their own module's connection (submissions.py,
-job_edit.py) rather than the read-only `get_db` every other route uses (main.py's
-module docstring: "Read access to jobs.db... plus two write endpoints that do
-not touch the database at all" — job_edit is the third, and the only one that
-needs a genuinely writable connection, hence `get_write_db`).
+Writes to jobs.db are limited to submission approval, Ultimate Admin job edits,
+and the authenticated daily snapshot ingestion described above. All other
+dashboard queries use the read-only `get_db` connection.
 
 Several queries below touch `job_history` / `company_metrics`, tables the
 pipeline (hk_jobs/migrations.py, phase 11) creates but this backend never
@@ -30,17 +24,19 @@ dashboard, never a 500.
 
 from __future__ import annotations
 
+import hmac
 import json
 import re
 import sqlite3
 from collections import Counter
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable
+from zoneinfo import ZoneInfo
 
 import job_edit
 import submissions
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request
 from job_read import BOARD_WHERE, SECTOR_SQL
 
 #: Repo root, for the pipeline's log file — computed the same way settings.py
@@ -56,6 +52,38 @@ _LOG_TAIL_BYTES = 300_000
 _RUN_STARTED_RE = re.compile(r"===\s*Daily pipeline started\s*===")
 _RUN_FINISHED_RE = re.compile(r"===\s*Daily pipeline finished\s*===")
 _PHASE_RE = re.compile(r"^\[[\d\- :]+\]\s*(Phase .+|=== .+ ===)\s*$")
+_HONG_KONG = ZoneInfo("Asia/Hong_Kong")
+
+_JOB_HISTORY_DDL = """
+CREATE TABLE IF NOT EXISTS job_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id TEXT NOT NULL,
+    company_name TEXT NOT NULL,
+    job_count INTEGER NOT NULL,
+    scraped_date DATE NOT NULL,
+    trend_direction TEXT,
+    trend_percent REAL,
+    jobs_added INTEGER,
+    jobs_removed INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (company_id, scraped_date)
+)
+"""
+
+_PIPELINE_SYNC_DDL = """
+CREATE TABLE IF NOT EXISTS pipeline_snapshot_sync (
+    scraped_date DATE PRIMARY KEY,
+    received_at TEXT NOT NULL,
+    company_count INTEGER NOT NULL,
+    total_jobs INTEGER NOT NULL,
+    source_run_url TEXT
+)
+"""
+
+
+def _hong_kong_today() -> date:
+    """The operating day shown to FinEx admins, independent of server region."""
+    return datetime.now(_HONG_KONG).date()
 
 
 def _scalar(conn: sqlite3.Connection, sql: str, *params: Any, default: Any = 0) -> Any:
@@ -128,23 +156,28 @@ def _tail_log() -> dict[str, Any]:
 
 def _run_today(conn: sqlite3.Connection) -> dict[str, Any]:
     """Everything answering "did the pipeline run today, and how did it go?" """
+    day = _hong_kong_today().isoformat()
     active = _scalar(conn, "SELECT COUNT(*) FROM jobs WHERE is_active=1")
     companies_active = _scalar(
         conn, "SELECT COUNT(DISTINCT company_slug) FROM jobs WHERE is_active=1"
     )
 
     scraped_today = _scalar(
-        conn, "SELECT COUNT(*) FROM job_history WHERE scraped_date = DATE('now')"
+        conn, "SELECT COUNT(*) FROM job_history WHERE scraped_date = ?", day
     )
     zero_today = _scalar(
         conn,
-        "SELECT COUNT(*) FROM job_history WHERE scraped_date = DATE('now') AND job_count = 0",
+        "SELECT COUNT(*) FROM job_history WHERE scraped_date = ? AND job_count = 0",
+        day,
     )
     jobs_added_today = _scalar(
-        conn, "SELECT SUM(jobs_added) FROM job_history WHERE scraped_date = DATE('now')"
+        conn, "SELECT SUM(jobs_added) FROM job_history WHERE scraped_date = ?", day
     )
     jobs_removed_today = _scalar(
-        conn, "SELECT SUM(jobs_removed) FROM job_history WHERE scraped_date = DATE('now')"
+        conn, "SELECT SUM(jobs_removed) FROM job_history WHERE scraped_date = ?", day
+    )
+    listings_collected_today = _scalar(
+        conn, "SELECT SUM(job_count) FROM job_history WHERE scraped_date = ?", day
     )
     zero_companies = [
         r["company_name"]
@@ -156,12 +189,20 @@ def _run_today(conn: sqlite3.Connection) -> dict[str, Any]:
             LEFT JOIN (SELECT company_id, MAX(job_count) peak
                        FROM job_history GROUP BY company_id) p
                    ON p.company_id = h.company_id
-            WHERE h.scraped_date = DATE('now') AND h.job_count = 0
+            WHERE h.scraped_date = ? AND h.job_count = 0
             ORDER BY COALESCE(p.peak, 0) DESC, h.company_name
             LIMIT 20
             """,
+            day,
         )
     ]
+
+    snapshot_received_at = _scalar(
+        conn,
+        "SELECT received_at FROM pipeline_snapshot_sync WHERE scraped_date = ?",
+        day,
+        default=None,
+    )
 
     desc_pct = _scalar(
         conn,
@@ -182,13 +223,15 @@ def _run_today(conn: sqlite3.Connection) -> dict[str, Any]:
     )
 
     return {
-        "date": date.today().isoformat(),
+        "date": day,
         "ran_today": bool(scraped_today),
+        "snapshot_received_at": snapshot_received_at,
         "companies_scraped_today": scraped_today,
         "companies_zero_today": zero_today,
         "zero_companies": zero_companies,
         "jobs_added_today": jobs_added_today or 0,
         "jobs_removed_today": jobs_removed_today or 0,
+        "listings_collected_today": listings_collected_today or 0,
         "active_jobs": active,
         "companies_active": companies_active,
         "description_coverage_pct": desc_pct,
@@ -206,7 +249,7 @@ def _run_history(conn: sqlite3.Connection, days: int) -> list[dict[str, Any]]:
     `_market_movers`, so every time comparison on the page uses the same cohort
     quality threshold.
     """
-    since = (date.today() - timedelta(days=days)).isoformat()
+    since = (_hong_kong_today() - timedelta(days=days)).isoformat()
     rows = _rows(
         conn,
         """
@@ -626,6 +669,98 @@ def build_router(
 
     def _queue_path(request: Request) -> Path:
         return cfg(request).submissions_dir / "submitted_roles.jsonl"
+
+    @router.post("/pipeline/snapshot")
+    def ingest_pipeline_snapshot(
+        request: Request,
+        body: dict = Body(...),
+        sync_token: str | None = Header(default=None, alias="X-Pipeline-Sync-Token"),
+    ):
+        """Upsert one completed daily pipeline snapshot from GitHub Actions."""
+        expected = cfg(request).pipeline_sync_token
+        if not expected:
+            raise HTTPException(status_code=503, detail="Pipeline snapshot sync is disabled")
+        if not sync_token or not hmac.compare_digest(sync_token, expected):
+            raise HTTPException(status_code=401, detail="Invalid pipeline sync token")
+
+        try:
+            scraped_date = date.fromisoformat(str(body["scraped_date"])).isoformat()
+        except (KeyError, TypeError, ValueError):
+            raise HTTPException(
+                status_code=400, detail="scraped_date must be ISO YYYY-MM-DD"
+            ) from None
+
+        companies = body.get("companies")
+        if not isinstance(companies, list) or not 1 <= len(companies) <= 1000:
+            raise HTTPException(status_code=400, detail="companies must contain 1-1000 rows")
+
+        cleaned: list[tuple[Any, ...]] = []
+        seen: set[str] = set()
+        for row in companies:
+            try:
+                company_id = str(row["company_id"]).strip()
+                company_name = str(row["company_name"]).strip()
+                job_count = max(0, int(row["job_count"]))
+                jobs_added = max(0, int(row.get("jobs_added") or 0))
+                jobs_removed = max(0, int(row.get("jobs_removed") or 0))
+                trend_direction = row.get("trend_direction")
+                trend_percent = float(row.get("trend_percent") or 0)
+            except (KeyError, TypeError, ValueError):
+                raise HTTPException(
+                    status_code=400, detail="Invalid company snapshot row"
+                ) from None
+            if not company_id or not company_name or company_id in seen:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Company IDs and names must be unique and non-empty",
+                )
+            seen.add(company_id)
+            cleaned.append((
+                company_id, company_name, job_count, scraped_date,
+                trend_direction, trend_percent, jobs_added, jobs_removed,
+            ))
+
+        received_at = datetime.now(_HONG_KONG).isoformat()
+        with get_write_db(request) as conn:
+            with conn:
+                conn.execute(_JOB_HISTORY_DDL)
+                conn.execute(_PIPELINE_SYNC_DDL)
+                # A rerun is a complete replacement for the same operating
+                # day. Deleting first prevents companies removed from the
+                # pipeline configuration from surviving as stale rows.
+                conn.execute("DELETE FROM job_history WHERE scraped_date = ?", (scraped_date,))
+                conn.executemany(
+                    """
+                    INSERT INTO job_history
+                        (company_id, company_name, job_count, scraped_date,
+                         trend_direction, trend_percent, jobs_added, jobs_removed)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    cleaned,
+                )
+                conn.execute(
+                    """
+                    INSERT INTO pipeline_snapshot_sync
+                        (scraped_date, received_at, company_count, total_jobs, source_run_url)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT (scraped_date) DO UPDATE SET
+                        received_at=excluded.received_at,
+                        company_count=excluded.company_count,
+                        total_jobs=excluded.total_jobs,
+                        source_run_url=excluded.source_run_url
+                    """,
+                    (
+                        scraped_date, received_at, len(cleaned),
+                        sum(row[2] for row in cleaned), body.get("source_run_url"),
+                    ),
+                )
+
+        return {
+            "scraped_date": scraped_date,
+            "companies": len(cleaned),
+            "total_jobs": sum(row[2] for row in cleaned),
+            "received_at": received_at,
+        }
 
     # ── Recruiter submissions ───────────────────────────────────────────────
 

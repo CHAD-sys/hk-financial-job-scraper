@@ -22,7 +22,7 @@ so a test constructs one directly and never touches the environment at all.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 #: Repo root, from this file's location. Only used for defaults.
@@ -85,6 +85,11 @@ class Settings:
     #: attached and referenced via a variable reference on the backend service.
     redis_url: str = ""
 
+    #: Shared secret used only by the scheduled GitHub pipeline when it
+    #: publishes the completed Hong Kong-day snapshot to Railway. Empty keeps
+    #: the ingestion endpoint disabled, which is the safe local default.
+    pipeline_sync_token: str = ""
+
     def __post_init__(self) -> None:
         # Submissions default to sitting beside the database, which is the
         # Railway volume in production. Computed here rather than as a default
@@ -116,6 +121,7 @@ class Settings:
             db_seed_url=os.environ.get("DB_SEED_URL", "").strip(),
             trust_proxy_headers=_flag("TRUST_PROXY_HEADERS", default=True),
             redis_url=os.environ.get("REDIS_URL", "").strip(),
+            pipeline_sync_token=os.environ.get("PIPELINE_SYNC_TOKEN", "").strip(),
         )
 
     # ── Derived ───────────────────────────────────────────────────────────────

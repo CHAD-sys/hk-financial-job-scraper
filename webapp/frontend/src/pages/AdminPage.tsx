@@ -164,6 +164,11 @@ export default function AdminPage() {
                   {today.ran_today ? <CheckCircle2 size={17} /> : <AlertTriangle size={17} />}
                   {today.ran_today ? `Pipeline recorded for ${today.date}` : `No pipeline record yet for ${today.date}`}
                 </div>
+                {today.snapshot_received_at && (
+                  <div className="text-xs" style={{ color: 'var(--color-ink-muted)' }}>
+                    Daily snapshot synced {new Date(today.snapshot_received_at).toLocaleTimeString('en-HK', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Hong_Kong' })} HKT
+                  </div>
+                )}
                 {today.log.available && today.log.last_run_found && (
                   <div className="text-xs" style={{ color: today.log.crashed ? 'var(--color-destructive)' : 'var(--color-ink-muted)' }}>
                     {today.log.crashed
@@ -174,7 +179,7 @@ export default function AdminPage() {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
                 {[
-                  ['Active source listings', today.active_jobs.toLocaleString(), 'Current rows before board dedupe'],
+                  ['Listings collected', today.listings_collected_today.toLocaleString(), `Pipeline snapshot for ${today.date}`],
                   ['Companies scraped', today.companies_scraped_today.toLocaleString(), 'Recorded today'],
                   ['Zero-result companies', today.companies_zero_today.toLocaleString(), 'Review source health'],
                   ['Listings added', `+${today.jobs_added_today.toLocaleString()}`, 'Versus prior company snapshots'],

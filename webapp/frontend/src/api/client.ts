@@ -586,11 +586,13 @@ export async function rejectSubmission(id: string, reason: string): Promise<Admi
 export interface AdminRunToday {
   date: string
   ran_today: boolean
+  snapshot_received_at: string | null
   companies_scraped_today: number
   companies_zero_today: number
   zero_companies: string[]
   jobs_added_today: number
   jobs_removed_today: number
+  listings_collected_today: number
   active_jobs: number
   companies_active: number
   description_coverage_pct: number

@@ -11,6 +11,10 @@ on:
         required: false
         default: ""
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   scrape:
     name: Scrape + export
@@ -28,6 +32,22 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      - name: Restore the latest successful database
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p data
+          PRIOR_RUN=$(gh run list --workflow daily.yml --status success --limit 1 \
+            --json databaseId --jq '.[0].databaseId // empty')
+          if [[ -n "$PRIOR_RUN" ]]; then
+            echo "Restoring jobs.db from successful run $PRIOR_RUN"
+            gh run download "$PRIOR_RUN" \
+              --name "jobs-db-$PRIOR_RUN" --dir data \
+              || echo "No reusable database artifact found; starting a new history."
+          else
+            echo "No previous successful run found; starting a new history."
+          fi
 
       - name: Run scraper
         env:
@@ -59,3 +79,47 @@ jobs:
           path: data/jobs.db
           retention-days: 7
           if-no-files-found: warn
+
+      - name: Publish the completed daily snapshot to Railway
+        env:
+          PIPELINE_SYNC_TOKEN: ${{ secrets.PIPELINE_SYNC_TOKEN }}
+          PIPELINE_SYNC_URL: https://finex-careers.up.railway.app/api/admin/pipeline/snapshot
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import sqlite3
+
+          conn = sqlite3.connect("data/jobs.db")
+          conn.row_factory = sqlite3.Row
+          scraped_date = conn.execute("SELECT MAX(scraped_date) FROM job_history").fetchone()[0]
+          if not scraped_date:
+              raise SystemExit("Pipeline produced no job_history snapshot")
+          rows = conn.execute(
+              """
+              SELECT company_id, company_name, job_count, trend_direction,
+                     trend_percent, jobs_added, jobs_removed
+              FROM job_history
+              WHERE scraped_date = ?
+              ORDER BY company_id
+              """,
+              (scraped_date,),
+          ).fetchall()
+          payload = {
+              "scraped_date": scraped_date,
+              "companies": [dict(row) for row in rows],
+              "source_run_url": (
+                  f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}"
+                  f"/actions/runs/{os.environ['GITHUB_RUN_ID']}"
+              ),
+          }
+          with open("/tmp/pipeline-snapshot.json", "w", encoding="utf-8") as fh:
+              json.dump(payload, fh)
+          print(f"Prepared {len(rows)} company rows for {scraped_date}")
+          PY
+          test -n "$PIPELINE_SYNC_TOKEN"
+          curl --fail-with-body --retry 3 --retry-all-errors \
+            -H "Content-Type: application/json" \
+            -H "X-Pipeline-Sync-Token: $PIPELINE_SYNC_TOKEN" \
+            --data-binary @/tmp/pipeline-snapshot.json \
+            "$PIPELINE_SYNC_URL"

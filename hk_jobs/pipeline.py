@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
 from threading import Lock
+from zoneinfo import ZoneInfo
 
 from hk_jobs.cli import PipelineArgs
 from hk_jobs.config import load_companies
@@ -29,6 +30,12 @@ from hk_jobs.enrich import enrich_all
 from hk_jobs.storage import JobStore
 
 logger = logging.getLogger(__name__)
+_HONG_KONG = ZoneInfo("Asia/Hong_Kong")
+
+
+def _hong_kong_today() -> date:
+    """The reporting day used by the 02:00 HKT scheduled pipeline."""
+    return datetime.now(_HONG_KONG).date()
 
 # Maximum wall-clock seconds allowed per company. A company that hangs
 # (e.g. a very slow server or an infinite pagination loop) will be killed
@@ -204,7 +211,7 @@ def run(args: PipelineArgs) -> list[CompanyResult]:
     # intentionally writes nothing to disk.
     if not dry_run:
         from hk_jobs.analytics import record_scrape_snapshot
-        record_scrape_snapshot(args.db, results, date.today())
+        record_scrape_snapshot(args.db, results, _hong_kong_today())
         _log_trend_changes(results, args.db)
 
     return results
@@ -420,7 +427,7 @@ def _log_trend_changes(results: list[CompanyResult], db_path: str) -> None:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     try:
-        today = date.today().isoformat()
+        today = _hong_kong_today().isoformat()
         rows = conn.execute(
             """SELECT company_name, trend_direction, trend_percent, jobs_added, jobs_removed
                FROM job_history WHERE scraped_date = ?
