@@ -84,7 +84,24 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
-      - name: Publish the completed daily snapshot to Railway
+      - name: Publish the completed catalogue to Railway
+        env:
+          PIPELINE_SYNC_TOKEN: ${{ secrets.PIPELINE_SYNC_TOKEN }}
+          PIPELINE_DATABASE_SYNC_URL: https://finex-careers.up.railway.app/api/admin/pipeline/database
+        run: |
+          test -n "$PIPELINE_SYNC_TOKEN"
+          SNAPSHOT_SHA256=$(sha256sum data/jobs.db | cut -d ' ' -f 1)
+          SOURCE_RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          gzip -1 -c data/jobs.db > /tmp/jobs.db.gz
+          curl --fail-with-body --retry 3 --retry-all-errors \
+            -H "X-Pipeline-Sync-Token: $PIPELINE_SYNC_TOKEN" \
+            -H "X-Pipeline-Run-Id: $GITHUB_RUN_ID" \
+            -H "X-Pipeline-Snapshot-SHA256: $SNAPSHOT_SHA256" \
+            -H "X-Pipeline-Source-Url: $SOURCE_RUN_URL" \
+            -F "snapshot=@/tmp/jobs.db.gz;type=application/gzip" \
+            "$PIPELINE_DATABASE_SYNC_URL"
+
+      - name: Publish the completed daily admin summary to Railway
         env:
           PIPELINE_SYNC_TOKEN: ${{ secrets.PIPELINE_SYNC_TOKEN }}
           PIPELINE_SYNC_URL: https://finex-careers.up.railway.app/api/admin/pipeline/snapshot
