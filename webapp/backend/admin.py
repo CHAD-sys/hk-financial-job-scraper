@@ -50,6 +50,8 @@ from fastapi import (
     UploadFile,
 )
 from job_read import BOARD_WHERE, SECTOR_SQL
+from starlette.background import BackgroundTask
+from starlette.responses import FileResponse
 
 #: Repo root, for the pipeline's log file — computed the same way settings.py
 #: computes it, since admin.py sits at the same depth (webapp/backend/).
@@ -682,6 +684,29 @@ def build_router(
             raise HTTPException(status_code=503, detail="Pipeline sync is disabled")
         if not supplied or not hmac.compare_digest(supplied, expected):
             raise HTTPException(status_code=401, detail="Invalid pipeline sync token")
+
+    @router.get("/pipeline/database")
+    def download_pipeline_database(
+        request: Request,
+        sync_token: str | None = Header(default=None, alias="X-Pipeline-Sync-Token"),
+    ):
+        """Give GitHub Actions a consistent pipeline-only restore point."""
+        _require_pipeline_token(request, sync_token)
+        try:
+            packed, digest = pipeline_publish.export_pipeline_snapshot(
+                Path(cfg(request).jobs_db)
+            )
+        except sqlite3.OperationalError as exc:
+            raise HTTPException(
+                status_code=503, detail="Catalogue snapshot is temporarily busy"
+            ) from exc
+        return FileResponse(
+            packed,
+            media_type="application/gzip",
+            filename="jobs.db.gz",
+            headers={"X-Pipeline-Snapshot-SHA256": digest},
+            background=BackgroundTask(packed.unlink, missing_ok=True),
+        )
 
     @router.post("/pipeline/database")
     def ingest_pipeline_database(

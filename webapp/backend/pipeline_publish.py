@@ -171,6 +171,47 @@ def _backup(live_path: Path, run_id: str) -> Path:
     return target
 
 
+def export_pipeline_snapshot(live_path: Path) -> tuple[Path, str]:
+    """Return a gzipped, consistent pipeline-only copy of Railway's jobs DB.
+
+    The scheduled Action needs the latest enrichment state, but it must not
+    download Railway-owned direct roles, Ultimate Admin audit history, or sync
+    receipts into a public build artifact. SQLite's backup API gives a coherent
+    point-in-time copy while the live service remains online.
+    """
+    raw = tempfile.NamedTemporaryFile(prefix="finex-restore-", suffix=".db", delete=False)
+    raw_path = Path(raw.name)
+    raw.close()
+    packed = tempfile.NamedTemporaryFile(
+        prefix="finex-restore-", suffix=".db.gz", delete=False
+    )
+    packed_path = Path(packed.name)
+    packed.close()
+    try:
+        with sqlite3.connect(live_path) as source, sqlite3.connect(raw_path) as dest:
+            source.backup(dest)
+        with sqlite3.connect(raw_path) as snapshot:
+            snapshot.execute("DELETE FROM job_enrichments WHERE source='direct'")
+            snapshot.execute("DELETE FROM jobs WHERE source='direct'")
+            for table in ("admin_edits", "pipeline_snapshot_sync", "pipeline_catalog_sync"):
+                if _table_exists(snapshot, "main", table):
+                    snapshot.execute(f'DELETE FROM "{table}"')
+            _rebuild_search(snapshot)
+        digest = hashlib.sha256()
+        with raw_path.open("rb") as source, gzip.open(
+            packed_path, "wb", compresslevel=1
+        ) as dest:
+            while chunk := source.read(1024 * 1024):
+                digest.update(chunk)
+                dest.write(chunk)
+        return packed_path, digest.hexdigest()
+    except Exception:
+        packed_path.unlink(missing_ok=True)
+        raise
+    finally:
+        raw_path.unlink(missing_ok=True)
+
+
 def _copy_rows(conn: sqlite3.Connection, table: str) -> None:
     live_cols = _columns(conn, "main", table)
     incoming_cols = _columns(conn, "incoming", table)

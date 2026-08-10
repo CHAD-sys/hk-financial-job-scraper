@@ -136,6 +136,36 @@ def test_catalog_publish_requires_the_machine_secret(publish_client, tmp_path):
         )
 
 
+def test_catalog_restore_snapshot_is_protected_and_excludes_railway_owned_rows(
+    publish_client, tmp_path
+):
+    client, _live = publish_client
+
+    assert client.get("/api/admin/pipeline/database").status_code == 401
+    response = client.get(
+        "/api/admin/pipeline/database",
+        headers={"X-Pipeline-Sync-Token": TOKEN},
+    )
+
+    assert response.status_code == 200, response.text
+    raw = gzip.decompress(response.content)
+    assert hashlib.sha256(raw).hexdigest() == response.headers[
+        "X-Pipeline-Snapshot-SHA256"
+    ]
+    restored = tmp_path / "restored.db"
+    restored.write_bytes(raw)
+    with sqlite3.connect(restored) as conn:
+        assert conn.execute("PRAGMA quick_check").fetchone()[0] == "ok"
+        assert conn.execute("SELECT COUNT(*) FROM jobs WHERE source='direct'").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM admin_edits").fetchone()[0] == 0
+        sync_table = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='pipeline_catalog_sync'"
+        ).fetchone()
+        if sync_table:
+            assert conn.execute("SELECT COUNT(*) FROM pipeline_catalog_sync").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM jobs_fts").fetchone()[0] == 1
+
+
 def test_catalog_publish_rejects_corrupt_or_tampered_uploads(publish_client):
     client, live = publish_client
     before = live.read_bytes()
