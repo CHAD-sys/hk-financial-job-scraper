@@ -169,9 +169,12 @@ def _judge(enricher: DeepSeekEnricher, row: sqlite3.Row) -> dict | None:
         )
     if resp.status_code != 200:
         raise RuntimeError(f"API {resp.status_code}: {resp.text[:120]}")
-    text = resp.json()["choices"][0]["message"]["content"].strip()
+    payload = resp.json()
+    text = payload["choices"][0]["message"]["content"].strip()
     text = text.replace("```json", "").replace("```", "").strip()
-    return json.loads(text)
+    result = json.loads(text)
+    result["_api_usage"] = payload.get("usage") or {}
+    return result
 
 
 def run_audit(db_path: str = "data/jobs.db", limit: int | None = None,
@@ -201,6 +204,11 @@ def run_audit(db_path: str = "data/jobs.db", limit: int | None = None,
                     results[key] = None
 
         lowered = ok = flag_up = failed = 0
+        usage_totals: dict[str, int] = {
+            "calls": 0, "cache_hit": 0, "cache_miss": 0, "completion": 0,
+        }
+        from hk_jobs.ai_usage import add_usage, record
+
         up_report = []
         now = datetime.now(UTC).isoformat()
         with conn:
@@ -210,6 +218,7 @@ def run_audit(db_path: str = "data/jobs.db", limit: int | None = None,
                 if verdict is None:
                     failed += 1
                     continue
+                add_usage(usage_totals, {"usage": verdict.pop("_api_usage", {})})
                 v = verdict.get("verdict")
                 if v == "too_high":
                     revised = salary.lowered(
@@ -279,6 +288,14 @@ def run_audit(db_path: str = "data/jobs.db", limit: int | None = None,
                     len(flagged), lowered, ok, flag_up, failed)
         logger.info("Accuracy (judged already-correct, no change needed): %.1f%% (%d/%d)",
                     accuracy_pct, ok, reviewed)
+        if not dry_run:
+            record(
+                db_path,
+                phase="salary_audit",
+                model="deepseek-v4-flash",
+                totals=usage_totals,
+                roles_processed=len(flagged),
+            )
         if up_report:
             logger.info("── upward suggestions for human review (never auto-applied) ──")
             for r, verdict in up_report[:20]:

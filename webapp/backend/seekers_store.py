@@ -1353,6 +1353,54 @@ class SeekerStore:
         )
         return [dict(row) for row in rows]
 
+    def recommendation_health(self) -> dict[str, object]:
+        """Aggregate product-learning signals for the admin operations desk."""
+        conn = self._conn()
+        total_seekers = conn.execute("SELECT COUNT(*) FROM seekers").fetchone()[0]
+        impressions = conn.execute(
+            "SELECT COUNT(*) FROM recommendation_impressions"
+        ).fetchone()[0]
+        clicked = conn.execute(
+            "SELECT COUNT(*) FROM recommendation_impressions WHERE clicked_at IS NOT NULL"
+        ).fetchone()[0]
+        reached = conn.execute(
+            "SELECT COUNT(DISTINCT seeker_id) FROM recommendation_impressions"
+        ).fetchone()[0]
+        window = conn.execute(
+            "SELECT MIN(shown_at), MAX(shown_at) FROM recommendation_impressions"
+        ).fetchone()
+        feedback = {
+            row[0]: row[1]
+            for row in conn.execute(
+                "SELECT action, COUNT(*) FROM recommendation_feedback GROUP BY action"
+            )
+        }
+        recommendation_saves = conn.execute(
+            """
+            SELECT COUNT(*) FROM saved_roles s
+            WHERE EXISTS (
+                SELECT 1 FROM recommendation_impressions i
+                WHERE i.seeker_id=s.seeker_id AND i.source=s.source
+                  AND i.source_id=s.source_id
+            )
+            """
+        ).fetchone()[0]
+        return {
+            "impressions": impressions,
+            "clicks": clicked,
+            "click_through_pct": round(100.0 * clicked / impressions, 1) if impressions else 0.0,
+            "saves": recommendation_saves,
+            "more_like": int(feedback.get("more_like", 0)),
+            "dismissals": int(feedback.get("not_interested", 0)),
+            "wrong_reason": int(feedback.get("wrong_reason", 0)),
+            "seekers_reached": reached,
+            "eligible_seekers": total_seekers,
+            "coverage_pct": round(100.0 * reached / total_seekers, 1) if total_seekers else 0.0,
+            "tracking_available": True,
+            "window_started_at": window[0],
+            "window_ended_at": window[1],
+        }
+
     def hide_recommendation_employer(
         self,
         seeker_id: str,

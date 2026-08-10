@@ -795,6 +795,92 @@ export async function fetchAdminRunHistory(days = 30): Promise<AdminRunHistoryPo
   return body.points
 }
 
+export type AdminOperationalStatus = 'success' | 'warning' | 'failed' | 'running' | 'skipped' | 'not_recorded'
+
+export interface AdminOperationsDashboard {
+  generated_at: string
+  run: {
+    run_id?: string
+    scraped_date?: string
+    source_run_url?: string | null
+    status?: AdminOperationalStatus
+    started_at?: string | null
+    finished_at?: string | null
+    restore_source?: string | null
+    phases: {
+      key: string
+      label: string
+      status: AdminOperationalStatus
+      duration_seconds: number | null
+      detail?: string | null
+    }[]
+  }
+  quality_gates: {
+    key: string
+    label: string
+    value: number
+    unit: string
+    status: 'pass' | 'warning'
+    detail: string
+  }[]
+  source_health: {
+    source: string
+    companies: number | null
+    successful: number | null
+    zero_results: number | null
+    failed: number | null
+    roles: number
+    runtime_seconds: number | null
+    success_rate_pct: number | null
+    status: 'healthy' | 'warning' | 'failed' | 'not_recorded'
+    tracking_available: boolean
+    roles_found: number | null
+    active_roles: number | null
+  }[]
+  ai_cost: {
+    calls: number
+    roles_processed: number
+    estimated_cost_usd: number
+    cache_hit_tokens: number
+    cache_miss_tokens: number
+    completion_tokens: number
+    backlog: number
+    daily_limit: number
+    tracking_available: boolean
+  }
+  publication: {
+    source_run_id: string
+    snapshot_sha256: string
+    source_run_url: string | null
+    received_at: string
+    active_jobs: number
+    restore_source?: string | null
+    restore_sha256?: string | null
+  } | null
+  recommendations: {
+    impressions: number
+    clicks: number
+    click_through_pct: number
+    saves: number
+    more_like: number
+    dismissals: number
+    wrong_reason: number
+    seekers_reached: number
+    eligible_seekers: number
+    coverage_pct: number
+    tracking_available: boolean
+    window_started_at: string | null
+    window_ended_at: string | null
+  }
+  alerts: { severity: 'critical' | 'warning'; title: string; detail: string }[]
+}
+
+export async function fetchAdminOperations(): Promise<AdminOperationsDashboard> {
+  const res = await apiFetch('/api/admin/operations')
+  if (!res.ok) throw new ApiError(res.status, `Could not load pipeline operations (${res.status}).`)
+  return res.json()
+}
+
 export interface AdminAnalyticsOverview {
   total_board_roles: number
   total_active_rows: number

@@ -21,3 +21,16 @@ def test_github_daily_workflow_explicitly_disables_routine_email():
     workflow = (ROOT / ".github" / "workflows" / "daily.yml").read_text(encoding="utf-8")
 
     assert 'PIPELINE_DAILY_EMAIL: "0"' in workflow
+
+
+def test_github_daily_workflow_always_publishes_operations_telemetry():
+    workflow = (ROOT / ".github" / "workflows" / "daily.yml").read_text(encoding="utf-8")
+
+    assert "- name: Publish pipeline operations telemetry" in workflow
+    assert "if: always()" in workflow
+    assert "/api/admin/pipeline/operations" in workflow
+    for phase_id in (
+        "id: restore", "id: scrape", "id: descriptions", "id: deepseek",
+        "id: salary_audit", "id: linkedin", "id: publish_catalogue",
+    ):
+        assert phase_id in workflow

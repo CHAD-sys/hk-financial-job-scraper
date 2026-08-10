@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import logging
+import os
 import random
 import sqlite3
 import sys
@@ -61,6 +62,7 @@ class CompanyResult:
     deactivated: int = 0
     elapsed_secs: float = 0.0
     error: str | None = None
+    source: str = "unknown"
 
     @property
     def ok(self) -> bool:
@@ -146,7 +148,11 @@ def run(args: PipelineArgs) -> list[CompanyResult]:
                 except Exception as exc:
                     cfg = futures[future]
                     logger.error("%s: unexpected error: %s", cfg.name, exc)
-                    results.append(CompanyResult(cfg.name, cfg.slug, error=str(exc)))
+                    results.append(
+                        CompanyResult(
+                            cfg.name, cfg.slug, error=str(exc), source=cfg.adapter
+                        )
+                    )
 
         # Retry pass: companies that returned 0 jobs are almost always transient
         # Cloudflare blocks or network blips, not genuinely empty. Retry them once
@@ -212,6 +218,14 @@ def run(args: PipelineArgs) -> list[CompanyResult]:
     if not dry_run:
         from hk_jobs.analytics import record_scrape_snapshot
         record_scrape_snapshot(args.db, results, _hong_kong_today())
+        from hk_jobs.analytics import record_pipeline_company_runs
+
+        record_pipeline_company_runs(
+            args.db,
+            results,
+            _hong_kong_today(),
+            run_id=os.environ.get("GITHUB_RUN_ID") or run_time.strftime("local-%Y%m%dT%H%M%SZ"),
+        )
         _log_trend_changes(results, args.db)
 
     return results
@@ -232,6 +246,7 @@ def _run_company(
     """
     t0 = time.monotonic()
     adapter = cfg.build_adapter()
+    source = getattr(adapter, "source_name", None) or cfg.adapter
 
     # Fetch jobs (network-bound; runs without the db_lock so other companies
     # can write to the DB while this one is still fetching).
@@ -249,6 +264,7 @@ def _run_company(
                 cfg.name, cfg.slug,
                 elapsed_secs=time.monotonic() - t0,
                 error=f"timeout after {COMPANY_TIMEOUT_SECS}s",
+                source=source,
             )
         except Exception as exc:
             logger.error("%s: adapter raised %s: %s", cfg.name, type(exc).__name__, exc)
@@ -256,6 +272,7 @@ def _run_company(
                 cfg.name, cfg.slug,
                 elapsed_secs=time.monotonic() - t0,
                 error=f"{type(exc).__name__}: {exc}",
+                source=source,
             )
 
     jobs = [job.model_copy(update={"fetched_at": run_time}) for job in jobs]
@@ -296,7 +313,9 @@ def _run_company(
                 logger.warning("%s: returned 0 jobs (dry run)", cfg.name)
             else:
                 logger.info("%s: %d jobs fetched — DRY RUN, not persisted", cfg.name, len(jobs))
-            return CompanyResult(cfg.name, cfg.slug, len(jobs), inserted, 0, 0, elapsed)
+            return CompanyResult(
+                cfg.name, cfg.slug, len(jobs), inserted, 0, 0, elapsed, source=source
+            )
 
         inserted, updated = store.upsert_many(jobs)
         # Scope soft-delete to this run's source so a company scraped from two
@@ -321,7 +340,10 @@ def _run_company(
             cfg.name, len(jobs), inserted, updated, deactivated, elapsed,
         )
 
-    return CompanyResult(cfg.name, cfg.slug, len(jobs), inserted, updated, deactivated, elapsed)
+    return CompanyResult(
+        cfg.name, cfg.slug, len(jobs), inserted, updated, deactivated, elapsed,
+        source=source,
+    )
 
 
 def _retry_failed_companies(

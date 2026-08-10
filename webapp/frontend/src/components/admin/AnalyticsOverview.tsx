@@ -158,17 +158,19 @@ function SalaryRangeChart({ overview }: { overview: AdminAnalyticsOverview }) {
           </div>
         ))}
       </div>
-      <table className="sr-only">
-        <caption>Monthly estimated salary by sector</caption>
-        <thead><tr><th scope="col">Sector</th><th scope="col">Sample</th><th scope="col">25th percentile</th><th scope="col">Median</th><th scope="col">75th percentile</th></tr></thead>
-        <tbody>
-          {overview.sector_salary.map(item => (
-            <tr key={item.name}>
-              <th scope="row">{item.name}</th><td>{item.sample_size}</td><td>{item.p25_hkd}</td><td>{item.median_hkd}</td><td>{item.p75_hkd}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="sr-only">
+        <table>
+          <caption>Monthly estimated salary by sector</caption>
+          <thead><tr><th scope="col">Sector</th><th scope="col">Sample</th><th scope="col">25th percentile</th><th scope="col">Median</th><th scope="col">75th percentile</th></tr></thead>
+          <tbody>
+            {overview.sector_salary.map(item => (
+              <tr key={item.name}>
+                <th scope="row">{item.name}</th><td>{item.sample_size}</td><td>{item.p25_hkd}</td><td>{item.median_hkd}</td><td>{item.p75_hkd}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

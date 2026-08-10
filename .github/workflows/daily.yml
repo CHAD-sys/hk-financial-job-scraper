@@ -43,6 +43,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Restore the latest enriched Railway database
+        id: restore
         env:
           GH_TOKEN: ${{ github.token }}
           PIPELINE_SYNC_TOKEN: ${{ secrets.PIPELINE_SYNC_TOKEN }}
@@ -50,6 +51,7 @@ jobs:
         run: |
           mkdir -p data
           RESTORED_FROM_RAILWAY=0
+          RESTORE_SOURCE=fresh
           if [[ -n "$PIPELINE_SYNC_TOKEN" ]] && \
              curl --fail-with-body --retry 3 --retry-all-errors \
                -H "X-Pipeline-Sync-Token: $PIPELINE_SYNC_TOKEN" \
@@ -59,6 +61,7 @@ jobs:
              gzip --decompress --stdout /tmp/jobs.db.gz > data/jobs.db && \
              python -c "import sqlite3,sys; c=sqlite3.connect('data/jobs.db'); sys.exit(0 if c.execute('PRAGMA quick_check').fetchone()[0] == 'ok' else 1)"; then
             RESTORED_FROM_RAILWAY=1
+            RESTORE_SOURCE=railway
             echo "Restored the latest enriched pipeline database from Railway"
           fi
 
@@ -69,12 +72,18 @@ jobs:
               echo "Railway restore unavailable; falling back to run $PRIOR_RUN"
               gh run download "$PRIOR_RUN" \
                 --name "jobs-db-$PRIOR_RUN" --dir data
+              RESTORE_SOURCE=github_artifact
             else
               echo "No reusable database found; starting a new history."
             fi
           fi
+          echo "PIPELINE_RESTORE_SOURCE=$RESTORE_SOURCE" >> "$GITHUB_ENV"
+          if [[ -f data/jobs.db ]]; then
+            echo "PIPELINE_RESTORE_SHA256=$(sha256sum data/jobs.db | cut -d ' ' -f 1)" >> "$GITHUB_ENV"
+          fi
 
       - name: Run scraper
+        id: scrape
         env:
           COMPANY: ${{ github.event.inputs.company }}
         run: |
@@ -93,6 +102,7 @@ jobs:
         run: test -n "$DEEPSEEK_API_KEY"
 
       - name: Fetch missing job descriptions
+        id: descriptions
         run: |
           python -m hk_jobs.pipeline \
             --db data/jobs.db \
@@ -100,6 +110,7 @@ jobs:
             --log-level INFO
 
       - name: Enrich new and stale roles with DeepSeek
+        id: deepseek
         run: |
           python -m hk_jobs.pipeline \
             --db data/jobs.db \
@@ -108,20 +119,26 @@ jobs:
             --log-level INFO
 
       - name: Audit salary outliers with DeepSeek
+        id: salary_audit
         run: |
-          python -m hk_jobs.pipeline \
+          if ! python -m hk_jobs.pipeline \
             --db data/jobs.db \
             --audit-salaries \
-            --log-level INFO \
-            || echo "::warning::Salary audit failed; catalogue publication will continue"
+            --log-level INFO; then
+            echo "failed" > /tmp/salary-audit-outcome
+            echo "::warning::Salary audit failed; catalogue publication will continue"
+          fi
 
       - name: Promote pending LinkedIn posts with DeepSeek
+        id: linkedin
         run: |
-          python -m hk_jobs.pipeline \
+          if ! python -m hk_jobs.pipeline \
             --db data/jobs.db \
             --promote-posts \
-            --log-level INFO \
-            || echo "::warning::LinkedIn promotion failed; catalogue publication will continue"
+            --log-level INFO; then
+            echo "failed" > /tmp/linkedin-outcome
+            echo "::warning::LinkedIn promotion failed; catalogue publication will continue"
+          fi
 
       - name: Upload JSONL snapshot
         uses: actions/upload-artifact@v4
@@ -140,12 +157,14 @@ jobs:
           if-no-files-found: warn
 
       - name: Publish the completed catalogue to Railway
+        id: publish_catalogue
         env:
           PIPELINE_SYNC_TOKEN: ${{ secrets.PIPELINE_SYNC_TOKEN }}
           PIPELINE_DATABASE_SYNC_URL: https://finex-careers.up.railway.app/api/admin/pipeline/database
         run: |
           test -n "$PIPELINE_SYNC_TOKEN"
           SNAPSHOT_SHA256=$(sha256sum data/jobs.db | cut -d ' ' -f 1)
+          echo "PIPELINE_PUBLISHED_SHA256=$SNAPSHOT_SHA256" >> "$GITHUB_ENV"
           SOURCE_RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           gzip -1 -c data/jobs.db > /tmp/jobs.db.gz
           curl --fail-with-body --retry 3 --retry-all-errors \
@@ -154,9 +173,11 @@ jobs:
             -H "X-Pipeline-Snapshot-SHA256: $SNAPSHOT_SHA256" \
             -H "X-Pipeline-Source-Url: $SOURCE_RUN_URL" \
             -F "snapshot=@/tmp/jobs.db.gz;type=application/gzip" \
-            "$PIPELINE_DATABASE_SYNC_URL"
+            "$PIPELINE_DATABASE_SYNC_URL" | tee /tmp/catalogue-publication.json
+          echo "PIPELINE_PUBLISHED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
       - name: Publish the completed daily admin summary to Railway
+        id: publish_summary
         env:
           PIPELINE_SYNC_TOKEN: ${{ secrets.PIPELINE_SYNC_TOKEN }}
           PIPELINE_SYNC_URL: https://finex-careers.up.railway.app/api/admin/pipeline/snapshot
@@ -199,3 +220,91 @@ jobs:
             -H "X-Pipeline-Sync-Token: $PIPELINE_SYNC_TOKEN" \
             --data-binary @/tmp/pipeline-snapshot.json \
             "$PIPELINE_SYNC_URL"
+
+      - name: Publish pipeline operations telemetry
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PIPELINE_SYNC_TOKEN: ${{ secrets.PIPELINE_SYNC_TOKEN }}
+          PIPELINE_OPERATIONS_URL: https://finex-careers.up.railway.app/api/admin/pipeline/operations
+          RESTORE_OUTCOME: ${{ steps.restore.outcome }}
+          SCRAPE_OUTCOME: ${{ steps.scrape.outcome }}
+          DESCRIPTIONS_OUTCOME: ${{ steps.descriptions.outcome }}
+          DEEPSEEK_OUTCOME: ${{ steps.deepseek.outcome }}
+          SALARY_OUTCOME: ${{ steps.salary_audit.outcome }}
+          LINKEDIN_OUTCOME: ${{ steps.linkedin.outcome }}
+          PUBLISH_OUTCOME: ${{ steps.publish_catalogue.outcome }}
+          SUMMARY_OUTCOME: ${{ steps.publish_summary.outcome }}
+        run: |
+          test -n "$PIPELINE_SYNC_TOKEN"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" > /tmp/run-metadata.json
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs" > /tmp/job-metadata.json
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+
+          run = json.loads(Path('/tmp/run-metadata.json').read_text())
+          jobs = json.loads(Path('/tmp/job-metadata.json').read_text()).get('jobs', [])
+          api_steps = {step['name']: step for job in jobs for step in job.get('steps', [])}
+          names = {
+              'restore': 'Restore the latest enriched Railway database',
+              'scrape': 'Run scraper',
+              'descriptions': 'Fetch missing job descriptions',
+              'deepseek': 'Enrich new and stale roles with DeepSeek',
+              'salary_audit': 'Audit salary outliers with DeepSeek',
+              'linkedin': 'Promote pending LinkedIn posts with DeepSeek',
+              'publish': 'Publish the completed catalogue to Railway',
+          }
+          labels = {
+              'restore': 'Restore', 'scrape': 'Scrape', 'descriptions': 'Descriptions',
+              'deepseek': 'DeepSeek', 'salary_audit': 'Salary audit',
+              'linkedin': 'LinkedIn', 'publish': 'Railway publish',
+          }
+          outcomes = {
+              'restore': os.getenv('RESTORE_OUTCOME'), 'scrape': os.getenv('SCRAPE_OUTCOME'),
+              'descriptions': os.getenv('DESCRIPTIONS_OUTCOME'),
+              'deepseek': os.getenv('DEEPSEEK_OUTCOME'),
+              'salary_audit': os.getenv('SALARY_OUTCOME'),
+              'linkedin': os.getenv('LINKEDIN_OUTCOME'), 'publish': os.getenv('PUBLISH_OUTCOME'),
+          }
+          def duration(step):
+              if not step or not step.get('started_at') or not step.get('completed_at'):
+                  return None
+              return max(0, int((datetime.fromisoformat(step['completed_at'].replace('Z', '+00:00')) - datetime.fromisoformat(step['started_at'].replace('Z', '+00:00'))).total_seconds()))
+          phases = []
+          optional_failed = {
+              'salary_audit': Path('/tmp/salary-audit-outcome').exists(),
+              'linkedin': Path('/tmp/linkedin-outcome').exists(),
+          }
+          for key in names:
+              outcome = outcomes[key] or 'skipped'
+              status = {'success': 'success', 'failure': 'failed', 'cancelled': 'failed', 'skipped': 'skipped'}.get(outcome, 'not_recorded')
+              if optional_failed.get(key): status = 'warning'
+              detail = None
+              if key == 'restore': detail = f"Source: {os.getenv('PIPELINE_RESTORE_SOURCE', 'not recorded')}"
+              phases.append({'key': key, 'label': labels[key], 'status': status, 'duration_seconds': duration(api_steps.get(names[key])), 'detail': detail})
+          required_failed = any(p['status'] in {'failed', 'skipped'} for p in phases if p['key'] in {'restore','scrape','descriptions','deepseek','publish'})
+          warned = any(p['status'] == 'warning' for p in phases) or os.getenv('SUMMARY_OUTCOME') != 'success'
+          status = 'failed' if required_failed else 'warning' if warned else 'success'
+          payload = {
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'scraped_date': datetime.now(ZoneInfo('Asia/Hong_Kong')).date().isoformat(),
+              'source_run_url': run.get('html_url'), 'status': status,
+              'started_at': run.get('run_started_at'),
+              'finished_at': datetime.now(timezone.utc).isoformat(),
+              'restore_source': os.getenv('PIPELINE_RESTORE_SOURCE'),
+              'restore_sha256': os.getenv('PIPELINE_RESTORE_SHA256'),
+              'published_sha256': os.getenv('PIPELINE_PUBLISHED_SHA256'),
+              'published_at': os.getenv('PIPELINE_PUBLISHED_AT'),
+              'phases': phases,
+          }
+          Path('/tmp/pipeline-operations.json').write_text(json.dumps(payload))
+          PY
+          curl --fail-with-body --retry 3 --retry-all-errors \
+            -H "Content-Type: application/json" \
+            -H "X-Pipeline-Sync-Token: $PIPELINE_SYNC_TOKEN" \
+            --data-binary @/tmp/pipeline-operations.json \
+            "$PIPELINE_OPERATIONS_URL"

@@ -282,4 +282,17 @@ def _call_deepseek(post_text: str, *, api_key: str) -> str:
             f"DeepSeek auth error {resp.status_code}", request=resp.request, response=resp
         )
     resp.raise_for_status()
-    return resp.json()["choices"][0]["message"]["content"]
+    payload = resp.json()
+    usage_db = os.environ.get("FINEX_AI_USAGE_DB_PATH", "").strip()
+    if usage_db:
+        from hk_jobs.ai_usage import record, usage_from_payload
+
+        record(
+            usage_db,
+            phase="linkedin_promotion",
+            model=_MODEL,
+            totals=usage_from_payload(payload),
+            roles_processed=1,
+            increment=True,
+        )
+    return payload["choices"][0]["message"]["content"]

@@ -66,6 +66,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -434,6 +435,13 @@ class DeepSeekEnricher:
             raise ValueError(
                 "DeepSeek API key not set. Export DEEPSEEK_API_KEY=<key> first."
             )
+        self.usage_totals: dict[str, int] = {
+            "calls": 0,
+            "cache_hit": 0,
+            "cache_miss": 0,
+            "completion": 0,
+        }
+        self._usage_lock = threading.Lock()
 
     def close(self) -> None:
         pass
@@ -518,7 +526,12 @@ class DeepSeekEnricher:
         if resp.status_code != 200:
             raise RuntimeError(f"API {resp.status_code}: {resp.text[:120]}")
 
-        message = resp.json()["choices"][0]["message"]
+        payload = resp.json()
+        from hk_jobs.ai_usage import add_usage
+
+        with self._usage_lock:
+            add_usage(self.usage_totals, payload)
+        message = payload["choices"][0]["message"]
         # Thinking mode adds this alongside `content` — not persisted to the DB, but
         # logged at DEBUG so a mis-tiered job's reasoning can be inspected after the fact
         # (set logging to DEBUG for hk_jobs.enrichers.deepseek to see it).

@@ -42,6 +42,14 @@
   --color-border-strong: #CBD5E1;
   --color-ring:          #1E3A8A;
   --color-destructive:   #DC2626;
+  --color-success:       #166534;
+  --color-success-bg:    #F0FDF4;
+  --color-success-border:#BBF7D0;
+  --color-warning:       #854D0E;
+  --color-warning-bg:    #FFFBEB;
+  --color-warning-border:#FDE68A;
+  --color-danger-bg:     #FEF2F2;
+  --color-danger-border: #FECACA;
 
   /* A closed Role is neither an error nor a disabled control — it is archived.
      Slate rather than --color-destructive, and dark enough that a solid band of

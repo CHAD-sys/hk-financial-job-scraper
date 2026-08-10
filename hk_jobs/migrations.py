@@ -887,6 +887,81 @@ def migrate_to_phase_33(db_path: str) -> None:
         conn.close()
 
 
+_PIPELINE_COMPANY_RUNS_DDL = """
+CREATE TABLE IF NOT EXISTS pipeline_company_runs (
+    run_id          TEXT NOT NULL,
+    scraped_date    TEXT NOT NULL,
+    source          TEXT NOT NULL,
+    company_slug    TEXT NOT NULL,
+    company_name    TEXT NOT NULL,
+    status          TEXT NOT NULL CHECK (status IN ('success', 'zero', 'failed')),
+    jobs_found      INTEGER NOT NULL DEFAULT 0,
+    jobs_inserted   INTEGER NOT NULL DEFAULT 0,
+    jobs_updated    INTEGER NOT NULL DEFAULT 0,
+    jobs_deactivated INTEGER NOT NULL DEFAULT 0,
+    runtime_seconds REAL NOT NULL DEFAULT 0,
+    error           TEXT,
+    recorded_at     TEXT NOT NULL,
+    PRIMARY KEY (run_id, company_slug)
+)
+"""
+
+_AI_USAGE_DDL = """
+CREATE TABLE IF NOT EXISTS ai_usage (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id              TEXT NOT NULL,
+    phase               TEXT NOT NULL,
+    model               TEXT NOT NULL,
+    calls               INTEGER NOT NULL DEFAULT 0,
+    roles_processed     INTEGER NOT NULL DEFAULT 0,
+    prompt_cache_hit_tokens  INTEGER NOT NULL DEFAULT 0,
+    prompt_cache_miss_tokens INTEGER NOT NULL DEFAULT 0,
+    completion_tokens   INTEGER NOT NULL DEFAULT 0,
+    estimated_cost_usd  REAL NOT NULL DEFAULT 0,
+    recorded_at         TEXT NOT NULL,
+    UNIQUE (run_id, phase, model)
+)
+"""
+
+_PIPELINE_OPERATIONS_DDL = """
+CREATE TABLE IF NOT EXISTS pipeline_operations (
+    run_id              TEXT PRIMARY KEY,
+    scraped_date        TEXT NOT NULL,
+    source_run_url      TEXT,
+    status              TEXT NOT NULL CHECK (status IN ('success', 'warning', 'failed', 'running')),
+    started_at          TEXT,
+    finished_at         TEXT,
+    restore_source      TEXT,
+    restore_sha256      TEXT,
+    published_sha256    TEXT,
+    published_at        TEXT,
+    phases_json         TEXT NOT NULL DEFAULT '[]',
+    recorded_at         TEXT NOT NULL
+)
+"""
+
+
+def migrate_to_phase_34(db_path: str) -> None:
+    """Persist the evidence behind the admin pipeline operations dashboard."""
+    conn = sqlite3.connect(db_path)
+    try:
+        with conn:
+            conn.execute(_PIPELINE_COMPANY_RUNS_DDL)
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_pipeline_company_runs_date "
+                "ON pipeline_company_runs (scraped_date DESC, source)"
+            )
+            conn.execute(_AI_USAGE_DDL)
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_ai_usage_recorded "
+                "ON ai_usage (recorded_at DESC, phase)"
+            )
+            conn.execute(_PIPELINE_OPERATIONS_DDL)
+        logger.info("Phase 34 migration: pipeline operations ledgers ready")
+    finally:
+        conn.close()
+
+
 # ── The ledger ────────────────────────────────────────────────────────────────
 
 _SCHEMA_MIGRATIONS_DDL = """
@@ -929,6 +1004,7 @@ MIGRATIONS: tuple[tuple[int, Callable[[str], None]], ...] = (
     (31, migrate_to_phase_31),
     (32, migrate_to_phase_32),
     (33, migrate_to_phase_33),
+    (34, migrate_to_phase_34),
 )
 
 LATEST_PHASE = MIGRATIONS[-1][0]

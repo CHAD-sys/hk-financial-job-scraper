@@ -37,6 +37,7 @@ from zoneinfo import ZoneInfo
 
 import job_edit
 import pipeline_publish
+import seekers_store
 import submissions
 from fastapi import (
     APIRouter,
@@ -93,6 +94,27 @@ CREATE TABLE IF NOT EXISTS pipeline_snapshot_sync (
     source_run_url TEXT
 )
 """
+
+_PIPELINE_OPERATIONS_DDL = """
+CREATE TABLE IF NOT EXISTS pipeline_operations (
+    run_id TEXT PRIMARY KEY, scraped_date TEXT NOT NULL, source_run_url TEXT,
+    status TEXT NOT NULL CHECK (status IN ('success', 'warning', 'failed', 'running')),
+    started_at TEXT, finished_at TEXT, restore_source TEXT, restore_sha256 TEXT,
+    published_sha256 TEXT, published_at TEXT,
+    phases_json TEXT NOT NULL DEFAULT '[]', recorded_at TEXT NOT NULL
+)
+"""
+
+_PHASE_KEYS = (
+    ("restore", "Restore"),
+    ("scrape", "Scrape"),
+    ("descriptions", "Descriptions"),
+    ("deepseek", "DeepSeek"),
+    ("salary_audit", "Salary audit"),
+    ("linkedin", "LinkedIn"),
+    ("publish", "Railway publish"),
+)
+_PHASE_STATUSES = {"success", "warning", "failed", "skipped", "running", "not_recorded"}
 
 
 def _hong_kong_today() -> date:
@@ -282,6 +304,197 @@ def _run_history(conn: sqlite3.Connection, days: int) -> list[dict[str, Any]]:
         since,
     )
     return [dict(r) for r in rows]
+
+
+def _operations_dashboard(conn: sqlite3.Connection) -> dict[str, Any]:
+    """One evidence-backed operational view; absent ledgers stay visibly absent."""
+    latest_operation = _rows(
+        conn, "SELECT * FROM pipeline_operations ORDER BY recorded_at DESC LIMIT 1"
+    )
+    operation = dict(latest_operation[0]) if latest_operation else None
+    phases = json.loads(operation["phases_json"]) if operation else []
+    seen = {str(phase.get("key")) for phase in phases}
+    phases.extend(
+        {"key": key, "label": label, "status": "not_recorded", "duration_seconds": None}
+        for key, label in _PHASE_KEYS
+        if key not in seen
+    )
+    order = {key: index for index, (key, _label) in enumerate(_PHASE_KEYS)}
+    phases.sort(key=lambda phase: order.get(str(phase.get("key")), 99))
+
+    active = int(_scalar(conn, "SELECT COUNT(*) FROM jobs WHERE is_active=1"))
+    active_board = int(_scalar(conn, f"SELECT COUNT(*) FROM jobs j WHERE {BOARD_WHERE}"))
+    duplicates = int(
+        _scalar(conn, "SELECT COUNT(*) FROM jobs WHERE is_active=1 AND cross_posted=1")
+    )
+    missing_descriptions = int(
+        _scalar(
+            conn,
+            "SELECT COUNT(*) FROM jobs WHERE is_active=1 AND TRIM(COALESCE(description_clean,''))=''",
+        )
+    )
+    enriched = int(
+        _scalar(
+            conn,
+            """SELECT COUNT(*) FROM jobs j JOIN job_enrichments e
+               ON j.source=e.source AND j.source_id=e.source_id WHERE j.is_active=1""",
+        )
+    )
+    latest_day = _scalar(conn, "SELECT MAX(scraped_date) FROM job_history", default=None)
+    deltas = _rows(
+        conn,
+        """
+        WITH dates AS (
+          SELECT MAX(scraped_date) current_date,
+                 (SELECT MAX(scraped_date) FROM job_history
+                   WHERE scraped_date < (SELECT MAX(scraped_date) FROM job_history)) previous_date
+          FROM job_history
+        ), current AS (
+          SELECT company_id, job_count FROM job_history, dates
+          WHERE scraped_date=dates.current_date
+        ), previous AS (
+          SELECT company_id, job_count FROM job_history, dates
+          WHERE scraped_date=dates.previous_date
+        )
+        SELECT
+          COALESCE(SUM(MAX(current.job_count-COALESCE(previous.job_count,0),0)),0) added,
+          COALESCE(SUM(MAX(COALESCE(previous.job_count,0)-current.job_count,0)),0) removed
+        FROM current LEFT JOIN previous USING (company_id)
+        """,
+    )
+    added = int(deltas[0]["added"]) if deltas else 0
+    deactivated = int(deltas[0]["removed"]) if deltas else 0
+    description_pct = _pct(active - missing_descriptions, active)
+    enrichment_pct = _pct(enriched, active)
+    gates = [
+        {"key": "new_roles", "label": "New roles", "value": added, "unit": "roles", "status": "pass", "detail": "Added in the latest complete company snapshot."},
+        {"key": "deactivated", "label": "Deactivated roles", "value": deactivated, "unit": "roles", "status": "warning" if active and deactivated > max(100, active * 0.15) else "pass", "detail": "Flagged closed versus prior company snapshots."},
+        {"key": "duplicates", "label": "Duplicate listings", "value": duplicates, "unit": "suppressed", "status": "pass", "detail": f"{active_board:,} deduplicated Roles remain visible."},
+        {"key": "descriptions", "label": "Description coverage", "value": description_pct, "unit": "%", "status": "pass" if description_pct >= 80 else "warning", "detail": f"{missing_descriptions:,} active listings are missing descriptions."},
+        {"key": "enrichment", "label": "Enrichment coverage", "value": enrichment_pct, "unit": "%", "status": "pass" if enrichment_pct >= 90 else "warning", "detail": f"{max(0, active-enriched):,} active listings remain unenriched."},
+    ]
+
+    source_rows = _rows(
+        conn,
+        """
+        WITH latest AS (SELECT MAX(scraped_date) AS day FROM pipeline_company_runs)
+        SELECT source, COUNT(*) companies, SUM(status='success') successful,
+               SUM(status='zero') zero_results, SUM(status='failed') failed,
+               SUM(jobs_found) roles, ROUND(SUM(runtime_seconds),1) runtime_seconds
+        FROM pipeline_company_runs, latest
+        WHERE scraped_date=latest.day GROUP BY source ORDER BY roles DESC, source
+        """,
+    )
+    source_health = []
+    for row in source_rows:
+        companies = int(row["companies"])
+        success_rate = _pct(int(row["successful"]), companies)
+        source_health.append(
+            {
+                **dict(row),
+                "tracking_available": True,
+                "roles_found": int(row["roles"]),
+                "active_roles": None,
+                "success_rate_pct": success_rate,
+                "status": "healthy" if success_rate >= 90 else "warning" if success_rate >= 70 else "failed",
+            }
+        )
+    if not source_health:
+        source_health = [
+            {
+                "source": row["source"], "companies": None, "successful": None,
+                "zero_results": None, "failed": None, "roles": row["roles"],
+                "tracking_available": False, "roles_found": None,
+                "active_roles": int(row["roles"]),
+                "runtime_seconds": None, "success_rate_pct": None, "status": "not_recorded",
+            }
+            for row in _rows(
+                conn,
+                "SELECT source, COUNT(*) roles FROM jobs WHERE is_active=1 GROUP BY source ORDER BY roles DESC",
+            )
+        ]
+
+    usage_rows = _rows(
+        conn,
+        """SELECT phase, model, calls, roles_processed, prompt_cache_hit_tokens,
+                  prompt_cache_miss_tokens, completion_tokens, estimated_cost_usd, recorded_at
+           FROM ai_usage WHERE run_id=(SELECT run_id FROM ai_usage ORDER BY recorded_at DESC LIMIT 1)
+           ORDER BY phase""",
+    )
+    usage = [dict(row) for row in usage_rows]
+    prompt_version = _scalar(
+        conn,
+        "SELECT prompt_version FROM job_enrichments WHERE prompt_version IS NOT NULL "
+        "GROUP BY prompt_version ORDER BY COUNT(*) DESC LIMIT 1",
+        default=None,
+    )
+    backlog = int(
+        _scalar(
+            conn,
+            """SELECT COUNT(*) FROM jobs j LEFT JOIN job_enrichments e
+               ON j.source=e.source AND j.source_id=e.source_id
+               WHERE j.is_active=1 AND (e.source_id IS NULL OR e.prompt_version IS NULL OR e.prompt_version<>?)""",
+            prompt_version,
+        )
+        if prompt_version else active
+    )
+    ai = {
+        "calls": sum(int(row["calls"]) for row in usage),
+        "roles_processed": sum(int(row["roles_processed"]) for row in usage),
+        "estimated_cost_usd": round(sum(float(row["estimated_cost_usd"]) for row in usage), 4),
+        "cache_hit_tokens": sum(int(row["prompt_cache_hit_tokens"]) for row in usage),
+        "cache_miss_tokens": sum(int(row["prompt_cache_miss_tokens"]) for row in usage),
+        "completion_tokens": sum(int(row["completion_tokens"]) for row in usage),
+        "backlog": backlog,
+        "daily_limit": 300,
+        "phases": usage,
+        "tracking_available": bool(usage),
+    }
+
+    publication_rows = _rows(
+        conn,
+        "SELECT * FROM pipeline_catalog_sync ORDER BY received_at DESC LIMIT 1",
+    )
+    publication = dict(publication_rows[0]) if publication_rows else None
+    if publication:
+        publication["restore_source"] = operation.get("restore_source") if operation else None
+        publication["restore_sha256"] = operation.get("restore_sha256") if operation else None
+
+    alerts = []
+    for phase in phases:
+        if phase.get("status") == "failed":
+            alerts.append({"severity": "critical", "title": f"{phase.get('label')} failed", "detail": phase.get("detail") or "Open the GitHub run for the error log."})
+    for gate in gates:
+        if gate["status"] == "warning":
+            alerts.append({"severity": "warning", "title": f"{gate['label']} needs review", "detail": gate["detail"]})
+    for source in source_health:
+        if source["status"] in {"warning", "failed"}:
+            alerts.append({"severity": "warning", "title": f"{source['source']} source health dropped", "detail": f"Success rate {source['success_rate_pct']}% in the latest run."})
+
+    try:
+        recommendations = seekers_store.get_store().recommendation_health()
+    except (sqlite3.Error, OSError, ValueError):
+        recommendations = {
+            "impressions": 0, "clicks": 0, "click_through_pct": 0.0, "saves": 0,
+            "more_like": 0, "dismissals": 0, "wrong_reason": 0,
+            "seekers_reached": 0, "eligible_seekers": 0, "coverage_pct": 0.0,
+            "tracking_available": False, "window_started_at": None,
+            "window_ended_at": None,
+        }
+
+    return {
+        "generated_at": datetime.now(_HONG_KONG).isoformat(),
+        "run": {
+            **(operation or {"scraped_date": latest_day, "status": "not_recorded"}),
+            "phases": phases,
+        },
+        "quality_gates": gates,
+        "source_health": source_health,
+        "ai_cost": ai,
+        "publication": publication,
+        "recommendations": recommendations,
+        "alerts": alerts,
+    }
 
 
 # ── Analytics overview ────────────────────────────────────────────────────────
@@ -835,6 +1048,86 @@ def build_router(
             "received_at": received_at,
         }
 
+    @router.post("/pipeline/operations")
+    def ingest_pipeline_operations(
+        request: Request,
+        body: dict = Body(...),
+        sync_token: str | None = Header(default=None, alias="X-Pipeline-Sync-Token"),
+    ):
+        """Persist the always-run GitHub telemetry, including failed phases."""
+        _require_pipeline_token(request, sync_token)
+        run_id = str(body.get("run_id") or "").strip()
+        if not run_id or len(run_id) > 100:
+            raise HTTPException(status_code=400, detail="run_id is required")
+        try:
+            scraped_date = date.fromisoformat(str(body["scraped_date"])).isoformat()
+        except (KeyError, TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="scraped_date must be ISO YYYY-MM-DD") from None
+        status = str(body.get("status") or "").strip()
+        if status not in {"success", "warning", "failed", "running"}:
+            raise HTTPException(status_code=400, detail="invalid pipeline status")
+        raw_phases = body.get("phases")
+        if not isinstance(raw_phases, list) or len(raw_phases) > 20:
+            raise HTTPException(status_code=400, detail="phases must be a list of at most 20 items")
+        labels = dict(_PHASE_KEYS)
+        phases = []
+        seen: set[str] = set()
+        for raw in raw_phases:
+            key = str(raw.get("key") or "").strip()
+            phase_status = str(raw.get("status") or "").strip()
+            if key not in labels or key in seen or phase_status not in _PHASE_STATUSES:
+                raise HTTPException(status_code=400, detail="invalid or duplicate pipeline phase")
+            seen.add(key)
+            duration = raw.get("duration_seconds")
+            try:
+                duration = None if duration is None else max(0, int(duration))
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="phase duration must be seconds") from None
+            phases.append(
+                {
+                    "key": key,
+                    "label": labels[key],
+                    "status": phase_status,
+                    "duration_seconds": duration,
+                    "detail": " ".join(str(raw.get("detail") or "").split())[:300] or None,
+                }
+            )
+        hashes = {}
+        for key in ("restore_sha256", "published_sha256"):
+            value = str(body.get(key) or "").strip().lower() or None
+            if value is not None and not re.fullmatch(r"[0-9a-f]{64}", value):
+                raise HTTPException(status_code=400, detail=f"{key} must be SHA-256")
+            hashes[key] = value
+        stamp = datetime.now(_HONG_KONG).isoformat()
+        with get_write_db(request) as conn:
+            with conn:
+                conn.execute(_PIPELINE_OPERATIONS_DDL)
+                conn.execute(
+                    """
+                    INSERT INTO pipeline_operations (
+                        run_id, scraped_date, source_run_url, status, started_at,
+                        finished_at, restore_source, restore_sha256, published_sha256,
+                        published_at, phases_json, recorded_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT (run_id) DO UPDATE SET
+                        source_run_url=excluded.source_run_url, status=excluded.status,
+                        started_at=excluded.started_at, finished_at=excluded.finished_at,
+                        restore_source=excluded.restore_source,
+                        restore_sha256=excluded.restore_sha256,
+                        published_sha256=excluded.published_sha256,
+                        published_at=excluded.published_at,
+                        phases_json=excluded.phases_json, recorded_at=excluded.recorded_at
+                    """,
+                    (
+                        run_id, scraped_date, body.get("source_run_url"), status,
+                        body.get("started_at"), body.get("finished_at"),
+                        body.get("restore_source"), hashes["restore_sha256"],
+                        hashes["published_sha256"], body.get("published_at"),
+                        json.dumps(phases, separators=(",", ":")), stamp,
+                    ),
+                )
+        return {"run_id": run_id, "status": status, "phases": len(phases), "recorded_at": stamp}
+
     # ── Recruiter submissions ───────────────────────────────────────────────
 
     @router.get("/submissions")
@@ -909,6 +1202,11 @@ def build_router(
     ):
         with get_db(request) as conn:
             return {"days": days, "points": _run_history(conn, days)}
+
+    @router.get("/operations")
+    def operations_dashboard(request: Request, _admin: dict = Depends(require_admin)):
+        with get_db(request) as conn:
+            return _operations_dashboard(conn)
 
     # ── Analytics ───────────────────────────────────────────────────────────
 

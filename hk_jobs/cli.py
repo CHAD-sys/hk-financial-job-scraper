@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, fields
@@ -751,6 +752,8 @@ def select_mode(args: PipelineArgs) -> Mode | None:
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
     _configure_logging(args)
+    if not args.dry_run:
+        os.environ["FINEX_AI_USAGE_DB_PATH"] = args.db
 
     # One migration call for every mode. A mode used to name the phases it
     # believed it needed, which is how the startup path came to be missing

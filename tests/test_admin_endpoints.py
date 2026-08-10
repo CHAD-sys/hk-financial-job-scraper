@@ -159,6 +159,7 @@ def test_admin_gate_applies_to_every_admin_route(seeker_client):
         "/api/admin/submissions",
         "/api/admin/run/today",
         "/api/admin/run/history",
+        "/api/admin/operations",
         "/api/admin/analytics/overview",
     ):
         assert seeker_client.get(path).status_code == 403
@@ -486,6 +487,64 @@ def test_run_history_returns_empty_points_without_a_job_history_table(admin_clie
     r = admin_client.get("/api/admin/run/history")
     assert r.status_code == 200
     assert r.json()["points"] == []
+
+
+def test_operations_dashboard_is_admin_only_and_degrades_truthfully(
+    admin_client, seeker_client,
+):
+    assert seeker_client.get("/api/admin/operations").status_code == 403
+    response = admin_client.get("/api/admin/operations")
+    assert response.status_code == 200
+    body = response.json()
+    assert [phase["key"] for phase in body["run"]["phases"]] == [
+        "restore", "scrape", "descriptions", "deepseek", "salary_audit",
+        "linkedin", "publish",
+    ]
+    assert all(phase["status"] == "not_recorded" for phase in body["run"]["phases"])
+    assert body["ai_cost"]["tracking_available"] is False
+    assert body["publication"] is None
+
+
+def test_pipeline_operations_telemetry_is_machine_authored_and_visible_to_admins(
+    pipeline_sync_client, admin_client,
+):
+    payload = {
+        "run_id": "98765",
+        "scraped_date": "2026-08-10",
+        "source_run_url": "https://github.com/FinEx-Club/hk-job-scraper/actions/runs/98765",
+        "status": "warning",
+        "started_at": "2026-08-09T18:00:00+00:00",
+        "finished_at": "2026-08-09T18:20:00+00:00",
+        "restore_source": "railway",
+        "restore_sha256": "a" * 64,
+        "published_sha256": "b" * 64,
+        "published_at": "2026-08-09T18:19:30+00:00",
+        "phases": [
+            {"key": "restore", "status": "success", "duration_seconds": 8},
+            {"key": "scrape", "status": "success", "duration_seconds": 900},
+            {"key": "salary_audit", "status": "warning", "duration_seconds": 12,
+             "detail": "Audit failed; catalogue publication continued."},
+            {"key": "publish", "status": "success", "duration_seconds": 6},
+        ],
+    }
+    assert pipeline_sync_client.post(
+        "/api/admin/pipeline/operations",
+        headers={"X-Pipeline-Sync-Token": "wrong"}, json=payload,
+    ).status_code == 401
+    written = pipeline_sync_client.post(
+        "/api/admin/pipeline/operations",
+        headers={"X-Pipeline-Sync-Token": "pipeline-sync-secret"}, json=payload,
+    )
+    assert written.status_code == 200
+
+    body = admin_client.get("/api/admin/operations").json()
+    assert body["run"]["run_id"] == "98765"
+    assert body["run"]["status"] == "warning"
+    assert body["run"]["restore_source"] == "railway"
+    by_key = {phase["key"]: phase for phase in body["run"]["phases"]}
+    assert by_key["scrape"]["duration_seconds"] == 900
+    assert by_key["salary_audit"]["status"] == "warning"
+    assert by_key["deepseek"]["status"] == "not_recorded"
 
 
 # ── Analytics ─────────────────────────────────────────────────────────────────

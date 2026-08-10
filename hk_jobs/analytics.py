@@ -10,12 +10,25 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from hk_jobs.pipeline import CompanyResult
+
+
+_PIPELINE_COMPANY_RUNS_DDL = """
+CREATE TABLE IF NOT EXISTS pipeline_company_runs (
+    run_id TEXT NOT NULL, scraped_date TEXT NOT NULL, source TEXT NOT NULL,
+    company_slug TEXT NOT NULL, company_name TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('success', 'zero', 'failed')),
+    jobs_found INTEGER NOT NULL DEFAULT 0, jobs_inserted INTEGER NOT NULL DEFAULT 0,
+    jobs_updated INTEGER NOT NULL DEFAULT 0, jobs_deactivated INTEGER NOT NULL DEFAULT 0,
+    runtime_seconds REAL NOT NULL DEFAULT 0, error TEXT, recorded_at TEXT NOT NULL,
+    PRIMARY KEY (run_id, company_slug)
+)
+"""
 
 
 # ── Snapshot recording ────────────────────────────────────────────────────────
@@ -132,6 +145,43 @@ def record_scrape_snapshot(
                     (company_id, company_name, avg_7d, avg_30d,
                      growth_7d, growth_30d, trend_direction),
                 )
+    finally:
+        conn.close()
+
+
+def record_pipeline_company_runs(
+    db_path: str,
+    results: list[CompanyResult],
+    scraped_date: date,
+    *,
+    run_id: str,
+) -> None:
+    """Write the per-company evidence used for source reliability reporting."""
+    stamp = datetime.now(UTC).isoformat()
+    rows = []
+    for result in results:
+        status = "failed" if not result.ok else "zero" if result.total_fetched == 0 else "success"
+        rows.append(
+            (
+                run_id, scraped_date.isoformat(), result.source, result.slug, result.name,
+                status, result.total_fetched, result.inserted, result.updated,
+                result.deactivated, round(result.elapsed_secs, 3), result.error, stamp,
+            )
+        )
+    conn = sqlite3.connect(db_path)
+    try:
+        with conn:
+            conn.execute(_PIPELINE_COMPANY_RUNS_DDL)
+            conn.executemany(
+                """
+                INSERT OR REPLACE INTO pipeline_company_runs (
+                    run_id, scraped_date, source, company_slug, company_name, status,
+                    jobs_found, jobs_inserted, jobs_updated, jobs_deactivated,
+                    runtime_seconds, error, recorded_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                rows,
+            )
     finally:
         conn.close()
 

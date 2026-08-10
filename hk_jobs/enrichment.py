@@ -267,6 +267,19 @@ class EnrichmentPipeline:
                 )
 
             logger.info("✅ Phase 12 complete: %d enriched, %d failed", enriched, failed)
+            from hk_jobs.ai_usage import record
+
+            record(
+                self.db_path,
+                phase="deepseek_enrichment",
+                model=_MODEL,
+                totals=getattr(
+                    enricher,
+                    "usage_totals",
+                    {"calls": 0, "cache_hit": 0, "cache_miss": 0, "completion": 0},
+                ),
+                roles_processed=enriched + failed,
+            )
         finally:
             conn.close()
 

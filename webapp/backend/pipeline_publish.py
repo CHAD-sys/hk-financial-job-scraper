@@ -45,6 +45,9 @@ _PIPELINE_TABLES = (
     "vendor_costs",
     "run_cadence",
     "tech_title_cache",
+    "pipeline_company_runs",
+    "ai_usage",
+    "pipeline_operations",
 )
 # Columns introduced by pipeline migrations that the web service can safely
 # add to an older persistent volume. Never infer DDL from an uploaded file.

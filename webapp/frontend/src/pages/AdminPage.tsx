@@ -4,18 +4,21 @@ import { Navigate } from 'react-router-dom'
 import Nav from '../components/Nav'
 import AnalyticsOverview from '../components/admin/AnalyticsOverview'
 import JobEditor from '../components/admin/JobEditor'
+import OperationsCenter from '../components/admin/OperationsCenter'
 import SubmissionsPanel from '../components/admin/SubmissionsPanel'
 import { useAuth } from '../auth/useAuth'
 import {
   fetchAdminAnalyticsOverview,
+  fetchAdminOperations,
   fetchAdminRunHistory,
   fetchAdminRunToday,
   type AdminAnalyticsOverview,
+  type AdminOperationsDashboard,
   type AdminRunHistoryPoint,
   type AdminRunToday,
 } from '../api/client'
 
-type DashboardSection = 'market intelligence' | 'run history' | 'pipeline status'
+type DashboardSection = 'operations center' | 'market intelligence' | 'run history' | 'pipeline status'
 type DashboardErrors = Partial<Record<DashboardSection, string>>
 
 /**
@@ -31,6 +34,7 @@ export default function AdminPage() {
   const [today, setToday] = useState<AdminRunToday | null>(null)
   const [history, setHistory] = useState<AdminRunHistoryPoint[] | null>(null)
   const [overview, setOverview] = useState<AdminAnalyticsOverview | null>(null)
+  const [operations, setOperations] = useState<AdminOperationsDashboard | null>(null)
   const [sectionErrors, setSectionErrors] = useState<DashboardErrors>({})
   const [refreshing, setRefreshing] = useState(false)
 
@@ -41,15 +45,18 @@ export default function AdminPage() {
       fetchAdminRunToday(),
       fetchAdminRunHistory(30),
       fetchAdminAnalyticsOverview(),
+      fetchAdminOperations(),
     ])
     const nextErrors: DashboardErrors = {}
-    const [todayResult, historyResult, overviewResult] = results
+    const [todayResult, historyResult, overviewResult, operationsResult] = results
     if (todayResult.status === 'fulfilled') setToday(todayResult.value)
     else nextErrors['pipeline status'] = todayResult.reason instanceof Error ? todayResult.reason.message : 'Could not load pipeline status.'
     if (historyResult.status === 'fulfilled') setHistory(historyResult.value)
     else nextErrors['run history'] = historyResult.reason instanceof Error ? historyResult.reason.message : 'Could not load run history.'
     if (overviewResult.status === 'fulfilled') setOverview(overviewResult.value)
     else nextErrors['market intelligence'] = overviewResult.reason instanceof Error ? overviewResult.reason.message : 'Could not load market intelligence.'
+    if (operationsResult.status === 'fulfilled') setOperations(operationsResult.value)
+    else nextErrors['operations center'] = operationsResult.reason instanceof Error ? operationsResult.reason.message : 'Could not load pipeline operations.'
     setSectionErrors(nextErrors)
     setRefreshing(false)
   }, [])
@@ -64,6 +71,7 @@ export default function AdminPage() {
   }
 
   const loadingDashboard = !overview && !sectionErrors['market intelligence']
+  const loadingOperations = !operations && !sectionErrors['operations center']
   const errorEntries = Object.entries(sectionErrors)
 
   return (
@@ -97,8 +105,9 @@ export default function AdminPage() {
 
         <nav className="mb-7 flex flex-wrap gap-x-1 border-b" aria-label="Admin page sections" style={{ borderColor: 'var(--color-border)' }}>
           {[
+            ['#operations-center', 'Operations center'],
             ['#market-intelligence', 'Market intelligence'],
-            ['#pipeline-operations', 'Pipeline operations'],
+            ['#daily-collection', 'Daily collection'],
             ['#verification', 'Verification'],
             ...(seeker?.is_super_admin ? [['#job-editor', 'Job editor']] : []),
           ].map(([href, label]) => (
@@ -128,7 +137,29 @@ export default function AdminPage() {
           </div>
         )}
 
-        <section id="market-intelligence" className="scroll-mt-28">
+        <section id="operations-center" className="scroll-mt-28">
+          <div className="mb-6 max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--color-gold)' }}>Daily control room</p>
+            <h2 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl" style={{ color: 'var(--color-ink)', fontFamily: 'var(--font-display)' }}>Pipeline reliability and cost</h2>
+            <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>What ran, what changed, what it cost, and what needs an administrator’s attention. Detailed phase and source telemetry starts with the first pipeline run after this release.</p>
+          </div>
+          {loadingOperations ? (
+            <div className="flex min-h-64 items-center justify-center rounded-lg" style={{ backgroundColor: 'var(--color-masthead)' }}>
+              <div className="text-center" style={{ color: 'var(--color-ink-inverse)' }}>
+                <Loader2 size={24} className="mx-auto animate-spin" aria-hidden="true" />
+                <p className="mt-3 text-sm">Loading operational evidence…</p>
+              </div>
+            </div>
+          ) : operations ? (
+            <OperationsCenter data={operations} />
+          ) : (
+            <div className="rounded-lg p-5 text-sm" role="status" style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-ink-muted)' }}>
+              Pipeline operations are unavailable. Use “Refresh data” to try this section again.
+            </div>
+          )}
+        </section>
+
+        <section id="market-intelligence" className="mt-16 scroll-mt-28 border-t pt-12" style={{ borderColor: 'var(--color-border)' }}>
           {loadingDashboard ? (
             <div className="flex min-h-72 items-center justify-center rounded-xl" style={{ backgroundColor: 'var(--color-masthead)' }}>
               <div className="text-center" style={{ color: 'var(--color-ink-inverse)' }}>
@@ -145,9 +176,9 @@ export default function AdminPage() {
           )}
         </section>
 
-        <section id="pipeline-operations" className="mt-16 scroll-mt-28 border-t pt-12" style={{ borderColor: 'var(--color-border)' }}>
+        <section id="daily-collection" className="mt-16 scroll-mt-28 border-t pt-12" style={{ borderColor: 'var(--color-border)' }}>
           <div className="mb-5 max-w-3xl">
-            <h2 className="text-2xl font-semibold tracking-tight" style={{ color: 'var(--color-ink)', fontFamily: 'var(--font-display)' }}>Pipeline operations</h2>
+            <h2 className="text-2xl font-semibold tracking-tight" style={{ color: 'var(--color-ink)', fontFamily: 'var(--font-display)' }}>Daily collection totals</h2>
             <p className="mt-1.5 text-sm leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>Today’s collection health. A zero result is an investigation signal, not automatic proof that an employer stopped hiring.</p>
           </div>
 
