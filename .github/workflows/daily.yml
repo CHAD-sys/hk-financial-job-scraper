@@ -23,6 +23,11 @@ jobs:
     # failure-only notifications remain controlled by the account settings.
     env:
       PIPELINE_DAILY_EMAIL: "0"
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      # Your Mac database is already 99.9% current. This ceiling is a guard
+      # against an accidental full-catalogue re-enrichment after a bad restore;
+      # normal daily runs only consume the handful of new/stale roles.
+      DEEPSEEK_DAILY_ENRICH_LIMIT: "300"
 
     steps:
       - name: Check out repository
@@ -37,20 +42,36 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Restore the latest successful database
+      - name: Restore the latest enriched Railway database
         env:
           GH_TOKEN: ${{ github.token }}
+          PIPELINE_SYNC_TOKEN: ${{ secrets.PIPELINE_SYNC_TOKEN }}
+          PIPELINE_DATABASE_SYNC_URL: https://finex-careers.up.railway.app/api/admin/pipeline/database
         run: |
           mkdir -p data
-          PRIOR_RUN=$(gh run list --workflow daily.yml --status success --limit 1 \
-            --json databaseId --jq '.[0].databaseId // empty')
-          if [[ -n "$PRIOR_RUN" ]]; then
-            echo "Restoring jobs.db from successful run $PRIOR_RUN"
-            gh run download "$PRIOR_RUN" \
-              --name "jobs-db-$PRIOR_RUN" --dir data \
-              || echo "No reusable database artifact found; starting a new history."
-          else
-            echo "No previous successful run found; starting a new history."
+          RESTORED_FROM_RAILWAY=0
+          if [[ -n "$PIPELINE_SYNC_TOKEN" ]] && \
+             curl --fail-with-body --retry 3 --retry-all-errors \
+               -H "X-Pipeline-Sync-Token: $PIPELINE_SYNC_TOKEN" \
+               --output /tmp/jobs.db.gz \
+               "$PIPELINE_DATABASE_SYNC_URL" && \
+             gzip --test /tmp/jobs.db.gz && \
+             gzip --decompress --stdout /tmp/jobs.db.gz > data/jobs.db && \
+             python -c "import sqlite3,sys; c=sqlite3.connect('data/jobs.db'); sys.exit(0 if c.execute('PRAGMA quick_check').fetchone()[0] == 'ok' else 1)"; then
+            RESTORED_FROM_RAILWAY=1
+            echo "Restored the latest enriched pipeline database from Railway"
+          fi
+
+          if [[ "$RESTORED_FROM_RAILWAY" != "1" ]]; then
+            PRIOR_RUN=$(gh run list --workflow daily.yml --status success --limit 1 \
+              --json databaseId --jq '.[0].databaseId // empty')
+            if [[ -n "$PRIOR_RUN" ]]; then
+              echo "Railway restore unavailable; falling back to run $PRIOR_RUN"
+              gh run download "$PRIOR_RUN" \
+                --name "jobs-db-$PRIOR_RUN" --dir data
+            else
+              echo "No reusable database found; starting a new history."
+            fi
           fi
 
       - name: Run scraper
@@ -67,6 +88,40 @@ jobs:
             --export data/jobs.jsonl \
             --log-level INFO \
             $EXTRA
+
+      - name: Verify DeepSeek configuration
+        run: test -n "$DEEPSEEK_API_KEY"
+
+      - name: Fetch missing job descriptions
+        run: |
+          python -m hk_jobs.pipeline \
+            --db data/jobs.db \
+            --fetch-descriptions \
+            --log-level INFO
+
+      - name: Enrich new and stale roles with DeepSeek
+        run: |
+          python -m hk_jobs.pipeline \
+            --db data/jobs.db \
+            --enrich \
+            --enrich-limit "$DEEPSEEK_DAILY_ENRICH_LIMIT" \
+            --log-level INFO
+
+      - name: Audit salary outliers with DeepSeek
+        run: |
+          python -m hk_jobs.pipeline \
+            --db data/jobs.db \
+            --audit-salaries \
+            --log-level INFO \
+            || echo "::warning::Salary audit failed; catalogue publication will continue"
+
+      - name: Promote pending LinkedIn posts with DeepSeek
+        run: |
+          python -m hk_jobs.pipeline \
+            --db data/jobs.db \
+            --promote-posts \
+            --log-level INFO \
+            || echo "::warning::LinkedIn promotion failed; catalogue publication will continue"
 
       - name: Upload JSONL snapshot
         uses: actions/upload-artifact@v4
