@@ -227,3 +227,18 @@ def test_catalog_publish_can_be_retried_idempotently(publish_client, tmp_path):
     assert first.status_code == 200
     assert second.status_code == 200
     assert second.json()["already_published"] is True
+
+
+def test_catalog_publish_adds_the_allowlisted_closed_at_migration(
+    publish_client, tmp_path
+):
+    client, live = publish_client
+    with sqlite3.connect(live) as conn:
+        conn.execute("ALTER TABLE jobs DROP COLUMN closed_at")
+    incoming = _migrated(tmp_path / "incoming.db", [("workday", "W1", "Fresh", 1)])
+
+    response = _post(client, incoming, run_id="legacy-volume")
+
+    assert response.status_code == 200, response.text
+    with sqlite3.connect(live) as conn:
+        assert "closed_at" in {row[1] for row in conn.execute("PRAGMA table_info(jobs)")}

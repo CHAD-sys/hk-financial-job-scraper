@@ -46,6 +46,9 @@ _PIPELINE_TABLES = (
     "run_cadence",
     "tech_title_cache",
 )
+# Columns introduced by pipeline migrations that the web service can safely
+# add to an older persistent volume. Never infer DDL from an uploaded file.
+_ADDITIVE_COLUMNS = {("jobs", "closed_at"): "TEXT"}
 _SYNC_DDL = """
 CREATE TABLE IF NOT EXISTS pipeline_catalog_sync (
     source_run_id TEXT PRIMARY KEY,
@@ -174,8 +177,16 @@ def _copy_rows(conn: sqlite3.Connection, table: str) -> None:
     # An upgraded database and a freshly-created one can have identical columns
     # in different physical order (ALTER TABLE appends). Address every column by
     # name; only a genuinely different set is incompatible.
-    if set(live_cols) != set(incoming_cols):
+    missing_live = set(incoming_cols) - set(live_cols)
+    unsupported = {
+        column for column in missing_live if (table, column) not in _ADDITIVE_COLUMNS
+    }
+    if unsupported or set(live_cols) - set(incoming_cols):
         raise InvalidSnapshot(f"Incompatible {table} schema")
+    for column in sorted(missing_live):
+        definition = _ADDITIVE_COLUMNS[(table, column)]
+        conn.execute(f'ALTER TABLE "{table}" ADD COLUMN "{column}" {definition}')
+    live_cols = _columns(conn, "main", table)
     names = ", ".join(f'"{name}"' for name in live_cols)
     conn.execute(f'DELETE FROM "{table}"')
     conn.execute(f'INSERT INTO "{table}" ({names}) SELECT {names} FROM incoming."{table}"')
