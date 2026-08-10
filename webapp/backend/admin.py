@@ -6,12 +6,13 @@ direct read/write onto a single job's row and its enrichment.
 
 Every human-facing route here sits behind `require_admin` (the job_edit routes
 ALSO sit behind `require_super_admin`), both dependencies main.py hands to
-`build_router()`.  The sole machine-facing exception is `/pipeline/snapshot`:
-it uses a separate timing-safe shared secret so the scheduled GitHub pipeline
-can publish its completed daily facts without possessing a human session.
+`build_router()`.  The machine-facing `/pipeline/database` and
+`/pipeline/snapshot` routes use a separate timing-safe shared secret so the
+scheduled GitHub pipeline can publish its catalogue and completed daily facts
+without possessing a human session.
 
 Writes to jobs.db are limited to submission approval, Ultimate Admin job edits,
-and the authenticated daily snapshot ingestion described above. All other
+and the authenticated daily publication routes described above. All other
 dashboard queries use the read-only `get_db` connection.
 
 Several queries below touch `job_history` / `company_metrics`, tables the
@@ -35,8 +36,19 @@ from typing import Any, Callable
 from zoneinfo import ZoneInfo
 
 import job_edit
+import pipeline_publish
 import submissions
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request
+from fastapi import (
+    APIRouter,
+    Body,
+    Depends,
+    File,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+)
 from job_read import BOARD_WHERE, SECTOR_SQL
 
 #: Repo root, for the pipeline's log file — computed the same way settings.py
@@ -162,9 +174,7 @@ def _run_today(conn: sqlite3.Connection) -> dict[str, Any]:
         conn, "SELECT COUNT(DISTINCT company_slug) FROM jobs WHERE is_active=1"
     )
 
-    scraped_today = _scalar(
-        conn, "SELECT COUNT(*) FROM job_history WHERE scraped_date = ?", day
-    )
+    scraped_today = _scalar(conn, "SELECT COUNT(*) FROM job_history WHERE scraped_date = ?", day)
     zero_today = _scalar(
         conn,
         "SELECT COUNT(*) FROM job_history WHERE scraped_date = ? AND job_count = 0",
@@ -475,21 +485,18 @@ def _analytics_overview(conn: sqlite3.Connection) -> dict[str, Any]:
                 f"WHERE {BOARD_WHERE} GROUP BY j.company",
             )
         ]
-    company_shares = (
-        [100.0 * r["cnt"] / total_board for r in company_rows] if total_board else []
-    )
+    company_shares = [100.0 * r["cnt"] / total_board for r in company_rows] if total_board else []
     top_companies = [
         {"name": r["company"], "count": r["cnt"]}
         for r in sorted(company_rows, key=lambda r: -r["cnt"])[:12]
     ]
     top5_share_pct = (
         round(
-            100.0
-            * sum(sorted((r["cnt"] for r in company_rows), reverse=True)[:5])
-            / total_board,
+            100.0 * sum(sorted((r["cnt"] for r in company_rows), reverse=True)[:5]) / total_board,
             1,
         )
-        if total_board else 0.0
+        if total_board
+        else 0.0
     )
     concentration_hhi = _herfindahl(company_shares)
 
@@ -583,8 +590,7 @@ def _analytics_overview(conn: sqlite3.Connection) -> dict[str, Any]:
     )
     remote_classified = sum(by_remote_type.values())
     remote_friendly = sum(
-        count for name, count in by_remote_type.items()
-        if name.casefold() in {"remote", "hybrid"}
+        count for name, count in by_remote_type.items() if name.casefold() in {"remote", "hybrid"}
     )
     description_count = _scalar(
         conn,
@@ -670,6 +676,41 @@ def build_router(
     def _queue_path(request: Request) -> Path:
         return cfg(request).submissions_dir / "submitted_roles.jsonl"
 
+    def _require_pipeline_token(request: Request, supplied: str | None) -> None:
+        expected = cfg(request).pipeline_sync_token
+        if not expected:
+            raise HTTPException(status_code=503, detail="Pipeline sync is disabled")
+        if not supplied or not hmac.compare_digest(supplied, expected):
+            raise HTTPException(status_code=401, detail="Invalid pipeline sync token")
+
+    @router.post("/pipeline/database")
+    def ingest_pipeline_database(
+        request: Request,
+        snapshot: UploadFile = File(...),
+        sync_token: str | None = Header(default=None, alias="X-Pipeline-Sync-Token"),
+        source_run_id: str | None = Header(default=None, alias="X-Pipeline-Run-Id"),
+        snapshot_sha256: str | None = Header(default=None, alias="X-Pipeline-Snapshot-SHA256"),
+        source_run_url: str | None = Header(default=None, alias="X-Pipeline-Source-Url"),
+    ):
+        """Publish a completed, checksummed pipeline jobs.db into Railway."""
+        _require_pipeline_token(request, sync_token)
+        try:
+            return pipeline_publish.publish_snapshot(
+                Path(cfg(request).jobs_db),
+                snapshot.file,
+                expected_sha256=snapshot_sha256 or "",
+                source_run_id=source_run_id or "",
+                source_run_url=source_run_url,
+            )
+        except pipeline_publish.InvalidSnapshot as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from None
+        except pipeline_publish.PublishConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from None
+        except sqlite3.OperationalError as exc:
+            raise HTTPException(
+                status_code=503, detail="Catalogue publication is temporarily busy"
+            ) from exc
+
     @router.post("/pipeline/snapshot")
     def ingest_pipeline_snapshot(
         request: Request,
@@ -677,11 +718,7 @@ def build_router(
         sync_token: str | None = Header(default=None, alias="X-Pipeline-Sync-Token"),
     ):
         """Upsert one completed daily pipeline snapshot from GitHub Actions."""
-        expected = cfg(request).pipeline_sync_token
-        if not expected:
-            raise HTTPException(status_code=503, detail="Pipeline snapshot sync is disabled")
-        if not sync_token or not hmac.compare_digest(sync_token, expected):
-            raise HTTPException(status_code=401, detail="Invalid pipeline sync token")
+        _require_pipeline_token(request, sync_token)
 
         try:
             scraped_date = date.fromisoformat(str(body["scraped_date"])).isoformat()
@@ -715,10 +752,18 @@ def build_router(
                     detail="Company IDs and names must be unique and non-empty",
                 )
             seen.add(company_id)
-            cleaned.append((
-                company_id, company_name, job_count, scraped_date,
-                trend_direction, trend_percent, jobs_added, jobs_removed,
-            ))
+            cleaned.append(
+                (
+                    company_id,
+                    company_name,
+                    job_count,
+                    scraped_date,
+                    trend_direction,
+                    trend_percent,
+                    jobs_added,
+                    jobs_removed,
+                )
+            )
 
         received_at = datetime.now(_HONG_KONG).isoformat()
         with get_write_db(request) as conn:
@@ -750,8 +795,11 @@ def build_router(
                         source_run_url=excluded.source_run_url
                     """,
                     (
-                        scraped_date, received_at, len(cleaned),
-                        sum(row[2] for row in cleaned), body.get("source_run_url"),
+                        scraped_date,
+                        received_at,
+                        len(cleaned),
+                        sum(row[2] for row in cleaned),
+                        body.get("source_run_url"),
                     ),
                 )
 
@@ -852,7 +900,9 @@ def build_router(
 
     @router.get("/jobs/{source}/{source_id}")
     def get_job_route(
-        source: str, source_id: str, request: Request,
+        source: str,
+        source_id: str,
+        request: Request,
         _admin: dict = Depends(require_super_admin),
     ):
         with get_write_db(request) as conn:
@@ -874,8 +924,12 @@ def build_router(
         with get_write_db(request) as conn:
             try:
                 return job_edit.apply_edit(
-                    conn, source, source_id, admin["id"],
-                    job_changes=job_changes, enrichment_changes=enrichment_changes,
+                    conn,
+                    source,
+                    source_id,
+                    admin["id"],
+                    job_changes=job_changes,
+                    enrichment_changes=enrichment_changes,
                 )
             except job_edit.JobNotFound:
                 raise HTTPException(status_code=404, detail="Job not found") from None

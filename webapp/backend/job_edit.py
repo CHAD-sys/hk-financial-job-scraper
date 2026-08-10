@@ -36,20 +36,44 @@ from datetime import datetime, timezone
 from typing import Any
 
 #: Columns on `jobs` a human may hand-correct.
-JOB_FIELDS = frozenset({
-    "title", "company", "locations", "employment_type", "department",
-    "seniority", "remote_type", "salary_min", "salary_max", "salary_currency",
-    "description_clean", "description_raw", "apply_url", "is_active",
-    "source_tier", "category",
-})
+JOB_FIELDS = frozenset(
+    {
+        "title",
+        "company",
+        "locations",
+        "employment_type",
+        "department",
+        "seniority",
+        "remote_type",
+        "salary_min",
+        "salary_max",
+        "salary_currency",
+        "description_clean",
+        "description_raw",
+        "apply_url",
+        "is_active",
+        "source_tier",
+        "category",
+    }
+)
 
 #: Columns on `job_enrichments` a human may hand-correct.
-ENRICHMENT_FIELDS = frozenset({
-    "seniority", "remote_type", "required_skills", "salary_hkd_min",
-    "salary_hkd_max", "job_category", "salary_estimated_min",
-    "salary_estimated_max", "salary_estimated_confidence",
-    "years_experience_required", "description_summary", "title_en",
-})
+ENRICHMENT_FIELDS = frozenset(
+    {
+        "seniority",
+        "remote_type",
+        "required_skills",
+        "salary_hkd_min",
+        "salary_hkd_max",
+        "job_category",
+        "salary_estimated_min",
+        "salary_estimated_max",
+        "salary_estimated_confidence",
+        "years_experience_required",
+        "description_summary",
+        "title_en",
+    }
+)
 
 #: Stored as a JSON array in both tables; the API sends/receives a plain list.
 _JSON_FIELDS = frozenset({"locations", "required_skills"})
@@ -87,9 +111,7 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     tiny, idempotent compatibility check beside the only feature that needs the
     schema prevents an authorized request from failing with a 500.
     """
-    columns = {
-        row[1] for row in conn.execute("PRAGMA table_info(job_enrichments)").fetchall()
-    }
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(job_enrichments)").fetchall()}
     if not columns:
         raise RuntimeError("job_enrichments table is missing; run the base database migrations")
 
@@ -115,6 +137,82 @@ def _to_text(value: Any) -> str | None:
     if isinstance(value, (list, dict)):
         return json.dumps(value, ensure_ascii=False)
     return str(value)
+
+
+def _from_audit(field: str, value: str | None) -> Any:
+    """Recover a typed database value from an ``admin_edits.new_value`` cell."""
+    if value is None:
+        return None
+    if field in _JSON_FIELDS:
+        return json.dumps(json.loads(value), ensure_ascii=False)
+    if field == "is_active":
+        return 1 if value.lower() in {"1", "true"} else 0
+    if field in {
+        "salary_min",
+        "salary_max",
+        "salary_hkd_min",
+        "salary_hkd_max",
+        "salary_estimated_min",
+        "salary_estimated_max",
+        "years_experience_required",
+    }:
+        return int(float(value))
+    if field in {"salary_estimated_confidence"}:
+        try:
+            return float(value)
+        except ValueError:
+            return value
+    return value
+
+
+def reapply_recorded_edits(conn: sqlite3.Connection) -> int:
+    """Reapply each field's latest Ultimate Admin correction after an import.
+
+    This deliberately writes no new audit rows: the original edit remains the
+    audit event, while publication merely ensures pipeline data cannot erase it.
+    Must be called inside the publisher's transaction.
+    """
+    has_audit = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='admin_edits'"
+    ).fetchone()
+    if not has_audit:
+        return 0
+    rows = conn.execute(
+        """
+        SELECT e.source, e.source_id, e.field, e.new_value, e.edited_at
+        FROM admin_edits e
+        JOIN (
+            SELECT source, source_id, field, MAX(id) AS latest_id
+            FROM admin_edits GROUP BY source, source_id, field
+        ) latest ON latest.latest_id=e.id
+        JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id
+        ORDER BY e.id
+        """
+    ).fetchall()
+    applied = 0
+    for source, source_id, qualified, value, edited_at in rows:
+        prefix, _, field = qualified.partition(".")
+        allowlist = JOB_FIELDS if prefix == "job" else ENRICHMENT_FIELDS
+        if field not in allowlist:
+            continue
+        stored = _from_audit(field, value)
+        if prefix == "job":
+            conn.execute(
+                f'UPDATE jobs SET "{field}"=? WHERE source=? AND source_id=?',
+                (stored, source, source_id),
+            )
+        else:
+            conn.execute(
+                f"""
+                INSERT INTO job_enrichments(source,source_id,"{field}",manually_edited_at)
+                VALUES (?,?,?,?) ON CONFLICT(source,source_id) DO UPDATE SET
+                    "{field}"=excluded."{field}",
+                    manually_edited_at=excluded.manually_edited_at
+                """,
+                (source, source_id, stored, edited_at),
+            )
+        applied += 1
+    return applied
 
 
 def get_job_for_edit(conn: sqlite3.Connection, source: str, source_id: str) -> dict[str, Any]:
@@ -188,8 +286,17 @@ def apply_edit(
         if _to_storage(field, new_value) == old_value:
             continue
         changed_job[field] = new_value
-        audit_rows.append((source, source_id, seeker_id, f"job.{field}",
-                            _to_text(old_value), _to_text(new_value), moment))
+        audit_rows.append(
+            (
+                source,
+                source_id,
+                seeker_id,
+                f"job.{field}",
+                _to_text(old_value),
+                _to_text(new_value),
+                moment,
+            )
+        )
 
     changed_enrichment: dict[str, Any] = {}
     for field, new_value in enrichment_changes.items():
@@ -198,8 +305,17 @@ def apply_edit(
         if _to_storage(field, new_value) == old_value:
             continue
         changed_enrichment[field] = new_value
-        audit_rows.append((source, source_id, seeker_id, f"enrichment.{field}",
-                            _to_text(old_value), _to_text(new_value), moment))
+        audit_rows.append(
+            (
+                source,
+                source_id,
+                seeker_id,
+                f"enrichment.{field}",
+                _to_text(old_value),
+                _to_text(new_value),
+                moment,
+            )
+        )
 
     if not audit_rows:
         return current  # nothing actually changed
