@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, XCircle } from 'lucide
 import { Navigate } from 'react-router-dom'
 import Nav from '../components/Nav'
 import AnalyticsOverview from '../components/admin/AnalyticsOverview'
+import AdminSectionNav from '../components/admin/AdminSectionNav'
 import JobEditor from '../components/admin/JobEditor'
 import OperationsCenter from '../components/admin/OperationsCenter'
 import SubmissionsPanel from '../components/admin/SubmissionsPanel'
@@ -103,24 +104,7 @@ export default function AdminPage() {
           </button>
         </header>
 
-        <nav className="mb-7 flex flex-wrap gap-x-1 border-b" aria-label="Admin page sections" style={{ borderColor: 'var(--color-border)' }}>
-          {[
-            ['#operations-center', 'Operations center'],
-            ['#market-intelligence', 'Market intelligence'],
-            ['#daily-collection', 'Daily collection'],
-            ['#verification', 'Verification'],
-            ...(seeker?.is_super_admin ? [['#job-editor', 'Job editor']] : []),
-          ].map(([href, label]) => (
-            <a
-              key={href}
-              href={href}
-              className="shrink-0 border-b-2 border-transparent px-3 py-3 text-sm font-medium transition-colors hover:border-current"
-              style={{ color: 'var(--color-ink-muted)' }}
-            >
-              {label}
-            </a>
-          ))}
-        </nav>
+        <AdminSectionNav isSuperAdmin={Boolean(seeker?.is_super_admin)} />
 
         {errorEntries.length > 0 && (
           <div className="mb-7 flex flex-col gap-3 rounded-lg p-4 sm:flex-row sm:items-center sm:justify-between" role="alert" style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B' }}>
