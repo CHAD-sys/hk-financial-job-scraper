@@ -4,6 +4,7 @@ import {
   ArrowRight, Star, Sparkles, ShieldCheck, Layers, Languages,
   Coins, Gauge, Radar, Building2, CalendarClock, Puzzle, EyeOff,
   Send, MessageSquare, GraduationCap,
+  FileText,
 } from 'lucide-react'
 import Nav from '../components/Nav'
 import { DataFlow, CoverageRadar, GrowthBars } from '../components/Illustrations'
@@ -301,21 +302,46 @@ export default function AboutPage() {
                 )
               })}
             </div>
-            <div className="flex items-start gap-3 mt-8 rounded-lg p-4" style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
-              <ShieldCheck size={18} style={{ color: 'var(--color-gold)', marginTop: 1 }} />
-              {/* Sourcing + the free-to-browse promise. The data-protection half
-                  of what used to be here now lives in the privacy notice at the
-                  foot of the page, which is where a reader actually looks for it. */}
-              <p className="text-sm leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
-                Roles are compiled from what employers publish on their own public pages, plus
-                mandates sent to us directly. <strong style={{ color: 'var(--color-ink)' }}>The
-                index is free to browse and needs no account</strong> &mdash; no paywall on any
-                listing. Consultation is a paid service and is marked as one.{' '}
-                <a href="#privacy" style={{ color: 'var(--color-blue)', fontWeight: 600 }}>
-                  What we do with your data
-                </a>
-                .
+          </div>
+        </section>
+
+        {/* Resume matching is central enough to deserve a policy readers can
+            understand before the full legal notice, without hiding the notice. */}
+        <section
+          id="resume-policy"
+          aria-labelledby="resume-policy-heading"
+          className="candidate-data-policy scroll-mt-20 lg:scroll-mt-26"
+        >
+          <div className="mx-auto grid max-w-7xl gap-10 px-6 py-16 lg:grid-cols-[0.8fr_1.2fr] lg:items-start lg:px-8">
+            <div>
+              <div className="candidate-data-policy__kicker">
+                <ShieldCheck size={16} strokeWidth={2} aria-hidden="true" />
+                Our resume policy
+              </div>
+              <h2 id="resume-policy-heading">Your career data stays yours.</h2>
+              <p>
+                Personalisation should help you explore the market, not quietly narrow what
+                you are allowed to see. These are the boundaries built into the product.
               </p>
+              <div className="candidate-data-policy__actions">
+                <button type="button" onClick={() => navigate('/account')}>Manage your resume <ArrowRight size={15} aria-hidden="true" /></button>
+                <a href="#privacy">Read the full privacy notice</a>
+              </div>
+            </div>
+
+            <div className="candidate-data-policy__principles">
+              <article>
+                <EyeOff size={20} strokeWidth={1.9} aria-hidden="true" />
+                <div><h3>Browse without being profiled</h3><p>Every Role stays public. Anonymous searches and browsing are not added to a recommendation profile.</p></div>
+              </article>
+              <article>
+                <FileText size={20} strokeWidth={1.9} aria-hidden="true" />
+                <div><h3>One resume, under your control</h3><p>Upload, replace or remove it yourself. A successful replacement permanently deletes the previous file and analysis.</p></div>
+              </article>
+              <article>
+                <ShieldCheck size={20} strokeWidth={1.9} aria-hidden="true" />
+                <div><h3>Discovery—not a hiring decision</h3><p>Your resume is not sent to employers or third-party analysis services. Matching never decides eligibility or blocks a Role.</p></div>
+              </article>
             </div>
           </div>
         </section>

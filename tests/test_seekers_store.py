@@ -87,6 +87,10 @@ def test_migrations_create_every_table(store):
         "saved_roles",
         "seeker_discovery_events",
         "recommendation_impressions",
+        "recommendation_feedback",
+        "recommendation_settings",
+        "recommendation_hidden_employers",
+        "seeker_resumes",
         "events",
     } <= names
 
@@ -443,6 +447,106 @@ def test_recommendation_impressions_and_click_are_auditable(store):
         now + timedelta(seconds=5)
     ).isoformat()
 
+
+def test_recommendation_feedback_settings_and_hidden_employers_round_trip(store):
+    seeker_id = store.create_seeker("feedback@example.com")
+
+    assert store.get_recommendation_settings(seeker_id) == {
+        "personalization_enabled": True,
+        "use_saved_roles": True,
+        "use_discovery": True,
+        "use_clicks": True,
+    }
+    store.update_recommendation_settings(
+        seeker_id,
+        personalization_enabled=False,
+        use_clicks=False,
+    )
+    assert store.get_recommendation_settings(seeker_id) == {
+        "personalization_enabled": False,
+        "use_saved_roles": True,
+        "use_discovery": True,
+        "use_clicks": False,
+    }
+
+    store.record_recommendation_feedback(
+        seeker_id, "workday", "job-1", action="more_like"
+    )
+    # The two intent actions are mutually exclusive: changing your mind should
+    # replace the old choice rather than leave contradictory training labels.
+    store.record_recommendation_feedback(
+        seeker_id, "workday", "job-1", action="not_interested"
+    )
+    store.record_recommendation_feedback(
+        seeker_id,
+        "workday",
+        "job-2",
+        action="wrong_reason",
+        detail="Matches your Banking searches",
+    )
+    feedback = store.list_recommendation_feedback(seeker_id)
+    assert {(row["source_id"], row["action"]) for row in feedback} == {
+        ("job-1", "not_interested"),
+        ("job-2", "wrong_reason"),
+    }
+
+    store.hide_recommendation_employer(seeker_id, "hsbc", "HSBC")
+    assert store.list_hidden_recommendation_employers(seeker_id) == [
+        {"employer_key": "hsbc", "employer_name": "HSBC"}
+    ]
+    assert store.unhide_recommendation_employer(seeker_id, "hsbc") is True
+    assert store.list_hidden_recommendation_employers(seeker_id) == []
+
+
+def test_opened_recommendations_are_exposed_as_deduplicated_learning_refs(store):
+    seeker_id = store.create_seeker("clicks@example.com")
+    now = utcnow()
+    for offset in range(2):
+        store.record_recommendation_impressions(
+            seeker_id,
+            [{
+                "source": "workday",
+                "source_id": "job-1",
+                "score": 5.0,
+                "reasons": ["Recently listed"],
+                "position": 1,
+            }],
+            model_version="signals-v2",
+            now=now + timedelta(minutes=offset),
+        )
+        store.mark_recommendation_clicked(
+            seeker_id,
+            "workday",
+            "job-1",
+            now=now + timedelta(minutes=offset, seconds=2),
+        )
+
+    assert store.list_clicked_recommendation_refs(seeker_id) == [
+        {"source": "workday", "source_id": "job-1"}
+    ]
+
+
+def test_reset_recommendation_profile_keeps_saved_roles_and_account(store):
+    seeker_id = store.create_seeker("reset@example.com")
+    store.save_role(seeker_id, "workday", "saved")
+    store.record_discovery(
+        seeker_id, search_query="risk", filters={}, result_count=3
+    )
+    store.record_recommendation_feedback(
+        seeker_id, "workday", "job-1", action="more_like"
+    )
+    store.hide_recommendation_employer(seeker_id, "hsbc", "HSBC")
+    store.update_recommendation_settings(seeker_id, use_discovery=False)
+
+    store.reset_recommendation_profile(seeker_id)
+
+    assert store.get_seeker(seeker_id) is not None
+    assert len(store.list_saved_roles(seeker_id)) == 1
+    assert store.list_discovery_events(seeker_id) == []
+    assert store.list_recommendation_feedback(seeker_id) == []
+    assert store.list_hidden_recommendation_employers(seeker_id) == []
+    assert store.get_recommendation_settings(seeker_id)["use_discovery"] is True
+
 # ── Events ────────────────────────────────────────────────────────────────────
 
 
@@ -466,6 +570,63 @@ def test_events_hold_nothing_but_name_seeker_and_time(store):
     finally:
         conn.close()
     assert columns == {"id", "name", "seeker_id", "created_at"}
+
+
+# ── Private resume ───────────────────────────────────────────────────────────
+
+
+def test_resume_replacement_is_atomic_and_keeps_exactly_one_document(store):
+    seeker_id = store.create_seeker("resume@example.com")
+    first = b"first resume"
+    second = b"second resume"
+
+    assert store.replace_resume(
+        seeker_id,
+        filename="first.pdf",
+        media_type="application/pdf",
+        size_bytes=len(first),
+        content_sha256="a" * 64,
+        file_content=first,
+        text_content="First extracted resume text with enough useful evidence.",
+    ) is False
+    assert store.replace_resume(
+        seeker_id,
+        filename="second.pdf",
+        media_type="application/pdf",
+        size_bytes=len(second),
+        content_sha256="b" * 64,
+        file_content=second,
+        text_content="Second extracted resume text with updated useful evidence.",
+        analysis={"skills": ["credit risk"]},
+    ) is True
+
+    stored = store.get_resume(seeker_id, include_document=True)
+    assert stored is not None
+    assert stored["filename"] == "second.pdf"
+    assert stored["file_content"] == second
+    assert stored["analysis"] == {"skills": ["credit risk"]}
+    assert store._conn().execute(
+        "SELECT COUNT(*) FROM seeker_resumes WHERE seeker_id = ?", (seeker_id,)
+    ).fetchone()[0] == 1
+
+
+def test_resume_can_be_deleted_without_deleting_the_account(store):
+    seeker_id = store.create_seeker("resume-delete@example.com")
+    content = b"resume"
+    store.replace_resume(
+        seeker_id,
+        filename="resume.pdf",
+        media_type="application/pdf",
+        size_bytes=len(content),
+        content_sha256="c" * 64,
+        file_content=content,
+        text_content="A resume with enough extracted text to store safely.",
+    )
+
+    assert store.delete_resume(seeker_id) is True
+    assert store.delete_resume(seeker_id) is False
+    assert store.get_resume(seeker_id) is None
+    assert store.get_seeker(seeker_id) is not None
 
 
 # ── Deletion (ADR 0007) ───────────────────────────────────────────────────────
@@ -494,6 +655,21 @@ def test_deletion_really_deletes(store):
         }],
         model_version="signals-v1",
     )
+    store.record_recommendation_feedback(
+        seeker_id, "jobsdb", "job-1", action="not_interested"
+    )
+    store.hide_recommendation_employer(seeker_id, "hsbc", "HSBC")
+    store.update_recommendation_settings(seeker_id, use_clicks=False)
+    resume_content = b"private resume"
+    store.replace_resume(
+        seeker_id,
+        filename="resume.pdf",
+        media_type="application/pdf",
+        size_bytes=len(resume_content),
+        content_sha256="d" * 64,
+        file_content=resume_content,
+        text_content="Private extracted resume text that must be deleted with the account.",
+    )
     store.log_event("login.succeeded", seeker_id)
 
     assert store.delete_seeker(seeker_id) is True
@@ -506,6 +682,9 @@ def test_deletion_really_deletes(store):
     assert store.list_saved_roles(seeker_id) == []
     assert store.list_discovery_events(seeker_id) == []
     assert store.list_recommendation_impressions(seeker_id) == []
+    assert store.list_recommendation_feedback(seeker_id) == []
+    assert store.list_hidden_recommendation_employers(seeker_id) == []
+    assert store.get_resume(seeker_id) is None
     assert store.get_identity("google", "sub-jane") is None
     assert store.list_identities(seeker_id) == []
 

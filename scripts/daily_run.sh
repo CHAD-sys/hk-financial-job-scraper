@@ -115,9 +115,18 @@ log "--- Phase 6: Backing up database ---"
 python -m hk_jobs.pipeline --backup 2>&1 | tee -a "$LOG_FILE"
 log "Phase 6 complete"
 
-# Phase 7: Send daily summary email
-log "--- Phase 7: Sending daily summary email ---"
-python -m hk_jobs.pipeline --notify-summary 2>&1 | tee -a "$LOG_FILE"
-log "Phase 7 complete"
+# Phase 7: Send the daily summary only when an operator explicitly opts in.
+#
+# GitHub Actions runs the scraper separately and does not send this email.  The
+# local crontab also invokes this wrapper, though, and used to mail a routine
+# summary after every successful run.  Keep failure alerts available through
+# the CLI, but make the noisy success summary opt-in rather than surprising.
+if [[ "${PIPELINE_DAILY_EMAIL:-0}" == "1" ]]; then
+    log "--- Phase 7: Sending daily summary email ---"
+    python -m hk_jobs.pipeline --notify-summary 2>&1 | tee -a "$LOG_FILE"
+    log "Phase 7 complete"
+else
+    log "Phase 7 skipped (set PIPELINE_DAILY_EMAIL=1 to enable the daily summary)"
+fi
 
 log "=== Daily pipeline finished ==="

@@ -60,7 +60,7 @@ export default function SignInChooserPage() {
           <ChoiceCard
             icon={<Search size={22} strokeWidth={2} style={{ color: 'var(--color-gold)' }} />}
             title="I'm looking for a role"
-            body="Keep your Saved Roles with your account instead of just this browser. Browsing and applying never require one."
+            body="Add one private resume for evidence-led matches, shape Roles for you, and keep Saved Roles across devices. Browsing never requires an account."
             to="/signin"
             state={{ from }}
             cta="Continue as a Seeker"

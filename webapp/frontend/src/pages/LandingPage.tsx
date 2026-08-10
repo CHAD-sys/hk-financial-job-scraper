@@ -3,6 +3,7 @@ import { Briefcase } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import Nav from '../components/Nav'
 import ProductDoor from '../components/ProductDoor'
+import ResumeFeatureSpotlight from '../components/ResumeFeatureSpotlight'
 import useHashScroll from '../hooks/useHashScroll'
 import { fetchStats, fetchFilters } from '../api/client'
 import { SUBSCRIBER_LINE } from '../content/featuredVideos'
@@ -38,6 +39,7 @@ export default function LandingPage() {
       <Nav />
       <main id="main-content">
         <PortalHero />
+        <ResumeFeatureSpotlight />
         <PostRoleStripe />
       </main>
       <LandingFooter />
@@ -228,6 +230,7 @@ function LandingFooter() {
           <FooterLink to="/learning">Learning</FooterLink>
           <FooterLink to="/post-a-role">Post a role</FooterLink>
           <FooterLink to="/about">About</FooterLink>
+          <FooterLink to="/about#resume-policy">Resume policy</FooterLink>
           <FooterLink to="/about#privacy">Privacy</FooterLink>
         </nav>
 

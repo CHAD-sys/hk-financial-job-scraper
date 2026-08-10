@@ -156,10 +156,13 @@ export interface RecommendedRole {
   score: number
   /** Plain-language evidence for this ranking, strongest signal first. */
   reasons: string[]
+  /** Explicit choices already attached to this Role. */
+  feedback: RecommendationFeedbackAction[]
 }
 
 export interface RecommendationsResponse {
   personalized: boolean
+  personalization_enabled: boolean
   model_version: string
   signal_count: number
   saved_role_count: number
@@ -171,6 +174,39 @@ export interface RecommendationsResponse {
   generated_at: string
   batch_id: string | null
   items: RecommendedRole[]
+}
+
+export type RecommendationFeedbackAction =
+  | 'more_like'
+  | 'not_interested'
+
+export interface ResumeAnalysis {
+  skills: string[]
+  role_families: string[]
+  sectors: string[]
+  years_experience: number | null
+  seniority: string | null
+}
+
+export interface ResumeDocument {
+  filename: string
+  media_type: string
+  size_bytes: number
+  uploaded_at: string
+  analysis: ResumeAnalysis
+}
+
+export interface ResumeMatch {
+  job: Job
+  match_score: number
+  reasons: string[]
+}
+
+export interface ResumeMatchesResponse {
+  has_resume: boolean
+  resume_uploaded_at: string | null
+  model_version: string
+  items: ResumeMatch[]
 }
 
 export type TierTab = 'all' | 'boutique' | 'mainstream' | 'social'
@@ -342,6 +378,69 @@ export async function trackRecommendationClick(source: string, sourceId: string)
   if (!res.ok) {
     throw new ApiError(res.status, `Could not record this recommendation (${res.status}).`)
   }
+}
+
+export async function submitRecommendationFeedback(
+  source: string,
+  sourceId: string,
+  action: RecommendationFeedbackAction,
+  detail?: string,
+): Promise<void> {
+  const path = `/api/me/recommendations/${encodeURIComponent(source)}/${encodeURIComponent(sourceId)}/feedback`
+  const res = await apiFetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, ...(detail ? { detail } : {}) }),
+  })
+  if (!res.ok) {
+    throw new ApiError(res.status, `Could not update this recommendation (${res.status}).`)
+  }
+}
+
+export async function removeRecommendationFeedback(
+  source: string,
+  sourceId: string,
+  action: RecommendationFeedbackAction,
+): Promise<void> {
+  const path = `/api/me/recommendations/${encodeURIComponent(source)}/${encodeURIComponent(sourceId)}/feedback/${encodeURIComponent(action)}`
+  const res = await apiFetch(path, { method: 'DELETE' })
+  if (!res.ok) {
+    throw new ApiError(res.status, `Could not undo this recommendation choice (${res.status}).`)
+  }
+}
+
+export async function fetchResume(): Promise<ResumeDocument | null> {
+  const res = await apiFetch('/api/me/resume')
+  if (!res.ok) {
+    throw await authError(res, `Could not load your resume (${res.status}).`)
+  }
+  return res.json()
+}
+
+export async function uploadResume(file: File): Promise<ResumeDocument> {
+  const body = new FormData()
+  body.append('resume', file)
+  const res = await apiFetch('/api/me/resume', { method: 'PUT', body })
+  if (!res.ok) {
+    throw await authError(res, `Could not analyse your resume (${res.status}).`)
+  }
+  return res.json()
+}
+
+export async function deleteResume(): Promise<void> {
+  const res = await apiFetch('/api/me/resume', { method: 'DELETE' })
+  if (!res.ok) {
+    throw await authError(res, `Could not remove your resume (${res.status}).`)
+  }
+}
+
+export async function fetchResumeMatches(limit = 3): Promise<ResumeMatchesResponse> {
+  const params = new URLSearchParams({ limit: String(limit) })
+  const res = await apiFetch(`/api/me/resume-matches?${params}`)
+  if (!res.ok) {
+    throw await authError(res, `Could not load resume matches (${res.status}).`)
+  }
+  return res.json()
 }
 
 // ── Write endpoints ───────────────────────────────────────────────────────────

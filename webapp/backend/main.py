@@ -19,11 +19,11 @@ import sqlite3
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 from urllib.parse import urlencode
 
 import httpx
-from fastapi import APIRouter, FastAPI, HTTPException, Query, Request, Response
+from fastapi import APIRouter, FastAPI, File, HTTPException, Query, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -58,6 +58,7 @@ from mailer import RECIPIENT, SMTP_USER, send_mail  # noqa: E402
 # its docstring for why "browsing is filtered, addressing is not".
 import job_read  # noqa: E402
 import recommendations as role_recommendations  # noqa: E402
+import resume_intelligence  # noqa: E402
 from rate_limit import RateLimiter, RedisRateLimiter  # noqa: E402
 from sender import Message, Sender, SmtpSender  # noqa: E402
 from settings import Settings  # noqa: E402
@@ -358,10 +359,12 @@ class RecommendedRoleOut(BaseModel):
     job: JobSummary
     score: float
     reasons: list[str]
+    feedback: list[str] = Field(default_factory=list)
 
 
 class RecommendationsOut(BaseModel):
     personalized: bool
+    personalization_enabled: bool
     model_version: str
     signal_count: int
     saved_role_count: int
@@ -375,14 +378,59 @@ class RecommendationsOut(BaseModel):
     items: list[RecommendedRoleOut]
 
 
+class RecommendationFeedbackIn(BaseModel):
+    action: Literal["more_like", "not_interested"]
+    detail: Optional[str] = Field(default=None, max_length=300)
+
+
+class ResumeAnalysisOut(BaseModel):
+    skills: list[str] = Field(default_factory=list)
+    role_families: list[str] = Field(default_factory=list)
+    sectors: list[str] = Field(default_factory=list)
+    years_experience: Optional[int] = None
+    seniority: Optional[str] = None
+
+
+class ResumeOut(BaseModel):
+    filename: str
+    media_type: str
+    size_bytes: int
+    uploaded_at: str
+    analysis: ResumeAnalysisOut
+
+
+class ResumeMatchOut(BaseModel):
+    job: JobSummary
+    match_score: int
+    reasons: list[str]
+
+
+class ResumeMatchesOut(BaseModel):
+    has_resume: bool
+    resume_uploaded_at: Optional[str] = None
+    model_version: str
+    items: list[ResumeMatchOut] = Field(default_factory=list)
+
+
+def _resume_out(row: dict) -> ResumeOut:
+    return ResumeOut(
+        filename=row["filename"],
+        media_type=row["media_type"],
+        size_bytes=row["size_bytes"],
+        uploaded_at=row["uploaded_at"],
+        analysis=ResumeAnalysisOut(**(row.get("analysis") or {})),
+    )
+
+
 @router.post("/api/me/discovery", status_code=204, tags=["recommendations"])
 def record_discovery(payload: DiscoveryIn, request: Request):
     """Persist one settled search/filter state for the signed-in Seeker."""
     seeker = _require_seeker(request)
+    store = seekers_store.get_store()
     filters = payload.filters.model_dump(exclude_defaults=True, exclude_none=True)
     if not payload.search_query.strip() and not filters:
         return Response(status_code=204)
-    seekers_store.get_store().record_discovery(
+    store.record_discovery(
         seeker["id"],
         search_query=payload.search_query,
         filters=filters,
@@ -406,7 +454,41 @@ def recommended_roles(
     store = seekers_store.get_store() if seeker else None
     refs = store.list_saved_roles(seeker["id"]) if store and seeker else []
     saved_refs = {(row["source"], row["source_id"]) for row in refs}
-    activity = store.list_discovery_events(seeker["id"]) if store and seeker else []
+    all_activity = store.list_discovery_events(seeker["id"]) if store and seeker else []
+    feedback = store.list_recommendation_feedback(seeker["id"]) if store and seeker else []
+    feedback_by_ref: dict[tuple[str, str], list[str]] = {}
+    for row in feedback:
+        ref = (row["source"], row["source_id"])
+        feedback_by_ref.setdefault(ref, []).append(row["action"])
+    more_like_refs = {
+        (row["source"], row["source_id"])
+        for row in feedback
+        if row["action"] == "more_like"
+    }
+    dismissed_refs = {
+        (row["source"], row["source_id"])
+        for row in feedback
+        if row["action"] == "not_interested"
+    }
+    clicked_rows = (
+        store.list_clicked_recommendation_refs(seeker["id"])
+        if store and seeker
+        else []
+    )
+    clicked_refs = {(row["source"], row["source_id"]) for row in clicked_rows}
+    resume_row = (
+        store.get_resume(seeker["id"], include_document=True)
+        if store and seeker
+        else None
+    )
+    resume_evidence = (
+        resume_intelligence.evidence_from_storage(
+            resume_row["text_content"], resume_row["analysis"]
+        )
+        if resume_row
+        else None
+    )
+    learning_enabled = bool(store and seeker)
 
     with get_db(request) as conn:
         # Recommendations emphasize the recent market. One thousand candidates
@@ -423,24 +505,40 @@ def recommended_roles(
         saved_jobs = job_read.jobs_by_refs(
             conn, saved_refs, visibility=Visibility.ADDRESSABLE
         )
+        more_like_jobs = job_read.jobs_by_refs(
+            conn, more_like_refs, visibility=Visibility.ADDRESSABLE
+        )
+        clicked_jobs = job_read.jobs_by_refs(
+            conn, clicked_refs, visibility=Visibility.ADDRESSABLE
+        )
 
     generated_at = datetime.now(timezone.utc)
     ranked = role_recommendations.rank_roles(
         candidates,
-        saved_roles=saved_jobs,
-        discovery_events=activity,
+        saved_roles=saved_jobs if learning_enabled else [],
+        discovery_events=all_activity if learning_enabled else [],
+        more_like_roles=more_like_jobs if learning_enabled else [],
+        clicked_roles=clicked_jobs if learning_enabled else [],
         saved_refs=saved_refs,
+        dismissed_refs=dismissed_refs,
+        hidden_employer_keys=set(),
+        resume_evidence=resume_evidence if learning_enabled else None,
         page=page,
         page_size=page_size,
         now=generated_at,
     )
     items = [
-        RecommendedRoleOut(job=item.job, score=item.score, reasons=list(item.reasons))
+        RecommendedRoleOut(
+            job=item.job,
+            score=item.score,
+            reasons=list(item.reasons),
+            feedback=feedback_by_ref.get((item.job.source, item.job.source_id), []),
+        )
         for item in ranked.items
     ]
 
     batch_id = None
-    if store and seeker and items:
+    if store and seeker and learning_enabled and items:
         batch_id = store.record_recommendation_impressions(
             seeker["id"],
             [
@@ -459,10 +557,11 @@ def recommended_roles(
 
     return RecommendationsOut(
         personalized=ranked.personalized,
+        personalization_enabled=learning_enabled,
         model_version=role_recommendations.MODEL_VERSION,
         signal_count=ranked.signal_count,
         saved_role_count=len(saved_jobs),
-        activity_count=len(activity),
+        activity_count=len(all_activity),
         eligible_count=ranked.eligible_count,
         page=page,
         page_size=page_size,
@@ -490,6 +589,150 @@ def recommendation_clicked(source: str, source_id: str, request: Request):
         seeker["id"], source, source_id
     )
     return Response(status_code=204)
+
+
+@router.post(
+    "/api/me/recommendations/{source}/{source_id}/feedback",
+    status_code=204,
+    tags=["recommendations"],
+)
+def add_recommendation_feedback(
+    source: str, source_id: str, payload: RecommendationFeedbackIn, request: Request
+):
+    seeker = _require_seeker(request)
+    seekers_store.get_store().record_recommendation_feedback(
+        seeker["id"],
+        source,
+        source_id,
+        action=payload.action,
+        detail=payload.detail,
+    )
+    return Response(status_code=204)
+
+
+@router.delete(
+    "/api/me/recommendations/{source}/{source_id}/feedback/{action}",
+    status_code=204,
+    tags=["recommendations"],
+)
+def remove_recommendation_feedback(
+    source: str,
+    source_id: str,
+    action: Literal["more_like", "not_interested"],
+    request: Request,
+):
+    seeker = _require_seeker(request)
+    seekers_store.get_store().delete_recommendation_feedback(
+        seeker["id"], source, source_id, action
+    )
+    return Response(status_code=204)
+
+
+@router.get("/api/me/resume", response_model=Optional[ResumeOut], tags=["resume"])
+def get_resume_status(request: Request):
+    """Return private resume metadata and derived evidence, never the document text."""
+    seeker = _require_seeker(request)
+    row = seekers_store.get_store().get_resume(seeker["id"])
+    return _resume_out(row) if row else None
+
+
+@router.put("/api/me/resume", response_model=ResumeOut, tags=["resume"])
+async def upload_resume(request: Request, resume: UploadFile = File(...)):
+    """Validate and analyse a replacement fully before atomically storing it."""
+    seeker = _require_seeker(request)
+    if _auth_rate_limited(
+        request, f"resume:{seeker['id']}", limit=10, window_s=3_600
+    ):
+        raise HTTPException(
+            status_code=429,
+            detail="Too many resume uploads. Please try again later.",
+        )
+
+    try:
+        data = await resume.read(resume_intelligence.MAX_RESUME_BYTES + 1)
+        parsed = resume_intelligence.parse_resume(
+            resume.filename or "", resume.content_type, data
+        )
+        analysis = resume_intelligence.analyse_resume(parsed)
+    except resume_intelligence.ResumeValidationError as exc:
+        status = 413 if len(data) > resume_intelligence.MAX_RESUME_BYTES else 422
+        raise HTTPException(status_code=status, detail=str(exc)) from exc
+    finally:
+        await resume.close()
+
+    store = seekers_store.get_store()
+    replaced = store.replace_resume(
+        seeker["id"],
+        filename=parsed.filename,
+        media_type=parsed.media_type,
+        size_bytes=parsed.size_bytes,
+        content_sha256=parsed.content_sha256,
+        file_content=data,
+        text_content=parsed.text,
+        analysis=analysis.as_dict(),
+    )
+    store.log_event("resume.replaced" if replaced else "resume.uploaded", seeker["id"])
+    return _resume_out(store.get_resume(seeker["id"]))
+
+
+@router.delete("/api/me/resume", status_code=204, tags=["resume"])
+def delete_resume(request: Request):
+    """Delete the source document, extracted text and derived evidence together."""
+    seeker = _require_seeker(request)
+    store = seekers_store.get_store()
+    if store.delete_resume(seeker["id"]):
+        store.log_event("resume.deleted", seeker["id"])
+    return Response(status_code=204)
+
+
+@router.get(
+    "/api/me/resume-matches",
+    response_model=ResumeMatchesOut,
+    tags=["resume"],
+)
+def resume_matches(
+    request: Request,
+    limit: int = Query(6, ge=1, le=12),
+):
+    """Return current Roles with the strongest observable resume alignment."""
+    seeker = _require_seeker(request)
+    row = seekers_store.get_store().get_resume(
+        seeker["id"], include_document=True
+    )
+    if row is None:
+        return ResumeMatchesOut(
+            has_resume=False,
+            model_version=resume_intelligence.MATCH_MODEL_VERSION,
+        )
+
+    with get_db(request) as conn:
+        candidates = job_read.list_jobs(
+            conn,
+            JobFilters(),
+            sort=Sort.NEWEST,
+            page=1,
+            page_size=1_000,
+            visibility=Visibility.BOARD,
+        ).jobs
+    evidence = resume_intelligence.evidence_from_storage(
+        row["text_content"], row["analysis"]
+    )
+    matches = resume_intelligence.rank_resume_matches(
+        candidates, evidence, limit=limit
+    )
+    return ResumeMatchesOut(
+        has_resume=True,
+        resume_uploaded_at=row["uploaded_at"],
+        model_version=resume_intelligence.MATCH_MODEL_VERSION,
+        items=[
+            ResumeMatchOut(
+                job=item.job,
+                match_score=item.score,
+                reasons=list(item.reasons),
+            )
+            for item in matches
+        ],
+    )
 
 
 # ── /api/jobs/{source}/{source_id} ────────────────────────────────────────────
@@ -2335,10 +2578,11 @@ def create_app(settings: Settings | None = None, *, sender: Sender | None = None
         allow_origins=list(settings.cors_origins),
         # POST is required by /api/contact and /api/post-role — without it the
         # browser blocks the preflight and the forms fail before reaching FastAPI.
-        # DELETE joins the list for the account endpoints (unsave a Role, delete an
-        # account). At one origin CORS is inert, but a dev frontend pointed at an
-        # absolute API URL still preflights, and a missing method fails there only.
-        allow_methods=["GET", "POST", "DELETE"],
+        # DELETE joins the list for account/profile removal; PATCH is used by the
+        # recommendation preference centre. At one origin CORS is inert, but a dev
+        # frontend pointed at an absolute API URL still preflights, and a missing
+        # method fails there only.
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["*"],
     )
 

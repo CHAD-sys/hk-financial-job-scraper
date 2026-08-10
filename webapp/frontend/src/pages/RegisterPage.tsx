@@ -128,8 +128,8 @@ export default function RegisterPage() {
       title="Create an account"
       standfirst={
         <>
-          One thing an account does today: it keeps your Saved Roles with you instead of
-          with this browser, and keeps them current as roles close. Browsing the board needs
+          Add one private resume to see where your experience aligns across the live market,
+          shape “Roles for you”, and keep Saved Roles across devices. Browsing the board needs
           no account and never will.
         </>
       }

@@ -20,8 +20,10 @@ from datetime import datetime, timezone
 from typing import Iterable, Sequence
 
 from job_read import JobSummary
+from resume_intelligence import ResumeEvidence, score_resume_fit
 
-MODEL_VERSION = "signals-v1"
+MODEL_VERSION = "signals-v3"
+MAX_RESUME_BONUS = 6.0
 
 _WORD_RE = re.compile(r"[a-z0-9+#.]{2,}")
 _ENTITY_NOISE = re.compile(
@@ -64,7 +66,8 @@ def _normalise(value: object) -> str:
     return " ".join(str(value or "").strip().lower().split())
 
 
-def _employer_key(company: str) -> str:
+def employer_key(company: str) -> str:
+    """Return the stable, human-independent employer key used by hide controls."""
     value = re.sub(r"[(),.]", " ", company.lower())
     return " ".join(_ENTITY_NOISE.sub(" ", value).split())
 
@@ -110,6 +113,78 @@ def _add_saved_signals(signals: list[_Signal], role: JobSummary) -> None:
         signals.append(
             _Signal("text", token, token, 0.9, "Similar title to a saved Role")
         )
+
+
+def _add_more_like_signals(signals: list[_Signal], role: JobSummary) -> None:
+    """Translate an explicit positive label into the strongest profile evidence."""
+    direct = (
+        ("sector", role.sector, 8.5),
+        ("company", role.company, 3.0),
+        ("seniority", role.seniority, 5.0),
+        ("remote_type", role.remote_type, 3.5),
+        ("job_category", role.job_category, 6.0),
+    )
+    for kind, value, weight in direct:
+        if value:
+            signals.append(
+                _Signal(
+                    kind,
+                    _normalise(value),
+                    str(value),
+                    weight,
+                    f"Similar to a Role you asked to see more of",
+                )
+            )
+    for skill in role.required_skills[:12]:
+        value = _normalise(skill)
+        if value:
+            signals.append(
+                _Signal(
+                    "text",
+                    value,
+                    str(skill),
+                    4.5,
+                    f"Uses {skill}, from a Role you asked to see more of",
+                )
+            )
+    for token in _WORD_RE.findall(_normalise(role.title)):
+        signals.append(
+            _Signal(
+                "text",
+                token,
+                token,
+                1.5,
+                "Similar title to a Role you asked to see more of",
+            )
+        )
+
+
+def _add_clicked_signals(signals: list[_Signal], role: JobSummary) -> None:
+    """Use a Role open as light evidence, never as strong as an explicit choice."""
+    direct = (
+        ("sector", role.sector, 2.5),
+        ("company", role.company, 0.75),
+        ("seniority", role.seniority, 1.5),
+        ("remote_type", role.remote_type, 1.0),
+        ("job_category", role.job_category, 2.0),
+    )
+    for kind, value, weight in direct:
+        if value:
+            signals.append(
+                _Signal(
+                    kind,
+                    _normalise(value),
+                    str(value),
+                    weight,
+                    "Similar to Roles you opened",
+                )
+            )
+    for skill in role.required_skills[:12]:
+        value = _normalise(skill)
+        if value:
+            signals.append(
+                _Signal("text", value, str(skill), 1.25, "Similar to Roles you opened")
+            )
 
 
 def _event_filters(event: dict) -> dict:
@@ -244,6 +319,8 @@ def _add_event_signals(
 def _profile(
     saved_roles: Sequence[JobSummary],
     discovery_events: Sequence[dict],
+    more_like_roles: Sequence[JobSummary],
+    clicked_roles: Sequence[JobSummary],
     *,
     now: datetime,
 ) -> list[_Signal]:
@@ -252,6 +329,10 @@ def _profile(
         _add_saved_signals(raw, role)
     for event in discovery_events[:100]:
         _add_event_signals(raw, event, now=now)
+    for role in more_like_roles[:50]:
+        _add_more_like_signals(raw, role)
+    for role in clicked_roles[:100]:
+        _add_clicked_signals(raw, role)
 
     # Repeated intent should strengthen a feature without letting one habit
     # swamp every other signal forever. Aggregate equal reason/value pairs and
@@ -330,7 +411,7 @@ def _matches(
     if signal.kind == "sector":
         return signal.value == _normalise(role.sector)
     if signal.kind == "company":
-        return _employer_key(signal.value) == _employer_key(role.company)
+        return employer_key(signal.value) == employer_key(role.company)
     if signal.kind == "seniority":
         return signal.value == _normalise(role.seniority)
     if signal.kind == "remote_type":
@@ -375,7 +456,12 @@ def _matches(
     return False
 
 
-def _score(role: JobSummary, signals: Sequence[_Signal], now: datetime) -> RankedRole:
+def _score(
+    role: JobSummary,
+    signals: Sequence[_Signal],
+    now: datetime,
+    resume_evidence: ResumeEvidence | None = None,
+) -> RankedRole:
     haystack = " ".join(
         filter(
             None,
@@ -396,6 +482,18 @@ def _score(role: JobSummary, signals: Sequence[_Signal], now: datetime) -> Ranke
             score += signal.weight
             reasons[signal.reason] = reasons.get(signal.reason, 0.0) + signal.weight
 
+    # Resume evidence is intentionally bounded below a settled search or an
+    # explicit "More like this" profile. It helps surface plausible experience
+    # fits without trapping someone in the field their resume happens to show.
+    if resume_evidence is not None:
+        fit = score_resume_fit(role, resume_evidence)
+        if fit.score >= 25:
+            bonus = min(MAX_RESUME_BONUS, fit.score / 100 * MAX_RESUME_BONUS)
+            score += bonus
+            if fit.reasons:
+                reason = f"Resume alignment: {fit.reasons[0]}"
+                reasons[reason] = reasons.get(reason, 0.0) + bonus
+
     ordered_reasons = tuple(
         reason for reason, _ in sorted(reasons.items(), key=lambda item: (-item[1], item[0]))[:2]
     )
@@ -414,7 +512,7 @@ def _page_with_employer_diversity(
         selected_page = []
         seen: set[str] = set()
         for item in remaining:
-            key = _employer_key(item.job.company)
+            key = employer_key(item.job.company)
             if key in seen:
                 continue
             seen.add(key)
@@ -447,16 +545,37 @@ def rank_roles(
     page: int,
     page_size: int,
     now: datetime | None = None,
+    more_like_roles: Sequence[JobSummary] = (),
+    clicked_roles: Sequence[JobSummary] = (),
+    dismissed_refs: set[tuple[str, str]] | None = None,
+    hidden_employer_keys: set[str] | None = None,
+    resume_evidence: ResumeEvidence | None = None,
 ) -> RecommendationResult:
     """Rank open candidate Roles and return one diverse recommendation page."""
     moment = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
-    signals = _profile(saved_roles, discovery_events, now=moment)
+    signals = _profile(
+        saved_roles,
+        discovery_events,
+        more_like_roles,
+        clicked_roles,
+        now=moment,
+    )
+    dismissed = dismissed_refs or set()
+    hidden_employers = {
+        employer_key(key) for key in (hidden_employer_keys or set()) if employer_key(key)
+    }
     eligible = [
         role
         for role in candidates
-        if not role.closed and (role.source, role.source_id) not in saved_refs
+        if not role.closed
+        and (role.source, role.source_id) not in saved_refs
+        and (role.source, role.source_id) not in dismissed
+        and employer_key(role.company) not in hidden_employers
     ]
-    ranked = [_score(role, signals, moment) for role in eligible]
+    ranked = [
+        _score(role, signals, moment, resume_evidence=resume_evidence)
+        for role in eligible
+    ]
     ranked.sort(
         key=lambda item: (
             -item.score,
@@ -470,7 +589,7 @@ def rank_roles(
     safe_size = max(1, min(int(page_size), 24))
     return RecommendationResult(
         items=_page_with_employer_diversity(ranked, page=safe_page, page_size=safe_size),
-        personalized=bool(signals),
-        signal_count=len(signals),
+        personalized=bool(signals or resume_evidence),
+        signal_count=len(signals) + (1 if resume_evidence else 0),
         eligible_count=len(ranked),
     )
