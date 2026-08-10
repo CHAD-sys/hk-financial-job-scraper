@@ -1,5 +1,5 @@
 import {
-  Briefcase, Bookmark, Menu, X, ChevronDown, User, LogOut, ArrowUpRight, Building2,
+  Briefcase, Bookmark, Menu, X, ChevronDown, FileText, LogOut, ArrowUpRight, Building2,
   LayoutDashboard, Search,
 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
@@ -364,7 +364,7 @@ export default function Nav() {
             ...(!employerAuthLoading && employer ? [{ label: 'Post a role', to: '/post-a-role' }] : []),
             // The account item(s), which the desktop bar keeps in its own slot.
             ...(authLoading ? [] : seeker
-              ? [{ label: 'Your account', to: '/account' }]
+              ? [{ label: 'Resume & account', to: '/account' }]
               : [{ label: 'Sign in', to: '/get-started' }]),
           ].map(({ label, to, external }) =>
             external ? (
@@ -596,8 +596,8 @@ function SeekerMenu({ seeker, onSignOut }: { seeker: Seeker; onSignOut: () => vo
             className="flex min-h-11 items-center gap-2 px-3 text-sm font-medium no-underline"
             style={{ color: 'var(--color-ink)' }}
           >
-            <User size={15} strokeWidth={2} />
-            Your account
+            <FileText size={15} strokeWidth={2} />
+            Resume &amp; account
           </Link>
           <Link
             role="menuitem"

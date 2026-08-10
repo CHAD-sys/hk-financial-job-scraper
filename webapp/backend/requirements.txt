@@ -23,3 +23,7 @@ httpx==0.28.1
 # with REDIS_URL unset the app never imports this and keeps the in-process
 # RateLimiter, so a deploy with no Redis attached is unaffected.
 redis==8.1.0
+# Resume uploads are multipart form bodies; Starlette requires this parser.
+python-multipart==0.0.32
+# Text extraction for user-supplied PDF resumes. DOCX stays stdlib ZIP/XML.
+pypdf==6.14.0

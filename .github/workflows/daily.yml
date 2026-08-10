@@ -19,6 +19,10 @@ jobs:
   scrape:
     name: Scrape + export
     runs-on: ubuntu-latest
+    # Routine success summaries are deliberately disabled. GitHub's own
+    # failure-only notifications remain controlled by the account settings.
+    env:
+      PIPELINE_DAILY_EMAIL: "0"
 
     steps:
       - name: Check out repository

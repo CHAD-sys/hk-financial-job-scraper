@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AlertCircle, BadgeCheck, Bookmark, LogOut, ShieldAlert, Trash2 } from 'lucide-react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import Nav from '../components/Nav'
+import ResumeManager from '../components/ResumeManager'
 import { deleteAccount } from '../api/client'
 import { useAuth } from '../auth/useAuth'
 import { useSavedRoles } from '../savedRoles/useSavedRoles'
@@ -15,9 +16,8 @@ const CONFIRM_WORD = 'DELETE'
 /**
  * The Seeker's own account: what we hold, and how to leave.
  *
- * There is very little here on purpose. v1 stores an email address, a name, a
- * password hash and a list of Saved Roles — so this page shows exactly that and
- * does not invent settings for features that do not exist.
+ * It shows the account facts we actually hold, including the optional private
+ * resume, without inventing unrelated preference controls.
  */
 export default function AccountPage() {
   const { seeker, loading, logout, refresh } = useAuth()
@@ -61,7 +61,7 @@ export default function AccountPage() {
   return (
     <div style={{ backgroundColor: 'var(--color-bg)', minHeight: '100dvh' }}>
       <Nav />
-      <main id="main-content" className="mx-auto max-w-2xl px-6 py-14 lg:px-8">
+      <main id="main-content" className="mx-auto max-w-4xl px-6 py-14 lg:px-8">
         <span
           className="text-xs font-semibold uppercase"
           style={{ color: 'var(--color-gold)', letterSpacing: '0.14em' }}
@@ -79,6 +79,10 @@ export default function AccountPage() {
         >
           Your account
         </h1>
+        <p className="mt-4 max-w-2xl text-base leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
+          Your private career profile lives here. Start with one resume to uncover where your
+          experience is strongest, then keep the rest of your account under your control.
+        </p>
 
         {loading || !seeker ? (
           <p className="mt-6 text-sm" style={{ color: 'var(--color-ink-muted)' }} role="status">
@@ -86,6 +90,8 @@ export default function AccountPage() {
           </p>
         ) : (
           <>
+            <ResumeManager />
+
             {/* What we hold */}
             <section
               className="mt-8 rounded-xl p-6 lg:p-8"
@@ -161,8 +167,8 @@ export default function AccountPage() {
               <Legend>Delete account</Legend>
 
               <p className="text-sm leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
-                Deleting your account removes your name, email address, password and Saved
-                Roles from our records and signs you out everywhere. <strong style={{ color: 'var(--color-ink)' }}>
+                Deleting your account removes your name, email address, password, resume,
+                resume analysis and Saved Roles from our records and signs you out everywhere. <strong style={{ color: 'var(--color-ink)' }}>
                 This is permanent — there is no undo and we cannot restore it for you.</strong>{' '}
                 The board itself stays open to you afterwards; you simply browse it without an
                 account, and Saved Roles go back to living in this browser.

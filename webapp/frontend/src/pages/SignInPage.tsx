@@ -95,8 +95,9 @@ export default function SignInPage() {
       title="Sign in"
       standfirst={
         <>
-          Signing in keeps your Saved Roles with your account rather than this browser.
-          The board itself stays free and open — you never need an account to read a Role.
+          Sign in to manage your private resume, see strong experience matches, and keep
+          Saved Roles across devices. The board stays free and open — you never need an
+          account to read a Role.
         </>
       }
     >

@@ -60,6 +60,7 @@ logger = logging.getLogger(__name__)
 _BUSY_TIMEOUT_SECONDS = 5.0
 
 VALID_TOKEN_PURPOSES = ("verify", "reset")
+RECOMMENDATION_FEEDBACK_ACTIONS = ("more_like", "not_interested", "wrong_reason")
 
 
 class EmailAlreadyRegistered(Exception):
@@ -413,6 +414,86 @@ def migrate_to_phase_5(conn: sqlite3.Connection) -> None:
     )
 
 
+def migrate_to_phase_6(conn: sqlite3.Connection) -> None:
+    """Add Seeker-controlled recommendation preferences and feedback.
+
+    Phase 5 records implicit first-party signals. This phase gives the Seeker
+    explicit control over those signals: they can ask for similar Roles,
+    dismiss a Role, correct an explanation, hide an employer, disable an input,
+    or reset the recommendation profile without deleting Saved Roles.
+    """
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS recommendation_feedback (
+            seeker_id   TEXT NOT NULL REFERENCES seekers (id) ON DELETE CASCADE,
+            source      TEXT NOT NULL,
+            source_id   TEXT NOT NULL,
+            action      TEXT NOT NULL CHECK (
+                action IN ('more_like', 'not_interested', 'wrong_reason')
+            ),
+            detail      TEXT,
+            created_at  TEXT NOT NULL,
+            updated_at  TEXT NOT NULL,
+            PRIMARY KEY (seeker_id, source, source_id, action)
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS recommendation_settings (
+            seeker_id                TEXT PRIMARY KEY REFERENCES seekers (id) ON DELETE CASCADE,
+            personalization_enabled  INTEGER NOT NULL DEFAULT 1,
+            use_saved_roles          INTEGER NOT NULL DEFAULT 1,
+            use_discovery            INTEGER NOT NULL DEFAULT 1,
+            use_clicks               INTEGER NOT NULL DEFAULT 1,
+            updated_at               TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS recommendation_hidden_employers (
+            seeker_id     TEXT NOT NULL REFERENCES seekers (id) ON DELETE CASCADE,
+            employer_key  TEXT NOT NULL,
+            employer_name TEXT NOT NULL,
+            hidden_at     TEXT NOT NULL,
+            PRIMARY KEY (seeker_id, employer_key)
+        )
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_recommendation_feedback_seeker "
+        "ON recommendation_feedback (seeker_id, updated_at DESC)"
+    )
+
+
+def migrate_to_phase_7(conn: sqlite3.Connection) -> None:
+    """Store exactly one private resume and its derived evidence per Seeker.
+
+    The Seeker id is the primary key, so replacement is a database invariant,
+    not cleanup a route might forget. The source document and every derived
+    field cascade with the account and are also named in `delete_seeker`.
+    """
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS seeker_resumes (
+            seeker_id       TEXT PRIMARY KEY REFERENCES seekers (id) ON DELETE CASCADE,
+            filename        TEXT NOT NULL,
+            media_type      TEXT NOT NULL CHECK (media_type IN (
+                'application/pdf',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            )),
+            size_bytes      INTEGER NOT NULL CHECK (size_bytes > 0 AND size_bytes <= 5242880),
+            content_sha256  TEXT NOT NULL,
+            file_content    BLOB NOT NULL,
+            text_content    TEXT NOT NULL,
+            analysis_json   TEXT NOT NULL DEFAULT '{}',
+            uploaded_at     TEXT NOT NULL
+        )
+        """
+    )
+
+
 # Every phase, in order. A future phase appends here; it never edits an applied
 # phase because seekers.db is irreplaceable first-party account data.
 _MIGRATIONS = (
@@ -421,6 +502,8 @@ _MIGRATIONS = (
     migrate_to_phase_3,
     migrate_to_phase_4,
     migrate_to_phase_5,
+    migrate_to_phase_6,
+    migrate_to_phase_7,
 )
 
 
@@ -1126,6 +1209,342 @@ class SeekerStore:
             )
             return cursor.rowcount == 1
 
+    def list_clicked_recommendation_refs(
+        self, seeker_id: str, *, limit: int = 100
+    ) -> list[dict[str, str]]:
+        """Return recently opened Role references, newest first and deduplicated."""
+        rows = self._conn().execute(
+            """
+            SELECT source, source_id, MAX(clicked_at) AS latest_click
+            FROM recommendation_impressions
+            WHERE seeker_id = ? AND clicked_at IS NOT NULL
+            GROUP BY source, source_id
+            ORDER BY latest_click DESC
+            LIMIT ?
+            """,
+            (seeker_id, max(1, min(int(limit), 500))),
+        )
+        return [
+            {"source": str(row["source"]), "source_id": str(row["source_id"])}
+            for row in rows
+        ]
+
+    def get_recommendation_settings(self, seeker_id: str) -> dict[str, bool]:
+        """Return the Seeker's controls, or privacy-friendly product defaults."""
+        row = self._conn().execute(
+            """
+            SELECT personalization_enabled, use_saved_roles, use_discovery, use_clicks
+            FROM recommendation_settings
+            WHERE seeker_id = ?
+            """,
+            (seeker_id,),
+        ).fetchone()
+        if row is None:
+            return {
+                "personalization_enabled": True,
+                "use_saved_roles": True,
+                "use_discovery": True,
+                "use_clicks": True,
+            }
+        return {key: bool(row[key]) for key in row.keys()}
+
+    def update_recommendation_settings(
+        self,
+        seeker_id: str,
+        *,
+        personalization_enabled: bool | None = None,
+        use_saved_roles: bool | None = None,
+        use_discovery: bool | None = None,
+        use_clicks: bool | None = None,
+        now: datetime | None = None,
+    ) -> dict[str, bool]:
+        """Partially update recommendation controls and return the resolved state."""
+        updates = {
+            "personalization_enabled": personalization_enabled,
+            "use_saved_roles": use_saved_roles,
+            "use_discovery": use_discovery,
+            "use_clicks": use_clicks,
+        }
+        stamp = to_iso(now or utcnow())
+        with self._write() as conn:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO recommendation_settings
+                    (seeker_id, personalization_enabled, use_saved_roles,
+                     use_discovery, use_clicks, updated_at)
+                VALUES (?, 1, 1, 1, 1, ?)
+                """,
+                (seeker_id, stamp),
+            )
+            changed = [(key, value) for key, value in updates.items() if value is not None]
+            if changed:
+                assignments = ", ".join(f"{key} = ?" for key, _ in changed)
+                conn.execute(
+                    f"UPDATE recommendation_settings SET {assignments}, updated_at = ? "
+                    "WHERE seeker_id = ?",
+                    [*(int(bool(value)) for _, value in changed), stamp, seeker_id],
+                )
+        return self.get_recommendation_settings(seeker_id)
+
+    def record_recommendation_feedback(
+        self,
+        seeker_id: str,
+        source: str,
+        source_id: str,
+        *,
+        action: str,
+        detail: str | None = None,
+        now: datetime | None = None,
+    ) -> None:
+        """Upsert one explicit label; positive and negative intent replace each other."""
+        if action not in RECOMMENDATION_FEEDBACK_ACTIONS:
+            raise ValueError(f"unknown recommendation feedback action {action!r}")
+        clean_detail = " ".join((detail or "").split())[:300] or None
+        stamp = to_iso(now or utcnow())
+        with self._write() as conn:
+            if action in {"more_like", "not_interested"}:
+                opposite = "not_interested" if action == "more_like" else "more_like"
+                conn.execute(
+                    """
+                    DELETE FROM recommendation_feedback
+                    WHERE seeker_id = ? AND source = ? AND source_id = ? AND action = ?
+                    """,
+                    (seeker_id, source, source_id, opposite),
+                )
+            conn.execute(
+                """
+                INSERT INTO recommendation_feedback
+                    (seeker_id, source, source_id, action, detail, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (seeker_id, source, source_id, action) DO UPDATE SET
+                    detail = excluded.detail,
+                    updated_at = excluded.updated_at
+                """,
+                (seeker_id, source, source_id, action, clean_detail, stamp, stamp),
+            )
+
+    def delete_recommendation_feedback(
+        self, seeker_id: str, source: str, source_id: str, action: str
+    ) -> bool:
+        if action not in RECOMMENDATION_FEEDBACK_ACTIONS:
+            raise ValueError(f"unknown recommendation feedback action {action!r}")
+        with self._write() as conn:
+            cursor = conn.execute(
+                """
+                DELETE FROM recommendation_feedback
+                WHERE seeker_id = ? AND source = ? AND source_id = ? AND action = ?
+                """,
+                (seeker_id, source, source_id, action),
+            )
+            return cursor.rowcount > 0
+
+    def list_recommendation_feedback(
+        self, seeker_id: str, *, limit: int = 500
+    ) -> list[dict[str, Any]]:
+        rows = self._conn().execute(
+            """
+            SELECT seeker_id, source, source_id, action, detail, created_at, updated_at
+            FROM recommendation_feedback
+            WHERE seeker_id = ?
+            ORDER BY updated_at DESC, source, source_id, action
+            LIMIT ?
+            """,
+            (seeker_id, max(1, min(int(limit), 2_000))),
+        )
+        return [dict(row) for row in rows]
+
+    def hide_recommendation_employer(
+        self,
+        seeker_id: str,
+        employer_key: str,
+        employer_name: str,
+        *,
+        now: datetime | None = None,
+    ) -> None:
+        key = " ".join(employer_key.strip().lower().split())[:200]
+        name = " ".join(employer_name.strip().split())[:200]
+        if not key or not name:
+            raise ValueError("Employer key and name are required")
+        with self._write() as conn:
+            conn.execute(
+                """
+                INSERT INTO recommendation_hidden_employers
+                    (seeker_id, employer_key, employer_name, hidden_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT (seeker_id, employer_key) DO UPDATE SET
+                    employer_name = excluded.employer_name,
+                    hidden_at = excluded.hidden_at
+                """,
+                (seeker_id, key, name, to_iso(now or utcnow())),
+            )
+
+    def unhide_recommendation_employer(self, seeker_id: str, employer_key: str) -> bool:
+        with self._write() as conn:
+            cursor = conn.execute(
+                """
+                DELETE FROM recommendation_hidden_employers
+                WHERE seeker_id = ? AND employer_key = ?
+                """,
+                (seeker_id, employer_key),
+            )
+            return cursor.rowcount > 0
+
+    def list_hidden_recommendation_employers(
+        self, seeker_id: str
+    ) -> list[dict[str, str]]:
+        rows = self._conn().execute(
+            """
+            SELECT employer_key, employer_name
+            FROM recommendation_hidden_employers
+            WHERE seeker_id = ?
+            ORDER BY employer_name COLLATE NOCASE, employer_key
+            """,
+            (seeker_id,),
+        )
+        return [dict(row) for row in rows]
+
+    def recommendation_profile_counts(self, seeker_id: str) -> dict[str, int]:
+        conn = self._conn()
+        recent_searches = int(
+            conn.execute(
+                "SELECT COUNT(*) FROM seeker_discovery_events WHERE seeker_id = ?",
+                (seeker_id,),
+            ).fetchone()[0]
+        )
+        opened_roles = int(
+            conn.execute(
+                """
+                SELECT COUNT(*) FROM (
+                    SELECT source, source_id FROM recommendation_impressions
+                    WHERE seeker_id = ? AND clicked_at IS NOT NULL
+                    GROUP BY source, source_id
+                )
+                """,
+                (seeker_id,),
+            ).fetchone()[0]
+        )
+        feedback_counts = {action: 0 for action in RECOMMENDATION_FEEDBACK_ACTIONS}
+        rows = conn.execute(
+            """
+            SELECT action, COUNT(*) AS count
+            FROM recommendation_feedback
+            WHERE seeker_id = ?
+            GROUP BY action
+            """,
+            (seeker_id,),
+        )
+        for row in rows:
+            feedback_counts[str(row["action"])] = int(row["count"])
+        return {
+            "recent_searches": recent_searches,
+            "opened_roles": opened_roles,
+            **feedback_counts,
+        }
+
+    def reset_recommendation_profile(self, seeker_id: str) -> None:
+        """Delete learned recommendation data while preserving account and Saved Roles."""
+        with self._write() as conn:
+            conn.execute(
+                "DELETE FROM recommendation_settings WHERE seeker_id = ?", (seeker_id,)
+            )
+            conn.execute(
+                "DELETE FROM recommendation_feedback WHERE seeker_id = ?", (seeker_id,)
+            )
+            conn.execute(
+                "DELETE FROM recommendation_hidden_employers WHERE seeker_id = ?",
+                (seeker_id,),
+            )
+            conn.execute(
+                "DELETE FROM recommendation_impressions WHERE seeker_id = ?", (seeker_id,)
+            )
+            conn.execute(
+                "DELETE FROM seeker_discovery_events WHERE seeker_id = ?", (seeker_id,)
+            )
+
+    # -- private resume -----------------------------------------------------
+
+    def replace_resume(
+        self,
+        seeker_id: str,
+        *,
+        filename: str,
+        media_type: str,
+        size_bytes: int,
+        content_sha256: str,
+        file_content: bytes,
+        text_content: str,
+        analysis: dict[str, Any] | None = None,
+        now: datetime | None = None,
+    ) -> bool:
+        """Atomically store one resume; return True when an older one was replaced."""
+        if not 0 < size_bytes <= 5 * 1024 * 1024 or len(file_content) != size_bytes:
+            raise ValueError("Resume content size is invalid")
+        analysis_json = json.dumps(
+            analysis or {}, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
+        uploaded_at = to_iso(now or utcnow())
+        with self._write() as conn:
+            existed = conn.execute(
+                "SELECT 1 FROM seeker_resumes WHERE seeker_id = ?", (seeker_id,)
+            ).fetchone() is not None
+            conn.execute(
+                """
+                INSERT INTO seeker_resumes
+                    (seeker_id, filename, media_type, size_bytes, content_sha256,
+                     file_content, text_content, analysis_json, uploaded_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(seeker_id) DO UPDATE SET
+                    filename = excluded.filename,
+                    media_type = excluded.media_type,
+                    size_bytes = excluded.size_bytes,
+                    content_sha256 = excluded.content_sha256,
+                    file_content = excluded.file_content,
+                    text_content = excluded.text_content,
+                    analysis_json = excluded.analysis_json,
+                    uploaded_at = excluded.uploaded_at
+                """,
+                (
+                    seeker_id,
+                    filename,
+                    media_type,
+                    size_bytes,
+                    content_sha256,
+                    file_content,
+                    text_content,
+                    analysis_json,
+                    uploaded_at,
+                ),
+            )
+        return existed
+
+    def get_resume(
+        self, seeker_id: str, *, include_document: bool = False
+    ) -> dict[str, Any] | None:
+        columns = "*" if include_document else (
+            "seeker_id, filename, media_type, size_bytes, content_sha256, "
+            "analysis_json, uploaded_at"
+        )
+        row = self._conn().execute(
+            f"SELECT {columns} FROM seeker_resumes WHERE seeker_id = ?",
+            (seeker_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        result = dict(row)
+        try:
+            result["analysis"] = json.loads(result.pop("analysis_json"))
+        except (TypeError, ValueError):
+            result.pop("analysis_json", None)
+            result["analysis"] = {}
+        return result
+
+    def delete_resume(self, seeker_id: str) -> bool:
+        with self._write() as conn:
+            cursor = conn.execute(
+                "DELETE FROM seeker_resumes WHERE seeker_id = ?", (seeker_id,)
+            )
+        return cursor.rowcount == 1
+
     # -- events (first-party analytics, decision 19) -------------------------
 
     def log_event(
@@ -1201,6 +1620,17 @@ class SeekerStore:
             conn.execute(
                 "DELETE FROM recommendation_impressions WHERE seeker_id = ?", (seeker_id,)
             )
+            conn.execute(
+                "DELETE FROM recommendation_feedback WHERE seeker_id = ?", (seeker_id,)
+            )
+            conn.execute(
+                "DELETE FROM recommendation_hidden_employers WHERE seeker_id = ?",
+                (seeker_id,),
+            )
+            conn.execute(
+                "DELETE FROM recommendation_settings WHERE seeker_id = ?", (seeker_id,)
+            )
+            conn.execute("DELETE FROM seeker_resumes WHERE seeker_id = ?", (seeker_id,))
             conn.execute("DELETE FROM seeker_identities WHERE seeker_id = ?", (seeker_id,))
             conn.execute("DELETE FROM seekers WHERE id = ?", (seeker_id,))
             conn.execute(

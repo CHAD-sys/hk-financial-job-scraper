@@ -59,6 +59,17 @@ vi.mock('../auth/useAuth', () => ({
 
 const fetchRecommendations = vi.fn<(page?: number, pageSize?: number) => Promise<unknown>>()
 const trackRecommendationClick = vi.fn(async (_source: string, _sourceId: string) => {})
+const submitRecommendationFeedback = vi.fn(async (
+  _source: string,
+  _sourceId: string,
+  _action: string,
+  _detail?: string,
+) => {})
+const removeRecommendationFeedback = vi.fn(async (
+  _source: string,
+  _sourceId: string,
+  _action: string,
+) => {})
 
 vi.mock('../api/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../api/client')>()),
@@ -67,6 +78,12 @@ vi.mock('../api/client', async (importOriginal) => ({
   ),
   trackRecommendationClick: (...args: unknown[]) => (
     trackRecommendationClick(...(args as [string, string]))
+  ),
+  submitRecommendationFeedback: (...args: unknown[]) => (
+    submitRecommendationFeedback(...(args as [string, string, string, string?]))
+  ),
+  removeRecommendationFeedback: (...args: unknown[]) => (
+    removeRecommendationFeedback(...(args as [string, string, string]))
   ),
 }))
 
@@ -80,6 +97,7 @@ const { default: RecommendedRoles } = await import('./RecommendedRoles')
 
 const personalized = {
   personalized: true,
+  personalization_enabled: true,
   signal_count: 6,
   saved_role_count: 2,
   activity_count: 4,
@@ -95,6 +113,7 @@ const personalized = {
       job: makeJob(),
       score: 8.4,
       reasons: ['Matches your “credit risk” searches', 'Similar to a Saved Role'],
+      feedback: [],
     },
   ],
 }
@@ -119,17 +138,22 @@ beforeEach(() => {
   authState = { seeker: SEEKER, loading: false }
   fetchRecommendations.mockReset().mockResolvedValue(personalized)
   trackRecommendationClick.mockClear()
+  submitRecommendationFeedback.mockClear()
+  removeRecommendationFeedback.mockClear()
 })
 
 describe('Roles for you', () => {
-  it('shows a signed-in Seeker why each Role was recommended', async () => {
+  it('shows a clean personalized feed without source controls or reason strips', async () => {
     renderSubject()
 
     expect(await screen.findByRole('heading', { name: 'Roles for you' })).toBeInTheDocument()
     expect(screen.queryByText('Roles to start with')).not.toBeInTheDocument()
     expect(screen.getByText('Private to your account')).toBeInTheDocument()
-    expect(screen.getByText(/Matches your “credit risk” searches/)).toBeInTheDocument()
     expect(screen.getByText('Credit Risk Analyst')).toBeInTheDocument()
+    expect(screen.queryByText(/Matches your “credit risk” searches/)).not.toBeInTheDocument()
+    expect(screen.queryByText('Market signal')).not.toBeInTheDocument()
+    expect(screen.queryByText('Why it fits')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Tune your feed' })).not.toBeInTheDocument()
   })
 
   it('is honest about the market fallback for an anonymous visitor', async () => {
@@ -144,7 +168,7 @@ describe('Roles for you', () => {
     renderSubject()
 
     expect(await screen.findByText(/Sign in to shape this with Saved Roles and searches/)).toBeInTheDocument()
-    expect(screen.getByText('Market signal')).toBeInTheDocument()
+    expect(screen.queryByText('Market signal')).not.toBeInTheDocument()
     expect(screen.queryByText('Why it fits')).not.toBeInTheDocument()
   })
 
@@ -168,5 +192,36 @@ describe('Roles for you', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Show me others' }))
 
     await waitFor(() => expect(fetchRecommendations).toHaveBeenLastCalledWith(2, 6))
+  })
+
+  it('lets the Seeker explicitly ask for more similar Roles', async () => {
+    renderSubject()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'More like this' }))
+
+    await waitFor(() => {
+      expect(submitRecommendationFeedback).toHaveBeenCalledWith(
+        'workday',
+        'J1',
+        'more_like',
+      )
+    })
+    expect(screen.getByText(/We’ll show you more Roles like this/)).toBeInTheDocument()
+  })
+
+  it('dismisses an unwanted Role directly and offers Undo', async () => {
+    renderSubject()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Not for me' }))
+
+    await waitFor(() => {
+      expect(submitRecommendationFeedback).toHaveBeenCalledWith(
+        'workday',
+        'J1',
+        'not_interested',
+      )
+    })
+    expect(await screen.findByRole('button', { name: 'Undo' })).toBeInTheDocument()
+    expect(screen.queryByText('Credit Risk Analyst')).not.toBeInTheDocument()
   })
 })

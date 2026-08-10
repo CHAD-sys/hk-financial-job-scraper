@@ -22,6 +22,7 @@ import JobDetailModal from '../components/JobDetailModal'
 import StatCard from '../components/StatCard'
 import SearchHero from '../components/SearchHero'
 import RecommendedRoles from '../components/RecommendedRoles'
+import ResumeMatches from '../components/ResumeMatches'
 
 const PAGE_SIZE = 24
 const SORT_OPTIONS = [
@@ -286,6 +287,11 @@ export default function JobBoardPage() {
               boxShadow: 'var(--shadow-float)',
             }}
           >
+            <ResumeMatches
+              saved={isSaved}
+              onToggleSave={toggleSave}
+              onSelect={setSelectedJob}
+            />
             <RecommendedRoles
               saved={isSaved}
               onToggleSave={toggleSave}
