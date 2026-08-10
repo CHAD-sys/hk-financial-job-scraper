@@ -1,5 +1,7 @@
-import { ArrowRight, BadgeCheck, FileSearch, FileText, ShieldCheck } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ArrowRight, BadgeCheck, FileSearch, FileText, LoaderCircle, RefreshCw, ShieldCheck } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { fetchResumeMatches, type ResumeMatchesResponse } from '../api/client'
 import { useAuth } from '../auth/useAuth'
 
 /**
@@ -10,7 +12,30 @@ import { useAuth } from '../auth/useAuth'
  * changes with identity without implying that browsing requires an account.
  */
 export default function ResumeFeatureSpotlight() {
-  const { seeker, loading } = useAuth()
+  const { seeker, loading: authLoading } = useAuth()
+  const [matches, setMatches] = useState<ResumeMatchesResponse | null>(null)
+  const [matchLoading, setMatchLoading] = useState(Boolean(seeker))
+  const [matchError, setMatchError] = useState(false)
+  const [retry, setRetry] = useState(0)
+  const seekerId = seeker?.id
+
+  useEffect(() => {
+    if (!seekerId) {
+      setMatches(null)
+      setMatchLoading(false)
+      setMatchError(false)
+      return
+    }
+    let cancelled = false
+    setMatchLoading(true)
+    setMatchError(false)
+    fetchResumeMatches(1)
+      .then(value => { if (!cancelled) setMatches(value) })
+      .catch(() => { if (!cancelled) setMatchError(true) })
+      .finally(() => { if (!cancelled) setMatchLoading(false) })
+    return () => { cancelled = true }
+  }, [retry, seekerId])
+
   const cta = seeker
     ? { to: '/account', label: 'Add or manage your resume' }
     : { to: '/register', label: 'Create a Seeker account' }
@@ -42,12 +67,12 @@ export default function ResumeFeatureSpotlight() {
           </ul>
 
           <div className="resume-feature-spotlight__actions">
-            {!loading && (
+            {!authLoading && (
               <Link to={cta.to} className="resume-feature-spotlight__primary">
                 {cta.label} <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
               </Link>
             )}
-            {!loading && !seeker && (
+            {!authLoading && !seeker && (
               <Link to="/signin" className="resume-feature-spotlight__secondary">
                 Already have an account? Sign in
               </Link>
@@ -58,36 +83,114 @@ export default function ResumeFeatureSpotlight() {
           </p>
         </div>
 
-        <div className="resume-feature-spotlight__proof" aria-label="Example of how resume matching works">
-          <div className="resume-feature-spotlight__file">
-            <span><FileText size={21} strokeWidth={1.9} aria-hidden="true" /></span>
-            <div>
-              <strong>Your resume</strong>
-              <small>Skills · experience · sector evidence</small>
-            </div>
-            <em>Private</em>
-          </div>
-
-          <div className="resume-feature-spotlight__path" aria-hidden="true">
-            <span />
-            <span>Compared with today&rsquo;s market</span>
-            <span />
-          </div>
-
-          <div className="resume-feature-spotlight__result">
-            <p>Strong match</p>
-            <h3>Credit Risk &amp; Portfolio Roles</h3>
-            <div>
-              <span>Credit risk</span>
-              <span>SQL</span>
-              <span>Portfolio monitoring</span>
-            </div>
-            <small>
-              The real product shows live Roles and the specific evidence that aligned—not a hiring decision.
-            </small>
-          </div>
-        </div>
+        <ResumeProof
+          signedIn={Boolean(seeker)}
+          loading={matchLoading}
+          error={matchError}
+          matches={matches}
+          onRetry={() => setRetry(value => value + 1)}
+        />
       </div>
     </section>
+  )
+}
+
+function ResumeProof({ signedIn, loading, error, matches, onRetry }: {
+  signedIn: boolean
+  loading: boolean
+  error: boolean
+  matches: ResumeMatchesResponse | null
+  onRetry: () => void
+}) {
+  if (!signedIn) {
+    return (
+      <div className="resume-feature-spotlight__proof" aria-label="How resume matching works">
+        <div className="resume-feature-spotlight__file">
+          <span><FileSearch size={21} strokeWidth={1.9} aria-hidden="true" /></span>
+          <div><strong>Evidence-led discovery</strong><small>Optional · private · based on live Roles</small></div>
+        </div>
+        <ol className="resume-feature-spotlight__steps" aria-label="How resume matching works">
+          <li><span>1</span><div><strong>Add one resume</strong><small>Choose a PDF or DOCX from your account.</small></div></li>
+          <li><span>2</span><div><strong>Review extracted evidence</strong><small>Skills, experience, sectors and role families stay visible to you.</small></div></li>
+          <li><span>3</span><div><strong>Explore live Role matches</strong><small>See the specific evidence behind each match—never an invented result.</small></div></li>
+        </ol>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="resume-feature-spotlight__proof resume-feature-spotlight__proof--status" role="status" aria-live="polite">
+        <LoaderCircle className="animate-spin" size={28} aria-hidden="true" />
+        <div><strong>Checking your private resume status…</strong><small>Loading your latest evidence and live Role matches.</small></div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="resume-feature-spotlight__proof resume-feature-spotlight__proof--status" role="status">
+        <FileSearch size={28} aria-hidden="true" />
+        <div><strong>Your resume status could not be loaded.</strong><small>Nothing has been assumed or displayed from an example.</small></div>
+        <button type="button" onClick={onRetry}><RefreshCw size={14} aria-hidden="true" /> Try again</button>
+      </div>
+    )
+  }
+
+  if (!matches?.has_resume) {
+    return (
+      <div className="resume-feature-spotlight__proof" aria-labelledby="resume-empty-heading">
+        <div className="resume-feature-spotlight__file">
+          <span><FileText size={21} strokeWidth={1.9} aria-hidden="true" /></span>
+          <div><strong>No resume added</strong><small>No skills, experience or sectors have been inferred.</small></div>
+          <em>Private by default</em>
+        </div>
+        <div className="resume-feature-spotlight__path" aria-hidden="true"><span /><span>Ready when you are</span><span /></div>
+        <div className="resume-feature-spotlight__result">
+          <p>Your next step</p>
+          <h3 id="resume-empty-heading">Add your resume to start matching.</h3>
+          <small>Until you upload one, FinEx uses only your Saved Roles, searches and filters to shape Roles for you.</small>
+          <Link className="resume-feature-spotlight__result-link" to="/account">Upload your resume <ArrowRight size={14} aria-hidden="true" /></Link>
+        </div>
+      </div>
+    )
+  }
+
+  const match = matches.items[0]
+  if (!match) {
+    return (
+      <div className="resume-feature-spotlight__proof" role="status">
+        <div className="resume-feature-spotlight__file">
+          <span><BadgeCheck size={21} strokeWidth={1.9} aria-hidden="true" /></span>
+          <div><strong>Resume analysed</strong><small>Your evidence is ready and remains private.</small></div>
+          <em>Current</em>
+        </div>
+        <div className="resume-feature-spotlight__path" aria-hidden="true"><span /><span>Compared with today&rsquo;s market</span><span /></div>
+        <div className="resume-feature-spotlight__result">
+          <p>Market check complete</p>
+          <h3>No strong live Role match yet.</h3>
+          <small>We’ll compare the same evidence again as the daily market changes. This is not a decision about your eligibility.</small>
+          <Link className="resume-feature-spotlight__result-link" to="/jobs">Browse all Roles <ArrowRight size={14} aria-hidden="true" /></Link>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="resume-feature-spotlight__proof" aria-label="Your latest live resume match">
+      <div className="resume-feature-spotlight__file">
+        <span><BadgeCheck size={21} strokeWidth={1.9} aria-hidden="true" /></span>
+        <div><strong>Your resume</strong><small>Compared with currently open Roles</small></div>
+        <em>Private</em>
+      </div>
+      <div className="resume-feature-spotlight__path" aria-hidden="true"><span /><span>Latest live match</span><span /></div>
+      <div className="resume-feature-spotlight__result">
+        <p>{match.match_score}% evidence match</p>
+        <h3>{match.job.title}</h3>
+        <div>{match.reasons.slice(0, 3).map(reason => <span key={reason}>{reason}</span>)}</div>
+        <small>Based on observable evidence in your resume and this open Role—not a hiring decision.</small>
+        <Link className="resume-feature-spotlight__result-link" to="/jobs">View your live matches <ArrowRight size={14} aria-hidden="true" /></Link>
+      </div>
+    </div>
   )
 }

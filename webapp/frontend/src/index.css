@@ -289,6 +289,22 @@ button, a, input, select, [role="button"], [role="tab"] {
 .resume-feature-spotlight__result > div { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 1.25rem; }
 .resume-feature-spotlight__result > div span { border: 1px solid rgb(255 255 255 / 0.16); border-radius: 999px; padding: 0.35rem 0.65rem; color: rgb(248 250 252 / 0.82); font-size: 0.68rem; font-weight: 650; }
 .resume-feature-spotlight__result small { display: block; max-width: 58ch; margin-top: 1.25rem; color: rgb(248 250 252 / 0.58); font-size: 0.68rem; line-height: 1.55; }
+.resume-feature-spotlight__steps { display: grid; gap: 1rem; margin-top: 1.5rem; }
+.resume-feature-spotlight__steps li { display: grid; grid-template-columns: 2rem 1fr; gap: 0.8rem; align-items: start; }
+.resume-feature-spotlight__steps li > span { display: flex; width: 2rem; height: 2rem; align-items: center; justify-content: center; border: 1px solid rgb(255 255 255 / 0.16); border-radius: 999px; color: var(--color-gold-light); font-family: var(--font-mono); font-size: 0.7rem; font-weight: 700; }
+.resume-feature-spotlight__steps strong,
+.resume-feature-spotlight__steps small { display: block; }
+.resume-feature-spotlight__steps strong { color: var(--color-ink-inverse); font-size: 0.82rem; }
+.resume-feature-spotlight__steps small { margin-top: 0.2rem; color: rgb(248 250 252 / 0.65); font-size: 0.7rem; line-height: 1.5; }
+.resume-feature-spotlight__proof--status { display: flex; min-height: 18rem; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.9rem; color: var(--color-gold-light); }
+.resume-feature-spotlight__proof--status strong,
+.resume-feature-spotlight__proof--status small { display: block; }
+.resume-feature-spotlight__proof--status strong { color: var(--color-ink-inverse); font-size: 1rem; }
+.resume-feature-spotlight__proof--status small { margin-top: 0.3rem; color: rgb(248 250 252 / 0.65); font-size: 0.75rem; }
+.resume-feature-spotlight__proof--status button,
+.resume-feature-spotlight__result-link { display: inline-flex; min-height: 44px; align-items: center; gap: 0.45rem; margin-top: 1.25rem; border: 1px solid rgb(255 255 255 / 0.22); border-radius: 0.3rem; padding: 0.65rem 0.9rem; color: var(--color-ink-inverse); font-size: 0.75rem; font-weight: 700; text-decoration: none; transition: background-color 150ms ease-out, border-color 150ms ease-out; }
+.resume-feature-spotlight__proof--status button:hover,
+.resume-feature-spotlight__result-link:hover { border-color: rgb(255 255 255 / 0.4); background-color: rgb(255 255 255 / 0.08); }
 
 /* ── Video facades (Professional L&D) ──────────────────────────────── */
 .video-facade img { transition: transform 320ms var(--ease-out-expo); }
