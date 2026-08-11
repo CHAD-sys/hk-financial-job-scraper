@@ -69,6 +69,7 @@ import role_feed  # noqa: E402
 from rate_limit import RateLimiter, RedisRateLimiter  # noqa: E402
 from sender import Message, Sender, SmtpSender  # noqa: E402
 from settings import Settings  # noqa: E402
+from hk_jobs.migrations import migrate  # noqa: E402
 from job_read import (  # noqa: E402
     BOARD_WHERE,
     INTERNSHIP_COND,
@@ -227,6 +228,8 @@ async def lifespan(app: FastAPI):
     """
     settings: Settings = app.state.settings
     _seed_db_if_missing(settings)
+    if settings.jobs_db.exists():
+        migrate(str(settings.jobs_db))
     _purge_expired_sessions()
     purge_task = asyncio.create_task(_purge_expired_sessions_periodically())
 

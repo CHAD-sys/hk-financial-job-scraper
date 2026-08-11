@@ -176,6 +176,20 @@ def test_startup_purges_expired_sessions_in_both_stores(tmp_path, monkeypatch):
     assert employer_store.get_session("employer-live") is not None
 
 
+def test_startup_migrates_an_existing_jobs_database(tmp_path, monkeypatch):
+    import main
+
+    db = _db(tmp_path, "migrate", "HSBC")
+    migrated: list[str] = []
+    monkeypatch.setattr(main, "migrate", lambda path: migrated.append(path) or [])
+
+    app = main.create_app(Settings(jobs_db=db))
+    with TestClient(app):
+        pass
+
+    assert migrated == [str(db)]
+
+
 # ── The module-level app ──────────────────────────────────────────────────────
 
 def test_module_level_app_still_exists_for_uvicorn():

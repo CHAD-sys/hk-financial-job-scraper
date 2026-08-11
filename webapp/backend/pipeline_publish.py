@@ -122,6 +122,15 @@ CREATE TABLE IF NOT EXISTS search_vocab (
 _TOKEN = re.compile(r"[^\w一-鿿]+", re.UNICODE)
 
 
+def _upgrade_live_schema(live_path: Path) -> None:
+    """Bring the persistent Railway volume up to the current supported schema."""
+    if not live_path.exists():
+        return
+    from hk_jobs.migrations import migrate
+
+    migrate(str(live_path))
+
+
 def _table_exists(conn: sqlite3.Connection, schema: str, table: str) -> bool:
     return (
         conn.execute(
@@ -280,6 +289,20 @@ def _copy_rows(conn: sqlite3.Connection, table: str) -> None:
     conn.execute(f'INSERT INTO "{table}" ({names}) SELECT {names} FROM incoming."{table}"')
 
 
+def _ensure_live_table_exists(conn: sqlite3.Connection, table: str) -> None:
+    """Create a supported missing live table from the incoming catalogue schema."""
+    if _table_exists(conn, "main", table) or not _table_exists(conn, "incoming", table):
+        return
+    row = conn.execute(
+        "SELECT sql FROM incoming.sqlite_master WHERE type='table' AND name=?",
+        (table,),
+    ).fetchone()
+    ddl = row[0] if row else None
+    if not ddl:
+        raise InvalidSnapshot(f"Live catalogue is missing the supported {table} schema")
+    conn.execute(ddl)
+
+
 def _rebuild_search(conn: sqlite3.Connection) -> int:
     conn.execute(_FTS_DDL)
     conn.execute(_VOCAB_DDL)
@@ -356,6 +379,7 @@ def publish_catalogue(
     incoming_path: Path | None = None
     try:
         incoming_path = _decompress(upload, expected_sha256)
+        _upgrade_live_schema(live_path)
         incoming_active = _validate(incoming_path, live_path)
         with sqlite3.connect(live_path) as check:
             check.execute(_SYNC_DDL)
@@ -385,6 +409,7 @@ def publish_catalogue(
             )
             conn.execute("BEGIN IMMEDIATE")
             for table in _PIPELINE_OWNED_TABLES:
+                _ensure_live_table_exists(conn, table)
                 live_has_table = _table_exists(conn, "main", table)
                 incoming_has_table = _table_exists(conn, "incoming", table)
                 if incoming_has_table and not live_has_table:

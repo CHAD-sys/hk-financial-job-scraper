@@ -1,0 +1,258 @@
+{
+  "communities": {
+    "0": [
+      "argumentparser",
+      "cli",
+      "cli_main",
+      "cli_parser",
+      "cli_rationale_1",
+      "protocol",
+      "reporting",
+      "reporting_emailreporter",
+      "reporting_emailreporter_call",
+      "reporting_emailreporter_init",
+      "reporting_githubsummaryreporter",
+      "reporting_githubsummaryreporter_call",
+      "reporting_githubsummaryreporter_init",
+      "reporting_py_dailyrunrecord",
+      "reporting_py_path",
+      "reporting_py_response",
+      "reporting_railwayrecordreporter",
+      "reporting_railwayrecordreporter_call",
+      "reporting_railwayrecordreporter_init",
+      "reporting_rationale_1",
+      "reporting_rationale_125",
+      "reporting_rationale_22",
+      "reporting_render_markdown",
+      "reporting_reporter",
+      "reporting_reporter_call",
+      "reporting_run_reporters"
+    ],
+    "1": [
+      "execution_commandphaseexecutor",
+      "execution_commandphaseexecutor_backup",
+      "execution_commandphaseexecutor_call",
+      "execution_commandphaseexecutor_deepseek",
+      "execution_commandphaseexecutor_descriptions",
+      "execution_commandphaseexecutor_linkedin_discovery",
+      "execution_commandphaseexecutor_linkedin_fetch",
+      "execution_commandphaseexecutor_linkedin_promote",
+      "execution_commandphaseexecutor_pipeline",
+      "execution_commandphaseexecutor_pocketbase",
+      "execution_commandphaseexecutor_publish",
+      "execution_commandphaseexecutor_restore",
+      "execution_commandphaseexecutor_restore_github_artifact",
+      "execution_commandphaseexecutor_restore_gzip",
+      "execution_commandphaseexecutor_salary_audit",
+      "execution_commandphaseexecutor_scrape",
+      "execution_commandphaseexecutor_sha256",
+      "execution_py_dailyrunrecord",
+      "execution_rationale_39",
+      "phaseoutput"
+    ],
+    "2": [
+      "runner",
+      "runner_apply_facts",
+      "runner_phaseexecutor",
+      "runner_phaseexecutor_call",
+      "runner_py_any",
+      "runner_py_dailyrunrecord",
+      "runner_py_path",
+      "runner_py_phasedefinition",
+      "runner_rationale_1",
+      "runner_rationale_57",
+      "runner_run_daily"
+    ],
+    "3": [
+      "completedprocess",
+      "datetime",
+      "execution_commandphaseexecutor_init",
+      "execution_py_phasedefinition",
+      "execution_py_response",
+      "execution_runtimepaths",
+      "model_phasestatus",
+      "registry_phasedefinition",
+      "registry_phasedefinition_required",
+      "runner_phaseoutput"
+    ],
+    "4": [
+      "executionprofile",
+      "model",
+      "model_dailyrunrecord_add_reporting_result",
+      "model_dailyrunrecord_from_dict",
+      "model_dailyrunrecord_start",
+      "model_hong_kong_date",
+      "model_phaseresult",
+      "model_rationale_1",
+      "model_reportingresult"
+    ],
+    "5": [
+      "model_runstatus",
+      "registry",
+      "registry_executionprofile",
+      "registry_executionprofile_phase",
+      "registry_phaserequirement",
+      "registry_profile",
+      "registry_profile_for",
+      "registry_rationale_1",
+      "strenum"
+    ],
+    "6": [
+      "model_dailyrunrecord",
+      "model_dailyrunrecord_begin_phase",
+      "model_dailyrunrecord_finalize",
+      "model_dailyrunrecord_finish_phase",
+      "model_dailyrunrecord_phase",
+      "model_dailyrunrecord_skip_phase",
+      "model_utc_now"
+    ],
+    "7": [
+      "execution",
+      "execution_collect_database_facts",
+      "execution_py_path",
+      "execution_rationale_1",
+      "execution_rationale_290",
+      "execution_runtimepaths_under"
+    ],
+    "8": [
+      "model_dailyrunrecord_read",
+      "model_dailyrunrecord_to_dict",
+      "model_dailyrunrecord_write",
+      "model_py_any",
+      "model_py_path"
+    ],
+    "9": [
+      "init",
+      "init_rationale_1"
+    ],
+    "10": [
+      "main"
+    ]
+  },
+  "cohesion": {
+    "0": 0.12923076923076923,
+    "1": 0.2789473684210526,
+    "2": 0.2545454545454545,
+    "3": 0.4888888888888889,
+    "4": 0.3055555555555556,
+    "5": 0.3055555555555556,
+    "6": 0.5714285714285714,
+    "7": 0.3333333333333333,
+    "8": 0.4,
+    "9": 1.0,
+    "10": 1.0
+  },
+  "gods": [
+    {
+      "id": "model_dailyrunrecord",
+      "label": "DailyRunRecord",
+      "degree": 35
+    },
+    {
+      "id": "model_phasestatus",
+      "label": "PhaseStatus",
+      "degree": 29
+    },
+    {
+      "id": "execution_commandphaseexecutor",
+      "label": "CommandPhaseExecutor",
+      "degree": 25
+    },
+    {
+      "id": "registry_phasedefinition",
+      "label": "PhaseDefinition",
+      "degree": 18
+    },
+    {
+      "id": "execution_py_dailyrunrecord",
+      "label": "DailyRunRecord",
+      "degree": 17
+    },
+    {
+      "id": "phaseoutput",
+      "label": "PhaseOutput",
+      "degree": 16
+    },
+    {
+      "id": "runner_phaseoutput",
+      "label": "PhaseOutput",
+      "degree": 15
+    },
+    {
+      "id": "cli_main",
+      "label": "main()",
+      "degree": 12
+    },
+    {
+      "id": "registry_executionprofile",
+      "label": "ExecutionProfile",
+      "degree": 12
+    },
+    {
+      "id": "execution_runtimepaths",
+      "label": "RuntimePaths",
+      "degree": 9
+    }
+  ],
+  "surprises": [
+    {
+      "source": "ExecutionProfile",
+      "target": "ExecutionProfile",
+      "source_files": [
+        "model.py",
+        "registry.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities; peripheral node `ExecutionProfile` unexpectedly reaches hub `ExecutionProfile`"
+    },
+    {
+      "source": "ArgumentParser",
+      "target": "CommandPhaseExecutor",
+      "source_files": [
+        "cli.py",
+        "execution.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
+    },
+    {
+      "source": "ArgumentParser",
+      "target": "RuntimePaths",
+      "source_files": [
+        "cli.py",
+        "execution.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
+    },
+    {
+      "source": "ArgumentParser",
+      "target": "PhaseStatus",
+      "source_files": [
+        "cli.py",
+        "model.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
+    },
+    {
+      "source": "ArgumentParser",
+      "target": "RunStatus",
+      "source_files": [
+        "cli.py",
+        "model.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
+    }
+  ],
+  "tokens": {
+    "input": 0,
+    "output": 0
+  }
+}
