@@ -21,7 +21,7 @@ import { FileText, ShieldCheck, SlidersHorizontal, Trash2 } from 'lucide-react'
  */
 const ACCOUNTS_LIVE = true
 
-const LAST_UPDATED = '10 August 2026'
+const LAST_UPDATED = '11 August 2026'
 const CONTACT_EMAIL = 'amine@finexclub.org'
 
 interface Clause {
@@ -53,7 +53,6 @@ const CLAUSES: Clause[] = [
           {[
             ACCOUNTS_LIVE &&
               'Account details — your name and email address always; a password, stored only as a cryptographic hash we can never read back, if you set one. If you sign in with Google instead, we receive your name and email address from Google and store no password at all.',
-            'Consultation enquiries — the name, email address, career stage and message you type into the enquiry form.',
             'Role submissions — if you post a role, your name and email address alongside the role details you supply.',
             ACCOUNTS_LIVE
               ? 'Saved roles — held against your account so they follow you between devices. Without an account they stay in your own browser and never reach us.'
@@ -62,7 +61,7 @@ const CLAUSES: Clause[] = [
               'Recommendation activity — for signed-in Seekers, the searches and filters you settle on, the number of matching results, which recommended Roles we showed or you opened, and feedback you give such as “More like this” or “Not for me”. We do not record your keystrokes or anonymous browsing.',
             ACCOUNTS_LIVE &&
               'Resume data — if you choose to upload one, we hold the PDF or DOCX, the text extracted from it, and derived evidence such as skills, role families, sector and experience level. Only one resume is held at a time; a successful replacement deletes the previous one.',
-            'Technical data — your IP address and request details, recorded briefly by the server to rate-limit abuse of the public forms.',
+            'Technical data — your IP address and request details, recorded briefly by the server to rate-limit abuse of public forms and account actions.',
           ]
             .filter(Boolean)
             .map(t => (
@@ -87,7 +86,7 @@ const CLAUSES: Clause[] = [
     title: 'What we use it for',
     body: (
       <>
-        Strictly the purpose described here: answering your enquiry, reviewing a role you
+        Strictly the purpose described here: reviewing a role you
         submitted{ACCOUNTS_LIVE ? ', operating your account, keeping your saved roles in sync, ordering the “Roles for you” feed from first-party activity, and—only if you upload a resume—surfacing strong experience matches and adding a limited resume signal to that feed' : ''},
         and keeping the forms free of abuse. The recommendation ranking is automated, but it
         only orders public vacancies: it does not decide whether you are eligible, restrict
@@ -115,8 +114,8 @@ const CLAUSES: Clause[] = [
     body: (
       <>
         Under Part 6A of the Ordinance we may not use your personal data in direct marketing
-        without your consent. We do not add enquirers to any mailing list. If we ever want
-        to, we will ask you first, separately and in plain terms, and you may withdraw that
+        without your consent. We do not add account holders or Role submitters to a mailing
+        list. If we ever want to, we will ask you first, separately and in plain terms, and you may withdraw that
         consent at any time at no cost by writing to the address in clause 10.
       </>
     ),
@@ -126,8 +125,7 @@ const CLAUSES: Clause[] = [
     title: 'Who else sees it',
     body: (
       <>
-        Only the service providers needed to run the platform: our email provider, which
-        delivers your enquiry to us, and our hosting provider
+        Only the providers needed to run the platform: our hosting provider
         {ACCOUNTS_LIVE
           ? ', and the mail host that sends Seeker account email — verification and password reset — from a server based in the United States, which means your email address is transferred outside Hong Kong for that purpose'
           : ''}
@@ -146,8 +144,8 @@ const CLAUSES: Clause[] = [
       <>
         Our servers may be located outside Hong Kong, so your data may be transferred and
         stored elsewhere; we take reasonably practicable steps to ensure it is protected to
-        a comparable standard. We keep enquiries and role submissions only as long as needed
-        to deal with them and to keep a record of what was published
+        a comparable standard. We keep Role submissions only as long as needed
+        to review them and to keep a record of what was published
         {ACCOUNTS_LIVE ? ', and account data — including recommendation activity — for as long as your account is open. A resume and its derived evidence are kept until you remove or replace it, or delete the account' : ''}. Data
         that is no longer needed for the purpose it was collected for is erased.
       </>

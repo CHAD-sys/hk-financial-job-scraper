@@ -444,25 +444,7 @@ export async function fetchResumeMatches(limit = 3): Promise<ResumeMatchesRespon
 }
 
 // ── Write endpoints ───────────────────────────────────────────────────────────
-// The only two POSTs in the app. Both are moderated//relayed by the backend and
-// neither writes anything a visitor can read back, so there is no auth here.
-
-/** Career stages offered on the consultation form. Must match the backend enum. */
-export const CAREER_STAGES = [
-  '3–8 years',
-  '8–15 years',
-  '15+ years',
-  'C-suite / board',
-] as const
-
-export interface EnquiryPayload {
-  name: string
-  email: string
-  career_stage: string
-  message: string
-  /** Honeypot. Always sent, always empty for a human. */
-  website: string
-}
+// Public Role submissions are moderated by the backend and cannot be read back.
 
 export interface RolePayload {
   contact_name: string
@@ -499,10 +481,6 @@ async function postJson(path: string, body: unknown): Promise<{ ok: boolean }> {
   }
 
   return res.json()
-}
-
-export function submitEnquiry(payload: EnquiryPayload): Promise<{ ok: boolean }> {
-  return postJson('/api/contact', payload)
 }
 
 export function submitRole(payload: RolePayload): Promise<{ ok: boolean }> {

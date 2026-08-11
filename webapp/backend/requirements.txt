@@ -1,8 +1,8 @@
 fastapi==0.138.0
 uvicorn[standard]==0.49.0
 pydantic==2.13.4
-# Backs pydantic's EmailStr, used to validate addresses on /api/contact and
-# /api/post-role. Pydantic raises at import time without it.
+# Backs pydantic's EmailStr, used by account and Role-submission validation.
+# Pydantic raises at import time without it.
 email-validator==2.3.0
 # Argon2id password hashing for Seeker accounts (webapp/backend/auth.py, ADR 0004).
 # Version resolved by installing it and reading back what pip actually put in the

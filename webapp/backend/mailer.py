@@ -28,10 +28,10 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASS = os.getenv("SMTP_PASS", "")
 
-# Where enquiries and role submissions go. A module constant on purpose: the
+# Where Role submissions go. A module constant on purpose: the
 # recipient must never be derived from a request, or the endpoint becomes an
 # open relay for anyone who can POST to it.
-RECIPIENT = os.getenv("ENQUIRY_EMAIL", "amine@finexclub.org")
+SUBMISSION_RECIPIENT = os.getenv("SUBMISSION_EMAIL", "amine@finexclub.org")
 
 # CR/LF in a header field is how header injection works — an attacker who gets a
 # newline into a Subject or Reply-To can append arbitrary headers (Bcc, etc.).
@@ -46,7 +46,7 @@ def _header_safe(value: str, limit: int = 200) -> str:
 
 def send_mail(subject: str, body_text: str, reply_to: str | None = None) -> bool:
     """
-    Send one plain-text message to RECIPIENT. Returns False on any failure —
+    Send one plain-text message to SUBMISSION_RECIPIENT. Returns False on any failure —
     callers must not treat a False as data loss; every caller persists the
     submission to disk before calling this.
     """
@@ -57,7 +57,7 @@ def send_mail(subject: str, body_text: str, reply_to: str | None = None) -> bool
     msg = EmailMessage()
     msg["Subject"] = _header_safe(subject)
     msg["From"] = SMTP_USER
-    msg["To"] = RECIPIENT
+    msg["To"] = SUBMISSION_RECIPIENT
     # Reply-To carries visitor-supplied input, so it is sanitised like any other
     # header. It is set only when the address already passed EmailStr validation.
     if reply_to:
@@ -71,7 +71,7 @@ def send_mail(subject: str, body_text: str, reply_to: str | None = None) -> bool
             srv.send_message(msg)
         # Logged on success as well as failure: "no error in the log" is weak
         # evidence that mail is flowing, and this whole class of bug is silent.
-        logger.info("Sent %r to %s", msg["Subject"], RECIPIENT)
+        logger.info("Sent %r to %s", msg["Subject"], SUBMISSION_RECIPIENT)
         return True
     except Exception as exc:  # noqa: BLE001 - never let mail failure break a request
         logger.error("Failed to send %r: %s", subject, exc)
@@ -79,8 +79,8 @@ def send_mail(subject: str, body_text: str, reply_to: str | None = None) -> bool
 
 
 # ── Mail TO a Seeker ──────────────────────────────────────────────────────────
-# Everything above sends to the fixed RECIPIENT constant, deliberately, so those
-# endpoints cannot become an open relay. Seeker accounts need the opposite
+# Everything above sends to the fixed SUBMISSION_RECIPIENT constant, deliberately,
+# so the endpoint cannot become an open relay. Seeker accounts need the opposite
 # direction: mail to an address a stranger typed (verification, password reset).
 #
 # That is a genuinely different capability with a different threat model, so it

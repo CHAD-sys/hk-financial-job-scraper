@@ -49,7 +49,7 @@ class Settings:
     #: The jobs database. Read-only; see `job_read`.
     jobs_db: Path = _REPO / "data" / "jobs.db"
 
-    #: Where consultation enquiries and role submissions are appended as JSONL.
+    #: Where recruiter Role submissions are appended as JSONL.
     submissions_dir: Path | None = None
 
     #: The built React bundle. Absent is not fatal — the API serves without a UI.

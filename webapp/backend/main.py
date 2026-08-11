@@ -1,10 +1,9 @@
 """
 FinEx Careers — FastAPI backend
 
-Read access to jobs.db (SQLite), plus two write endpoints that do not touch the
-database at all: /api/contact (consultation enquiries) and /api/post-role
-(recruiter role submissions). Both persist to an append-only JSONL queue and
-email a notification; neither publishes anything without human review.
+Read access to jobs.db (SQLite), plus a public recruiter Role-submission endpoint
+that persists to an append-only JSONL queue and emails a notification. Nothing
+submitted through it is published without human review.
 """
 
 from __future__ import annotations
@@ -51,7 +50,7 @@ from env_file import load_env_file  # noqa: E402 — must import after logging s
 load_env_file()
 
 import mailer  # noqa: E402 — see above
-from mailer import RECIPIENT, SMTP_USER, send_mail  # noqa: E402
+from mailer import SUBMISSION_RECIPIENT, SMTP_USER, send_mail  # noqa: E402
 
 # The jobs read path. Everything about which Roles are visible, how they are
 # filtered, sorted, counted and shaped for the wire lives in this module — see
@@ -234,7 +233,7 @@ async def lifespan(app: FastAPI):
     purge_task = asyncio.create_task(_purge_expired_sessions_periodically())
 
     if SMTP_USER:
-        logger.info("Email configured — enquiries will be sent to %s", RECIPIENT)
+        logger.info("Email configured — Role submissions will be sent to %s", SUBMISSION_RECIPIENT)
     else:
         logger.warning(
             "SMTP_USER/SMTP_PASS are not set. Submissions will still be queued to %s "
@@ -953,7 +952,7 @@ def _client_ip(request: Request) -> str:
     the direct peer.
 
     Gated on settings.trust_proxy_headers — every IP-keyed rate limit in this
-    file (register, login, reset, employer register/login, contact, post-role)
+    file (register, login, reset, employer register/login, post-role)
     reads its key from this function, so trusting the header unconditionally
     would let a caller who can reach the app directly forge a fresh IP on every
     request and route around all of them.
@@ -996,24 +995,7 @@ def _persist(request: Request, kind: str, payload: dict) -> bool:
         return False
 
 
-CAREER_STAGES = {"3–8 years", "8–15 years", "15+ years", "C-suite / board"}
 EMPLOYMENT_TYPES = {"Full-time", "Contract", "Part-time", "Internship"}
-
-
-class EnquiryIn(BaseModel):
-    name: str = Field(min_length=1, max_length=100)
-    email: EmailStr
-    career_stage: str = Field(max_length=40)
-    message: str = Field(min_length=1, max_length=5000)
-    # Honeypot. Named to look like a field worth filling; a human never sees it.
-    website: str = ""
-
-    @field_validator("career_stage")
-    @classmethod
-    def _known_stage(cls, v: str) -> str:
-        if v not in CAREER_STAGES:
-            raise ValueError("unknown career stage")
-        return v
 
 
 class RoleIn(BaseModel):
@@ -1047,35 +1029,6 @@ class RoleIn(BaseModel):
 
 class SubmitResponse(BaseModel):
     ok: bool
-
-
-@router.post("/api/contact", response_model=SubmitResponse, tags=["submit"])
-def submit_enquiry(payload: EnquiryIn, request: Request):
-    """Executive Career Consultation enquiry → JSONL queue + email notification."""
-    # A filled honeypot means a bot. Return the same 200 a human gets: telling it
-    # that it was detected only helps the next attempt.
-    if payload.website.strip():
-        logger.info("Honeypot triggered on /api/contact from %s", _client_ip(request))
-        return SubmitResponse(ok=True)
-
-    if _rate_limited(request, f"contact:{_client_ip(request)}"):
-        raise HTTPException(429, "Too many enquiries from this address. Please try again later.")
-
-    data = payload.model_dump(exclude={"website"})
-    stored = _persist(request, "enquiries", data)
-
-    body = (
-        f"New consultation enquiry\n\n"
-        f"Name:         {data['name']}\n"
-        f"Email:        {data['email']}\n"
-        f"Career stage: {data['career_stage']}\n\n"
-        f"{data['message']}\n"
-    )
-    sent = send_mail(f"Consultation enquiry — {data['name']}", body, reply_to=str(data["email"]))
-
-    if not stored and not sent:
-        raise HTTPException(500, "We could not record your enquiry. Please try again.")
-    return SubmitResponse(ok=True)
 
 
 @router.post("/api/post-role", response_model=SubmitResponse, tags=["submit"])
@@ -1136,8 +1089,8 @@ def health(request: Request):
     return {
         "status": "ok",
         "db": str(settings.jobs_db),
-        "email": "configured" if SMTP_USER else "NOT CONFIGURED — enquiries queue but no mail is sent",
-        "enquiry_recipient": RECIPIENT if SMTP_USER else None,
+        "email": "configured" if SMTP_USER else "NOT CONFIGURED — Role submissions queue but no mail is sent",
+        "submission_recipient": SUBMISSION_RECIPIENT if SMTP_USER else None,
         "submissions_dir": str(settings.submissions_dir),
         "frontend": str(settings.frontend_dist) if settings.frontend_present()
                     else "NOT BUILT — API only, no UI served",
@@ -1264,7 +1217,7 @@ def _send_seeker_mail(request: Request, to: str, subject: str, body: str) -> boo
     Mail *to a Seeker*, at an address they typed.
 
     This is deliberately not mailer.send_mail(), which sends only to a hardcoded
-    RECIPIENT precisely so that endpoint cannot become an open relay. Accounts
+    SUBMISSION_RECIPIENT precisely so that endpoint cannot become an open relay. Accounts
     invert that direction, which is why the rate limits above key on the target
     email and not only on the caller's IP: without that, anyone could point our
     sending reputation at a stranger's inbox.
@@ -1284,7 +1237,7 @@ class RegisterIn(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=200)
     display_name: str = Field(default="", max_length=100)
-    # Honeypot, matching /api/contact and /api/post-role. A human never sees it.
+    # Honeypot, matching the public Role-submission form. A human never sees it.
     website: str = ""
 
 
@@ -2576,8 +2529,8 @@ def create_app(settings: Settings | None = None, *, sender: Sender | None = None
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.cors_origins),
-        # POST is required by /api/contact and /api/post-role — without it the
-        # browser blocks the preflight and the forms fail before reaching FastAPI.
+        # POST is required by /api/post-role and account actions — without it the
+        # browser blocks the preflight before requests reach FastAPI.
         # DELETE joins the list for account/profile removal; PATCH is used by the
         # recommendation preference centre. At one origin CORS is inert, but a dev
         # frontend pointed at an absolute API URL still preflights, and a missing

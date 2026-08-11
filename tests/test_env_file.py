@@ -1,11 +1,10 @@
 """
 Tests for the backend's env-file loader.
 
-This exists because its absence caused a real, silent bug: the web backend is
-started as `uvicorn main:app` and never sourced config/api_keys.env the way
-daily_run.sh does, so /api/contact queued enquiries and quietly sent no email.
-The behaviours worth locking down are the ones that would let that happen again
-— or would let a local file quietly override production credentials.
+This exists because the web backend is started as `uvicorn main:app` and does
+not source config/api_keys.env the way daily_run.sh does. The behaviours worth
+locking down are the ones that keep local submission email configured without
+letting a file quietly override production credentials.
 """
 
 from __future__ import annotations

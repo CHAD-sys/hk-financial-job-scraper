@@ -50,7 +50,7 @@ export function AuthShell({
   )
 }
 
-/** Label + control + optional hint. Mirrors the Field in EnquiryForm/PostRolePage. */
+/** Label + control + optional hint. Mirrors the Field in PostRolePage. */
 export function AuthField({
   label, htmlFor, hint, children,
 }: { label: string; htmlFor: string; hint?: string; children: React.ReactNode }) {

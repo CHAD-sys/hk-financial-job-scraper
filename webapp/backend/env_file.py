@@ -6,9 +6,9 @@ Why this exists
 The scraper gets its secrets because scripts/daily_run.sh does
 `source config/api_keys.env` before running anything. The web backend is started
 as `uvicorn main:app` with no such step, so it began life with a completely bare
-environment — which is why /api/contact accepted enquiries, queued them, and
-then silently declined to email them: mailer.py read SMTP_USER, got "", and
-logged a warning nobody was watching.
+environment — which once left public submissions queued without sending their
+notification email: mailer.py read SMTP_USER, got "", and logged a warning
+nobody was watching.
 
 Design notes
 ------------

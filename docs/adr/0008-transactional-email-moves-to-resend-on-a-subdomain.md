@@ -6,9 +6,9 @@ Verification and password-reset mail is sent via **Resend**, from **`mail.finexc
 — a subdomain, not the root domain.
 
 **Why a new capability is needed at all.** `webapp/backend/mailer.py` sends exactly one
-message to a hardcoded `RECIPIENT` constant, and its docstring says why: *"the recipient
+message to a hardcoded `SUBMISSION_RECIPIENT` constant, and its docstring says why: *"the recipient
 must never be derived from a request, or the endpoint becomes an open relay."* The
-existing mailer is a one-way funnel *to the operator*. Accounts invert it — mail goes
+existing Role-submission mailer is a one-way funnel *to the operator*. Accounts invert it — mail goes
 **to a Seeker, at an address they typed** — which is the precise thing the current design
 forbids. That new capability is also a new abuse vector, handled by per-email rate
 limiting (see the plan's abuse section).

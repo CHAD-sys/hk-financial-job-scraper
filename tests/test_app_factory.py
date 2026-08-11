@@ -30,6 +30,22 @@ def _db(tmp_path, name: str, company: str):
     return path
 
 
+def _role_payload(**over):
+    return {
+        "contact_name": "A",
+        "contact_email": "a@example.com",
+        "company": "Example Capital",
+        "title": "Risk Manager",
+        "location": "Hong Kong",
+        "employment_type": "Full-time",
+        "salary_range": "",
+        "description": "A sufficiently detailed role description.",
+        "apply_url": "https://example.com/apply",
+        "website": "",
+        **over,
+    }
+
+
 # ── The seam ──────────────────────────────────────────────────────────────────
 
 def test_two_apps_can_serve_two_databases_at_once(tmp_path):
@@ -60,14 +76,13 @@ def test_rate_limit_budgets_are_per_app(tmp_path):
     shared a budget — and in a test run that meant one test could exhaust
     another's. Each app owns its own now.
     """
-    payload = {"name": "A", "email": "a@example.com", "career_stage": "3–8 years",
-               "message": "x" * 30, "website": ""}
+    payload = _role_payload()
     busy = TestClient(make_app(_db(tmp_path, "busy", "HSBC"), submissions=tmp_path / "busy"))
     fresh = TestClient(make_app(_db(tmp_path, "fresh", "HSBC"), submissions=tmp_path / "fresh"))
 
-    codes = [busy.post("/api/contact", json=payload).status_code for _ in range(6)]
+    codes = [busy.post("/api/post-role", json=payload).status_code for _ in range(6)]
     assert 429 in codes, "the limiter should have engaged on the busy app"
-    assert fresh.post("/api/contact", json=payload).status_code == 200
+    assert fresh.post("/api/post-role", json=payload).status_code == 200
 
 
 # ── Nothing happens at import ─────────────────────────────────────────────────
@@ -197,17 +212,12 @@ def test_cookie_policy_comes_from_settings(tmp_path, secure):
 # ── X-Forwarded-For trust ────────────────────────────────────────────────────
 #
 # Every IP-keyed rate limit in main.py reads its key from _client_ip(), which
-# used to trust X-Forwarded-For unconditionally. /api/contact is the cleanest
+# used to trust X-Forwarded-For unconditionally. /api/post-role is a clean
 # endpoint to prove the behaviour through: its limit is IP-only (no email key
 # to confuse the picture), and Starlette's TestClient always reports the same
 # "testclient" peer regardless of what headers a request carries — so a test
 # forging a fresh X-Forwarded-For value on every call is exactly the attack
 # this setting defends against.
-
-def _contact_payload(**over):
-    return {"name": "A", "email": "a@example.com", "career_stage": "3–8 years",
-            "message": "x" * 30, "website": "", **over}
-
 
 def test_trusted_proxy_headers_let_forged_xff_bypass_the_ip_limit(tmp_path):
     """
@@ -220,7 +230,7 @@ def test_trusted_proxy_headers_let_forged_xff_bypass_the_ip_limit(tmp_path):
     """
     client = TestClient(make_app(_db(tmp_path, "xff-trusted", "HSBC"), submissions=tmp_path))
     codes = [
-        client.post("/api/contact", json=_contact_payload(),
+        client.post("/api/post-role", json=_role_payload(),
                     headers={"X-Forwarded-For": f"10.0.0.{i}"}).status_code
         for i in range(5)
     ]
@@ -237,7 +247,7 @@ def test_untrusted_proxy_headers_ignore_xff_and_limit_by_real_peer(tmp_path):
     client = TestClient(make_app(_db(tmp_path, "xff-untrusted", "HSBC"), submissions=tmp_path,
                                  trust_proxy_headers=False))
     codes = [
-        client.post("/api/contact", json=_contact_payload(),
+        client.post("/api/post-role", json=_role_payload(),
                     headers={"X-Forwarded-For": f"10.0.0.{i}"}).status_code
         for i in range(5)
     ]

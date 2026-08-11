@@ -13,10 +13,8 @@ import { useSavedRoles } from '../savedRoles/useSavedRoles'
  * Primary navigation.
  *
  * Consultation points off-site to the Club's mentor programme
- * (finexclub.org/mentor-program) — external, same treatment as Market
- * Research, while the on-page enquiry form it used to open stays in the
- * codebase (EnquiryForm.tsx, POST /api/contact) rather than being deleted.
- * Careers and Learning are real pages (/jobs, /learning) and navigate normally.
+ * (finexclub.org/mentor-program) — external, with the same treatment as Market
+ * Research. Careers and Learning are real pages and navigate normally.
  *
  * Home points at the portal (the "Asia's 1st Premier Career Centre" statement).
  * The wordmark also goes there, but an explicit Home is what most people look

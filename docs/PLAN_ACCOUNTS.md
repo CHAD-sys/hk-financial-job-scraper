@@ -70,10 +70,11 @@ Every line was a deliberate choice. Do not silently reverse one.
   can be scoped across them, `SameSite=Lax` is never sent cross-site, and `SameSite=None`
   is blocked by Safari's ITP and partitioned by Firefox. This is why decision 6 exists.
 - **`get_db()` sets `PRAGMA query_only=ON`** (`main.py:90`) — the API cannot write to `jobs.db`.
-- **`mailer.send_mail()` cannot email a user.** Fixed `RECIPIENT` constant, by design.
+- **`mailer.send_mail()` cannot email a Seeker.** It uses a fixed
+  `SUBMISSION_RECIPIENT` for recruiter Role submissions, by design.
 - **`_rate_limited(key)` already exists** (`main.py:881`): in-memory sliding window, 3/hour,
   `SUBMIT_RATE_LIMIT`. Its own comment notes it resets on deploy and does not survive replicas.
-- **Honeypot pattern already written twice**, on `/api/contact` and `/api/post-role`.
+- **The Role-submission honeypot** is already implemented on `/api/post-role`.
 - **`useSavedJobs.ts` stores whole `Job` objects** under `finex_saved_jobs:v1` — so a Saved Role
   today is a frozen snapshot and a soft-deleted role still shows as live. Server-side saves
   storing only `(source, source_id)` and joining at read time fix this for free.

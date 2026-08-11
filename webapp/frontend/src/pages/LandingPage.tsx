@@ -23,13 +23,9 @@ function Pillar({ children }: { children: React.ReactNode }) {
  * them. The board is still the traffic engine and still leads, but it is one
  * door of three rather than the whole site.
  *
- * Consultation's door points off-site, to the Club's mentor programme
- * (CONSULTATION_URL) — it used to be a section on this same page with its own
- * enquiry form; that form (EnquiryForm.tsx) and the endpoint behind it
- * (POST /api/contact, mailer.py) are deliberately left in place, just no
- * longer linked to, so the redirect can be reverted without rebuilding
- * anything. Careers and Learning are real pages (/jobs, /learning), so theirs
- * navigate.
+ * Consultation's door points off-site to the Club's mentor programme
+ * (CONSULTATION_URL). Careers and Learning are real pages (/jobs, /learning),
+ * so theirs navigate.
  */
 export default function LandingPage() {
   useHashScroll()
