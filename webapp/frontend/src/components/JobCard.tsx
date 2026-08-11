@@ -431,7 +431,7 @@ function SignalBadges({ boardSignals }: { boardSignals: Job['board_signals'] }) 
 // ── Footer: salary + posted date ──────────────────────────────────────────────
 
 function CardFooter({ job }: { job: Job }) {
-  const salary = formatSalary(job.salary_hkd_min, job.salary_hkd_max)
+  const salary = formatSalary(job.salary_hkd_min, job.salary_hkd_max, job.salary_period)
   // Fall back to the AI estimate only when no salary is disclosed.
   const estimatedSalary = salary
     ? null

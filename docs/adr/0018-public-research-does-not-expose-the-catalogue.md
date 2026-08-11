@@ -9,6 +9,13 @@ seniority, salary, skill, tier and every other filter may only narrow that set.
 Pagination and result counts describe the same set. An empty query, filters
 without a query, and global filter-facet requests are refused.
 
+Within that Research Scope, catalogue audience is also enforced. Anonymous
+visitors receive mainstream Roles only. A signed-in Seeker or Admin additionally
+receives `source_tier='boutique'` (the medium/boutique company and approved direct
+submission track) and `source_tier='social'` (promoted recruiter posts). These
+Roles remain mixed naturally into the same ranked stream; audience is not exposed
+as a user-controlled tier switch.
+
 ## Detail access
 
 Knowing a `(source, source_id)` pair is not permission to read the Role. Every
@@ -25,13 +32,14 @@ production should configure the stable secret.
 
 ## What remains public
 
-No sign-in wall was added to research. Anonymous visitors can search, receive
-scoped facets and open the Roles returned to them. A generic anonymous
+No sign-in wall was added to mainstream research. Anonymous visitors can search,
+receive scoped facets and open the mainstream Roles returned to them. A generic anonymous
 Roles-for-you feed is not an allowed discovery path: it is available only to a
 signed-in Seeker and stays empty until saved Roles, settled research, direct
 feedback or resume evidence makes the output relevant. Aggregate market
-statistics may remain public because they reveal trends, not individual
-catalogue records. Anonymous research is not persisted in a profile.
+statistics remain public only for the anonymous audience, so totals, companies,
+sectors and tier counts agree with the Roles that visitor can actually search.
+Anonymous research is not persisted in a profile.
 
 ## Why this replaces ADR 0002
 
@@ -46,6 +54,9 @@ bulk catalogue enumeration.
 
 - Filter options and counts are calculated from one research result set, never
   from the full catalogue.
+- Recruiter-posted and medium/boutique-company Roles require a live Seeker or
+  Admin session for discovery and detail access, including when a previously
+  issued detail grant is replayed after logout.
 - Frontend paths labelled “Explore all Roles” or “All jobs” are removed.
 - Saved, evidence-based recommended and resume-matched Roles remain openable
   because those are explicit relevance paths.

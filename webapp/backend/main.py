@@ -72,7 +72,9 @@ from settings import Settings  # noqa: E402
 from job_read import (  # noqa: E402
     BOARD_WHERE,
     INTERNSHIP_COND,
+    MEMBER_ONLY_TIERS,
     SECTOR_SQL,
+    CatalogueAudience,
     JobDetail,
     JobFilters,
     JobListResponse,
@@ -320,10 +322,15 @@ def list_jobs(
         max_applicants=max_applicants, hidden_only=hidden_only,
         verified_only=verified_only,
     )
+    audience = (
+        CatalogueAudience.MEMBER
+        if _current_seeker(request) is not None
+        else CatalogueAudience.PUBLIC
+    )
     with get_db(request) as conn:
         result = job_read.list_jobs(
             conn, filters, sort=sort, page=page, page_size=page_size,
-            visibility=Visibility.BOARD,
+            visibility=Visibility.BOARD, audience=audience,
         )
     _grant_role_access(request, result.jobs)
     return result
@@ -610,6 +617,10 @@ def get_job(
         detail = job_read.get_job(conn, source, source_id, visibility=Visibility.ADDRESSABLE)
     if detail is None:
         raise HTTPException(status_code=404, detail="Job not found")
+    if detail.source_tier in MEMBER_ONLY_TIERS and seeker is None:
+        # A grant issued while signed in must not remain a way to read a
+        # members-only Role after signing out.
+        raise HTTPException(status_code=404, detail="Job not found")
     return detail
 
 
@@ -627,20 +638,28 @@ def get_filters(
             status_code=422,
             detail="Start with a specific search of at least two characters.",
         )
+    audience = (
+        CatalogueAudience.MEMBER
+        if _current_seeker(request) is not None
+        else CatalogueAudience.PUBLIC
+    )
     with get_db(request) as conn:
-        return job_read.research_facets(conn, research_query)
+        return job_read.research_facets(conn, research_query, audience=audience)
 
 
 # ── /api/stats ────────────────────────────────────────────────────────────────
 
 @router.get("/api/stats", response_model=StatsResponse, tags=["meta"])
 def get_stats(request: Request):
+    audience_where = BOARD_WHERE
+    if _current_seeker(request) is None:
+        audience_where = f"{BOARD_WHERE} AND {job_read.PUBLIC_AUDIENCE_WHERE}"
     with get_db(request) as conn:
         total = conn.execute(
-            f"SELECT COUNT(*) FROM jobs j WHERE {BOARD_WHERE}"
+            f"SELECT COUNT(*) FROM jobs j WHERE {audience_where}"
         ).fetchone()[0]
         employer_count = conn.execute(
-            f"SELECT COUNT(DISTINCT j.company) FROM jobs j WHERE {BOARD_WHERE}"
+            f"SELECT COUNT(DISTINCT j.company) FROM jobs j WHERE {audience_where}"
         ).fetchone()[0]
 
         # By sector
@@ -650,7 +669,7 @@ def get_stats(request: Request):
               SELECT ({SECTOR_SQL}) AS sector
               FROM jobs j
               LEFT JOIN job_enrichments e ON j.source=e.source AND j.source_id=e.source_id
-              WHERE {BOARD_WHERE}
+              WHERE {audience_where}
             ) sub GROUP BY sector ORDER BY cnt DESC
             """
         ).fetchall()
@@ -660,7 +679,7 @@ def get_stats(request: Request):
         sen_raw = conn.execute(
             "SELECT e.seniority, COUNT(*) AS cnt"
             " FROM job_enrichments e JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-            f" WHERE {BOARD_WHERE} AND e.seniority IS NOT NULL"
+            f" WHERE {audience_where} AND e.seniority IS NOT NULL"
             " GROUP BY e.seniority ORDER BY cnt DESC"
         ).fetchall()
         by_seniority = {r["seniority"]: r["cnt"] for r in sen_raw}
@@ -669,7 +688,7 @@ def get_stats(request: Request):
         rem_raw = conn.execute(
             "SELECT e.remote_type, COUNT(*) AS cnt"
             " FROM job_enrichments e JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-            f" WHERE {BOARD_WHERE} AND e.remote_type IS NOT NULL"
+            f" WHERE {audience_where} AND e.remote_type IS NOT NULL"
             " GROUP BY e.remote_type ORDER BY cnt DESC"
         ).fetchall()
         by_remote_type = {r["remote_type"]: r["cnt"] for r in rem_raw}
@@ -677,7 +696,7 @@ def get_stats(request: Request):
         # By source tier (powers the All / Exclusive / Mainstream tabs)
         tier_raw = conn.execute(
             "SELECT COALESCE(source_tier, 'mainstream') AS tier, COUNT(*) AS cnt"
-            f" FROM jobs j WHERE {BOARD_WHERE} GROUP BY tier"
+            f" FROM jobs j WHERE {audience_where} GROUP BY tier"
         ).fetchall()
         by_source_tier = {r["tier"]: r["cnt"] for r in tier_raw}
 
@@ -688,7 +707,7 @@ def get_stats(request: Request):
             FROM jobs j
             JOIN job_enrichments e ON j.source=e.source AND j.source_id=e.source_id
             JOIN json_each(e.required_skills) sk
-            WHERE {BOARD_WHERE}
+            WHERE {audience_where}
               AND e.required_skills IS NOT NULL
               AND e.required_skills != '[]'
             GROUP BY LOWER(sk.value)
@@ -701,13 +720,13 @@ def get_stats(request: Request):
         # Top 15 companies
         comp_raw = conn.execute(
             "SELECT j.company, COUNT(*) AS cnt FROM jobs j"
-            f" WHERE {BOARD_WHERE} GROUP BY j.company ORDER BY cnt DESC LIMIT 15"
+            f" WHERE {audience_where} GROUP BY j.company ORDER BY cnt DESC LIMIT 15"
         ).fetchall()
         top_companies = [NameCount(name=r["company"], count=r["cnt"]) for r in comp_raw]
 
         # Internship count
         intern_count = conn.execute(
-            f"SELECT COUNT(*) FROM jobs j WHERE {BOARD_WHERE} AND {INTERNSHIP_COND}"
+            f"SELECT COUNT(*) FROM jobs j WHERE {audience_where} AND {INTERNSHIP_COND}"
         ).fetchone()[0]
 
     return StatsResponse(

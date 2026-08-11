@@ -17,8 +17,9 @@ aggregation. A caller cannot spell a row-visibility rule of its own.
 
 Request authorization is a different question. ADR 0018's public research
 requirement and short-lived detail grants live at the HTTP edge in ``main.py``
-and ``role_access.py``. Internal ranking and admin reads may still call this
-module without a public Research Scope.
+and ``role_access.py``. This module does own the catalogue-audience predicate,
+however, so anonymous list results, facets and counts cannot disagree about the
+member-only boutique/social tiers. Internal ranking opts into the member audience.
 
 TWO VISIBILITY RULES, NOT ONE
 -----------------------------
@@ -52,7 +53,7 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Iterable, Optional, Sequence
+from typing import Iterable, Literal, Optional, Sequence
 
 from pydantic import BaseModel
 
@@ -96,6 +97,15 @@ class Visibility(str, Enum):
     ADDRESSABLE = "addressable"
 
 
+class CatalogueAudience(str, Enum):
+    """Which catalogue tiers the current reader may discover."""
+
+    #: Anonymous research exposes established, mainstream sources only.
+    PUBLIC = "public"
+    #: Signed-in Seekers and Admins may also discover boutique and social Roles.
+    MEMBER = "member"
+
+
 #: The SQL each rule contributes to the WHERE clause. `None` means "no predicate",
 #: which is a deliberate value rather than an oversight: addressing a Role by
 #: reference is unfiltered by design.
@@ -110,6 +120,14 @@ _VISIBILITY_SQL: dict[Visibility, Optional[str]] = {
 #: out sixteen times, which is how /api/stats and /api/jobs could come to disagree
 #: about what an open Role is. Expects the jobs table aliased as `j`.
 BOARD_WHERE = _VISIBILITY_SQL[Visibility.BOARD]
+
+#: Recruiter-posted Roles and medium/boutique company Roles are a member benefit.
+#: Keep this policy next to the lifecycle visibility rule so lists, facets and
+#: counts cannot accidentally disagree about which rows an audience may discover.
+MEMBER_ONLY_TIERS = frozenset({"boutique", "social"})
+PUBLIC_AUDIENCE_WHERE = (
+    "COALESCE(j.source_tier, 'mainstream') NOT IN ('boutique', 'social')"
+)
 
 
 class Sort(str, Enum):
@@ -281,6 +299,7 @@ class JobSummary(BaseModel):
     required_skills: list[str] = []
     salary_hkd_min: Optional[int] = None
     salary_hkd_max: Optional[int] = None
+    salary_period: Literal["month", "year"] | None = None
     salary_estimated_min: Optional[int] = None
     salary_estimated_max: Optional[int] = None
     salary_estimated_confidence: Optional[str] = None
@@ -387,6 +406,7 @@ def _where(
     filters: JobFilters,
     visibility: Visibility,
     search_rowids: Optional[list[int]] = None,
+    audience: CatalogueAudience = CatalogueAudience.MEMBER,
 ) -> tuple[str, list]:
     """
     `search_rowids`: the caller's own `search_index.matching_rowids()` result,
@@ -404,6 +424,9 @@ def _where(
     rule = _VISIBILITY_SQL[visibility]
     if rule:
         conditions.append(rule)
+
+    if audience == CatalogueAudience.PUBLIC:
+        conditions.append(PUBLIC_AUDIENCE_WHERE)
 
     # ── Market-signal filters. These read the pre-computed, indexed grp_* columns
     # (populated by JobStore.refresh_signal_flags at reconcile time), which already
@@ -562,6 +585,46 @@ def _parse_json_list(value: Optional[str]) -> list[str]:
         return []
 
 
+_ANNUAL_SALARY_RE = re.compile(
+    r"\b(?:per\s+annum|per\s+year|yearly)\b"
+    r"|\bannual\s+(?:base\s+)?salary\b"
+    r"|\bsalary.{0,40}\bannual(?:ly)?\b"
+    r"|/(?:yr|year)\b|\bp\.?a\.?\b",
+    re.IGNORECASE,
+)
+_MONTHLY_SALARY_RE = re.compile(
+    r"\bper\s+month\b"
+    r"|\bmonthly\s+(?:base\s+)?salary\b"
+    r"|\bsalary.{0,40}\bmonthly\b"
+    r"|/(?:mo|month)\b|\bpcm\b|月薪",
+    re.IGNORECASE,
+)
+_MAX_PLAUSIBLE_MONTHLY_SALARY = 200_000
+
+
+def _salary_period(row: sqlite3.Row) -> Literal["month", "year"] | None:
+    """Infer the quoted period while legacy enrichment rows lack a unit column.
+
+    The Hong Kong catalogue treats salary filters and estimates as monthly. A
+    disclosed figure keeps an explicit source period when the posting states
+    one; otherwise a figure above the calibrated monthly ceiling is annual and
+    a plausible HK monthly amount defaults to month. This makes ambiguous copy
+    such as "up to HK$30K" read as the market convention it actually uses.
+    """
+    values = [row["salary_hkd_min"], row["salary_hkd_max"]]
+    stated = [int(value) for value in values if value is not None]
+    if not stated:
+        return None
+    evidence = " ".join(
+        str(value or "") for value in (row["description_clean"], row["description_summary"])
+    )
+    if _MONTHLY_SALARY_RE.search(evidence):
+        return "month"
+    if _ANNUAL_SALARY_RE.search(evidence):
+        return "year"
+    return "year" if max(stated) > _MAX_PLAUSIBLE_MONTHLY_SALARY else "month"
+
+
 def _own_signals(row: sqlite3.Row) -> dict[str, dict]:
     """This row's own board_signals, namespaced by its source ({source: {...}})."""
     try:
@@ -589,6 +652,7 @@ def _to_summary(row: sqlite3.Row) -> JobSummary:
         required_skills=_parse_json_list(row["required_skills"]),
         salary_hkd_min=row["salary_hkd_min"],
         salary_hkd_max=row["salary_hkd_max"],
+        salary_period=_salary_period(row),
         salary_estimated_min=row["salary_estimated_min"],
         salary_estimated_max=row["salary_estimated_max"],
         salary_estimated_confidence=row["salary_estimated_confidence"],
@@ -657,6 +721,7 @@ def list_jobs(
     page: int = 1,
     page_size: int = 24,
     visibility: Visibility = Visibility.BOARD,
+    audience: CatalogueAudience = CatalogueAudience.PUBLIC,
 ) -> JobListResponse:
     """One page of the board."""
     # One search_index lookup, used twice: to filter (in _where, via the IN
@@ -664,7 +729,7 @@ def list_jobs(
     # here rather than inside _where so _where can stay a pure string/param
     # builder that never touches conn.
     search_rowids = search_index.matching_rowids(conn, filters.search) if filters.search else None
-    where_sql, params = _where(filters, visibility, search_rowids)
+    where_sql, params = _where(filters, visibility, search_rowids, audience)
     offset = (page - 1) * page_size
 
     # RELEVANCE with no search term (or one that matched nothing) has no
@@ -694,13 +759,23 @@ def list_jobs(
     )
 
 
-def research_facets(conn: sqlite3.Connection, query: str) -> ResearchFacets:
+def research_facets(
+    conn: sqlite3.Connection,
+    query: str,
+    *,
+    audience: CatalogueAudience = CatalogueAudience.PUBLIC,
+) -> ResearchFacets:
     """Filter choices and counts drawn only from Roles matched by ``query``."""
     rowids = search_index.matching_rowids(conn, query)
+    audience_sql = (
+        f" AND {PUBLIC_AUDIENCE_WHERE}"
+        if audience == CatalogueAudience.PUBLIC
+        else ""
+    )
     research = (
-        f"{BOARD_WHERE} AND j.rowid IN ({','.join(str(rowid) for rowid in rowids)})"
+        f"{BOARD_WHERE}{audience_sql} AND j.rowid IN ({','.join(str(rowid) for rowid in rowids)})"
         if rowids
-        else f"{BOARD_WHERE} AND 0"
+        else f"{BOARD_WHERE}{audience_sql} AND 0"
     )
 
     total = conn.execute(f"SELECT COUNT(*) FROM jobs j WHERE {research}").fetchone()[0]

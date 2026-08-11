@@ -1,12 +1,17 @@
-export function formatSalary(min: number | null, max: number | null): string | null {
+export function formatSalary(
+  min: number | null,
+  max: number | null,
+  period: 'month' | 'year' | null = 'month',
+): string | null {
   const fmt = (n: number): string => {
     if (n >= 1_000_000) return `HK$${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}m`
     if (n >= 1_000) return `HK$${Math.round(n / 1_000)}k`
     return `HK$${n}`
   }
-  if (min && max && min > 10_000) return `${fmt(min)} – ${fmt(max)}`
-  if (min && min > 10_000) return `${fmt(min)}+`
-  if (max && max > 10_000) return `up to ${fmt(max)}`
+  const suffix = period === 'year' ? '/yr' : '/mo'
+  if (min && max && min > 10_000) return `${fmt(min)} – ${fmt(max)}${suffix}`
+  if (min && min > 10_000) return `${fmt(min)}+${suffix}`
+  if (max && max > 10_000) return `up to ${fmt(max)}${suffix}`
   return null
 }
 

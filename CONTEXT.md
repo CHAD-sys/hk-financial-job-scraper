@@ -91,8 +91,10 @@ _Avoid_: job match, CV match, guaranteed fit, recommendation algorithm (the impl
 **Research Scope**:
 The live set of Roles matched by one Seeker or visitor's specific text query.
 Filters, facets, counts, sorting and pagination may narrow or arrange this set
-but never expand beyond it. A Research Scope is public and needs no account; it
-is not permission to enumerate the Role catalogue. See `docs/adr/0018`.
+but never expand beyond it. Anonymous research contains mainstream Roles only;
+signing in also admits recruiter-posted and medium/boutique-company Roles. A
+Research Scope is not permission to enumerate the Role catalogue. See
+`docs/adr/0018`.
 _Avoid_: all jobs, database view, global filter set
 
 ### Collection
