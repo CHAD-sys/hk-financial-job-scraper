@@ -19,7 +19,7 @@ import job_read
 import recommendations
 import resume_intelligence
 import seekers_store
-from job_read import JobFilters, JobSummary, Sort, Visibility
+from job_read import CatalogueAudience, JobFilters, JobSummary, Sort, Visibility
 from pydantic import BaseModel, Field
 
 _CANDIDATE_WINDOW = 1_000
@@ -71,6 +71,7 @@ def _candidates(conn: sqlite3.Connection) -> list[JobSummary]:
         page=1,
         page_size=_CANDIDATE_WINDOW,
         visibility=Visibility.BOARD,
+        audience=CatalogueAudience.MEMBER,
     ).jobs
 
 

@@ -28,6 +28,7 @@ import StatCard from '../components/StatCard'
 import SearchHero from '../components/SearchHero'
 import RecommendedRoles from '../components/RecommendedRoles'
 import ResumeMatches from '../components/ResumeMatches'
+import MemberRoleNotice from '../components/MemberRoleNotice'
 
 const PAGE_SIZE = 24
 const SORT_OPTIONS = [
@@ -62,7 +63,7 @@ export default function JobBoardPage() {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [resumeMatches, setResumeMatches] = useState<ResumeMatchesResponse | null>(null)
   const { toggle: toggleSave, isSaved } = useSavedRoles()
-  const { seeker } = useAuth()
+  const { seeker, loading: authLoading } = useAuth()
 
   // Public market totals are aggregate context only. Filter choices are never
   // loaded globally; the separate effect below derives them from one research.
@@ -93,7 +94,7 @@ export default function JobBoardPage() {
       .then(data => { if (!cancelled) setFilterData(data) })
       .catch(console.error)
     return () => { cancelled = true }
-  }, [activeFilters.search, hasResearch])
+  }, [activeFilters.search, hasResearch, seeker?.id])
 
   // ── Two modes ───────────────────────────────────────────────────────────────
   // The page is now a search engine, which means it is two screens rather than
@@ -388,6 +389,10 @@ export default function JobBoardPage() {
             />
           </div>
         </div>
+
+        {!authLoading && !seeker && (
+          <MemberRoleNotice returnTo={`${location.pathname}${location.search}`} />
+        )}
 
         {/* Job grid */}
         {loading ? (

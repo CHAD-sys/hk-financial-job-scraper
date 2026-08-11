@@ -128,9 +128,9 @@ export default function RegisterPage() {
       title="Create an account"
       standfirst={
         <>
-          Add one private resume to see where your experience aligns across the live market,
-          shape “Roles for you”, and keep Saved Roles across devices. Searching the board needs
-          no account and never will.
+          Unlock recruiter-posted roles and opportunities from medium-sized companies, add one
+          private resume to see where your experience aligns, and keep Saved Roles across devices.
+          Public job search remains open without an account.
         </>
       }
     >

@@ -122,6 +122,48 @@ def test_get_job_under_board_visibility_hides_a_closed_role(conn):
     assert get_job(conn, *CLOSED, visibility=Visibility.BOARD) is None
 
 
+@pytest.mark.parametrize(
+    ("description", "salary_max", "expected_period"),
+    [
+        ("Salary up to HK$30K.", 30_000, "month"),
+        ("Salary HKD720000 per annum.", 720_000, "year"),
+        ("Monthly salary HK$240,000.", 240_000, "month"),
+        ("Annual salary HK$180,000.", 180_000, "year"),
+    ],
+)
+def test_disclosed_salary_period_uses_source_evidence_then_hk_market_default(
+    tmp_path, description, salary_max, expected_period
+):
+    db = tmp_path / "salary-period.db"
+    make_jobs_db(
+        db,
+        jobs=[
+            job(
+                source="linkedin_posts",
+                source_id="SALARY",
+                source_tier="social",
+                description_clean=description,
+            )
+        ],
+        enrichments=[
+            enrichment(
+                source="linkedin_posts",
+                source_id="SALARY",
+                salary_hkd_max=salary_max,
+                description_summary=description,
+            )
+        ],
+    )
+    connection = prepare(sqlite3.connect(db))
+    try:
+        detail = get_job(connection, "linkedin_posts", "SALARY")
+    finally:
+        connection.close()
+
+    assert detail is not None
+    assert detail.salary_period == expected_period
+
+
 # ── closed ────────────────────────────────────────────────────────────────────
 
 def test_closed_is_true_exactly_when_the_row_is_inactive(conn):

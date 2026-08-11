@@ -88,7 +88,7 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
   const d = detail ?? job
   // Prefer the AI English title (Chinese postings); fall back to the original.
   const displayTitle = d.title_en || d.title
-  const salary = formatSalary(d.salary_hkd_min, d.salary_hkd_max)
+  const salary = formatSalary(d.salary_hkd_min, d.salary_hkd_max, d.salary_period)
   // AI estimate only when no disclosed salary.
   const estimatedSalary = salary
     ? null
@@ -350,7 +350,7 @@ function DisclosedSalary({ salary }: { salary: string }) {
           className="text-base font-bold tabular-nums"
           style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink)' }}
         >
-          {salary} / year
+          {salary}
         </p>
       </div>
     </div>

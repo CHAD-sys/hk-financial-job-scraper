@@ -330,7 +330,7 @@ export default function AboutPage() {
             <div className="candidate-data-policy__principles">
               <article>
                 <EyeOff size={20} strokeWidth={1.9} aria-hidden="true" />
-                <div><h3>Research without being profiled</h3><p>Search stays open without an account. Anonymous research is not added to a recommendation profile, and filters only narrow the Roles relevant to that research.</p></div>
+                <div><h3>Research without being profiled</h3><p>Public-role search stays open without an account. Register to include recruiter-posted and medium-company opportunities. Anonymous research is not added to a recommendation profile, and filters only narrow the Roles relevant to that research.</p></div>
               </article>
               <article>
                 <FileText size={20} strokeWidth={1.9} aria-hidden="true" />

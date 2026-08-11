@@ -24,6 +24,8 @@ test_job_read.py, written as a specification rather than a characterization.
 
 from __future__ import annotations
 
+from uuid import uuid4
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -90,6 +92,13 @@ def _seed():
         job(source="workday", source_id="LONGDESC", company=BANKING,
             title="Long Description Role", posted_at="2026-01-01",
             description_clean="x" * 500),
+
+        # Member-only discovery tiers. They share the research term below but
+        # must never enter an anonymous result, facet or direct detail read.
+        job(source="longtail", source_id="MEDIUM", company="Harbour Capital",
+            title="Treasury Analyst", source_tier="boutique", posted_at="2026-01-03"),
+        job(source="linkedin_posts", source_id="RECRUITER", company="Confidential",
+            title="Risk Manager", source_tier="social", posted_at="2026-01-02"),
     ]
     enrichments = [
         # Salary sorts read COALESCE(disclosed, estimated).
@@ -120,7 +129,7 @@ def client(tmp_path):
     make_jobs_db(db, jobs=jobs, enrichments=enrichments)
     dist = tmp_path / "dist"
     make_bundle(dist)
-    return TestClient(make_app(db, dist, tmp_path))
+    return TestClient(make_app(db, dist, tmp_path, cookie_secure=False))
 
 
 def _ids(body) -> list[str]:
@@ -146,6 +155,16 @@ def _detail(client, source: str, source_id: str):
     )
 
 
+def _register_member(client):
+    response = client.post("/api/auth/register", json={
+        "email": f"member-{uuid4().hex}@example.com",
+        "password": "correct horse battery staple",
+        "display_name": "Member",
+    })
+    assert response.status_code == 201, response.text
+    assert client.cookies.get("finex_session")
+
+
 # ── Visibility ────────────────────────────────────────────────────────────────
 
 def test_listing_excludes_inactive_and_non_primary(client):
@@ -156,6 +175,42 @@ def test_listing_excludes_inactive_and_non_primary(client):
     assert "SECONDARY" not in ids
     assert "XPOST_HIDDEN" not in ids
     assert "XPOST" in ids
+
+
+def test_anonymous_research_hides_recruiter_and_medium_company_roles(client):
+    ids = set(_ids(_get(client, page_size=100)))
+    assert "MEDIUM" not in ids
+    assert "RECRUITER" not in ids
+
+
+def test_signed_in_seeker_research_includes_member_only_roles(client):
+    _register_member(client)
+    ids = set(_ids(_get(client, page_size=100)))
+    assert {"MEDIUM", "RECRUITER"} <= ids
+
+
+def test_research_facets_follow_the_same_member_boundary(client):
+    public = client.get("/api/filters", params={"search": "finexscope"}).json()
+    assert public["tier_counts"].get("boutique", 0) == 0
+    assert public["tier_counts"].get("social", 0) == 0
+    assert all(item["name"] != "Harbour Capital" for item in public["companies"])
+
+    _register_member(client)
+    member = client.get("/api/filters", params={"search": "finexscope"}).json()
+    assert member["tier_counts"]["boutique"] == 1
+    assert member["tier_counts"]["social"] == 1
+    assert any(item["name"] == "Harbour Capital" for item in member["companies"])
+
+
+def test_member_role_grant_stops_working_after_sign_out(client):
+    _register_member(client)
+    listing = _get(client, page_size=100)
+    role = next(item for item in listing["jobs"] if item["source_id"] == "MEDIUM")
+    headers = {"X-Role-Access": role["access_token"]}
+    assert client.get("/api/jobs/longtail/MEDIUM", headers=headers).status_code == 200
+
+    client.post("/api/auth/logout")
+    assert client.get("/api/jobs/longtail/MEDIUM", headers=headers).status_code == 404
 
 
 def test_listing_refuses_an_unscoped_catalogue_read(client):
