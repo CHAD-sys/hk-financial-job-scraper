@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { addUnauthorizedHandler, fetchMe, fetchEmployerMe } from './client'
+import {
+  DEFAULT_FILTERS,
+  addUnauthorizedHandler,
+  fetchEmployerMe,
+  fetchMe,
+  filtersToSearchParams,
+  searchParamsToFilters,
+} from './client'
 
 /**
  * The 401 fan-out client.ts added when Employer accounts got their own
@@ -90,5 +97,27 @@ describe('addUnauthorizedHandler', () => {
 
     expect(employerCleared).toBe(true)
     expect(seekerCleared).toBe(false)
+  })
+})
+
+describe('public Role research URLs', () => {
+  it('does not expose source tiers in generated URLs', () => {
+    const params = filtersToSearchParams(
+      { ...DEFAULT_FILTERS, search: 'risk', tier: 'social' },
+      'relevance',
+      1,
+    )
+
+    expect(params.get('q')).toBe('risk')
+    expect(params.has('tier')).toBe(false)
+  })
+
+  it('folds legacy tier links back into the all-source result stream', () => {
+    const parsed = searchParamsToFilters(
+      new URLSearchParams('q=risk&tier=boutique&sort=relevance'),
+    )
+
+    expect(parsed.filters.search).toBe('risk')
+    expect(parsed.filters.tier).toBe('all')
   })
 })

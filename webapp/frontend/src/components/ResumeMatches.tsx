@@ -1,20 +1,19 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, BadgeCheck, FileSearch, RefreshCw, ShieldCheck } from 'lucide-react'
-import type { Job, ResumeMatchesResponse } from '../api/client'
+import { ArrowRight, FileSearch, RefreshCw } from 'lucide-react'
+import type { ResumeMatchesResponse } from '../api/client'
 import { fetchResumeMatches } from '../api/client'
 import { useAuth } from '../auth/useAuth'
-import JobCard from './JobCard'
 import ResumeFlow from './ResumeFlow'
 import SkeletonCard from './SkeletonCard'
 
 interface Props {
-  saved: (job: Job) => boolean
-  onToggleSave: (job: Job) => void
-  onSelect: (job: Job) => void
+  onResolved?: (result: ResumeMatchesResponse | null) => void
 }
 
-export default function ResumeMatches({ saved, onToggleSave, onSelect }: Props) {
+export default function ResumeMatches({
+  onResolved,
+}: Props) {
   const { seeker } = useAuth()
   const seekerId = seeker?.id
   const [result, setResult] = useState<ResumeMatchesResponse | null>(null)
@@ -26,20 +25,29 @@ export default function ResumeMatches({ saved, onToggleSave, onSelect }: Props) 
     if (!seekerId) {
       setResult(null)
       setLoading(false)
+      onResolved?.(null)
       return
     }
     let cancelled = false
     setLoading(true)
     setError(false)
     fetchResumeMatches(3)
-      .then(value => { if (!cancelled) setResult(value) })
+      .then(value => {
+        if (!cancelled) {
+          setResult(value)
+          onResolved?.(value)
+        }
+      })
       .catch(err => {
         console.error(err)
-        if (!cancelled) setError(true)
+        if (!cancelled) {
+          setError(true)
+          onResolved?.(null)
+        }
       })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [nonce, seekerId])
+  }, [nonce, onResolved, seekerId])
 
   if (!seeker) {
     return (
@@ -99,46 +107,5 @@ export default function ResumeMatches({ saved, onToggleSave, onSelect }: Props) 
     )
   }
 
-  return (
-    <section className="mb-10 sm:mb-14" aria-labelledby="resume-matches-heading">
-      <div className="resume-matches-heading mb-5">
-        <div className="max-w-3xl">
-          <div className="flex items-center gap-2">
-            <BadgeCheck size={18} strokeWidth={2.2} style={{ color: 'var(--color-gold)' }} aria-hidden="true" />
-            <h2 id="resume-matches-heading">Where your experience stands out</h2>
-          </div>
-          <p>Resume evidence only—not an eligibility decision.</p>
-          <span>
-            <ShieldCheck size={13} strokeWidth={2.2} aria-hidden="true" /> Private to your account
-          </span>
-        </div>
-        <Link to="/account">Manage resume</Link>
-      </div>
-
-      {result.items.length > 0 ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-live="polite">
-          {result.items.map(item => (
-            <article key={`${item.job.source}__${item.job.source_id}`} className="resume-match-card">
-              <JobCard
-                job={item.job}
-                saved={saved(item.job)}
-                onToggleSave={onToggleSave}
-                onClick={onSelect}
-              />
-              <p className="resume-match-card__reason">
-                <BadgeCheck size={14} className="shrink-0" aria-hidden="true" />
-                <strong>{item.match_score}%</strong>
-                {item.reasons[0] || 'Relevant experience found in your resume'}
-              </p>
-            </article>
-          ))}
-        </div>
-      ) : (
-        <div className="resume-matches-empty" role="status">
-          <p>No current Roles crossed the strong-match threshold.</p>
-          <span>We’ll keep checking the refreshed market using this resume.</span>
-        </div>
-      )}
-    </section>
-  )
+  return null
 }

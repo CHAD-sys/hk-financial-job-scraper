@@ -5,7 +5,7 @@ import Nav from '../components/Nav'
 import ProductDoor from '../components/ProductDoor'
 import ResumeFeatureSpotlight from '../components/ResumeFeatureSpotlight'
 import useHashScroll from '../hooks/useHashScroll'
-import { fetchStats, fetchFilters } from '../api/client'
+import { fetchStats } from '../api/client'
 import { SUBSCRIBER_LINE } from '../content/featuredVideos'
 
 const CONSULTATION_URL = 'https://www.finexclub.org/mentor-program'
@@ -53,8 +53,10 @@ function PortalHero() {
   const [employers, setEmployers] = useState<number | null>(null)
 
   useEffect(() => {
-    fetchStats().then(s => setRoles(s.total_active_jobs)).catch(() => {})
-    fetchFilters().then(f => setEmployers(f.companies.length)).catch(() => {})
+    fetchStats().then(s => {
+      setRoles(s.total_active_jobs)
+      setEmployers(s.employer_count)
+    }).catch(() => {})
   }, [])
 
   const boardFigure =

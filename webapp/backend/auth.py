@@ -46,10 +46,9 @@ Deliberately NOT here, with the seams left clean:
   - **Sending email.** issue_email_token() returns the raw token; the caller
     puts it in a link and hands that to the mailer (phase 3). This module never
     imports mailer.
-  - **The Google OAuth dance.** Exchanging a code for an id_token, validating
-    `state`, checking the issuer and audience — all of that is phase 4 and
-    belongs in the route layer. Its *output* is an IdentityClaim, which is where
-    this module picks the story up.
+  - **The external identity protocol.** Exchanging a code, validating `state`,
+    checking provider evidence and producing an IdentityClaim belongs in
+    `identity_protocol.py`. This module picks the story up from that claim.
 """
 
 from __future__ import annotations
@@ -413,7 +412,7 @@ def consume_email_token(
 class IdentityClaim:
     """
     What an identity provider told us about a person, after the OAuth/OIDC
-    exchange has been completed and validated by the route layer.
+    exchange has been completed and validated by the Identity Protocol.
 
     `subject` is the provider's immutable id for the account (OIDC `sub`) and is
     the only field safe to use as a key: email addresses get reassigned by domain
@@ -480,8 +479,8 @@ def link_or_create_seeker(
     the squatter gains nothing the owner had — and closing it costs a
     verification round-trip in the middle of a "Sign in with Google" click. If
     v1's only provider is Google, whose assertions are trustworthy, the case is
-    unreachable in practice; revisit it when the generic OIDC slot opens for
-    LinkedIn.
+    unreachable for Google. LinkedIn claims without explicit verified-email
+    evidence remain subject to this refusal rule.
     """
     moment = now or utcnow()
 

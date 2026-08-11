@@ -33,6 +33,15 @@ A member of FinEx Club, the organisation behind the platform, whose membership l
 on finexclub.org and has no relationship to a Seeker account.
 _Avoid_: member (unqualified — ambiguous with Seeker)
 
+**Verified Identity Claim**:
+The checked identity evidence returned after a Google or LinkedIn sign-in round
+trip: provider, immutable subject, optional email, explicit email-verification
+status and optional display name. It is evidence, not permission. Seeker and
+Employer account policies separately decide whether it may recognise, link or
+create an account. See `docs/adr/0017`.
+_Avoid_: OAuth user, social account, authenticated user (the claim alone does
+not establish a FinEx session)
+
 ### The board
 
 **Role**:
@@ -78,6 +87,13 @@ learns cautiously from Saved Roles, settled searches, opened Roles, explicit fee
 and resume evidence; for a visitor it reflects the current market. It is discovery
 guidance, not a hiring assessment or a claim that the Seeker should remain in one field.
 _Avoid_: job match, CV match, guaranteed fit, recommendation algorithm (the implementation)
+
+**Research Scope**:
+The live set of Roles matched by one Seeker or visitor's specific text query.
+Filters, facets, counts, sorting and pagination may narrow or arrange this set
+but never expand beyond it. A Research Scope is public and needs no account; it
+is not permission to enumerate the Role catalogue. See `docs/adr/0018`.
+_Avoid_: all jobs, database view, global filter set
 
 ### Collection
 

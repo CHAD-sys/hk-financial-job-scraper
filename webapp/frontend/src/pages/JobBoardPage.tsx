@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams, useLocation } from 'react-router-dom'
-import { ChevronDown, Star, EyeOff, ArrowLeft } from 'lucide-react'
-import type { Job, FiltersResponse, JobListResponse, TierTab } from '../api/client'
+import { ChevronDown, ArrowLeft } from 'lucide-react'
+import type {
+  Job,
+  FiltersResponse,
+  JobListResponse,
+  ResumeMatchesResponse,
+} from '../api/client'
 import {
   DEFAULT_FILTERS, fetchJobs, fetchFilters, fetchStats,
   filtersToSearchParams, searchParamsToFilters,
@@ -33,18 +38,6 @@ const SORT_OPTIONS = [
   { value: 'company', label: 'Company A–Z' },
 ]
 
-const TIER_TABS: { value: TierTab; label: string; star?: boolean; eyeOff?: boolean }[] = [
-  { value: 'all', label: 'All jobs' },
-  { value: 'mainstream', label: 'Mainstream' },
-  { value: 'boutique', label: 'Exclusive', star: true },
-  { value: 'social', label: 'Recruiter Posts', eyeOff: true },
-]
-
-// How many Recruiter Posts cards to show in the contextual sub-section
-// (decision #9) — a preview strip, not the full list; "View all" switches to
-// the tab.
-const RECRUITER_POSTS_PREVIEW_SIZE = 3
-
 export default function JobBoardPage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -63,23 +56,21 @@ export default function JobBoardPage() {
   const [filterData, setFilterData] = useState<FiltersResponse | null>(null)
   const [result, setResult] = useState<JobListResponse | null>(null)
   const [boardTotal, setBoardTotal] = useState<number | null>(null) // unfiltered active total
-  const [tierCounts, setTierCounts] = useState<Record<string, number>>({})
+  const [employerCount, setEmployerCount] = useState<number | null>(null)
+  const [sectorCount, setSectorCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
-  // Recruiter Posts contextual sub-section (decision #9): a separate fetch/
-  // state pair so these jobs render in their own distinct block, never mixed
-  // into the main grid's `jobs.map(...)` loop above.
-  const [recruiterPosts, setRecruiterPosts] = useState<JobListResponse | null>(null)
-
+  const [resumeMatches, setResumeMatches] = useState<ResumeMatchesResponse | null>(null)
   const { toggle: toggleSave, isSaved } = useSavedRoles()
   const { seeker } = useAuth()
 
-  // Load filter options + unfiltered board total once
+  // Public market totals are aggregate context only. Filter choices are never
+  // loaded globally; the separate effect below derives them from one research.
   useEffect(() => {
-    fetchFilters().then(setFilterData).catch(console.error)
     fetchStats().then(s => {
       setBoardTotal(s.total_active_jobs)
-      setTierCounts(s.by_source_tier ?? {})
+      setEmployerCount(s.employer_count)
+      setSectorCount(Object.keys(s.by_sector).length)
     }).catch(console.error)
   }, [])
 
@@ -89,28 +80,37 @@ export default function JobBoardPage() {
     () => ({ ...baseFilters, search: debouncedSearch }),
     [baseFilters, debouncedSearch],
   )
-  const activeCount = countActiveFilters(activeFilters)
+  const filterCount = countActiveFilters({ ...activeFilters, search: '' })
+  const hasResearch = activeFilters.search.trim().length >= 2
 
-  // ── TEMPORARY UI EXPERIMENT: two modes ──────────────────────────────────────
+  useEffect(() => {
+    if (!hasResearch) {
+      setFilterData(null)
+      return
+    }
+    let cancelled = false
+    fetchFilters(activeFilters.search)
+      .then(data => { if (!cancelled) setFilterData(data) })
+      .catch(console.error)
+    return () => { cancelled = true }
+  }, [activeFilters.search, hasResearch])
+
+  // ── Two modes ───────────────────────────────────────────────────────────────
   // The page is now a search engine, which means it is two screens rather than
   // one: a home that asks a question, and a results page that answers it.
   //
   //   discover  — no query, no filters. SearchHero + a sampled strip of roles.
-  //   board     — the ordinary index: filter bar, tier tabs, grid, pagination.
+  //   board     — one research stream: filter bar, grid, pagination.
   //
-  // `forceBoard` exists for the search box: its 300ms debounce means activeCount
-  // is still 0 for a beat after submit, which would leave the hero on screen
-  // while the results are already loading. A deep link with filters in the URL
-  // lands on the board directly, since activeCount is already > 0 on mount.
-  const [forceBoard, setForceBoard] = useState(false)
-  const showBoard = forceBoard || activeCount > 0 || activeFilters.tier !== 'all'
+  // A research query is the boundary between the two. Structured filters can
+  // narrow its result set but can never open the catalogue by themselves.
+  const showBoard = hasResearch
 
   const runSearch = useCallback((query: string) => {
     setSearchInput(query)
     setBaseFilters(DEFAULT_FILTERS)
     setSort('relevance')
     setPage(1)
-    setForceBoard(true)
   }, [])
 
   const backToSearch = useCallback(() => {
@@ -118,15 +118,6 @@ export default function JobBoardPage() {
     setSearchInput(DEFAULT_FILTERS.search)
     setSort('newest')
     setPage(1)
-    setForceBoard(false)
-  }, [])
-
-  const browseAll = useCallback(() => {
-    setBaseFilters(DEFAULT_FILTERS)
-    setSearchInput(DEFAULT_FILTERS.search)
-    setSort('newest')
-    setPage(1)
-    setForceBoard(true)
   }, [])
 
   // Typing a fresh query straight into the board's own search field (rather
@@ -163,10 +154,8 @@ export default function JobBoardPage() {
   //
   // Note what it would collide with: `showBoard` already falls back to discover
   // when the last filter goes, so "Clear all" on a Role reached by deep link
-  // does return to the hero (forceBoard is only set by the search box and the
-  // sector chips, never by a deep link). That is this page's existing
-  // behaviour, not something this effect does — verified in the browser — and
-  // whether it is right is a separate question from what Careers should do.
+  // does return to the hero. That is this page's existing behaviour, not
+  // something this effect does.
   const location = useLocation()
   useEffect(() => {
     if (!(location.state as { discover?: boolean } | null)?.discover) return
@@ -197,7 +186,7 @@ export default function JobBoardPage() {
         // Waiting until a result page has settled also gives rapid filter
         // changes a chance to cancel this timer. Page 2+ is navigation through
         // the same intent, so only page 1 becomes a discovery event.
-        if (seeker && page === 1 && activeCount > 0) {
+        if (seeker && page === 1 && hasResearch) {
           discoveryTimer = setTimeout(() => {
             recordDiscovery(activeFilters, r.total).catch(console.error)
           }, 1_200)
@@ -209,23 +198,7 @@ export default function JobBoardPage() {
       cancelled = true
       if (discoveryTimer) clearTimeout(discoveryTimer)
     }
-  }, [activeCount, activeFilters, page, seeker, showBoard, sort])
-
-  // Recruiter Posts preview strip: same active filters (sector/search/
-  // seniority/etc.), tier forced to 'social', small page. Skipped entirely
-  // when already ON the Recruiter Posts tab — the main grid below already
-  // shows exactly this.
-  useEffect(() => {
-    if (!showBoard || activeFilters.tier === 'social') {
-      setRecruiterPosts(null)
-      return
-    }
-    let cancelled = false
-    fetchJobs({ ...activeFilters, tier: 'social' }, 'newest', 1, RECRUITER_POSTS_PREVIEW_SIZE)
-      .then(r => { if (!cancelled) setRecruiterPosts(r) })
-      .catch(console.error)
-    return () => { cancelled = true }
-  }, [activeFilters, showBoard])
+  }, [activeFilters, hasResearch, page, seeker, showBoard, sort])
 
   const updateFilters = useCallback((patch: Partial<JobFilters>) => {
     const { search, ...rest } = patch
@@ -236,8 +209,7 @@ export default function JobBoardPage() {
 
   const clearFilters = useCallback(() => {
     setBaseFilters(DEFAULT_FILTERS)
-    setSearchInput(DEFAULT_FILTERS.search)
-    setSort('newest')
+    setSort('relevance')
     setPage(1)
   }, [])
 
@@ -258,8 +230,8 @@ export default function JobBoardPage() {
       {!showBoard && (
         <>
           <SearchHero
-            filterData={filterData}
             boardTotal={boardTotal}
+            employerCount={employerCount}
             onSearch={runSearch}
           />
           {/* The page rises over the masthead rather than starting after it.
@@ -288,17 +260,19 @@ export default function JobBoardPage() {
             }}
           >
             <ResumeMatches
-              saved={isSaved}
-              onToggleSave={toggleSave}
-              onSelect={setSelectedJob}
+              onResolved={setResumeMatches}
             />
             <RecommendedRoles
               saved={isSaved}
               onToggleSave={toggleSave}
               onSelect={setSelectedJob}
-              onExploreAll={browseAll}
+              resumeMatches={resumeMatches}
             />
-            <IndexStats boardTotal={boardTotal} filterData={filterData} />
+            <IndexStats
+              boardTotal={boardTotal}
+              employerCount={employerCount}
+              sectorCount={sectorCount}
+            />
           </main>
         </>
       )}
@@ -359,90 +333,19 @@ export default function JobBoardPage() {
       <FilterBar
         filters={{ ...activeFilters, search: searchInput }}
         filterData={filterData}
-        activeCount={activeCount}
+        activeCount={filterCount}
         onUpdate={updateFilters}
         onClear={clearFilters}
       />
 
       {/* ── Main content ────────────────────────────────────── */}
-      <main id="main-content" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-3 pb-6 sm:py-6">
+      <main id="main-content" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-5 sm:py-7">
 
-        {/* Tier tabs: All / Mainstream / Exclusive / Recruiter Posts — segmented control.
-            Below sm: this scrolls horizontally instead of wrapping, since 3
-            tabs with icon+label+count can exceed a 360px viewport; wrapping
-            them would push everything below down by an extra row. */}
-        <div
-          role="tablist"
-          aria-label="Job tier"
-          className="flex flex-nowrap sm:inline-flex sm:flex-wrap items-stretch gap-1.5 mb-3 sm:mb-6 p-1.5 rounded-xl overflow-x-auto sm:overflow-visible"
-          style={{
-            backgroundColor: 'var(--color-surface-2)',
-            border: '1px solid var(--color-border-strong)',
-            boxShadow: 'var(--shadow-card)',
-          }}
-        >
-          {TIER_TABS.map(tab => {
-            const selected = activeFilters.tier === tab.value
-            const count = tab.value === 'all'
-              ? (boardTotal ?? undefined)
-              : tierCounts[tab.value]
-            return (
-              <button type="button"
-                key={tab.value}
-                role="tab"
-                aria-selected={selected}
-                onClick={() => updateFilters({ tier: tab.value })}
-                className="tier-tab flex-shrink-0 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer outline-none"
-                style={{
-                  backgroundColor: selected ? 'var(--color-ink)' : 'transparent',
-                  color: selected ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
-                  boxShadow: selected ? 'var(--shadow-raised)' : 'none',
-                  border: `1px solid ${selected ? 'var(--color-ink)' : 'transparent'}`,
-                }}
-              >
-                {tab.star && (
-                  <Star
-                    size={15}
-                    strokeWidth={2.25}
-                    style={{ color: 'var(--color-gold-star, #E0A106)' }}
-                    fill="var(--color-gold-star, #E0A106)"
-                    aria-hidden="true"
-                  />
-                )}
-                {tab.eyeOff && (
-                  <EyeOff
-                    size={15}
-                    strokeWidth={2.25}
-                    style={{ color: selected ? 'var(--color-ink-inverse)' : '#6B4EFF' }}
-                    aria-hidden="true"
-                  />
-                )}
-                {tab.label}
-                {count != null && (
-                  <span
-                    className="tabular-nums text-xs font-bold rounded-full px-2 py-0.5 min-w-[1.5rem] text-center"
-                    style={{
-                      fontFamily: 'var(--font-mono)',
-                      backgroundColor: selected ? 'rgba(255,255,255,0.16)' : 'var(--color-surface)',
-                      color: selected ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
-                      border: selected ? '1px solid rgba(255,255,255,0.12)' : '1px solid var(--color-border)',
-                    }}
-                  >
-                    {count.toLocaleString()}
-                  </span>
-                )}
-              </button>
-            )
-          })}
-        </div>
-
-        <TierExplainer tier={activeFilters.tier} />
-
-        {/* Results header. The count text is hidden below sm: — it's redundant
-            with the "All jobs N" tab badge just above and was one of two
-            stacked rows contributing to excess chrome above the fold. */}
-        <div className="flex items-center justify-end sm:justify-between mb-3 sm:mb-5">
-          <p className="hidden sm:block text-sm" style={{ color: 'var(--color-ink-muted)' }}>
+        {/* One Google-style result stream: every matching source falls into
+            the same ranked grid. Source attribution remains on individual
+            cards, but it never becomes a separate lane or browsing mode. */}
+        <div className="flex items-center justify-between gap-4 mb-4 sm:mb-5">
+          <p className="text-sm" style={{ color: 'var(--color-ink-muted)' }}>
             {loading ? (
               <span className="animate-pulse">Loading…</span>
             ) : (
@@ -451,8 +354,8 @@ export default function JobBoardPage() {
                 <span className="font-semibold tabular-nums" style={{ color: 'var(--color-ink)', fontFamily: 'var(--font-mono)' }}>
                   {total.toLocaleString()}
                 </span>
-                {activeCount > 0 && boardTotal != null && (
-                  <> of <span className="tabular-nums" style={{ fontFamily: 'var(--font-mono)' }}>{boardTotal.toLocaleString()}</span></>
+                {filterCount > 0 && filterData != null && (
+                  <> of <span className="tabular-nums" style={{ fontFamily: 'var(--font-mono)' }}>{filterData.research_total.toLocaleString()}</span> in this research</>
                 )}{' '}
                 role{total !== 1 ? 's' : ''}
               </>
@@ -486,50 +389,6 @@ export default function JobBoardPage() {
           </div>
         </div>
 
-        {/* Recruiter Posts contextual sub-section (decision #9): a distinct
-            block, never intermixed with the main grid below. Only shown when
-            there's something to show and we're not already ON the Recruiter
-            Posts tab. */}
-        {activeFilters.tier !== 'social' && recruiterPosts && recruiterPosts.total > 0 && (
-          <section
-            className="hidden sm:block sm:mb-6 rounded-xl p-4 sm:p-5"
-            style={{ backgroundColor: 'rgba(107,78,255,0.05)', border: '1px solid rgba(107,78,255,0.2)' }}
-            aria-label="Recruiter Posts — hidden roles matching your filters"
-          >
-            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-              <div className="flex items-center gap-2">
-                <EyeOff size={16} strokeWidth={2.25} style={{ color: '#6B4EFF' }} aria-hidden="true" />
-                <h2 className="text-sm font-bold" style={{ color: 'var(--color-ink)' }}>
-                  Recruiter Posts
-                </h2>
-                <span className="text-xs" style={{ color: 'var(--color-ink-muted)' }}>
-                  {recruiterPosts.total} role{recruiterPosts.total === 1 ? '' : 's'} sourced from recruiter posts
-                  {activeCount > 0 ? ' matching your filters' : ''} — not on any public board
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => updateFilters({ tier: 'social' })}
-                className="text-xs font-semibold cursor-pointer"
-                style={{ color: '#6B4EFF' }}
-              >
-                View all {recruiterPosts.total} →
-              </button>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {recruiterPosts.jobs.map(job => (
-                <JobCard
-                  key={`${job.source}__${job.source_id}`}
-                  job={job}
-                  saved={isSaved(job)}
-                  onToggleSave={toggleSave}
-                  onClick={setSelectedJob}
-                />
-              ))}
-            </div>
-          </section>
-        )}
-
         {/* Job grid */}
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -556,7 +415,6 @@ export default function JobBoardPage() {
           <Pagination page={page} totalPages={totalPages} onChange={setPage} />
         )}
 
-        <IndexStats boardTotal={boardTotal} filterData={filterData} />
       </main>
         </>
       )}
@@ -574,74 +432,26 @@ export default function JobBoardPage() {
   )
 }
 
-// ── Tier explainer ────────────────────────────────────────────────────────────
-
-/**
- * What "Exclusive" and "Recruiter Posts" actually mean, shown only while that
- * tab is active.
- *
- * The landing page used to carry two large callouts explaining these tiers; the
- * portal rebuild moved that job here. It is deliberately NOT a copy of those
- * callouts — the tabs above already sell the tiers. What was missing was the
- * explanation of where the data comes from, which matters most at the moment
- * someone switches to the tab and wonders what they are looking at.
- */
-const TIER_NOTES: Partial<Record<TierTab, { title: string; body: string; colour: string }>> = {
-  boutique: {
-    title: 'Roles the major boards miss',
-    body:
-      'Openings at boutique and specialist firms — smaller institutions and niche players whose roles rarely reach the large aggregators. Read from each employer\'s own public hiring activity, then structured with AI.',
-    colour: 'var(--color-gold)',
-  },
-  social: {
-    title: 'Mandates that never reach a job board',
-    body:
-      'LinkedIn posts from recruiters and headhunters working Hong Kong finance — live mandates often shared with their network before, or instead of, a formal listing. Where a post also matches a listing already on the board we mark it Verified.',
-    colour: '#6B4EFF',
-  },
-}
-
-function TierExplainer({ tier }: { tier: TierTab }) {
-  const note = TIER_NOTES[tier]
-  if (!note) return null
-
-  return (
-    <div
-      className="mb-4 sm:mb-6 rounded-lg px-4 py-3"
-      style={{ backgroundColor: 'var(--color-surface-2)', borderLeft: `3px solid ${note.colour}` }}
-    >
-      <p className="text-sm font-semibold" style={{ color: 'var(--color-ink)' }}>
-        {note.title}
-      </p>
-      <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
-        {note.body}
-      </p>
-    </div>
-  )
-}
-
 // ── Index stats ───────────────────────────────────────────────────────────────
 
 /**
  * The four stat cards that used to sit on the landing page.
  *
  * Placed at the foot of the board rather than above the filter bar: this page
- * has an explicit, hard-won budget for above-the-fold chrome (see the comments
- * on the tier tabs and results header), and four stat cards between the nav and
+ * has an explicit, hard-won budget for above-the-fold chrome, and four stat cards between the nav and
  * the first job would spend all of it on something a browsing visitor did not
  * come for. At the foot they still back the numbers up for anyone who scrolls.
  */
 function IndexStats({
   boardTotal,
-  filterData,
+  employerCount,
+  sectorCount,
 }: {
   boardTotal: number | null
-  filterData: FiltersResponse | null
+  employerCount: number | null
+  sectorCount: number | null
 }) {
   if (boardTotal == null) return null
-
-  const employers = filterData?.companies.length
-  const sectors = filterData?.sectors.length
 
   return (
     <section
@@ -662,12 +472,12 @@ function IndexStats({
           sub="Duplicates across sources already merged"
         />
         <StatCard
-          value={employers ? employers.toLocaleString() : '—'}
+          value={employerCount ? employerCount.toLocaleString() : '—'}
           label="Employers"
           sub="Banks, insurers, asset managers & more"
         />
         <StatCard
-          value={sectors ? String(sectors) : '—'}
+          value={sectorCount ? String(sectorCount) : '—'}
           label="Sectors"
           sub="Banking · IB · Insurance · AM · Prof. services"
         />

@@ -85,11 +85,7 @@ def test_every_sort_survives_a_missing_index(tmp_path, sort):
     assert r.status_code == 200, r.text
 
 
-def test_browsing_is_unaffected_by_a_missing_index(tmp_path):
-    # No `search=` means the index is never consulted; a snapshot without it
-    # must still serve the board normally. This is what kept the outage looking
-    # like a working site.
+def test_missing_index_does_not_reopen_unscoped_catalogue_access(tmp_path):
     client = _client(tmp_path, "search_vocab", "jobs_fts")
     r = client.get("/api/jobs")
-    assert r.status_code == 200, r.text
-    assert r.json()["total"] >= 1
+    assert r.status_code == 422, r.text

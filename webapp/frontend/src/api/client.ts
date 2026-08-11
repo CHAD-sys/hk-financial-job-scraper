@@ -109,6 +109,8 @@ export interface Job {
   closed: boolean
   // Market signals by board, e.g. { indeed: { urgently_hiring, applicant_count, new_job }, linkedin: { reposted } }
   board_signals: Record<string, Record<string, unknown>>
+  /** Short-lived proof that an allowed discovery path returned this Role. */
+  access_token?: string | null
 }
 
 export interface JobDetail extends Job {
@@ -131,6 +133,8 @@ export interface NameCount {
 }
 
 export interface FiltersResponse {
+  research_total: number
+  tier_counts: Record<string, number>
   companies: NameCount[]
   sectors: NameCount[]
   skills: NameCount[]
@@ -142,6 +146,7 @@ export interface FiltersResponse {
 
 export interface StatsResponse {
   total_active_jobs: number
+  employer_count: number
   by_sector: Record<string, number>
   by_seniority: Record<string, number>
   by_remote_type: Record<string, number>
@@ -315,14 +320,23 @@ export async function fetchJobs(
   return res.json()
 }
 
-export async function fetchJobDetail(source: string, sourceId: string): Promise<JobDetail> {
-  const res = await apiFetch(`/api/jobs/${encodeURIComponent(source)}/${encodeURIComponent(sourceId)}`)
+export async function fetchJobDetail(
+  source: string,
+  sourceId: string,
+  accessToken: string | null | undefined,
+): Promise<JobDetail> {
+  const headers = accessToken ? { 'X-Role-Access': accessToken } : undefined
+  const res = await apiFetch(
+    `/api/jobs/${encodeURIComponent(source)}/${encodeURIComponent(sourceId)}`,
+    { headers },
+  )
   if (!res.ok) throw new Error(`Job detail fetch failed: ${res.status}`)
   return res.json()
 }
 
-export async function fetchFilters(): Promise<FiltersResponse> {
-  const res = await apiFetch('/api/filters')
+export async function fetchFilters(search: string): Promise<FiltersResponse> {
+  const params = new URLSearchParams({ search: search.trim() })
+  const res = await apiFetch(`/api/filters?${params}`)
   if (!res.ok) throw new Error(`Filters fetch failed: ${res.status}`)
   return res.json()
 }
@@ -334,9 +348,8 @@ export async function fetchStats(): Promise<StatsResponse> {
 }
 
 /**
- * A small, explainable feed. The backend personalizes it when the Seeker
- * cookie is present and returns an explicitly non-personalized market fallback
- * otherwise, so the discover page can keep one honest rendering path.
+ * A small, explainable feed for a signed-in Seeker. The backend returns no
+ * Roles until settled first-party evidence makes them relevant.
  */
 export async function fetchRecommendations(
   page = 1,
@@ -372,9 +385,16 @@ export async function recordDiscovery(filters: JobFilters, resultCount: number):
 }
 
 /** Attribute an opened card to the latest recommendation impression. */
-export async function trackRecommendationClick(source: string, sourceId: string): Promise<void> {
+export async function trackRecommendationClick(
+  source: string,
+  sourceId: string,
+  accessToken?: string | null,
+): Promise<void> {
   const path = `/api/me/recommendations/${encodeURIComponent(source)}/${encodeURIComponent(sourceId)}/click`
-  const res = await apiFetch(path, { method: 'POST' })
+  const res = await apiFetch(path, {
+    method: 'POST',
+    headers: accessToken ? { 'X-Role-Access': accessToken } : undefined,
+  })
   if (!res.ok) {
     throw new ApiError(res.status, `Could not record this recommendation (${res.status}).`)
   }
@@ -384,12 +404,16 @@ export async function submitRecommendationFeedback(
   source: string,
   sourceId: string,
   action: RecommendationFeedbackAction,
+  accessToken?: string | null,
   detail?: string,
 ): Promise<void> {
   const path = `/api/me/recommendations/${encodeURIComponent(source)}/${encodeURIComponent(sourceId)}/feedback`
   const res = await apiFetch(path, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { 'X-Role-Access': accessToken } : {}),
+    },
     body: JSON.stringify({ action, ...(detail ? { detail } : {}) }),
   })
   if (!res.ok) {
@@ -638,11 +662,16 @@ export async function fetchSavedRoles(): Promise<SavedRole[]> {
   return res.json()
 }
 
-export async function saveRole(source: string, sourceId: string): Promise<void> {
+export async function saveRole(
+  source: string,
+  sourceId: string,
+  accessToken: string | null | undefined,
+): Promise<void> {
+  if (!accessToken) throw new ApiError(403, 'This Role must come from an active research result.')
   const res = await apiFetch('/api/me/saved', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ source, source_id: sourceId }),
+    body: JSON.stringify({ source, source_id: sourceId, access_token: accessToken }),
   })
   if (!res.ok) throw new ApiError(res.status, `Could not save that Role (${res.status}).`)
 }
@@ -657,8 +686,12 @@ export async function saveRole(source: string, sourceId: string): Promise<void> 
  * loop cannot.
  */
 export async function mergeSavedRoles(
-  roles: { source: string; source_id: string }[],
-): Promise<{ merged: number; submitted: number }> {
+  roles: { source: string; source_id: string; access_token: string }[],
+): Promise<{
+  merged: number
+  submitted: number
+  accepted: { source: string; source_id: string }[]
+}> {
   const res = await apiFetch('/api/me/saved/merge', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1004,7 +1037,6 @@ export function filtersToSearchParams(
   page: number,
 ): URLSearchParams {
   const p = new URLSearchParams()
-  if (filters.tier !== 'all') p.set('tier', filters.tier)
   if (filters.search) p.set('q', filters.search)
   filters.sectors.forEach(s => p.append('sector', s))
   filters.companies.forEach(c => p.append('company', c))
@@ -1030,10 +1062,12 @@ export function filtersToSearchParams(
 export function searchParamsToFilters(
   p: URLSearchParams,
 ): { filters: JobFilters; sort: string; page: number } {
-  const tierParam = p.get('tier')
   return {
     filters: {
-      tier: (tierParam === 'boutique' || tierParam === 'mainstream' || tierParam === 'social') ? tierParam : 'all',
+      // Source tiers are an internal attribution detail, not a public browsing
+      // mode. Old shared URLs carrying `?tier=` deliberately collapse into the
+      // same all-source research stream.
+      tier: 'all',
       search: p.get('q') ?? '',
       sectors: p.getAll('sector'),
       companies: p.getAll('company'),

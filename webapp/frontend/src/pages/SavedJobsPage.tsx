@@ -31,7 +31,7 @@ export default function SavedJobsPage() {
             onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-ink-inverse)')}
             onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.color = 'rgba(248,250,252,0.5)')}
           >
-            <ArrowLeft size={14} /> Back to all roles
+            <ArrowLeft size={14} /> Back to Role search
           </button>
           <div className="flex items-center gap-3">
             <Bookmark size={22} style={{ color: 'var(--color-gold)' }} fill="currentColor" />
@@ -84,7 +84,7 @@ export default function SavedJobsPage() {
               onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-blue)')}
               onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-ink)')}
             >
-              Browse all roles
+              Search Roles
             </button>
           </div>
         ) : (

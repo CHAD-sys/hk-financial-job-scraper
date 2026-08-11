@@ -436,19 +436,6 @@ select.finex-input {
   overflow: hidden;
 }
 
-/* ── Segmented tier tabs (All / Exclusive / Mainstream …) ─────── */
-.tier-tab {
-  transition: background-color 160ms var(--ease-out-expo), color 160ms,
-              box-shadow 160ms, transform 120ms, border-color 160ms;
-}
-.tier-tab[aria-selected="false"]:hover {
-  background-color: var(--color-surface) !important;
-  color: var(--color-ink) !important;
-  box-shadow: var(--shadow-card) !important;
-  border-color: var(--color-border) !important;
-}
-.tier-tab:active { transform: scale(0.97); }
-
 /* ── Filter pills (sector / level / work-type / internships) ──── */
 .filter-pill {
   transition: background-color 150ms, color 150ms, border-color 150ms, transform 120ms;
@@ -476,7 +463,7 @@ select.finex-input {
   transition: box-shadow 200ms var(--ease-out-expo), border-color 200ms;
 }
 
-/* Popular queries, sector chips, and the back-to-search button. */
+/* Compact chips elsewhere in the board. */
 .hero-chip {
   transition: background-color 150ms, border-color 150ms, color 150ms, transform 120ms;
 }
@@ -490,6 +477,47 @@ select.finex-input {
   outline-offset: 2px;
 }
 .hero-chip:active { transform: scale(0.97); }
+
+/* The Careers landing categories are navigation, not tags. Their own grid
+   gives long finance discipline names room to breathe and keeps the thirteenth
+   item centred instead of leaving a visibly broken final row. */
+.major-category-card {
+  touch-action: manipulation;
+  transition:
+    background-color 180ms var(--ease-out-expo),
+    border-color 180ms var(--ease-out-expo),
+    box-shadow 180ms var(--ease-out-expo),
+    transform 120ms var(--ease-out-expo);
+}
+.major-category-card:hover {
+  background-color: rgb(255 255 255 / 0.12) !important;
+  border-color: rgb(224 161 6 / 0.62) !important;
+  box-shadow: 0 5px 18px rgb(0 0 0 / 0.16);
+}
+.major-category-card:focus-visible {
+  outline: 2px solid var(--color-gold-star);
+  outline-offset: 2px;
+}
+.major-category-card:active { transform: scale(0.985); }
+.major-category-arrow {
+  color: rgb(248 250 252 / 0.42);
+  transition: color 180ms var(--ease-out-expo), transform 180ms var(--ease-out-expo);
+}
+.major-category-card:hover .major-category-arrow {
+  color: var(--color-gold-star);
+  transform: translateX(2px);
+}
+.major-category-grid > :last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: calc(50% - 0.25rem);
+}
+@media (min-width: 1024px) {
+  .major-category-grid > :last-child:nth-child(odd) {
+    grid-column: 2;
+    width: 100%;
+  }
+}
 
 /* ── Job card press feedback (touch has no hover) ──────────────── */
 .job-card {
@@ -616,6 +644,21 @@ select.finex-input {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
+}
+.recommendation-manage-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  padding: 0.55rem 0.35rem;
+  color: var(--color-ink-muted);
+  font-size: 0.75rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+.recommendation-manage-link:hover {
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-underline-offset: 0.2rem;
 }
 .recommendation-action-button,
 .recommendation-explore-button,

@@ -1,14 +1,28 @@
 import { useState } from 'react'
-import { Search, ArrowRight } from 'lucide-react'
-import type { FiltersResponse } from '../api/client'
+import {
+  ArrowRight,
+  BadgeDollarSign,
+  Building2,
+  Calculator,
+  ChartCandlestick,
+  Cpu,
+  Handshake,
+  Landmark,
+  Megaphone,
+  Network,
+  Scale,
+  Search,
+  ShieldCheck,
+  Store,
+} from 'lucide-react'
 
 /**
  * TEMPORARY UI EXPERIMENT — the search-engine face of the board.
  *
- * The board used to open as a wall: sticky filter bar, four tier tabs, then 24
+ * The board used to open as a wall: sticky filters, controls, then 24
  * cards out of ~5,000. That asks a visitor to narrow a database they have not
  * seen. This asks them a question instead, which is what a search engine does:
- * one dominant field, a few popular queries underneath, and nothing else
+ * one dominant field, a set of major finance categories underneath, and nothing else
  * competing for the first decision.
  *
  * It renders only while the board has no query and no filters (JobBoardPage's
@@ -18,9 +32,8 @@ import type { FiltersResponse } from '../api/client'
  */
 
 interface Props {
-  /** Live totals for the sub-headline. Null until /api/filters answers. */
-  filterData: FiltersResponse | null
   boardTotal: number | null
+  employerCount: number | null
   /**
    * Run a text query — the only thing on this screen that moves the page into
    * results mode. The sector counts below are read-only stats, and there is no
@@ -30,22 +43,29 @@ interface Props {
 }
 
 /**
- * Suggested queries. Hardcoded rather than read from the live skill counts
+ * Major finance categories. Hardcoded rather than read from the live skill counts
  * because the top skills by volume ("stakeholder management", "project
  * management") are the generic ones every posting lists — true, and useless as
  * a suggestion. These are the queries a Hong Kong finance candidate actually
  * arrives with.
  */
-const POPULAR_QUERIES = [
-  'Private banking',
-  'Risk management',
-  'Compliance',
-  'Equity research',
-  'Actuarial',
-  'Wealth management',
+const MAJOR_CATEGORIES = [
+  { label: 'Risk Management', icon: ShieldCheck },
+  { label: 'Accounting & Finance', icon: Calculator },
+  { label: 'Treasury', icon: BadgeDollarSign },
+  { label: 'Investment', icon: ChartCandlestick },
+  { label: 'Operations', icon: Network },
+  { label: 'Technology & Transformation', icon: Cpu },
+  { label: 'Sales and Business Development', icon: Handshake },
+  { label: 'Private Banking', icon: Landmark },
+  { label: 'Commercial Banking', icon: Building2 },
+  { label: 'Investment Banking', icon: ChartCandlestick },
+  { label: 'Retail Banking', icon: Store },
+  { label: 'Sales & Marketing', icon: Megaphone },
+  { label: 'Legal, Compliance & Audit', icon: Scale },
 ]
 
-export default function SearchHero({ filterData, boardTotal, onSearch }: Props) {
+export default function SearchHero({ boardTotal, employerCount, onSearch }: Props) {
   const [value, setValue] = useState('')
 
   // Explicit submit, not the live-debounced search the results board uses. On a
@@ -56,8 +76,6 @@ export default function SearchHero({ filterData, boardTotal, onSearch }: Props) 
     const q = value.trim()
     if (q) onSearch(q)
   }
-
-  const employers = filterData?.companies.length ?? null
 
   return (
     <section
@@ -71,7 +89,7 @@ export default function SearchHero({ filterData, boardTotal, onSearch }: Props) 
           discover page's content sheet overlaps this section (JobBoardPage),
           so the last row of chips needs clearance from an edge that rises to
           meet it. Change one and check the other. */}
-      <div className="mx-auto max-w-3xl px-4 sm:px-6 pt-12 pb-16 sm:pt-16 sm:pb-20 lg:pt-20 lg:pb-24 text-center">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-12 pb-16 sm:pt-16 sm:pb-20 lg:pt-20 lg:pb-24 text-center">
         <p
           className="text-xs font-semibold uppercase mb-3"
           style={{ color: 'var(--color-gold-star)', letterSpacing: '0.14em' }}
@@ -104,14 +122,14 @@ export default function SearchHero({ filterData, boardTotal, onSearch }: Props) 
                 {boardTotal.toLocaleString()}
               </span>{' '}
               live roles
-              {employers ? (
+              {employerCount ? (
                 <>
                   {' '}across{' '}
                   <span
                     className="font-semibold tabular-nums"
                     style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-inverse)' }}
                   >
-                    {employers.toLocaleString()}
+                    {employerCount.toLocaleString()}
                   </span>{' '}
                   employers
                 </>
@@ -176,34 +194,76 @@ export default function SearchHero({ filterData, boardTotal, onSearch }: Props) 
           </div>
         </form>
 
-        {/* ── Popular queries ────────────────────────────────────────────────
+        {/* ── Major categories ───────────────────────────────────────────────
             The "reduce friction to search" half of the marketplace pattern: a
-            visitor who does not know what to type gets six answers. */}
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-          <span
-            className="text-xs font-medium mr-1"
-            style={{ color: 'rgba(248,250,252,0.5)' }}
-          >
-            Popular:
-          </span>
-          {POPULAR_QUERIES.map(q => (
-            <button
-              key={q}
-              type="button"
-              onClick={() => onSearch(q)}
-              className="hero-chip rounded-full px-3.5 py-2 text-xs font-semibold cursor-pointer outline-none"
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(255,255,255,0.16)',
-                color: 'rgba(248,250,252,0.9)',
-              }}
+            visitor who does not know what to type gets a useful finance map. */}
+        <div
+          className="mt-8 rounded-xl p-3 sm:p-4"
+          aria-labelledby="major-categories-label"
+          style={{
+            backgroundColor: 'rgba(11,22,40,0.42)',
+            border: '1px solid rgba(255,255,255,0.12)',
+          }}
+        >
+          <div className="flex items-end justify-between gap-4 px-1 pb-3 text-left sm:px-2">
+            <div>
+              <h2
+                id="major-categories-label"
+                className="text-sm font-semibold"
+                style={{ color: 'var(--color-ink-inverse)' }}
+              >
+                Explore major categories
+              </h2>
+              <p className="mt-1 text-xs" style={{ color: 'rgba(248,250,252,0.58)' }}>
+                Choose a discipline to see relevant Roles.
+              </p>
+            </div>
+            <span
+              className="hidden shrink-0 text-xs font-medium tabular-nums sm:block"
+              style={{ color: 'var(--color-gold-star)', fontFamily: 'var(--font-mono)' }}
             >
-              {q}
-            </button>
-          ))}
+              13 disciplines
+            </span>
+          </div>
+
+          <div className="major-category-grid grid grid-cols-2 gap-2 lg:grid-cols-3">
+            {MAJOR_CATEGORIES.map(({ label, icon: Icon }) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => onSearch(label)}
+                className="major-category-card group flex min-h-[4.5rem] items-center gap-3 rounded-md px-3 py-3 text-left cursor-pointer outline-none sm:px-4"
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.065)',
+                  border: '1px solid rgba(255,255,255,0.13)',
+                  color: 'var(--color-ink-inverse)',
+                }}
+              >
+                <span
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded"
+                  style={{
+                    backgroundColor: 'rgba(224,161,6,0.13)',
+                    color: 'var(--color-gold-star)',
+                  }}
+                  aria-hidden="true"
+                >
+                  <Icon size={18} strokeWidth={1.8} />
+                </span>
+                <span className="min-w-0 flex-1 text-[0.8125rem] font-semibold leading-snug sm:text-sm">
+                  {label}
+                </span>
+                <ArrowRight
+                  size={15}
+                  strokeWidth={2}
+                  className="major-category-arrow hidden shrink-0 sm:block"
+                  aria-hidden="true"
+                />
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* NOTE — there is deliberately nothing below the popular queries.
+        {/* NOTE — there is deliberately nothing below the major categories.
             A per-sector count block lived here through two revisions, as
             clickable category chips and then as a stat row, and both were
             wrong for the same underlying reason rather than for want of

@@ -9,20 +9,26 @@ submitted through it is published without human review.
 from __future__ import annotations
 
 import asyncio
-import hmac
 import json
 import logging
 import os
-import secrets
 import sqlite3
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal, Optional
-from urllib.parse import urlencode
 
-import httpx
-from fastapi import APIRouter, FastAPI, File, HTTPException, Query, Request, Response, UploadFile
+from fastapi import (
+    APIRouter,
+    FastAPI,
+    File,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -57,6 +63,7 @@ from mailer import SUBMISSION_RECIPIENT, SMTP_USER, send_mail  # noqa: E402
 # its docstring for why "browsing is filtered, addressing is not".
 import job_read  # noqa: E402
 import resume_intelligence  # noqa: E402
+import role_access  # noqa: E402
 import role_feed  # noqa: E402
 from rate_limit import RateLimiter, RedisRateLimiter  # noqa: E402
 from sender import Message, Sender, SmtpSender  # noqa: E402
@@ -86,6 +93,13 @@ router = APIRouter()
 def cfg(request: Request) -> Settings:
     """This app's settings."""
     return request.app.state.settings
+
+
+def _grant_role_access(request: Request, jobs) -> None:
+    """Attach detail grants only to Roles an allowed read path selected."""
+    access = request.app.state.role_access
+    for job in jobs:
+        job.access_token = access.issue(job.source, job.source_id)
 
 
 def _seed_db_if_missing(settings: Settings) -> None:
@@ -143,28 +157,9 @@ class NameCount(BaseModel):
     count: int
 
 
-class SalaryRange(BaseModel):
-    min: Optional[int]
-    max: Optional[int]
-
-
-class ExperienceRange(BaseModel):
-    min: Optional[int]
-    max: Optional[int]
-
-
-class FiltersResponse(BaseModel):
-    companies: list[NameCount]
-    sectors: list[NameCount]
-    skills: list[NameCount]
-    seniority_levels: list[str]
-    remote_types: list[str]
-    salary_range: SalaryRange
-    experience_range: ExperienceRange
-
-
 class StatsResponse(BaseModel):
     total_active_jobs: int
+    employer_count: int
     by_sector: dict[str, int]
     by_seniority: dict[str, int]
     by_remote_type: dict[str, int]
@@ -270,6 +265,7 @@ def list_jobs(
     request: Request,
     search: Optional[str] = Query(
         None,
+        max_length=200,
         description="Full-text search across title, company, skills and description. "
                     "Tolerates typos and word order; sort=relevance ranks by match quality.",
     ),
@@ -307,8 +303,15 @@ def list_jobs(
     sources appears once, not four times. Everything about how that is selected,
     filtered, sorted and counted lives in job_read.
     """
+    research_query = (search or "").strip()
+    if len(research_query) < 2:
+        raise HTTPException(
+            status_code=422,
+            detail="Start with a specific search of at least two characters.",
+        )
+
     filters = JobFilters.of(
-        search=search, sectors=sectors, companies=companies, seniority=seniority,
+        search=research_query, sectors=sectors, companies=companies, seniority=seniority,
         remote_type=remote_type, skills=skills, salary_min=salary_min,
         salary_max=salary_max, exp_min=exp_min, exp_max=exp_max,
         posted_within_days=posted_within_days, is_internship=is_internship,
@@ -317,10 +320,12 @@ def list_jobs(
         verified_only=verified_only,
     )
     with get_db(request) as conn:
-        return job_read.list_jobs(
+        result = job_read.list_jobs(
             conn, filters, sort=sort, page=page, page_size=page_size,
             visibility=Visibility.BOARD,
         )
+    _grant_role_access(request, result.jobs)
+    return result
 
 
 # ── /api/recommendations + discovery signals ─────────────────────────────────
@@ -391,11 +396,17 @@ def record_discovery(payload: DiscoveryIn, request: Request):
     seeker = _require_seeker(request)
     store = seekers_store.get_store()
     filters = payload.filters.model_dump(exclude_defaults=True, exclude_none=True)
-    if not payload.search_query.strip() and not filters:
+    research_query = payload.search_query.strip()
+    if not research_query and not filters:
         return Response(status_code=204)
+    if len(research_query) < 2:
+        raise HTTPException(
+            status_code=422,
+            detail="Filters can only be saved inside a specific Role search.",
+        )
     store.record_discovery(
         seeker["id"],
-        search_query=payload.search_query,
+        search_query=research_query,
         filters=filters,
         result_count=payload.result_count,
     )
@@ -412,15 +423,17 @@ def recommended_roles(
     page: int = Query(1, ge=1, le=10),
     page_size: int = Query(6, ge=1, le=24),
 ):
-    """Return a diverse, explainable Role page; personalize when signed in."""
-    seeker = _current_seeker(request)
+    """Return Roles justified by one signed-in Seeker's first-party evidence."""
+    seeker = _require_seeker(request)
     with get_db(request) as conn:
-        return role_feed.roles_for_seeker(
+        feed = role_feed.roles_for_seeker(
             conn,
-            seeker_id=seeker["id"] if seeker else None,
+            seeker_id=seeker["id"],
             page=page,
             page_size=page_size,
         )
+    _grant_role_access(request, (item.job for item in feed.items))
+    return feed
 
 
 @router.post(
@@ -428,9 +441,16 @@ def recommended_roles(
     status_code=204,
     tags=["recommendations"],
 )
-def recommendation_clicked(source: str, source_id: str, request: Request):
+def recommendation_clicked(
+    source: str,
+    source_id: str,
+    request: Request,
+    access_token: Optional[str] = Header(None, alias="X-Role-Access", max_length=2_048),
+):
     """Attribute a card-open to the newest matching recommendation impression."""
     seeker = _require_seeker(request)
+    if not request.app.state.role_access.allows(access_token, source, source_id):
+        raise HTTPException(status_code=404, detail="Job not found")
     seekers_store.get_store().mark_recommendation_clicked(
         seeker["id"], source, source_id
     )
@@ -443,9 +463,15 @@ def recommendation_clicked(source: str, source_id: str, request: Request):
     tags=["recommendations"],
 )
 def add_recommendation_feedback(
-    source: str, source_id: str, payload: RecommendationFeedbackIn, request: Request
+    source: str,
+    source_id: str,
+    payload: RecommendationFeedbackIn,
+    request: Request,
+    access_token: Optional[str] = Header(None, alias="X-Role-Access", max_length=2_048),
 ):
     seeker = _require_seeker(request)
+    if not request.app.state.role_access.allows(access_token, source, source_id):
+        raise HTTPException(status_code=404, detail="Job not found")
     seekers_store.get_store().record_recommendation_feedback(
         seeker["id"],
         source,
@@ -543,17 +569,24 @@ def resume_matches(
     """Return current Roles with the strongest observable resume alignment."""
     seeker = _require_seeker(request)
     with get_db(request) as conn:
-        return role_feed.resume_matches_for_seeker(
+        matches = role_feed.resume_matches_for_seeker(
             conn,
             seeker_id=seeker["id"],
             limit=limit,
         )
+    _grant_role_access(request, (item.job for item in matches.items))
+    return matches
 
 
 # ── /api/jobs/{source}/{source_id} ────────────────────────────────────────────
 
 @router.get("/api/jobs/{source}/{source_id}", response_model=JobDetail, tags=["jobs"])
-def get_job(source: str, source_id: str, request: Request):
+def get_job(
+    source: str,
+    source_id: str,
+    request: Request,
+    access_token: Optional[str] = Header(None, alias="X-Role-Access", max_length=2_048),
+):
     """
     One Role, addressed by reference.
 
@@ -563,6 +596,15 @@ def get_job(source: str, source_id: str, request: Request):
     reconciliation; requiring is_active would break every Saved Role the moment
     the vacancy closed, which is precisely when a Seeker wants to look at it.
     """
+    seeker = _current_seeker(request)
+    is_admin = bool(seeker and seeker.get("is_admin"))
+    if not is_admin and not request.app.state.role_access.allows(
+        access_token, source, source_id
+    ):
+        # 404 reveals neither whether the reference exists nor why access was
+        # denied. Knowing a jobs.db key is not a discovery path.
+        raise HTTPException(status_code=404, detail="Job not found")
+
     with get_db(request) as conn:
         detail = job_read.get_job(conn, source, source_id, visibility=Visibility.ADDRESSABLE)
     if detail is None:
@@ -572,89 +614,20 @@ def get_job(source: str, source_id: str, request: Request):
 
 # ── /api/filters ──────────────────────────────────────────────────────────────
 
-@router.get("/api/filters", response_model=FiltersResponse, tags=["meta"])
-def get_filters(request: Request):
+@router.get("/api/filters", response_model=job_read.ResearchFacets, tags=["meta"])
+def get_filters(
+    request: Request,
+    search: str = Query(..., min_length=2, max_length=200),
+):
+    """Return facets computed inside one research query, never globally."""
+    research_query = search.strip()
+    if len(research_query) < 2:
+        raise HTTPException(
+            status_code=422,
+            detail="Start with a specific search of at least two characters.",
+        )
     with get_db(request) as conn:
-        # Companies with count
-        companies = [
-            NameCount(name=r["company"], count=r["cnt"])
-            for r in conn.execute(
-                "SELECT j.company, COUNT(*) AS cnt FROM jobs j"
-                f" WHERE {BOARD_WHERE} GROUP BY j.company ORDER BY cnt DESC",
-            ).fetchall()
-        ]
-
-        # Sectors with count
-        sectors_raw = conn.execute(
-            f"""
-            SELECT sector, COUNT(*) AS cnt FROM (
-              SELECT ({SECTOR_SQL}) AS sector
-              FROM jobs j
-              LEFT JOIN job_enrichments e ON j.source=e.source AND j.source_id=e.source_id
-              WHERE {BOARD_WHERE}
-            ) sub GROUP BY sector ORDER BY cnt DESC
-            """
-        ).fetchall()
-        sectors = [NameCount(name=r["sector"], count=r["cnt"]) for r in sectors_raw]
-
-        # Top 100 skills
-        skills_raw = conn.execute(
-            f"""
-            SELECT LOWER(sk.value) AS skill, COUNT(*) AS cnt
-            FROM jobs j
-            JOIN job_enrichments e ON j.source=e.source AND j.source_id=e.source_id
-            JOIN json_each(e.required_skills) sk
-            WHERE {BOARD_WHERE}
-              AND e.required_skills IS NOT NULL
-              AND e.required_skills != '[]'
-            GROUP BY LOWER(sk.value)
-            ORDER BY cnt DESC
-            LIMIT 100
-            """
-        ).fetchall()
-        skills = [NameCount(name=r["skill"], count=r["cnt"]) for r in skills_raw]
-
-        # Seniority levels
-        seniority_levels = [
-            r[0] for r in conn.execute(
-                "SELECT DISTINCT e.seniority FROM job_enrichments e"
-                " JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-                f" WHERE {BOARD_WHERE} AND e.seniority IS NOT NULL ORDER BY e.seniority"
-            ).fetchall()
-        ]
-
-        # Remote types
-        remote_types = [
-            r[0] for r in conn.execute(
-                "SELECT DISTINCT e.remote_type FROM job_enrichments e"
-                " JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-                f" WHERE {BOARD_WHERE} AND e.remote_type IS NOT NULL ORDER BY e.remote_type"
-            ).fetchall()
-        ]
-
-        # Salary range
-        sal = conn.execute(
-            "SELECT MIN(e.salary_hkd_min), MAX(e.salary_hkd_max)"
-            " FROM job_enrichments e JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-            f" WHERE {BOARD_WHERE}"
-        ).fetchone()
-
-        # Experience range
-        exp = conn.execute(
-            "SELECT MIN(e.years_experience_required), MAX(e.years_experience_required)"
-            " FROM job_enrichments e JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-            f" WHERE {BOARD_WHERE}"
-        ).fetchone()
-
-    return FiltersResponse(
-        companies=companies,
-        sectors=sectors,
-        skills=skills,
-        seniority_levels=seniority_levels,
-        remote_types=remote_types,
-        salary_range=SalaryRange(min=sal[0], max=sal[1]),
-        experience_range=ExperienceRange(min=exp[0], max=exp[1]),
-    )
+        return job_read.research_facets(conn, research_query)
 
 
 # ── /api/stats ────────────────────────────────────────────────────────────────
@@ -664,6 +637,9 @@ def get_stats(request: Request):
     with get_db(request) as conn:
         total = conn.execute(
             f"SELECT COUNT(*) FROM jobs j WHERE {BOARD_WHERE}"
+        ).fetchone()[0]
+        employer_count = conn.execute(
+            f"SELECT COUNT(DISTINCT j.company) FROM jobs j WHERE {BOARD_WHERE}"
         ).fetchone()[0]
 
         # By sector
@@ -735,6 +711,7 @@ def get_stats(request: Request):
 
     return StatsResponse(
         total_active_jobs=total,
+        employer_count=employer_count,
         by_sector=by_sector,
         by_seniority=by_seniority,
         by_remote_type=by_remote_type,
@@ -919,11 +896,12 @@ def health(request: Request):
 #
 # Vocabulary note (CONTEXT.md): the account holder is a *Seeker*, never a "user".
 #
-# Nothing here gates anything. Per ADR 0002 the board stays fully public — these
-# endpoints add capability for signed-in Seekers and take nothing away from
-# anonymous ones. Do not "protect" any /api/jobs route with these dependencies.
+# Public research needs no account, but ADR 0018 no longer permits an unscoped
+# catalogue read. Accounts add Saved Roles and personalization; short-lived
+# Role grants protect detail reads independently of sign-in.
 
 import auth  # noqa: E402 — same local-module convention as mailer/env_file above
+import identity_protocol  # noqa: E402
 import seekers_store  # noqa: E402
 
 # Admin Mode's router. admin.py takes cfg/get_db/_require_admin as arguments
@@ -961,7 +939,7 @@ def _clear_session_cookie(response: Response) -> None:
 def _current_seeker(request: Request) -> Optional[dict]:
     """
     The signed-in Seeker's row, or None. Never raises — anonymous is a normal
-    state on this API, not an error, because nothing here is gated (ADR 0002).
+    state on this API, not an error, because research itself is public (ADR 0018).
 
     auth.verify_session() deliberately returns only a seeker_id and collapses
     every failure to None — unknown token, expired token, token belonging to a
@@ -1079,6 +1057,7 @@ class SeekerOut(BaseModel):
 class SaveRoleIn(BaseModel):
     source: str = Field(min_length=1, max_length=50)
     source_id: str = Field(min_length=1, max_length=200)
+    access_token: str = Field(min_length=1, max_length=2_048)
 
 
 class MergeSavedIn(BaseModel):
@@ -1374,12 +1353,17 @@ def list_saved(request: Request):
             seeker["id"], len(pairs) - len(saved), len(pairs),
             job_read.SAVED_ROLE_RETENTION,
         )
+    _grant_role_access(request, saved)
     return saved
 
 
 @router.post("/api/me/saved", status_code=204, tags=["saved"])
 def save_role(payload: SaveRoleIn, request: Request):
     seeker = _require_seeker(request)
+    if not request.app.state.role_access.allows(
+        payload.access_token, payload.source, payload.source_id
+    ):
+        raise HTTPException(status_code=404, detail="Job not found")
     store = seekers_store.get_store()
     store.save_role(seeker["id"], payload.source, payload.source_id)
     store.log_event("role.saved", seeker_id=seeker["id"])
@@ -1404,10 +1388,25 @@ def merge_saved(payload: MergeSavedIn, request: Request):
     """
     seeker = _require_seeker(request)
     store = seekers_store.get_store()
-    added = store.merge_saved_roles(seeker["id"], [(r.source, r.source_id) for r in payload.roles])
+    allowed_roles = [
+        role
+        for role in payload.roles
+        if request.app.state.role_access.allows(
+            role.access_token, role.source, role.source_id
+        )
+    ]
+    allowed = [(role.source, role.source_id) for role in allowed_roles]
+    added = store.merge_saved_roles(seeker["id"], allowed)
     if added:
         store.log_event("saved.migrated", seeker_id=seeker["id"])
-    return {"merged": added, "submitted": len(payload.roles)}
+    return {
+        "merged": added,
+        "submitted": len(payload.roles),
+        "accepted": [
+            {"source": role.source, "source_id": role.source_id}
+            for role in allowed_roles
+        ],
+    }
 
 
 @router.delete("/api/me", status_code=204, tags=["auth"])
@@ -1453,23 +1452,11 @@ def delete_account(request: Request, response: Response):
 # added here without asking, per this repo's "no substitution without asking"
 # rule on the tech stack.
 
-GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
-GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
-GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo"
 #: Scoped to the OAuth start/callback pair, not path="/" — this cookie carries
 #: no identity, only a CSRF nonce, and has no reason to ride along on every
 #: other request for the ten minutes it lives.
 GOOGLE_STATE_COOKIE = "google_oauth_state"
 GOOGLE_STATE_COOKIE_PATH = "/api/auth/google"
-
-
-def _google_configured() -> tuple[str, str]:
-    """(client_id, client_secret), or ("", "") if either is unset."""
-    client_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
-    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
-    if not client_id or not client_secret:
-        return "", ""
-    return client_id, client_secret
 
 
 def _google_redirect_uri(request: Request) -> str:
@@ -1501,24 +1488,18 @@ def google_start(request: Request):
     Google's own cookies intact, which is why the button is a link rather than
     a fetch call (see AuthShell.tsx).
     """
-    client_id, _ = _google_configured()
-    if not client_id:
+    try:
+        authorization = request.app.state.identity_protocol.begin(
+            "google", _google_redirect_uri(request)
+        )
+    except identity_protocol.ProviderUnavailable:
         logger.warning("GET /api/auth/google called but GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET are not set")
         return RedirectResponse(f"{_public_base(request)}/signin?error=google_unavailable")
 
-    state = secrets.token_urlsafe(24)
-    params = {
-        "client_id": client_id,
-        "redirect_uri": _google_redirect_uri(request),
-        "response_type": "code",
-        "scope": "openid email profile",
-        "state": state,
-        "prompt": "select_account",
-    }
-    resp = RedirectResponse(f"{GOOGLE_AUTH_URL}?{urlencode(params)}")
+    resp = RedirectResponse(authorization.url)
     resp.set_cookie(
         GOOGLE_STATE_COOKIE,
-        state,
+        authorization.state,
         max_age=600,  # the consent screen round trip, generously bounded
         httponly=True,
         secure=cfg(request).cookie_secure,
@@ -1540,68 +1521,30 @@ def google_callback(
     auth.link_or_create_seeker — the same three-case rule a Google sign-in and
     a future LinkedIn one will both go through.
     """
-    if error:
-        return _google_failure_redirect(request, f"provider returned error={error}")
-
-    cookie_state = request.cookies.get(GOOGLE_STATE_COOKIE)
-    if not code or not state or not cookie_state or not hmac.compare_digest(state, cookie_state):
-        return _google_failure_redirect(request, "missing or mismatched state (possible CSRF)")
-
-    client_id, client_secret = _google_configured()
-    if not client_id:
+    try:
+        claim = request.app.state.identity_protocol.complete(
+            "google",
+            _google_redirect_uri(request),
+            identity_protocol.Callback(
+                code=code,
+                state=state,
+                cookie_state=request.cookies.get(GOOGLE_STATE_COOKIE),
+                error=error,
+            ),
+        )
+    except identity_protocol.ProviderUnavailable:
         logger.warning("Google callback reached but GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET are not set")
         resp = RedirectResponse(f"{_public_base(request)}/signin?error=google_unavailable")
         resp.delete_cookie(GOOGLE_STATE_COOKIE, path=GOOGLE_STATE_COOKIE_PATH)
         return resp
-
-    try:
-        with httpx.Client(timeout=10) as http:
-            token_res = http.post(
-                GOOGLE_TOKEN_URL,
-                data={
-                    "code": code,
-                    "client_id": client_id,
-                    "client_secret": client_secret,
-                    "redirect_uri": _google_redirect_uri(request),
-                    "grant_type": "authorization_code",
-                },
-            )
-            token_res.raise_for_status()
-            id_token = token_res.json().get("id_token", "")
-
-            info_res = http.get(GOOGLE_TOKENINFO_URL, params={"id_token": id_token})
-            info_res.raise_for_status()
-            info = info_res.json()
-    except httpx.HTTPError as exc:
-        return _google_failure_redirect(request, f"token exchange failed: {exc}")
-
-    # tokeninfo validated the signature; this is us checking WHO it was issued
-    # for, which tokeninfo does not do on our behalf. A mismatch means the
-    # token was minted for a different OAuth client and must not be trusted.
-    if info.get("aud") != client_id:
-        return _google_failure_redirect(request, "id_token audience mismatch")
-
-    subject = info.get("sub", "")
-    if not subject:
-        return _google_failure_redirect(request, "id_token carried no subject")
-
-    claim = auth.IdentityClaim(
-        provider="google",
-        subject=subject,
-        email=info.get("email"),
-        # Google's tokeninfo returns this as the STRING "true"/"false", not a
-        # JSON boolean — a truthy-string bug here would silently treat every
-        # claim as verified, which is exactly the assumption auth.py's module
-        # docstring says must never be made for granted.
-        email_verified=info.get("email_verified") == "true",
-        display_name=info.get("name"),
-    )
+    except identity_protocol.IdentityProtocolError as exc:
+        return _google_failure_redirect(request, str(exc))
 
     store = seekers_store.get_store()
     try:
         result = auth.link_or_create_seeker(store, claim)
     except auth.IdentityLinkRefused as exc:
-        logger.warning("Google identity link refused for subject %s: %s", subject, exc)
+        logger.warning("Google identity link refused for subject %s: %s", claim.subject, exc)
         resp = RedirectResponse(f"{_public_base(request)}/signin?error=google_link_refused")
         resp.delete_cookie(GOOGLE_STATE_COOKIE, path=GOOGLE_STATE_COOKIE_PATH)
         return resp
@@ -1621,9 +1564,8 @@ def google_callback(
 # The identity-linking core never needed to change for this: auth.IdentityClaim
 # and auth.link_or_create_seeker were written provider-agnostic from the start
 # (test_auth_core.py's test_two_providers_reach_one_seeker already exercised
-# provider="linkedin" before this file had a route for it). This section is
-# only the OIDC exchange itself — the "generic OIDC slot" PLAN_ACCOUNTS.md §6
-# described, filled in.
+# provider="linkedin" before this file had a route for it). This section is the
+# browser adapter around identity_protocol's provider exchange.
 #
 # WHAT THIS NEEDS THAT NO AMOUNT OF CODE CAN SUPPLY: a LinkedIn Company Page,
 # a LinkedIn Developer app with the "Sign In with LinkedIn using OpenID
@@ -1639,27 +1581,14 @@ def google_callback(
 # audience of the way Google's tokeninfo endpoint requires (ADR 0004: delegate
 # verification to the provider rather than hand-rolling JWT signature checks).
 #
-# email_verified is read with `bool(...)`, never assumed true when absent —
+# identity_protocol accepts only explicit true email-verification evidence —
 # PLAN_ACCOUNTS.md §3's fact about this provider, and IdentityClaim's own
-# docstring: LinkedIn "does not verify user identities," and includes
-# email/email_verified only optionally at all.
+# docstring: LinkedIn includes email/email_verified only optionally at all.
 
-LINKEDIN_AUTH_URL = "https://www.linkedin.com/oauth/v2/authorization"
-LINKEDIN_TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken"
-LINKEDIN_USERINFO_URL = "https://api.linkedin.com/v2/userinfo"
 #: Same reasoning as GOOGLE_STATE_COOKIE — a CSRF nonce, not identity, scoped
 #: to the start/callback pair rather than path="/".
 LINKEDIN_STATE_COOKIE = "linkedin_oauth_state"
 LINKEDIN_STATE_COOKIE_PATH = "/api/auth/linkedin"
-
-
-def _linkedin_configured() -> tuple[str, str]:
-    """(client_id, client_secret), or ("", "") if either is unset."""
-    client_id = os.environ.get("LINKEDIN_CLIENT_ID", "").strip()
-    client_secret = os.environ.get("LINKEDIN_CLIENT_SECRET", "").strip()
-    if not client_id or not client_secret:
-        return "", ""
-    return client_id, client_secret
 
 
 def _linkedin_redirect_uri(request: Request) -> str:
@@ -1684,23 +1613,18 @@ def linkedin_start(request: Request):
     plain `<a href>`, same reasoning as google_start: only a full page
     navigation can carry the browser to linkedin.com and back with LinkedIn's
     own cookies intact."""
-    client_id, _ = _linkedin_configured()
-    if not client_id:
+    try:
+        authorization = request.app.state.identity_protocol.begin(
+            "linkedin", _linkedin_redirect_uri(request)
+        )
+    except identity_protocol.ProviderUnavailable:
         logger.warning("GET /api/auth/linkedin called but LINKEDIN_CLIENT_ID/LINKEDIN_CLIENT_SECRET are not set")
         return RedirectResponse(f"{_public_base(request)}/signin?error=linkedin_unavailable")
 
-    state = secrets.token_urlsafe(24)
-    params = {
-        "client_id": client_id,
-        "redirect_uri": _linkedin_redirect_uri(request),
-        "response_type": "code",
-        "scope": "openid profile email",
-        "state": state,
-    }
-    resp = RedirectResponse(f"{LINKEDIN_AUTH_URL}?{urlencode(params)}")
+    resp = RedirectResponse(authorization.url)
     resp.set_cookie(
         LINKEDIN_STATE_COOKIE,
-        state,
+        authorization.state,
         max_age=600,  # the consent screen round trip, generously bounded
         httponly=True,
         secure=cfg(request).cookie_secure,
@@ -1720,63 +1644,30 @@ def linkedin_callback(
     """Exchange the code, fetch the userinfo claims, and hand the result to
     auth.link_or_create_seeker — the same three-case rule Google sign-in
     already goes through."""
-    if error:
-        return _linkedin_failure_redirect(request, f"provider returned error={error}")
-
-    cookie_state = request.cookies.get(LINKEDIN_STATE_COOKIE)
-    if not code or not state or not cookie_state or not hmac.compare_digest(state, cookie_state):
-        return _linkedin_failure_redirect(request, "missing or mismatched state (possible CSRF)")
-
-    client_id, client_secret = _linkedin_configured()
-    if not client_id:
+    try:
+        claim = request.app.state.identity_protocol.complete(
+            "linkedin",
+            _linkedin_redirect_uri(request),
+            identity_protocol.Callback(
+                code=code,
+                state=state,
+                cookie_state=request.cookies.get(LINKEDIN_STATE_COOKIE),
+                error=error,
+            ),
+        )
+    except identity_protocol.ProviderUnavailable:
         logger.warning("LinkedIn callback reached but LINKEDIN_CLIENT_ID/LINKEDIN_CLIENT_SECRET are not set")
         resp = RedirectResponse(f"{_public_base(request)}/signin?error=linkedin_unavailable")
         resp.delete_cookie(LINKEDIN_STATE_COOKIE, path=LINKEDIN_STATE_COOKIE_PATH)
         return resp
-
-    try:
-        with httpx.Client(timeout=10) as http:
-            token_res = http.post(
-                LINKEDIN_TOKEN_URL,
-                data={
-                    "code": code,
-                    "client_id": client_id,
-                    "client_secret": client_secret,
-                    "redirect_uri": _linkedin_redirect_uri(request),
-                    "grant_type": "authorization_code",
-                },
-            )
-            token_res.raise_for_status()
-            access_token = token_res.json().get("access_token", "")
-
-            info_res = http.get(
-                LINKEDIN_USERINFO_URL,
-                headers={"Authorization": f"Bearer {access_token}"},
-            )
-            info_res.raise_for_status()
-            info = info_res.json()
-    except httpx.HTTPError as exc:
-        return _linkedin_failure_redirect(request, f"token exchange failed: {exc}")
-
-    subject = info.get("sub", "")
-    if not subject:
-        return _linkedin_failure_redirect(request, "userinfo carried no subject")
-
-    claim = auth.IdentityClaim(
-        provider="linkedin",
-        subject=subject,
-        email=info.get("email"),
-        # Never assumed true when absent — see this section's own header
-        # comment and IdentityClaim's docstring for why.
-        email_verified=bool(info.get("email_verified")),
-        display_name=info.get("name"),
-    )
+    except identity_protocol.IdentityProtocolError as exc:
+        return _linkedin_failure_redirect(request, str(exc))
 
     store = seekers_store.get_store()
     try:
         result = auth.link_or_create_seeker(store, claim)
     except auth.IdentityLinkRefused as exc:
-        logger.warning("LinkedIn identity link refused for subject %s: %s", subject, exc)
+        logger.warning("LinkedIn identity link refused for subject %s: %s", claim.subject, exc)
         resp = RedirectResponse(f"{_public_base(request)}/signin?error=linkedin_link_refused")
         resp.delete_cookie(LINKEDIN_STATE_COOKIE, path=LINKEDIN_STATE_COOKIE_PATH)
         return resp
@@ -2138,27 +2029,21 @@ def _employer_google_failure_redirect(request: Request, reason: str) -> Redirect
 def employer_google_start(request: Request):
     """Redirect to Google's consent screen. Same shape as google_start() —
     see that docstring for why this must be a real navigation, not a fetch."""
-    client_id, _ = _google_configured()
-    if not client_id:
+    try:
+        authorization = request.app.state.identity_protocol.begin(
+            "google", _employer_google_redirect_uri(request)
+        )
+    except identity_protocol.ProviderUnavailable:
         logger.warning(
             "GET /api/employer/auth/google called but GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET "
             "are not set"
         )
         return RedirectResponse(f"{_public_base(request)}/employer/signin?error=google_unavailable")
 
-    state = secrets.token_urlsafe(24)
-    params = {
-        "client_id": client_id,
-        "redirect_uri": _employer_google_redirect_uri(request),
-        "response_type": "code",
-        "scope": "openid email profile",
-        "state": state,
-        "prompt": "select_account",
-    }
-    resp = RedirectResponse(f"{GOOGLE_AUTH_URL}?{urlencode(params)}")
+    resp = RedirectResponse(authorization.url)
     resp.set_cookie(
         EMPLOYER_GOOGLE_STATE_COOKIE,
-        state,
+        authorization.state,
         max_age=600,
         httponly=True,
         secure=cfg(request).cookie_secure,
@@ -2180,15 +2065,18 @@ def employer_google_callback(
     auth.link_or_create_employer — which, unlike the Seeker version, can only
     recognise or link, never create (see that function's docstring for why).
     """
-    if error:
-        return _employer_google_failure_redirect(request, f"provider returned error={error}")
-
-    cookie_state = request.cookies.get(EMPLOYER_GOOGLE_STATE_COOKIE)
-    if not code or not state or not cookie_state or not hmac.compare_digest(state, cookie_state):
-        return _employer_google_failure_redirect(request, "missing or mismatched state (CSRF)")
-
-    client_id, client_secret = _google_configured()
-    if not client_id:
+    try:
+        claim = request.app.state.identity_protocol.complete(
+            "google",
+            _employer_google_redirect_uri(request),
+            identity_protocol.Callback(
+                code=code,
+                state=state,
+                cookie_state=request.cookies.get(EMPLOYER_GOOGLE_STATE_COOKIE),
+                error=error,
+            ),
+        )
+    except identity_protocol.ProviderUnavailable:
         logger.warning(
             "Employer Google callback reached but GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET "
             "are not set"
@@ -2196,50 +2084,16 @@ def employer_google_callback(
         resp = RedirectResponse(f"{_public_base(request)}/employer/signin?error=google_unavailable")
         resp.delete_cookie(EMPLOYER_GOOGLE_STATE_COOKIE, path=EMPLOYER_GOOGLE_STATE_COOKIE_PATH)
         return resp
-
-    try:
-        with httpx.Client(timeout=10) as http:
-            token_res = http.post(
-                GOOGLE_TOKEN_URL,
-                data={
-                    "code": code,
-                    "client_id": client_id,
-                    "client_secret": client_secret,
-                    "redirect_uri": _employer_google_redirect_uri(request),
-                    "grant_type": "authorization_code",
-                },
-            )
-            token_res.raise_for_status()
-            id_token = token_res.json().get("id_token", "")
-
-            info_res = http.get(GOOGLE_TOKENINFO_URL, params={"id_token": id_token})
-            info_res.raise_for_status()
-            info = info_res.json()
-    except httpx.HTTPError as exc:
-        return _employer_google_failure_redirect(request, f"token exchange failed: {exc}")
-
-    if info.get("aud") != client_id:
-        return _employer_google_failure_redirect(request, "id_token audience mismatch")
-
-    subject = info.get("sub", "")
-    if not subject:
-        return _employer_google_failure_redirect(request, "id_token carried no subject")
-
-    claim = auth.IdentityClaim(
-        provider="google",
-        subject=subject,
-        email=info.get("email"),
-        # Same string-not-bool gotcha as google_callback() — see that
-        # function's comment.
-        email_verified=info.get("email_verified") == "true",
-        display_name=info.get("name"),
-    )
+    except identity_protocol.IdentityProtocolError as exc:
+        return _employer_google_failure_redirect(request, str(exc))
 
     store = employers_store.get_store()
     try:
         result = auth.link_or_create_employer(store, claim)
     except auth.IdentityLinkRefused as exc:
-        logger.warning("Employer Google identity link refused for subject %s: %s", subject, exc)
+        logger.warning(
+            "Employer Google identity link refused for subject %s: %s", claim.subject, exc
+        )
         target = f"{_public_base(request)}/employer/register?error=google_link_refused"
         resp = RedirectResponse(target)
         resp.delete_cookie(EMPLOYER_GOOGLE_STATE_COOKIE, path=EMPLOYER_GOOGLE_STATE_COOKIE_PATH)
@@ -2312,7 +2166,13 @@ def _mount_frontend(app: FastAPI, settings: Settings) -> None:
         return FileResponse(settings.index_html, headers={"Cache-Control": "no-cache"})
 
 
-def create_app(settings: Settings | None = None, *, sender: Sender | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    *,
+    sender: Sender | None = None,
+    external_identity: identity_protocol.IdentityProtocol | None = None,
+    role_access_control: role_access.RoleAccess | None = None,
+) -> FastAPI:
     """
     Build an app from an explicit configuration.
 
@@ -2325,6 +2185,10 @@ def create_app(settings: Settings | None = None, *, sender: Sender | None = None
     settings = settings or Settings.from_env()
     # SmtpSender by default; a test passes a RecordingSender and asserts on it.
     sender = sender if sender is not None else SmtpSender()
+    external_identity = external_identity or identity_protocol.IdentityProtocol()
+    role_access_control = role_access_control or role_access.RoleAccess(
+        settings.role_access_secret
+    )
 
     app = FastAPI(
         title="FinEx Careers API",
@@ -2334,6 +2198,8 @@ def create_app(settings: Settings | None = None, *, sender: Sender | None = None
     )
     app.state.settings = settings
     app.state.sender = sender
+    app.state.identity_protocol = external_identity
+    app.state.role_access = role_access_control
     # Per-app, so two apps in one process (which is what the tests build) cannot
     # share a rate-limit budget. Redis-backed once settings.redis_url is set —
     # see Settings.redis_url and rate_limit.py for why that matters once this

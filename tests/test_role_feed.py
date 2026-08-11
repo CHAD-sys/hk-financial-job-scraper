@@ -73,7 +73,7 @@ def _store(tmp_path, monkeypatch):
     return seekers_store.get_store()
 
 
-def test_anonymous_feed_is_market_based_and_has_no_seeker_side_effect(tmp_path, monkeypatch):
+def test_anonymous_feed_is_empty_and_has_no_seeker_side_effect(tmp_path, monkeypatch):
     store = _store(tmp_path, monkeypatch)
     with _jobs_database(tmp_path) as jobs:
         feed = role_feed.roles_for_seeker(
@@ -87,7 +87,8 @@ def test_anonymous_feed_is_market_based_and_has_no_seeker_side_effect(tmp_path, 
     assert feed.personalized is False
     assert feed.personalization_enabled is False
     assert feed.batch_id is None
-    assert len(feed.items) == 2
+    assert feed.items == ()
+    assert feed.eligible_count == 0
     assert store.list_recommendation_impressions("missing") == []
 
     with sqlite3.connect(tmp_path / "jobs.db") as jobs:

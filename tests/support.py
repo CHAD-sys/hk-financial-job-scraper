@@ -222,6 +222,8 @@ def make_app(db: Path, dist: Path | None = None, submissions: Path | None = None
     from settings import Settings
 
     sender = over.pop("sender", None) or RecordingSender()
+    external_identity = over.pop("external_identity", None)
+    role_access_control = over.pop("role_access_control", None)
     return create_app(
         Settings(
             jobs_db=db,
@@ -230,4 +232,6 @@ def make_app(db: Path, dist: Path | None = None, submissions: Path | None = None
             **over,
         ),
         sender=sender,
+        external_identity=external_identity,
+        role_access_control=role_access_control,
     )

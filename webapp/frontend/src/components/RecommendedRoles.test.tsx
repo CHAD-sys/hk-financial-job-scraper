@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Job, Seeker } from '../api/client'
+import type { Job, ResumeMatchesResponse, Seeker } from '../api/client'
 
 const SEEKER: Seeker = {
   id: 's-1',
@@ -38,6 +38,7 @@ function makeJob(overrides: Partial<Job> = {}): Job {
     description_excerpt: '',
     closed: false,
     board_signals: {},
+    access_token: 'role-grant-J1',
     ...overrides,
   }
 }
@@ -58,11 +59,16 @@ vi.mock('../auth/useAuth', () => ({
 }))
 
 const fetchRecommendations = vi.fn<(page?: number, pageSize?: number) => Promise<unknown>>()
-const trackRecommendationClick = vi.fn(async (_source: string, _sourceId: string) => {})
+const trackRecommendationClick = vi.fn(async (
+  _source: string,
+  _sourceId: string,
+  _accessToken?: string | null,
+) => {})
 const submitRecommendationFeedback = vi.fn(async (
   _source: string,
   _sourceId: string,
   _action: string,
+  _accessToken?: string | null,
   _detail?: string,
 ) => {})
 const removeRecommendationFeedback = vi.fn(async (
@@ -77,10 +83,10 @@ vi.mock('../api/client', async (importOriginal) => ({
     fetchRecommendations(...(args as [number, number]))
   ),
   trackRecommendationClick: (...args: unknown[]) => (
-    trackRecommendationClick(...(args as [string, string]))
+    trackRecommendationClick(...(args as [string, string, string?]))
   ),
   submitRecommendationFeedback: (...args: unknown[]) => (
-    submitRecommendationFeedback(...(args as [string, string, string, string?]))
+    submitRecommendationFeedback(...(args as [string, string, string, string?, string?]))
   ),
   removeRecommendationFeedback: (...args: unknown[]) => (
     removeRecommendationFeedback(...(args as [string, string, string]))
@@ -118,7 +124,10 @@ const personalized = {
   ],
 }
 
-function renderSubject(onSelect = vi.fn()) {
+function renderSubject(
+  onSelect = vi.fn(),
+  resumeMatches: ResumeMatchesResponse | null = null,
+) {
   return {
     onSelect,
     ...render(
@@ -127,7 +136,7 @@ function renderSubject(onSelect = vi.fn()) {
           saved={() => false}
           onToggleSave={vi.fn()}
           onSelect={onSelect}
-          onExploreAll={vi.fn()}
+          resumeMatches={resumeMatches}
         />
       </MemoryRouter>,
     ),
@@ -154,22 +163,39 @@ describe('Roles for you', () => {
     expect(screen.queryByText('Market signal')).not.toBeInTheDocument()
     expect(screen.queryByText('Why it fits')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Tune your feed' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Built from/)).not.toBeInTheDocument()
   })
 
-  it('is honest about the market fallback for an anonymous visitor', async () => {
+  it('merges resume matches into Roles for you without a second category', async () => {
+    const resumeMatches: ResumeMatchesResponse = {
+      has_resume: true,
+      resume_uploaded_at: '2026-08-10T10:00:00Z',
+      model_version: 'resume-signals-v1',
+      items: [{
+        job: makeJob({ source_id: 'CV1', title: 'Portfolio Risk Manager' }),
+        match_score: 88,
+        reasons: ['Skills aligned: portfolio risk, sql'],
+      }],
+    }
+
+    renderSubject(vi.fn(), resumeMatches)
+
+    expect(await screen.findByRole('heading', { name: 'Roles for you' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Where your experience stands out' })).not.toBeInTheDocument()
+    expect(screen.getByText('Portfolio Risk Manager')).toBeInTheDocument()
+    expect(screen.getByText('88%')).toBeInTheDocument()
+    expect(screen.getByText('Skills aligned: portfolio risk, sql')).toBeInTheDocument()
+    expect(screen.getByText(/strongest experience matches/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Manage resume' })).toHaveAttribute('href', '/account')
+  })
+
+  it('does not expose a generic market feed to an anonymous visitor', async () => {
     authState = { seeker: null, loading: false }
-    fetchRecommendations.mockResolvedValue({
-      ...personalized,
-      personalized: false,
-      saved_role_count: 0,
-      activity_count: 0,
-    })
 
     renderSubject()
 
-    expect(await screen.findByText(/Sign in to shape this with Saved Roles and searches/)).toBeInTheDocument()
-    expect(screen.queryByText('Market signal')).not.toBeInTheDocument()
-    expect(screen.queryByText('Why it fits')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Roles for you' })).not.toBeInTheDocument()
+    expect(fetchRecommendations).not.toHaveBeenCalled()
   })
 
   it('records an opened recommendation before showing its detail', async () => {
@@ -180,7 +206,11 @@ describe('Roles for you', () => {
     fireEvent.click(role)
 
     await waitFor(() => {
-      expect(trackRecommendationClick).toHaveBeenCalledWith('workday', 'J1')
+      expect(trackRecommendationClick).toHaveBeenCalledWith(
+        'workday',
+        'J1',
+        'role-grant-J1',
+      )
     })
     expect(onSelect).toHaveBeenCalledWith(personalized.items[0].job)
   })
@@ -204,6 +234,7 @@ describe('Roles for you', () => {
         'workday',
         'J1',
         'more_like',
+        'role-grant-J1',
       )
     })
     expect(screen.getByText(/We’ll show you more Roles like this/)).toBeInTheDocument()
@@ -219,6 +250,7 @@ describe('Roles for you', () => {
         'workday',
         'J1',
         'not_interested',
+        'role-grant-J1',
       )
     })
     expect(await screen.findByRole('button', { name: 'Undo' })).toBeInTheDocument()

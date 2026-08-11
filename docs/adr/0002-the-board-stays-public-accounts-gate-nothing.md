@@ -1,6 +1,6 @@
 # The board stays public; accounts gate nothing
 
-**Status:** accepted (2026-07-30)
+**Status:** superseded by ADR 0018 (2026-08-11)
 
 A Seeker account unlocks features (durable Saved Roles, email alerts) but is never
 required to read a Role. Title, company, location, full description, salary estimate

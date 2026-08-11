@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  ArrowRight,
+  BadgeCheck,
   LoaderCircle,
   RefreshCw,
   ShieldCheck,
@@ -15,6 +15,7 @@ import type {
   Job,
   RecommendedRole,
   RecommendationsResponse,
+  ResumeMatchesResponse,
 } from '../api/client'
 import {
   fetchRecommendations,
@@ -32,7 +33,7 @@ interface Props {
   saved: (job: Job) => boolean
   onToggleSave: (job: Job) => void
   onSelect: (job: Job) => void
-  onExploreAll: () => void
+  resumeMatches?: ResumeMatchesResponse | null
 }
 
 interface ToastState {
@@ -47,9 +48,10 @@ export default function RecommendedRoles({
   saved,
   onToggleSave,
   onSelect,
-  onExploreAll,
+  resumeMatches = null,
 }: Props) {
   const { seeker, loading: authLoading } = useAuth()
+  const seekerId = seeker?.id
   const [feed, setFeed] = useState<RecommendationsResponse | null>(null)
   const [page, setPage] = useState(1)
   const [nonce, setNonce] = useState(0)
@@ -61,6 +63,11 @@ export default function RecommendedRoles({
 
   useEffect(() => {
     if (authLoading) return
+    if (!seekerId) {
+      setFeed(null)
+      setLoading(false)
+      return
+    }
     let cancelled = false
     setLoading(true)
     setError(false)
@@ -76,7 +83,7 @@ export default function RecommendedRoles({
         if (!cancelled) setLoading(false)
       })
     return () => { cancelled = true }
-  }, [authLoading, seeker?.id, page, nonce])
+  }, [authLoading, seekerId, page, nonce])
 
   useEffect(() => {
     if (!toast) return
@@ -97,9 +104,11 @@ export default function RecommendedRoles({
   }, [feed?.total_pages, page])
 
   const openRole = useCallback((job: Job) => {
-    if (seeker) trackRecommendationClick(job.source, job.source_id).catch(console.error)
+    if (seekerId) {
+      trackRecommendationClick(job.source, job.source_id, job.access_token).catch(console.error)
+    }
     onSelect(job)
-  }, [onSelect, seeker])
+  }, [onSelect, seekerId])
 
   const setMoreLikeFeedback = useCallback((job: Job, active: boolean) => {
     setFeed(current => {
@@ -131,7 +140,12 @@ export default function RecommendedRoles({
         setMoreLikeFeedback(item.job, false)
         setToast({ message: 'This Role is no longer shaping your recommendations.' })
       } else {
-        await submitRecommendationFeedback(item.job.source, item.job.source_id, 'more_like')
+        await submitRecommendationFeedback(
+          item.job.source,
+          item.job.source_id,
+          'more_like',
+          item.job.access_token,
+        )
         setMoreLikeFeedback(item.job, true)
         setToast({ message: 'We’ll show you more Roles like this.' })
       }
@@ -146,7 +160,12 @@ export default function RecommendedRoles({
     const key = roleKey(item.job)
     setPendingRef(key)
     try {
-      await submitRecommendationFeedback(item.job.source, item.job.source_id, 'not_interested')
+      await submitRecommendationFeedback(
+        item.job.source,
+        item.job.source_id,
+        'not_interested',
+        item.job.access_token,
+      )
       setFeed(current => current
         ? { ...current, items: current.items.filter(value => roleKey(value.job) !== key) }
         : current)
@@ -181,6 +200,16 @@ export default function RecommendedRoles({
     }
   }
 
+  if (!authLoading && !seeker) return null
+
+  const experienceMatches = resumeMatches?.has_resume ? resumeMatches.items : []
+  const experienceRefs = new Set(experienceMatches.map(item => roleKey(item.job)))
+  const recommendedItems = (feed?.items ?? []).filter(
+    item => !experienceRefs.has(roleKey(item.job)),
+  )
+  const hasResume = Boolean(resumeMatches?.has_resume)
+  const hasRoles = experienceMatches.length > 0 || recommendedItems.length > 0
+
   return (
     <section className="mb-10 sm:mb-14" aria-labelledby="roles-for-you-heading">
       <div className="recommendation-heading mb-5">
@@ -192,15 +221,14 @@ export default function RecommendedRoles({
             </h2>
           </div>
           <RecommendationContext
-            signedIn={Boolean(seeker)}
             loading={loading || !feed}
             personalized={Boolean(feed?.personalized)}
-            savedCount={feed?.saved_role_count ?? 0}
-            activityCount={feed?.activity_count ?? 0}
+            hasResume={hasResume}
           />
         </div>
 
         <div className="recommendation-heading__actions">
+          {hasResume && <Link to="/account" className="recommendation-manage-link">Manage resume</Link>}
           <button
             type="button"
             onClick={showOthers}
@@ -209,10 +237,6 @@ export default function RecommendedRoles({
           >
             <RefreshCw size={14} strokeWidth={2.25} className={loading ? 'animate-spin' : undefined} aria-hidden="true" />
             Show me others
-          </button>
-          <button type="button" onClick={onExploreAll} className="recommendation-explore-button">
-            Explore all Roles
-            <ArrowRight size={14} strokeWidth={2.25} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -228,10 +252,10 @@ export default function RecommendedRoles({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Loading recommended Roles">
           {Array.from({ length: PAGE_SIZE }).map((_, index) => <SkeletonCard key={index} />)}
         </div>
-      ) : feed.items.length === 0 ? (
+      ) : !hasRoles ? (
         <FeedMessage>
           <p className="text-sm" style={{ color: 'var(--color-ink-muted)' }}>
-            You have reviewed this set. Show another set or explore every open Role.
+            Start with a search above, save a relevant Role, or upload your resume to build this feed.
           </p>
           <button type="button" onClick={showOthers} className="recommendation-primary-button mt-4">
             <RefreshCw size={15} aria-hidden="true" /> Show me others
@@ -239,7 +263,22 @@ export default function RecommendedRoles({
         </FeedMessage>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-live="polite">
-          {feed.items.map(item => {
+          {experienceMatches.map(item => (
+            <article key={`resume__${roleKey(item.job)}`} className="resume-match-card">
+              <JobCard
+                job={item.job}
+                saved={saved(item.job)}
+                onToggleSave={onToggleSave}
+                onClick={onSelect}
+              />
+              <p className="resume-match-card__reason">
+                <BadgeCheck size={14} className="shrink-0" aria-hidden="true" />
+                <strong>{item.match_score}%</strong>
+                {item.reasons[0] || 'Relevant experience found in your resume'}
+              </p>
+            </article>
+          ))}
+          {recommendedItems.map(item => {
             const key = roleKey(item.job)
             const moreLikeActive = (item.feedback ?? []).includes('more_like')
             const isPending = pendingRef === key
@@ -309,29 +348,14 @@ function FeedMessage({ children }: { children: React.ReactNode }) {
 }
 
 function RecommendationContext({
-  signedIn,
   loading,
   personalized,
-  savedCount,
-  activityCount,
+  hasResume,
 }: {
-  signedIn: boolean
   loading: boolean
   personalized: boolean
-  savedCount: number
-  activityCount: number
+  hasResume: boolean
 }) {
-  if (!signedIn) {
-    return (
-      <p className="text-sm leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
-        A fresh cross-section of the market.{' '}
-        <Link to="/signin?next=/jobs" className="font-semibold underline-offset-2 hover:underline">
-          Sign in to shape this with Saved Roles and searches.
-        </Link>
-      </p>
-    )
-  }
-
   if (loading) {
     return (
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -347,20 +371,26 @@ function RecommendationContext({
     return (
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <p className="text-sm leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
-          Save a Role, use filters, or choose “More like this” to sharpen the feed. Settled choices—not keystrokes—stay with your account.
+          Run a search, save a relevant Role, or upload your resume to build this feed. Settled choices—not keystrokes—stay with your account.
         </p>
         <PrivateLabel />
       </div>
     )
   }
 
-  const savedLabel = `${savedCount} Saved Role${savedCount === 1 ? '' : 's'}`
-  const activityLabel = `${activityCount} recent search/filter choice${activityCount === 1 ? '' : 's'}`
+  if (hasResume) {
+    return (
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <p className="text-sm leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
+          Your strongest experience matches, plus Roles shaped by your activity.
+        </p>
+        <PrivateLabel />
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-      <p className="text-sm leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
-        Built from {savedLabel}, {activityLabel}, and your direct feedback.
-      </p>
       <PrivateLabel />
     </div>
   )

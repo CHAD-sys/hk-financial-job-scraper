@@ -57,10 +57,10 @@ def test_two_apps_can_serve_two_databases_at_once(tmp_path):
     first = TestClient(make_app(_db(tmp_path, "first", "HSBC")))
     second = TestClient(make_app(_db(tmp_path, "second", "AIA")))
 
-    assert first.get("/api/jobs").json()["jobs"][0]["company"] == "HSBC"
-    assert second.get("/api/jobs").json()["jobs"][0]["company"] == "AIA"
+    assert first.get("/api/jobs", params={"search": "first"}).json()["jobs"][0]["company"] == "HSBC"
+    assert second.get("/api/jobs", params={"search": "second"}).json()["jobs"][0]["company"] == "AIA"
     # And the first is still itself — building the second did not reconfigure it.
-    assert first.get("/api/jobs").json()["jobs"][0]["company"] == "HSBC"
+    assert first.get("/api/jobs", params={"search": "first"}).json()["jobs"][0]["company"] == "HSBC"
 
 
 def test_settings_are_reachable_from_a_request(tmp_path):
@@ -200,7 +200,7 @@ def test_the_frontend_mount_is_decided_per_app(tmp_path):
 
     assert with_ui.get("/jobs").status_code == 200     # SPA catch-all serves index.html
     assert without_ui.get("/jobs").status_code == 404  # nothing to serve
-    assert without_ui.get("/api/jobs").status_code == 200
+    assert without_ui.get("/api/jobs", params={"search": "spa"}).status_code == 200
 
 
 @pytest.mark.parametrize("secure", [True, False])

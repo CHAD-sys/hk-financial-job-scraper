@@ -254,7 +254,12 @@ def test_the_endpoint_lists_the_open_and_the_recently_closed_but_not_the_long_cl
     })
     for source_id in ("OPEN", "JUST_CLOSED", "LONG_CLOSED"):
         assert client.post(
-            "/api/me/saved", json={"source": "workday", "source_id": source_id}
+            "/api/me/saved",
+            json={
+                "source": "workday",
+                "source_id": source_id,
+                "access_token": client.app.state.role_access.issue("workday", source_id),
+            },
         ).status_code == 204
 
     listed = client.get("/api/me/saved")
@@ -274,7 +279,14 @@ def test_the_reference_survives_the_role_leaving_the_list(client):
     client.post("/api/auth/register", json={
         "email": "seeker@example.com", "password": "correct-horse-battery",
     })
-    client.post("/api/me/saved", json={"source": "workday", "source_id": "LONG_CLOSED"})
+    client.post(
+        "/api/me/saved",
+        json={
+            "source": "workday",
+            "source_id": "LONG_CLOSED",
+            "access_token": client.app.state.role_access.issue("workday", "LONG_CLOSED"),
+        },
+    )
     assert client.get("/api/me/saved").json() == []
 
     store = seekers_store.get_store()

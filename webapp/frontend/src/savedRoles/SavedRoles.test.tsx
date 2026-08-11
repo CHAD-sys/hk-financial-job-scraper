@@ -32,6 +32,7 @@ function makeJob(over: Partial<Job> = {}): Job {
     salary_estimated_confidence: null, years_experience_required: null,
     posted_at: '2026-07-01', url: 'https://example.test/j1', is_internship: false,
     description_excerpt: '', closed: false, board_signals: {},
+    access_token: 'role-grant',
     ...over,
   }
 }
@@ -52,7 +53,14 @@ vi.mock('../auth/useAuth', () => ({
 const fetchSavedRoles = vi.fn(async () => [SERVER_ROLE])
 const saveRole = vi.fn(async () => {})
 const unsaveRole = vi.fn(async () => {})
-const mergeSavedRoles = vi.fn(async () => ({ merged: 0, submitted: 0 }))
+const mergeSavedRoles = vi.fn(async (...args: unknown[]) => {
+  const roles = args[0] as { source: string; source_id: string }[]
+  return {
+    merged: roles.length,
+    submitted: roles.length,
+    accepted: roles.map(({ source, source_id }) => ({ source, source_id })),
+  }
+})
 
 vi.mock('../api/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../api/client')>()),
@@ -158,7 +166,7 @@ describe('signed in', () => {
 
     await waitFor(() => expect(mergeSavedRoles).toHaveBeenCalledTimes(1))
     expect(mergeSavedRoles).toHaveBeenCalledWith([
-      { source: 'workday', source_id: 'FROM_BROWSER' },
+      { source: 'workday', source_id: 'FROM_BROWSER', access_token: 'role-grant' },
     ])
     // The endpoint is atomic and idempotent; N individual POSTs are not.
     expect(saveRole).not.toHaveBeenCalled()

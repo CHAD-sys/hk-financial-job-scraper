@@ -197,7 +197,7 @@ export default function MobileFilterSheet({
             className="flex min-h-11 items-center gap-1.5 text-sm font-semibold cursor-pointer whitespace-nowrap"
             style={{ color: 'var(--color-gold)' }}
           >
-            <X size={14} /> Clear all ({activeCount})
+            <X size={14} /> Clear filters ({activeCount})
           </button>
         )}
         <button

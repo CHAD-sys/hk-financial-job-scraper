@@ -43,10 +43,10 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
 
   useEffect(() => {
     setLoading(true)
-    fetchJobDetail(job.source, job.source_id)
+    fetchJobDetail(job.source, job.source_id, job.access_token)
       .then(setDetail)
       .finally(() => setLoading(false))
-  }, [job.source, job.source_id])
+  }, [job.access_token, job.source, job.source_id])
 
   // Open as a modal: the native <dialog> gives us focus trapping and the
   // ::backdrop layer for free. Clicks on the ::backdrop are delivered with
