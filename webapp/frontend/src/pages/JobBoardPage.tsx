@@ -1,7 +1,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams, useLocation } from 'react-router-dom'
 import { ChevronDown, Star, EyeOff, ArrowLeft } from 'lucide-react'
-import type { Job, FiltersResponse, JobListResponse, TierTab } from '../api/client'
+import type {
+  Job,
+  FiltersResponse,
+  JobListResponse,
+  ResumeMatchesResponse,
+  TierTab,
+} from '../api/client'
 import {
   DEFAULT_FILTERS, fetchJobs, fetchFilters, fetchStats,
   filtersToSearchParams, searchParamsToFilters,
@@ -67,6 +73,7 @@ export default function JobBoardPage() {
   const [sectorCount, setSectorCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
+  const [resumeMatches, setResumeMatches] = useState<ResumeMatchesResponse | null>(null)
   // Recruiter Posts contextual sub-section (decision #9): a separate fetch/
   // state pair so these jobs render in their own distinct block, never mixed
   // into the main grid's `jobs.map(...)` loop above.
@@ -287,14 +294,13 @@ export default function JobBoardPage() {
             }}
           >
             <ResumeMatches
-              saved={isSaved}
-              onToggleSave={toggleSave}
-              onSelect={setSelectedJob}
+              onResolved={setResumeMatches}
             />
             <RecommendedRoles
               saved={isSaved}
               onToggleSave={toggleSave}
               onSelect={setSelectedJob}
+              resumeMatches={resumeMatches}
             />
             <IndexStats
               boardTotal={boardTotal}

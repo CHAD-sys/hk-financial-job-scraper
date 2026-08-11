@@ -617,6 +617,21 @@ select.finex-input {
   align-items: center;
   gap: 0.5rem;
 }
+.recommendation-manage-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  padding: 0.55rem 0.35rem;
+  color: var(--color-ink-muted);
+  font-size: 0.75rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+.recommendation-manage-link:hover {
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-underline-offset: 0.2rem;
+}
 .recommendation-action-button,
 .recommendation-explore-button,
 .recommendation-primary-button {

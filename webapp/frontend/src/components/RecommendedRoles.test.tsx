@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Job, Seeker } from '../api/client'
+import type { Job, ResumeMatchesResponse, Seeker } from '../api/client'
 
 const SEEKER: Seeker = {
   id: 's-1',
@@ -124,7 +124,10 @@ const personalized = {
   ],
 }
 
-function renderSubject(onSelect = vi.fn()) {
+function renderSubject(
+  onSelect = vi.fn(),
+  resumeMatches: ResumeMatchesResponse | null = null,
+) {
   return {
     onSelect,
     ...render(
@@ -133,6 +136,7 @@ function renderSubject(onSelect = vi.fn()) {
           saved={() => false}
           onToggleSave={vi.fn()}
           onSelect={onSelect}
+          resumeMatches={resumeMatches}
         />
       </MemoryRouter>,
     ),
@@ -159,6 +163,30 @@ describe('Roles for you', () => {
     expect(screen.queryByText('Market signal')).not.toBeInTheDocument()
     expect(screen.queryByText('Why it fits')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Tune your feed' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Built from/)).not.toBeInTheDocument()
+  })
+
+  it('merges resume matches into Roles for you without a second category', async () => {
+    const resumeMatches: ResumeMatchesResponse = {
+      has_resume: true,
+      resume_uploaded_at: '2026-08-10T10:00:00Z',
+      model_version: 'resume-signals-v1',
+      items: [{
+        job: makeJob({ source_id: 'CV1', title: 'Portfolio Risk Manager' }),
+        match_score: 88,
+        reasons: ['Skills aligned: portfolio risk, sql'],
+      }],
+    }
+
+    renderSubject(vi.fn(), resumeMatches)
+
+    expect(await screen.findByRole('heading', { name: 'Roles for you' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Where your experience stands out' })).not.toBeInTheDocument()
+    expect(screen.getByText('Portfolio Risk Manager')).toBeInTheDocument()
+    expect(screen.getByText('88%')).toBeInTheDocument()
+    expect(screen.getByText('Skills aligned: portfolio risk, sql')).toBeInTheDocument()
+    expect(screen.getByText(/strongest experience matches/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Manage resume' })).toHaveAttribute('href', '/account')
   })
 
   it('does not expose a generic market feed to an anonymous visitor', async () => {
