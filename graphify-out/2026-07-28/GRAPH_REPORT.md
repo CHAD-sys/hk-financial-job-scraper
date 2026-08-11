@@ -299,7 +299,6 @@ Nodes (27): _job(), Tests for Phase 19 cross-source apply routing:   - JobStore.
 
 ### Community 24 - "Submit Endpoint Tests"
 Cohesion: 0.13
-Nodes (27): client(), enquiry(), Tests for the two write endpoints — /api/contact and /api/post-role.  These are, End-to-end: real send_mail, only the SMTP socket faked.      Mocking send_mail h, _header_safe is the last line of defence; test it directly., An attacker-supplied 'to' must be ignored, not honoured., Mail is best-effort; the JSONL queue is the source of truth., A fresh app per test, writing its JSONL queue into tmp_path. (+19 more)
 
 ### Community 25 - "JobsDB Adapter Core"
 Cohesion: 0.10
@@ -379,7 +378,6 @@ Nodes (11): _parse_cards(), Extract job cards from a LinkedIn guest-search HTML 
 
 ### Community 44 - "API Client & Enquiry Form"
 Cohesion: 0.12
-Nodes (15): CAREER_STAGES, DEFAULT_FILTERS, EnquiryPayload, fetchJobs(), JobListResponse, NameCount, postJson(), RolePayload (+7 more)
 
 ### Community 45 - "Job Board Page & Pagination"
 Cohesion: 0.11
@@ -571,7 +569,6 @@ Nodes (9): datetime, BudgetStatus, check_budget(), month_to_date_spend(), Month-
 
 ### Community 92 - "Email Credential Resolution"
 Cohesion: 0.28
-Nodes (9): Gmail App Password, Not Account Password, Bare-Environment Backend Bug, Credential Resolution Order, Append-Only Enquiry Queue, env_file.py Gap-Filling Loader, MIMEMultipart vs EmailMessage Construction, Production Prerequisites Checklist, Role Submission Human Review Gate (+1 more)
 
 ### Community 93 - "Vendor Client Actor Calls"
 Cohesion: 0.22

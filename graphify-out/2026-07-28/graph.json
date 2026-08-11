@@ -447,13 +447,13 @@
       "id": "backend_mailer_rationale_1"
     },
     {
-      "label": "Send one plain-text message to RECIPIENT. Returns False on any failure \u2014     cal",
+      "label": "Send one plain-text message to RECIPIENT. Returns False on any failure —     cal",
       "file_type": "rationale",
       "source_file": "webapp/backend/mailer.py",
       "source_location": "L48",
       "_origin": "ast",
       "community": 64,
-      "norm_label": "send one plain-text message to recipient. returns false on any failure \u2014     cal",
+      "norm_label": "send one plain-text message to recipient. returns false on any failure —     cal",
       "id": "backend_mailer_rationale_48"
     },
     {
@@ -847,13 +847,13 @@
       "id": "backend_main_health"
     },
     {
-      "label": "FinEx Careers \u2014 FastAPI backend  Read access to jobs.db (SQLite), plus two write",
+      "label": "FinEx Careers — FastAPI backend  Read access to jobs.db (SQLite), plus two write",
       "file_type": "rationale",
       "source_file": "webapp/backend/main.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 46,
-      "norm_label": "finex careers \u2014 fastapi backend  read access to jobs.db (sqlite), plus two write",
+      "norm_label": "finex careers — fastapi backend  read access to jobs.db (sqlite), plus two write",
       "id": "backend_main_rationale_1"
     },
     {
@@ -917,23 +917,13 @@
       "id": "backend_main_rationale_894"
     },
     {
-      "label": "Executive Career Consultation enquiry \u2192 JSONL queue + email notification.",
-      "file_type": "rationale",
-      "source_file": "webapp/backend/main.py",
-      "source_location": "L962",
-      "_origin": "ast",
-      "community": 64,
-      "norm_label": "executive career consultation enquiry \u2192 jsonl queue + email notification.",
-      "id": "backend_main_rationale_962"
-    },
-    {
-      "label": "Recruiter/employer role submission \u2192 JSONL moderation queue + email.      Note t",
+      "label": "Recruiter/employer role submission → JSONL moderation queue + email.      Note t",
       "file_type": "rationale",
       "source_file": "webapp/backend/main.py",
       "source_location": "L991",
       "_origin": "ast",
       "community": 64,
-      "norm_label": "recruiter/employer role submission \u2192 jsonl moderation queue + email.      note t",
+      "norm_label": "recruiter/employer role submission → jsonl moderation queue + email.      note t",
       "id": "backend_main_rationale_991"
     },
     {
@@ -957,13 +947,13 @@
       "id": "docs_plan_accounts"
     },
     {
-      "label": "PLAN \u2014 User accounts, sign-in, and gated listings",
+      "label": "PLAN — User accounts, sign-in, and gated listings",
       "file_type": "document",
       "source_file": "docs/PLAN_ACCOUNTS.md",
       "source_location": "L1",
       "_origin": "ast",
       "community": 61,
-      "norm_label": "plan \u2014 user accounts, sign-in, and gated listings",
+      "norm_label": "plan — user accounts, sign-in, and gated listings",
       "id": "docs_plan_accounts_plan_user_accounts_sign_in_and_gated_listings"
     },
     {
@@ -1007,23 +997,23 @@
       "id": "docs_plan_accounts_4_facts_established_do_not_re_derive"
     },
     {
-      "label": "5. Data model \u2014 `data/users.db`",
+      "label": "5. Data model — `data/users.db`",
       "file_type": "document",
       "source_file": "docs/PLAN_ACCOUNTS.md",
       "source_location": "L79",
       "_origin": "ast",
       "community": 61,
-      "norm_label": "5. data model \u2014 `data/users.db`",
+      "norm_label": "5. data model — `data/users.db`",
       "id": "docs_plan_accounts_5_data_model_data_users_db"
     },
     {
-      "label": "6. Backend \u2014 `webapp/backend/auth.py` (new) + routes in `main.py`",
+      "label": "6. Backend — `webapp/backend/auth.py` (new) + routes in `main.py`",
       "file_type": "document",
       "source_file": "docs/PLAN_ACCOUNTS.md",
       "source_location": "L130",
       "_origin": "ast",
       "community": 61,
-      "norm_label": "6. backend \u2014 `webapp/backend/auth.py` (new) + routes in `main.py`",
+      "norm_label": "6. backend — `webapp/backend/auth.py` (new) + routes in `main.py`",
       "id": "docs_plan_accounts_6_backend_webapp_backend_auth_py_new_routes_in_main_py"
     },
     {
@@ -1057,13 +1047,13 @@
       "id": "docs_plan_accounts_7_2_search_still_works_on_gated_fields"
     },
     {
-      "label": "8. Consequences of gating \u2014 required work, not optional",
+      "label": "8. Consequences of gating — required work, not optional",
       "file_type": "document",
       "source_file": "docs/PLAN_ACCOUNTS.md",
       "source_location": "L199",
       "_origin": "ast",
       "community": 61,
-      "norm_label": "8. consequences of gating \u2014 required work, not optional",
+      "norm_label": "8. consequences of gating — required work, not optional",
       "id": "docs_plan_accounts_8_consequences_of_gating_required_work_not_optional"
     },
     {
@@ -1547,13 +1537,13 @@
       "id": "scripts_review_submissions_rationale_1"
     },
     {
-      "label": "Rewrite the queue atomically \u2014 a half-written queue would lose submissions.",
+      "label": "Rewrite the queue atomically — a half-written queue would lose submissions.",
       "file_type": "rationale",
       "source_file": "scripts/review_submissions.py",
       "source_location": "L55",
       "_origin": "ast",
       "community": 73,
-      "norm_label": "rewrite the queue atomically \u2014 a half-written queue would lose submissions.",
+      "norm_label": "rewrite the queue atomically — a half-written queue would lose submissions.",
       "id": "scripts_review_submissions_rationale_55"
     },
     {
@@ -1567,13 +1557,13 @@
       "id": "scripts_review_submissions_rationale_64"
     },
     {
-      "label": "Same fingerprint the scraper uses \u2014 see Job.dedup_hash() in hk_jobs/schema.py:",
+      "label": "Same fingerprint the scraper uses — see Job.dedup_hash() in hk_jobs/schema.py:",
       "file_type": "rationale",
       "source_file": "scripts/review_submissions.py",
       "source_location": "L79",
       "_origin": "ast",
       "community": 73,
-      "norm_label": "same fingerprint the scraper uses \u2014 see job.dedup_hash() in hk_jobs/schema.py:",
+      "norm_label": "same fingerprint the scraper uses — see job.dedup_hash() in hk_jobs/schema.py:",
       "id": "scripts_review_submissions_rationale_79"
     },
     {
@@ -2057,13 +2047,13 @@
       "id": "adapters_efc_extract_efc_id"
     },
     {
-      "label": "eFinancialCareers adapter (per-company, JSON API).  \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+      "label": "eFinancialCareers adapter (per-company, JSON API).  ╔═══════════════════════════",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/efc.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 3,
-      "norm_label": "efinancialcareers adapter (per-company, json api).  \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+      "norm_label": "efinancialcareers adapter (per-company, json api).  ╔═══════════════════════════",
       "id": "adapters_efc_rationale_1"
     },
     {
@@ -2247,13 +2237,13 @@
       "id": "adapters_eightfold_rationale_62"
     },
     {
-      "label": "Public entry point \u2014 wraps _fetch_all in _safe_fetch for error isolation.",
+      "label": "Public entry point — wraps _fetch_all in _safe_fetch for error isolation.",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/eightfold.py",
       "source_location": "L89",
       "_origin": "ast",
       "community": 6,
-      "norm_label": "public entry point \u2014 wraps _fetch_all in _safe_fetch for error isolation.",
+      "norm_label": "public entry point — wraps _fetch_all in _safe_fetch for error isolation.",
       "id": "adapters_eightfold_rationale_89"
     },
     {
@@ -2437,13 +2427,13 @@
       "id": "adapters_indeed_extract_signals"
     },
     {
-      "label": "Indeed fallback adapter.  \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+      "label": "Indeed fallback adapter.  ╔═════════════════════════════════════════════════════",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/indeed.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 59,
-      "norm_label": "indeed fallback adapter.  \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+      "norm_label": "indeed fallback adapter.  ╔═════════════════════════════════════════════════════",
       "id": "adapters_indeed_rationale_1"
     },
     {
@@ -2477,23 +2467,23 @@
       "id": "adapters_indeed_rationale_112"
     },
     {
-      "label": "Fetch url and return (http_status, html_string).          Single mockable seam \u2014",
+      "label": "Fetch url and return (http_status, html_string).          Single mockable seam —",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/indeed.py",
       "source_location": "L154",
       "_origin": "ast",
       "community": 78,
-      "norm_label": "fetch url and return (http_status, html_string).          single mockable seam \u2014",
+      "norm_label": "fetch url and return (http_status, html_string).          single mockable seam —",
       "id": "adapters_indeed_rationale_154"
     },
     {
-      "label": "page 1 \u2192 base URL; page N \u2192 ?start=(N-1)*20 (steps of 20, never 10).",
+      "label": "page 1 → base URL; page N → ?start=(N-1)*20 (steps of 20, never 10).",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/indeed.py",
       "source_location": "L175",
       "_origin": "ast",
       "community": 78,
-      "norm_label": "page 1 \u2192 base url; page n \u2192 ?start=(n-1)*20 (steps of 20, never 10).",
+      "norm_label": "page 1 → base url; page n → ?start=(n-1)*20 (steps of 20, never 10).",
       "id": "adapters_indeed_rationale_175"
     },
     {
@@ -2727,13 +2717,13 @@
       "id": "adapters_jobsdb_extract_source_id"
     },
     {
-      "label": "JobsDB fallback adapter.  \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+      "label": "JobsDB fallback adapter.  ╔═════════════════════════════════════════════════════",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/jobsdb.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 21,
-      "norm_label": "jobsdb fallback adapter.  \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+      "norm_label": "jobsdb fallback adapter.  ╔═════════════════════════════════════════════════════",
       "id": "adapters_jobsdb_rationale_1"
     },
     {
@@ -2777,13 +2767,13 @@
       "id": "adapters_jobsdb_rationale_130"
     },
     {
-      "label": "Fetch url and return (http_status, html_string).          Single mockable seam \u2014",
+      "label": "Fetch url and return (http_status, html_string).          Single mockable seam —",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/jobsdb.py",
       "source_location": "L194",
       "_origin": "ast",
       "community": 25,
-      "norm_label": "fetch url and return (http_status, html_string).          single mockable seam \u2014",
+      "norm_label": "fetch url and return (http_status, html_string).          single mockable seam —",
       "id": "adapters_jobsdb_rationale_194"
     },
     {
@@ -3027,13 +3017,13 @@
       "id": "adapters_linkedin_parse_cards"
     },
     {
-      "label": "LinkedIn fallback adapter (public *guest* jobs API \u2014 no login).  \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+      "label": "LinkedIn fallback adapter (public *guest* jobs API — no login).  ╔══════════════",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/linkedin.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 84,
-      "norm_label": "linkedin fallback adapter (public *guest* jobs api \u2014 no login).  \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+      "norm_label": "linkedin fallback adapter (public *guest* jobs api — no login).  ╔══════════════",
       "id": "adapters_linkedin_rationale_1"
     },
     {
@@ -3057,13 +3047,13 @@
       "id": "adapters_linkedin_rationale_94"
     },
     {
-      "label": "Fetch url and return (http_status, html_string).          Single mockable seam \u2014",
+      "label": "Fetch url and return (http_status, html_string).          Single mockable seam —",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/linkedin.py",
       "source_location": "L143",
       "_origin": "ast",
       "community": 85,
-      "norm_label": "fetch url and return (http_status, html_string).          single mockable seam \u2014",
+      "norm_label": "fetch url and return (http_status, html_string).          single mockable seam —",
       "id": "adapters_linkedin_rationale_143"
     },
     {
@@ -3307,13 +3297,13 @@
       "id": "adapters_longtail_longtailadapter_posting_to_job"
     },
     {
-      "label": "Longtail adapter \u2014 LLM-based extraction for medium/boutique HK companies that ar",
+      "label": "Longtail adapter — LLM-based extraction for medium/boutique HK companies that ar",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/longtail.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 2,
-      "norm_label": "longtail adapter \u2014 llm-based extraction for medium/boutique hk companies that ar",
+      "norm_label": "longtail adapter — llm-based extraction for medium/boutique hk companies that ar",
       "id": "adapters_longtail_rationale_1"
     },
     {
@@ -3377,33 +3367,33 @@
       "id": "adapters_longtail_rationale_162"
     },
     {
-      "label": "Static fetch via httpx \u2192 (status, html); (0, '') on error. Mockable seam.",
+      "label": "Static fetch via httpx → (status, html); (0, '') on error. Mockable seam.",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/longtail.py",
       "source_location": "L182",
       "_origin": "ast",
       "community": 2,
-      "norm_label": "static fetch via httpx \u2192 (status, html); (0, '') on error. mockable seam.",
+      "norm_label": "static fetch via httpx → (status, html); (0, '') on error. mockable seam.",
       "id": "adapters_longtail_rationale_182"
     },
     {
-      "label": "Rendered fetch via Scrapling's headless browser \u2192 (status, html). Mockable seam.",
+      "label": "Rendered fetch via Scrapling's headless browser → (status, html). Mockable seam.",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/longtail.py",
       "source_location": "L192",
       "_origin": "ast",
       "community": 2,
-      "norm_label": "rendered fetch via scrapling's headless browser \u2192 (status, html). mockable seam.",
+      "norm_label": "rendered fetch via scrapling's headless browser → (status, html). mockable seam.",
       "id": "adapters_longtail_rationale_192"
     },
     {
-      "label": "Visible-text \u2192 DeepSeek \u2192 Job objects for one fetched page.",
+      "label": "Visible-text → DeepSeek → Job objects for one fetched page.",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/longtail.py",
       "source_location": "L209",
       "_origin": "ast",
       "community": 2,
-      "norm_label": "visible-text \u2192 deepseek \u2192 job objects for one fetched page.",
+      "norm_label": "visible-text → deepseek → job objects for one fetched page.",
       "id": "adapters_longtail_rationale_209"
     },
     {
@@ -3607,13 +3597,13 @@
       "id": "adapters_workday_rationale_95"
     },
     {
-      "label": "Public entry point \u2014 wraps _fetch_all in _safe_fetch for error isolation.",
+      "label": "Public entry point — wraps _fetch_all in _safe_fetch for error isolation.",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/workday.py",
       "source_location": "L135",
       "_origin": "ast",
       "community": 35,
-      "norm_label": "public entry point \u2014 wraps _fetch_all in _safe_fetch for error isolation.",
+      "norm_label": "public entry point — wraps _fetch_all in _safe_fetch for error isolation.",
       "id": "adapters_workday_rationale_135"
     },
     {
@@ -4497,13 +4487,13 @@
       "id": "enrichers_deepseek_deepseekenricher_enrich_with_retry"
     },
     {
-      "label": "DeepSeek LLM enricher \u2014 v4: adds English translation of Chinese postings.  v1: t",
+      "label": "DeepSeek LLM enricher — v4: adds English translation of Chinese postings.  v1: t",
       "file_type": "rationale",
       "source_file": "hk_jobs/enrichers/deepseek.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 104,
-      "norm_label": "deepseek llm enricher \u2014 v4: adds english translation of chinese postings.  v1: t",
+      "norm_label": "deepseek llm enricher — v4: adds english translation of chinese postings.  v1: t",
       "id": "enrichers_deepseek_rationale_1"
     },
     {
@@ -4657,23 +4647,23 @@
       "id": "hk_jobs_enrichment_py_row"
     },
     {
-      "label": "Phase 12: LLM-based job enrichment pipeline \u2014 optimized.  Uses ThreadPoolExecuto",
+      "label": "Phase 12: LLM-based job enrichment pipeline — optimized.  Uses ThreadPoolExecuto",
       "file_type": "rationale",
       "source_file": "hk_jobs/enrichment.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 57,
-      "norm_label": "phase 12: llm-based job enrichment pipeline \u2014 optimized.  uses threadpoolexecuto",
+      "norm_label": "phase 12: llm-based job enrichment pipeline — optimized.  uses threadpoolexecuto",
       "id": "hk_jobs_enrichment_rationale_1"
     },
     {
-      "label": "Salary estimates may come back as int, float, str, or null \u2014 coerce to int|None.",
+      "label": "Salary estimates may come back as int, float, str, or null — coerce to int|None.",
       "file_type": "rationale",
       "source_file": "hk_jobs/enrichment.py",
       "source_location": "L45",
       "_origin": "ast",
       "community": 57,
-      "norm_label": "salary estimates may come back as int, float, str, or null \u2014 coerce to int|none.",
+      "norm_label": "salary estimates may come back as int, float, str, or null — coerce to int|none.",
       "id": "hk_jobs_enrichment_rationale_45"
     },
     {
@@ -5047,13 +5037,13 @@
       "id": "hk_jobs_migrations_migrate_to_phase_28"
     },
     {
-      "label": "Database migrations for hk_jobs.  Each migration function is idempotent \u2014 safe t",
+      "label": "Database migrations for hk_jobs.  Each migration function is idempotent — safe t",
       "file_type": "rationale",
       "source_file": "hk_jobs/migrations.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 4,
-      "norm_label": "database migrations for hk_jobs.  each migration function is idempotent \u2014 safe t",
+      "norm_label": "database migrations for hk_jobs.  each migration function is idempotent — safe t",
       "id": "hk_jobs_migrations_rationale_1"
     },
     {
@@ -5157,13 +5147,13 @@
       "id": "hk_jobs_migrations_rationale_311"
     },
     {
-      "label": "Add board_signals \u2014 a JSON blob of per-board market signals (P2/P3).      Each a",
+      "label": "Add board_signals — a JSON blob of per-board market signals (P2/P3).      Each a",
       "file_type": "rationale",
       "source_file": "hk_jobs/migrations.py",
       "source_location": "L337",
       "_origin": "ast",
       "community": 4,
-      "norm_label": "add board_signals \u2014 a json blob of per-board market signals (p2/p3).      each a",
+      "norm_label": "add board_signals — a json blob of per-board market signals (p2/p3).      each a",
       "id": "hk_jobs_migrations_rationale_337"
     },
     {
@@ -6107,23 +6097,23 @@
       "id": "posts_extractor_rationale_168"
     },
     {
-      "label": "Single mockable seam for the Haiku path \u2014 patch this in tests, same     conventi",
+      "label": "Single mockable seam for the Haiku path — patch this in tests, same     conventi",
       "file_type": "rationale",
       "source_file": "hk_jobs/posts/extractor.py",
       "source_location": "L206",
       "_origin": "ast",
       "community": 22,
-      "norm_label": "single mockable seam for the haiku path \u2014 patch this in tests, same     conventi",
+      "norm_label": "single mockable seam for the haiku path — patch this in tests, same     conventi",
       "id": "posts_extractor_rationale_206"
     },
     {
-      "label": "Single mockable seam \u2014 patch this in tests to inject a canned reply.",
+      "label": "Single mockable seam — patch this in tests to inject a canned reply.",
       "file_type": "rationale",
       "source_file": "hk_jobs/posts/extractor.py",
       "source_location": "L264",
       "_origin": "ast",
       "community": 22,
-      "norm_label": "single mockable seam \u2014 patch this in tests to inject a canned reply.",
+      "norm_label": "single mockable seam — patch this in tests to inject a canned reply.",
       "id": "posts_extractor_rationale_264"
     },
     {
@@ -6297,13 +6287,13 @@
       "id": "posts_fetcher_rationale_59"
     },
     {
-      "label": "backfill=False (normal daily poll): since = max(last_fetched_at, now-48h)     \u2014",
+      "label": "backfill=False (normal daily poll): since = max(last_fetched_at, now-48h)     —",
       "file_type": "rationale",
       "source_file": "hk_jobs/posts/fetcher.py",
       "source_location": "L121",
       "_origin": "ast",
       "community": 19,
-      "norm_label": "backfill=false (normal daily poll): since = max(last_fetched_at, now-48h)     \u2014",
+      "norm_label": "backfill=false (normal daily poll): since = max(last_fetched_at, now-48h)     —",
       "id": "posts_fetcher_rationale_121"
     },
     {
@@ -6517,13 +6507,13 @@
       "id": "posts_ghost_check_rationale_111"
     },
     {
-      "label": "Single mockable seam \u2014 patch this in tests to inject a canned reply.",
+      "label": "Single mockable seam — patch this in tests to inject a canned reply.",
       "file_type": "rationale",
       "source_file": "hk_jobs/posts/ghost_check.py",
       "source_location": "L207",
       "_origin": "ast",
       "community": 77,
-      "norm_label": "single mockable seam \u2014 patch this in tests to inject a canned reply.",
+      "norm_label": "single mockable seam — patch this in tests to inject a canned reply.",
       "id": "posts_ghost_check_rationale_207"
     },
     {
@@ -6577,13 +6567,13 @@
       "id": "posts_metrics_format_metrics"
     },
     {
-      "label": "LP-3 daily metrics (PLAN_LINKEDIN_POSTS.md \u00a77) \u2014 computed on every run, permanen",
+      "label": "LP-3 daily metrics (PLAN_LINKEDIN_POSTS.md §7) — computed on every run, permanen",
       "file_type": "rationale",
       "source_file": "hk_jobs/posts/metrics.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 4,
-      "norm_label": "lp-3 daily metrics (plan_linkedin_posts.md \u00a77) \u2014 computed on every run, permanen",
+      "norm_label": "lp-3 daily metrics (plan_linkedin_posts.md §7) — computed on every run, permanen",
       "id": "posts_metrics_rationale_1"
     },
     {
@@ -6947,13 +6937,13 @@
       "id": "posts_store_rationale_52"
     },
     {
-      "label": "Store the harvested email (or None if the search found none \u2014 still         reco",
+      "label": "Store the harvested email (or None if the search found none — still         reco",
       "file_type": "rationale",
       "source_file": "hk_jobs/posts/store.py",
       "source_location": "L113",
       "_origin": "ast",
       "community": 5,
-      "norm_label": "store the harvested email (or none if the search found none \u2014 still         reco",
+      "norm_label": "store the harvested email (or none if the search found none — still         reco",
       "id": "posts_store_rationale_113"
     },
     {
@@ -7147,13 +7137,13 @@
       "id": "posts_vendor_client_rationale_157"
     },
     {
-      "label": "Single mockable seam \u2014 patch this in tests to inject fixture JSON         instea",
+      "label": "Single mockable seam — patch this in tests to inject fixture JSON         instea",
       "file_type": "rationale",
       "source_file": "hk_jobs/posts/vendor_client.py",
       "source_location": "L178",
       "_origin": "ast",
       "community": 93,
-      "norm_label": "single mockable seam \u2014 patch this in tests to inject fixture json         instea",
+      "norm_label": "single mockable seam — patch this in tests to inject fixture json         instea",
       "id": "posts_vendor_client_rationale_178"
     },
     {
@@ -7287,13 +7277,13 @@
       "id": "reports_weekly_generate_weekly_report"
     },
     {
-      "label": "Weekly hiring trends report \u2014 emailed every Monday 9 AM HKT.  Run manually:   py",
+      "label": "Weekly hiring trends report — emailed every Monday 9 AM HKT.  Run manually:   py",
       "file_type": "rationale",
       "source_file": "hk_jobs/reports/weekly.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 29,
-      "norm_label": "weekly hiring trends report \u2014 emailed every monday 9 am hkt.  run manually:   py",
+      "norm_label": "weekly hiring trends report — emailed every monday 9 am hkt.  run manually:   py",
       "id": "reports_weekly_rationale_1"
     },
     {
@@ -7607,13 +7597,13 @@
       "id": "hk_jobs_schema_jobs_from_jsonl"
     },
     {
-      "label": "Canonical Job schema.  Every adapter \u2014 regardless of source ATS \u2014 maps its raw d",
+      "label": "Canonical Job schema.  Every adapter — regardless of source ATS — maps its raw d",
       "file_type": "rationale",
       "source_file": "hk_jobs/schema.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 74,
-      "norm_label": "canonical job schema.  every adapter \u2014 regardless of source ats \u2014 maps its raw d",
+      "norm_label": "canonical job schema.  every adapter — regardless of source ats — maps its raw d",
       "id": "hk_jobs_schema_rationale_1"
     },
     {
@@ -8237,13 +8227,13 @@
       "id": "hk_jobs_tech_filter_run_tech_filter"
     },
     {
-      "label": "Tech-role filter \u2014 keep the board FINANCE-only by dropping hard tech/IT roles.",
+      "label": "Tech-role filter — keep the board FINANCE-only by dropping hard tech/IT roles.",
       "file_type": "rationale",
       "source_file": "hk_jobs/tech_filter.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 107,
-      "norm_label": "tech-role filter \u2014 keep the board finance-only by dropping hard tech/it roles.",
+      "norm_label": "tech-role filter — keep the board finance-only by dropping hard tech/it roles.",
       "id": "hk_jobs_tech_filter_rationale_1"
     },
     {
@@ -8706,33 +8696,33 @@
       "id": "scripts_discover_companies_main"
     },
     {
-      "label": "Candidate JobsDB slugs: 'Standard Chartered' \u2192 Standard-Chartered, standard-char",
+      "label": "Candidate JobsDB slugs: 'Standard Chartered' → Standard-Chartered, standard-char",
       "file_type": "rationale",
       "source_file": "scripts/discover_companies.py",
       "source_location": "L92",
       "_origin": "ast",
       "community": 58,
-      "norm_label": "candidate jobsdb slugs: 'standard chartered' \u2192 standard-chartered, standard-char",
+      "norm_label": "candidate jobsdb slugs: 'standard chartered' → standard-chartered, standard-char",
       "id": "scripts_discover_companies_rationale_92"
     },
     {
-      "label": "Candidate Workday tenants: 'AIA Hong Kong' \u2192 aia; 'Standard Chartered' \u2192 standar",
+      "label": "Candidate Workday tenants: 'AIA Hong Kong' → aia; 'Standard Chartered' → standar",
       "file_type": "rationale",
       "source_file": "scripts/discover_companies.py",
       "source_location": "L108",
       "_origin": "ast",
       "community": 58,
-      "norm_label": "candidate workday tenants: 'aia hong kong' \u2192 aia; 'standard chartered' \u2192 standar",
+      "norm_label": "candidate workday tenants: 'aia hong kong' → aia; 'standard chartered' → standar",
       "id": "scripts_discover_companies_rationale_108"
     },
     {
-      "label": "Last resort \u2014 uses the headless browser, so keep candidates to \u22642 and page 1 onl",
+      "label": "Last resort — uses the headless browser, so keep candidates to ≤2 and page 1 onl",
       "file_type": "rationale",
       "source_file": "scripts/discover_companies.py",
       "source_location": "L189",
       "_origin": "ast",
       "community": 58,
-      "norm_label": "last resort \u2014 uses the headless browser, so keep candidates to \u22642 and page 1 onl",
+      "norm_label": "last resort — uses the headless browser, so keep candidates to ≤2 and page 1 onl",
       "id": "scripts_discover_companies_rationale_189"
     },
     {
@@ -9666,17 +9656,17 @@
       "id": "scripts_merge_indeed_entries_main"
     },
     {
-      "label": "Merge resolved Indeed entries into companies.yaml \u2014 safely, with validation.  Ta",
+      "label": "Merge resolved Indeed entries into companies.yaml — safely, with validation.  Ta",
       "file_type": "rationale",
       "source_file": "scripts/merge_indeed_entries.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 97,
-      "norm_label": "merge resolved indeed entries into companies.yaml \u2014 safely, with validation.  ta",
+      "norm_label": "merge resolved indeed entries into companies.yaml — safely, with validation.  ta",
       "id": "scripts_merge_indeed_entries_rationale_1"
     },
     {
-      "label": "Split resolver output into individual '  - name: \u2026' entry blocks (drop banner).",
+      "label": "Split resolver output into individual '  - name: …' entry blocks (drop banner).",
       "file_type": "rationale",
       "source_file": "scripts/merge_indeed_entries.py",
       "source_location": "L44",
@@ -9796,13 +9786,13 @@
       "id": "scripts_probe_indeed_main"
     },
     {
-      "label": "THROWAWAY PROBE \u2014 Indeed company-page scrapeability check (Phase 1, verification",
+      "label": "THROWAWAY PROBE — Indeed company-page scrapeability check (Phase 1, verification",
       "file_type": "rationale",
       "source_file": "scripts/probe_indeed.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 54,
-      "norm_label": "throwaway probe \u2014 indeed company-page scrapeability check (phase 1, verification",
+      "norm_label": "throwaway probe — indeed company-page scrapeability check (phase 1, verification",
       "id": "scripts_probe_indeed_rationale_1"
     },
     {
@@ -9876,13 +9866,13 @@
       "id": "scripts_probe_indeed_rationale_267"
     },
     {
-      "label": "# NOTE: do NOT key off \"secure.indeed.com\" or \"cf_chl\" \u2014 both appear on a perfec",
+      "label": "# NOTE: do NOT key off \"secure.indeed.com\" or \"cf_chl\" — both appear on a perfec",
       "file_type": "rationale",
       "source_file": "scripts/probe_indeed.py",
       "source_location": "L41",
       "_origin": "ast",
       "community": 54,
-      "norm_label": "# note: do not key off \"secure.indeed.com\" or \"cf_chl\" \u2014 both appear on a perfec",
+      "norm_label": "# note: do not key off \"secure.indeed.com\" or \"cf_chl\" — both appear on a perfec",
       "id": "scripts_probe_indeed_rationale_41"
     },
     {
@@ -10066,23 +10056,23 @@
       "id": "scripts_resolve_indeed_slugs_main"
     },
     {
-      "label": "Indeed /cmp slug resolver \u2014 extend the Indeed source to ALL firms (run locally).",
+      "label": "Indeed /cmp slug resolver — extend the Indeed source to ALL firms (run locally).",
       "file_type": "rationale",
       "source_file": "scripts/resolve_indeed_slugs.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 82,
-      "norm_label": "indeed /cmp slug resolver \u2014 extend the indeed source to all firms (run locally).",
+      "norm_label": "indeed /cmp slug resolver — extend the indeed source to all firms (run locally).",
       "id": "scripts_resolve_indeed_slugs_rationale_1"
     },
     {
-      "label": "['goldman','sachs'] \u2192 'Goldman-Sachs' (Indeed uses Title-Case-Hyphen).",
+      "label": "['goldman','sachs'] → 'Goldman-Sachs' (Indeed uses Title-Case-Hyphen).",
       "file_type": "rationale",
       "source_file": "scripts/resolve_indeed_slugs.py",
       "source_location": "L59",
       "_origin": "ast",
       "community": 82,
-      "norm_label": "['goldman','sachs'] \u2192 'goldman-sachs' (indeed uses title-case-hyphen).",
+      "norm_label": "['goldman','sachs'] → 'goldman-sachs' (indeed uses title-case-hyphen).",
       "id": "scripts_resolve_indeed_slugs_rationale_59"
     },
     {
@@ -10206,13 +10196,13 @@
       "id": "scripts_resolve_linkedin_ids_main"
     },
     {
-      "label": "LinkedIn company-id resolver \u2014 extend the LinkedIn source to firms (run locally)",
+      "label": "LinkedIn company-id resolver — extend the LinkedIn source to firms (run locally)",
       "file_type": "rationale",
       "source_file": "scripts/resolve_linkedin_ids.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 72,
-      "norm_label": "linkedin company-id resolver \u2014 extend the linkedin source to firms (run locally)",
+      "norm_label": "linkedin company-id resolver — extend the linkedin source to firms (run locally)",
       "id": "scripts_resolve_linkedin_ids_rationale_1"
     },
     {
@@ -10246,13 +10236,13 @@
       "id": "scripts_resolve_linkedin_ids_rationale_177"
     },
     {
-      "label": "Try candidate slugs \u2192 enumerate all ids on the page \u2192 verify each via guest",
+      "label": "Try candidate slugs → enumerate all ids on the page → verify each via guest",
       "file_type": "rationale",
       "source_file": "scripts/resolve_linkedin_ids.py",
       "source_location": "L184",
       "_origin": "ast",
       "community": 72,
-      "norm_label": "try candidate slugs \u2192 enumerate all ids on the page \u2192 verify each via guest",
+      "norm_label": "try candidate slugs → enumerate all ids on the page → verify each via guest",
       "id": "scripts_resolve_linkedin_ids_rationale_184"
     },
     {
@@ -10334,13 +10324,13 @@
       "id": "scripts_try_efc_live_main"
     },
     {
-      "label": "Live smoke-test for the eFinancialCareers adapter (JSON API).  \u26a0  LEGAL: hits eF",
+      "label": "Live smoke-test for the eFinancialCareers adapter (JSON API).  ⚠  LEGAL: hits eF",
       "file_type": "rationale",
       "source_file": "scripts/try_efc_live.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 3,
-      "norm_label": "live smoke-test for the efinancialcareers adapter (json api).  \u26a0  legal: hits ef",
+      "norm_label": "live smoke-test for the efinancialcareers adapter (json api).  ⚠  legal: hits ef",
       "id": "scripts_try_efc_live_rationale_1"
     },
     {
@@ -10394,13 +10384,13 @@
       "id": "scripts_try_jobsdb_live_main"
     },
     {
-      "label": "Live smoke-test for the JobsDB fallback adapter.  \u26a0  LEGAL: This script scrapes",
+      "label": "Live smoke-test for the JobsDB fallback adapter.  ⚠  LEGAL: This script scrapes",
       "file_type": "rationale",
       "source_file": "scripts/try_jobsdb_live.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 25,
-      "norm_label": "live smoke-test for the jobsdb fallback adapter.  \u26a0  legal: this script scrapes",
+      "norm_label": "live smoke-test for the jobsdb fallback adapter.  ⚠  legal: this script scrapes",
       "id": "scripts_try_jobsdb_live_rationale_1"
     },
     {
@@ -10424,13 +10414,13 @@
       "id": "scripts_try_linkedin_posts_live_main"
     },
     {
-      "label": "Live smoke-test for the Apify/HarvestAPI vendor client (LP-2).  \u26a0  LEGAL: hits A",
+      "label": "Live smoke-test for the Apify/HarvestAPI vendor client (LP-2).  ⚠  LEGAL: hits A",
       "file_type": "rationale",
       "source_file": "scripts/try_linkedin_posts_live.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 13,
-      "norm_label": "live smoke-test for the apify/harvestapi vendor client (lp-2).  \u26a0  legal: hits a",
+      "norm_label": "live smoke-test for the apify/harvestapi vendor client (lp-2).  ⚠  legal: hits a",
       "id": "scripts_try_linkedin_posts_live_rationale_1"
     },
     {
@@ -10854,13 +10844,13 @@
       "id": "tests_test_config_test_build_adapter_returns_correct_type"
     },
     {
-      "label": "Tests for hk_jobs/config.py \u2014 companies.yaml loader and validator.",
+      "label": "Tests for hk_jobs/config.py — companies.yaml loader and validator.",
       "file_type": "rationale",
       "source_file": "tests/test_config.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 38,
-      "norm_label": "tests for hk_jobs/config.py \u2014 companies.yaml loader and validator.",
+      "norm_label": "tests for hk_jobs/config.py — companies.yaml loader and validator.",
       "id": "tests_test_config_rationale_1"
     },
     {
@@ -10874,13 +10864,13 @@
       "id": "tests_test_config_rationale_53"
     },
     {
-      "label": "Sanity-check we have a reasonable mix \u2014 not all jobsdb fallbacks.",
+      "label": "Sanity-check we have a reasonable mix — not all jobsdb fallbacks.",
       "file_type": "rationale",
       "source_file": "tests/test_config.py",
       "source_location": "L74",
       "_origin": "ast",
       "community": 38,
-      "norm_label": "sanity-check we have a reasonable mix \u2014 not all jobsdb fallbacks.",
+      "norm_label": "sanity-check we have a reasonable mix — not all jobsdb fallbacks.",
       "id": "tests_test_config_rationale_74"
     },
     {
@@ -12154,13 +12144,13 @@
       "id": "tests_test_enrich_test_enrich_with_llm_raises_not_implemented"
     },
     {
-      "label": "Tests for hk_jobs/enrich.py \u2014 rule-based enrichment.",
+      "label": "Tests for hk_jobs/enrich.py — rule-based enrichment.",
       "file_type": "rationale",
       "source_file": "tests/test_enrich.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 0,
-      "norm_label": "tests for hk_jobs/enrich.py \u2014 rule-based enrichment.",
+      "norm_label": "tests for hk_jobs/enrich.py — rule-based enrichment.",
       "id": "tests_test_enrich_rationale_1"
     },
     {
@@ -12444,13 +12434,13 @@
       "id": "tests_test_extractor_rationale_1"
     },
     {
-      "label": "_call_haiku returns the model's continuation AFTER the '{' prefill \u2014     _call_h",
+      "label": "_call_haiku returns the model's continuation AFTER the '{' prefill —     _call_h",
       "file_type": "rationale",
       "source_file": "tests/test_extractor.py",
       "source_location": "L143",
       "_origin": "ast",
       "community": 22,
-      "norm_label": "_call_haiku returns the model's continuation after the '{' prefill \u2014     _call_h",
+      "norm_label": "_call_haiku returns the model's continuation after the '{' prefill —     _call_h",
       "id": "tests_test_extractor_rationale_143"
     },
     {
@@ -12734,13 +12724,13 @@
       "id": "tests_test_http_utils_test_raises_after_max_attempts_429"
     },
     {
-      "label": "Tests for hk_jobs/http_utils.py \u2014 retry-with-backoff helper.",
+      "label": "Tests for hk_jobs/http_utils.py — retry-with-backoff helper.",
       "file_type": "rationale",
       "source_file": "tests/test_http_utils.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 51,
-      "norm_label": "tests for hk_jobs/http_utils.py \u2014 retry-with-backoff helper.",
+      "norm_label": "tests for hk_jobs/http_utils.py — retry-with-backoff helper.",
       "id": "tests_test_http_utils_rationale_1"
     },
     {
@@ -13154,13 +13144,13 @@
       "id": "tests_test_indeed_rationale_146"
     },
     {
-      "label": "Card company is blank on employer pages \u2192 stamp the configured company name.",
+      "label": "Card company is blank on employer pages → stamp the configured company name.",
       "file_type": "rationale",
       "source_file": "tests/test_indeed.py",
       "source_location": "L165",
       "_origin": "ast",
       "community": 47,
-      "norm_label": "card company is blank on employer pages \u2192 stamp the configured company name.",
+      "norm_label": "card company is blank on employer pages → stamp the configured company name.",
       "id": "tests_test_indeed_rationale_165"
     },
     {
@@ -13174,13 +13164,13 @@
       "id": "tests_test_indeed_rationale_182"
     },
     {
-      "label": "Page 2 repeats one card (ccc333) \u2014 output must contain 5 unique jobs, not 6.",
+      "label": "Page 2 repeats one card (ccc333) — output must contain 5 unique jobs, not 6.",
       "file_type": "rationale",
       "source_file": "tests/test_indeed.py",
       "source_location": "L191",
       "_origin": "ast",
       "community": 42,
-      "norm_label": "page 2 repeats one card (ccc333) \u2014 output must contain 5 unique jobs, not 6.",
+      "norm_label": "page 2 repeats one card (ccc333) — output must contain 5 unique jobs, not 6.",
       "id": "tests_test_indeed_rationale_191"
     },
     {
@@ -13194,13 +13184,13 @@
       "id": "tests_test_indeed_rationale_221"
     },
     {
-      "label": "A login/verify wall must yield [] and never raise \u2014 we do not cross it.",
+      "label": "A login/verify wall must yield [] and never raise — we do not cross it.",
       "file_type": "rationale",
       "source_file": "tests/test_indeed.py",
       "source_location": "L261",
       "_origin": "ast",
       "community": 42,
-      "norm_label": "a login/verify wall must yield [] and never raise \u2014 we do not cross it.",
+      "norm_label": "a login/verify wall must yield [] and never raise — we do not cross it.",
       "id": "tests_test_indeed_rationale_261"
     },
     {
@@ -13604,33 +13594,33 @@
       "id": "tests_test_jobsdb_rationale_1"
     },
     {
-      "label": "Card 1 has data-automation='jobAdvertiser' \u2014 must be extracted.",
+      "label": "Card 1 has data-automation='jobAdvertiser' — must be extracted.",
       "file_type": "rationale",
       "source_file": "tests/test_jobsdb.py",
       "source_location": "L86",
       "_origin": "ast",
       "community": 12,
-      "norm_label": "card 1 has data-automation='jobadvertiser' \u2014 must be extracted.",
+      "norm_label": "card 1 has data-automation='jobadvertiser' — must be extracted.",
       "id": "tests_test_jobsdb_rationale_86"
     },
     {
-      "label": "Card 2 has a DIFFERENT advertiser (AIA) \u2014 must be captured, not the config name.",
+      "label": "Card 2 has a DIFFERENT advertiser (AIA) — must be captured, not the config name.",
       "file_type": "rationale",
       "source_file": "tests/test_jobsdb.py",
       "source_location": "L92",
       "_origin": "ast",
       "community": 12,
-      "norm_label": "card 2 has a different advertiser (aia) \u2014 must be captured, not the config name.",
+      "norm_label": "card 2 has a different advertiser (aia) — must be captured, not the config name.",
       "id": "tests_test_jobsdb_rationale_92"
     },
     {
-      "label": "Card 3 has no advertiser node \u2014 must return None, not empty string.",
+      "label": "Card 3 has no advertiser node — must return None, not empty string.",
       "file_type": "rationale",
       "source_file": "tests/test_jobsdb.py",
       "source_location": "L98",
       "_origin": "ast",
       "community": 12,
-      "norm_label": "card 3 has no advertiser node \u2014 must return none, not empty string.",
+      "norm_label": "card 3 has no advertiser node — must return none, not empty string.",
       "id": "tests_test_jobsdb_rationale_98"
     },
     {
@@ -13644,13 +13634,13 @@
       "id": "tests_test_jobsdb_rationale_171"
     },
     {
-      "label": "Card 3 has no advertiser node \u2014 must fall back to config company.",
+      "label": "Card 3 has no advertiser node — must fall back to config company.",
       "file_type": "rationale",
       "source_file": "tests/test_jobsdb.py",
       "source_location": "L180",
       "_origin": "ast",
       "community": 12,
-      "norm_label": "card 3 has no advertiser node \u2014 must fall back to config company.",
+      "norm_label": "card 3 has no advertiser node — must fall back to config company.",
       "id": "tests_test_jobsdb_rationale_180"
     },
     {
@@ -13664,13 +13654,13 @@
       "id": "tests_test_jobsdb_rationale_202"
     },
     {
-      "label": "Without detail pages, descriptions are empty strings \u2014 expected.",
+      "label": "Without detail pages, descriptions are empty strings — expected.",
       "file_type": "rationale",
       "source_file": "tests/test_jobsdb.py",
       "source_location": "L208",
       "_origin": "ast",
       "community": 135,
-      "norm_label": "without detail pages, descriptions are empty strings \u2014 expected.",
+      "norm_label": "without detail pages, descriptions are empty strings — expected.",
       "id": "tests_test_jobsdb_rationale_208"
     },
     {
@@ -14034,13 +14024,13 @@
       "id": "tests_test_linkedin_rationale_85"
     },
     {
-      "label": "Page 2 repeats card 333 \u2014 output must be 4 unique jobs, not 5.",
+      "label": "Page 2 repeats card 333 — output must be 4 unique jobs, not 5.",
       "file_type": "rationale",
       "source_file": "tests/test_linkedin.py",
       "source_location": "L159",
       "_origin": "ast",
       "community": 55,
-      "norm_label": "page 2 repeats card 333 \u2014 output must be 4 unique jobs, not 5.",
+      "norm_label": "page 2 repeats card 333 — output must be 4 unique jobs, not 5.",
       "id": "tests_test_linkedin_rationale_159"
     },
     {
@@ -14464,23 +14454,23 @@
       "id": "tests_test_pipeline_test_company_timeout_is_positive"
     },
     {
-      "label": "Tests for hk_jobs/pipeline.py \u2014 pipeline orchestrator.",
+      "label": "Tests for hk_jobs/pipeline.py — pipeline orchestrator.",
       "file_type": "rationale",
       "source_file": "tests/test_pipeline.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 17,
-      "norm_label": "tests for hk_jobs/pipeline.py \u2014 pipeline orchestrator.",
+      "norm_label": "tests for hk_jobs/pipeline.py — pipeline orchestrator.",
       "id": "tests_test_pipeline_rationale_1"
     },
     {
-      "label": "Minimal adapter stub \u2014 returns pre-set jobs without any network calls.",
+      "label": "Minimal adapter stub — returns pre-set jobs without any network calls.",
       "file_type": "rationale",
       "source_file": "tests/test_pipeline.py",
       "source_location": "L57",
       "_origin": "ast",
       "community": 17,
-      "norm_label": "minimal adapter stub \u2014 returns pre-set jobs without any network calls.",
+      "norm_label": "minimal adapter stub — returns pre-set jobs without any network calls.",
       "id": "tests_test_pipeline_rationale_57"
     },
     {
@@ -15744,13 +15734,13 @@
       "id": "tests_test_schema_test_jsonl_empty_list"
     },
     {
-      "label": "Tests for hk_jobs/schema.py \u2014 the canonical Job model.",
+      "label": "Tests for hk_jobs/schema.py — the canonical Job model.",
       "file_type": "rationale",
       "source_file": "tests/test_schema.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 31,
-      "norm_label": "tests for hk_jobs/schema.py \u2014 the canonical job model.",
+      "norm_label": "tests for hk_jobs/schema.py — the canonical job model.",
       "id": "tests_test_schema_rationale_1"
     },
     {
@@ -16054,13 +16044,13 @@
       "id": "tests_test_storage_test_context_manager"
     },
     {
-      "label": "Tests for hk_jobs/storage.py \u2014 SQLite persistence layer.",
+      "label": "Tests for hk_jobs/storage.py — SQLite persistence layer.",
       "file_type": "rationale",
       "source_file": "tests/test_storage.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 41,
-      "norm_label": "tests for hk_jobs/storage.py \u2014 sqlite persistence layer.",
+      "norm_label": "tests for hk_jobs/storage.py — sqlite persistence layer.",
       "id": "tests_test_storage_rationale_1"
     },
     {
@@ -16272,16 +16262,6 @@
       "community": 24,
       "norm_label": "test_cors_allows_post()",
       "id": "tests_test_submit_endpoints_test_cors_allows_post"
-    },
-    {
-      "label": "Tests for the two write endpoints \u2014 /api/contact and /api/post-role.  These are",
-      "file_type": "rationale",
-      "source_file": "tests/test_submit_endpoints.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 24,
-      "norm_label": "tests for the two write endpoints \u2014 /api/contact and /api/post-role.  these are",
-      "id": "tests_test_submit_endpoints_rationale_1"
     },
     {
       "label": "A fresh app per test, writing its JSONL queue into tmp_path.",
@@ -16514,13 +16494,13 @@
       "id": "tests_test_vendor_client_rationale_171"
     },
     {
-      "label": "$10/1k email rate differs from the $2/1k post rate \u2014 must not be conflated.",
+      "label": "$10/1k email rate differs from the $2/1k post rate — must not be conflated.",
       "file_type": "rationale",
       "source_file": "tests/test_vendor_client.py",
       "source_location": "L196",
       "_origin": "ast",
       "community": 11,
-      "norm_label": "$10/1k email rate differs from the $2/1k post rate \u2014 must not be conflated.",
+      "norm_label": "$10/1k email rate differs from the $2/1k post rate — must not be conflated.",
       "id": "tests_test_vendor_client_rationale_196"
     },
     {
@@ -17404,26 +17384,6 @@
       "id": "api_client_fetchstats"
     },
     {
-      "label": "CAREER_STAGES",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/api/client.ts",
-      "source_location": "L206",
-      "_origin": "ast",
-      "community": 44,
-      "norm_label": "career_stages",
-      "id": "api_client_career_stages"
-    },
-    {
-      "label": "EnquiryPayload",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/api/client.ts",
-      "source_location": "L213",
-      "_origin": "ast",
-      "community": 44,
-      "norm_label": "enquirypayload",
-      "id": "api_client_enquirypayload"
-    },
-    {
       "label": "RolePayload",
       "file_type": "code",
       "source_file": "webapp/frontend/src/api/client.ts",
@@ -17442,16 +17402,6 @@
       "community": 44,
       "norm_label": "postjson()",
       "id": "api_client_postjson"
-    },
-    {
-      "label": "submitEnquiry()",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/api/client.ts",
-      "source_location": "L265",
-      "_origin": "ast",
-      "community": 44,
-      "norm_label": "submitenquiry()",
-      "id": "api_client_submitenquiry"
     },
     {
       "label": "submitRole()",
@@ -17522,56 +17472,6 @@
       "community": 45,
       "norm_label": "emptystate()",
       "id": "components_emptystate_emptystate"
-    },
-    {
-      "label": "EnquiryForm.tsx",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 44,
-      "norm_label": "enquiryform.tsx",
-      "id": "components_enquiryform"
-    },
-    {
-      "label": "Status",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L5",
-      "_origin": "ast",
-      "community": 44,
-      "norm_label": "status",
-      "id": "components_enquiryform_status"
-    },
-    {
-      "label": "MAX",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L7",
-      "_origin": "ast",
-      "community": 44,
-      "norm_label": "max",
-      "id": "components_enquiryform_max"
-    },
-    {
-      "label": "EnquiryForm()",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L17",
-      "_origin": "ast",
-      "community": 44,
-      "norm_label": "enquiryform()",
-      "id": "components_enquiryform_enquiryform"
-    },
-    {
-      "label": "Field()",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L164",
-      "_origin": "ast",
-      "community": 44,
-      "norm_label": "field()",
-      "id": "components_enquiryform_field"
     },
     {
       "label": "FilterBar.tsx",
@@ -19074,13 +18974,13 @@
       "id": "claude"
     },
     {
-      "label": "CLAUDE.md \u2014 HK Financial Job Scraper",
+      "label": "CLAUDE.md — HK Financial Job Scraper",
       "file_type": "document",
       "source_file": "CLAUDE.md",
       "source_location": "L1",
       "_origin": "ast",
       "community": 75,
-      "norm_label": "claude.md \u2014 hk financial job scraper",
+      "norm_label": "claude.md — hk financial job scraper",
       "id": "claude_claude_md_hk_financial_job_scraper"
     },
     {
@@ -19094,13 +18994,13 @@
       "id": "claude_what_we_are_building"
     },
     {
-      "label": "Core domain knowledge (read this \u2014 it drives every design decision)",
+      "label": "Core domain knowledge (read this — it drives every design decision)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
       "source_location": "L17",
       "_origin": "ast",
       "community": 75,
-      "norm_label": "core domain knowledge (read this \u2014 it drives every design decision)",
+      "norm_label": "core domain knowledge (read this — it drives every design decision)",
       "id": "claude_core_domain_knowledge_read_this_it_drives_every_design_decision"
     },
     {
@@ -19164,13 +19064,13 @@
       "id": "claude_architecture_the_shape_of_the_solution"
     },
     {
-      "label": "Tech stack (decided \u2014 do not substitute without asking)",
+      "label": "Tech stack (decided — do not substitute without asking)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
       "source_location": "L90",
       "_origin": "ast",
       "community": 75,
-      "norm_label": "tech stack (decided \u2014 do not substitute without asking)",
+      "norm_label": "tech stack (decided — do not substitute without asking)",
       "id": "claude_tech_stack_decided_do_not_substitute_without_asking"
     },
     {
@@ -19234,13 +19134,13 @@
       "id": "deploy_what_the_code_already_does_done_for_you"
     },
     {
-      "label": "Manual steps in Railway (you do these \u2014 I can't use your login/payment)",
+      "label": "Manual steps in Railway (you do these — I can't use your login/payment)",
       "file_type": "document",
       "source_file": "DEPLOY.md",
       "source_location": "L33",
       "_origin": "ast",
       "community": 87,
-      "norm_label": "manual steps in railway (you do these \u2014 i can't use your login/payment)",
+      "norm_label": "manual steps in railway (you do these — i can't use your login/payment)",
       "id": "deploy_manual_steps_in_railway_you_do_these_i_can_t_use_your_login_payment"
     },
     {
@@ -19664,13 +19564,13 @@
       "id": "docs_data_model_companies_config_hk_jobs_companies_yaml"
     },
     {
-      "label": "Company list (name \u2192 adapter \u2192 slug \u2192 enabled)",
+      "label": "Company list (name → adapter → slug → enabled)",
       "file_type": "document",
       "source_file": "docs/DATA_MODEL.md",
       "source_location": "L115",
       "_origin": "ast",
       "community": 65,
-      "norm_label": "company list (name \u2192 adapter \u2192 slug \u2192 enabled)",
+      "norm_label": "company list (name → adapter → slug → enabled)",
       "id": "docs_data_model_company_list_name_adapter_slug_enabled"
     },
     {
@@ -19714,13 +19614,13 @@
       "id": "docs_plan_front_page"
     },
     {
-      "label": "PLAN \u2014 New Front Page (three-product portal)",
+      "label": "PLAN — New Front Page (three-product portal)",
       "file_type": "document",
       "source_file": "docs/PLAN_FRONT_PAGE.md",
       "source_location": "L1",
       "_origin": "ast",
       "community": 48,
-      "norm_label": "plan \u2014 new front page (three-product portal)",
+      "norm_label": "plan — new front page (three-product portal)",
       "id": "docs_plan_front_page_plan_new_front_page_three_product_portal"
     },
     {
@@ -19784,13 +19684,13 @@
       "id": "docs_plan_front_page_5_implementation"
     },
     {
-      "label": "5.1 Frontend \u2014 `/` rebuild",
+      "label": "5.1 Frontend — `/` rebuild",
       "file_type": "document",
       "source_file": "docs/PLAN_FRONT_PAGE.md",
       "source_location": "L126",
       "_origin": "ast",
       "community": 48,
-      "norm_label": "5.1 frontend \u2014 `/` rebuild",
+      "norm_label": "5.1 frontend — `/` rebuild",
       "id": "docs_plan_front_page_5_1_frontend_rebuild"
     },
     {
@@ -19804,34 +19704,24 @@
       "id": "docs_plan_front_page_5_2_the_outbound_consultation_link"
     },
     {
-      "label": "5.3 Frontend \u2014 `/jobs` additions",
+      "label": "5.3 Frontend — `/jobs` additions",
       "file_type": "document",
       "source_file": "docs/PLAN_FRONT_PAGE.md",
       "source_location": "L166",
       "_origin": "ast",
       "community": 48,
-      "norm_label": "5.3 frontend \u2014 `/jobs` additions",
+      "norm_label": "5.3 frontend — `/jobs` additions",
       "id": "docs_plan_front_page_5_3_frontend_jobs_additions"
     },
     {
-      "label": "5.4 Frontend \u2014 Nav",
+      "label": "5.4 Frontend — Nav",
       "file_type": "document",
       "source_file": "docs/PLAN_FRONT_PAGE.md",
       "source_location": "L177",
       "_origin": "ast",
       "community": 48,
-      "norm_label": "5.4 frontend \u2014 nav",
+      "norm_label": "5.4 frontend — nav",
       "id": "docs_plan_front_page_5_4_frontend_nav"
-    },
-    {
-      "label": "5.5 Backend \u2014 `POST /api/contact`",
-      "file_type": "document",
-      "source_file": "docs/PLAN_FRONT_PAGE.md",
-      "source_location": "L193",
-      "_origin": "ast",
-      "community": 48,
-      "norm_label": "5.5 backend \u2014 `post /api/contact`",
-      "id": "docs_plan_front_page_5_5_backend_post_api_contact"
     },
     {
       "label": "5.8 Direct role submission (new capability)",
@@ -19844,13 +19734,13 @@
       "id": "docs_plan_front_page_5_8_direct_role_submission_new_capability"
     },
     {
-      "label": "5.6 Frontend \u2014 API client",
+      "label": "5.6 Frontend — API client",
       "file_type": "document",
       "source_file": "docs/PLAN_FRONT_PAGE.md",
       "source_location": "L249",
       "_origin": "ast",
       "community": 48,
-      "norm_label": "5.6 frontend \u2014 api client",
+      "norm_label": "5.6 frontend — api client",
       "id": "docs_plan_front_page_5_6_frontend_api_client"
     },
     {
@@ -19964,63 +19854,63 @@
       "id": "docs_plan_linkedin_posts_5_phases"
     },
     {
-      "label": "LP-0 \u2014 Vendor bake-off \u2014 \u2705 COMPLETE (2026-07-19, cost $0.21)",
+      "label": "LP-0 — Vendor bake-off — ✅ COMPLETE (2026-07-19, cost $0.21)",
       "file_type": "document",
       "source_file": "docs/PLAN_LINKEDIN_POSTS.md",
       "source_location": "L101",
       "_origin": "ast",
       "community": 80,
-      "norm_label": "lp-0 \u2014 vendor bake-off \u2014 \u2705 complete (2026-07-19, cost $0.21)",
+      "norm_label": "lp-0 — vendor bake-off — ✅ complete (2026-07-19, cost $0.21)",
       "id": "docs_plan_linkedin_posts_lp_0_vendor_bake_off_complete_2026_07_19_cost_0_21"
     },
     {
-      "label": "LP-1 \u2014 Watchlist bootstrap (~2 days, parallel with boss's manual list)",
+      "label": "LP-1 — Watchlist bootstrap (~2 days, parallel with boss's manual list)",
       "file_type": "document",
       "source_file": "docs/PLAN_LINKEDIN_POSTS.md",
       "source_location": "L113",
       "_origin": "ast",
       "community": 80,
-      "norm_label": "lp-1 \u2014 watchlist bootstrap (~2 days, parallel with boss's manual list)",
+      "norm_label": "lp-1 — watchlist bootstrap (~2 days, parallel with boss's manual list)",
       "id": "docs_plan_linkedin_posts_lp_1_watchlist_bootstrap_2_days_parallel_with_boss_s_manual_list"
     },
     {
-      "label": "LP-2 \u2014 Ingestion backbone \u2014 \u2705 BUILT (2026-07-22), pending your review",
+      "label": "LP-2 — Ingestion backbone — ✅ BUILT (2026-07-22), pending your review",
       "file_type": "document",
       "source_file": "docs/PLAN_LINKEDIN_POSTS.md",
       "source_location": "L121",
       "_origin": "ast",
       "community": 80,
-      "norm_label": "lp-2 \u2014 ingestion backbone \u2014 \u2705 built (2026-07-22), pending your review",
+      "norm_label": "lp-2 — ingestion backbone — ✅ built (2026-07-22), pending your review",
       "id": "docs_plan_linkedin_posts_lp_2_ingestion_backbone_built_2026_07_22_pending_your_review"
     },
     {
-      "label": "LP-3 \u2014 Extraction & promotion (~2\u20133 days)",
+      "label": "LP-3 — Extraction & promotion (~2–3 days)",
       "file_type": "document",
       "source_file": "docs/PLAN_LINKEDIN_POSTS.md",
       "source_location": "L160",
       "_origin": "ast",
       "community": 80,
-      "norm_label": "lp-3 \u2014 extraction & promotion (~2\u20133 days)",
+      "norm_label": "lp-3 — extraction & promotion (~2–3 days)",
       "id": "docs_plan_linkedin_posts_lp_3_extraction_promotion_2_3_days"
     },
     {
-      "label": "LP-4 \u2014 PILOT \u2014 \u2705 BUILT + CONNECTED (2026-07-22), gate compressed by owner decision",
+      "label": "LP-4 — PILOT — ✅ BUILT + CONNECTED (2026-07-22), gate compressed by owner decision",
       "file_type": "document",
       "source_file": "docs/PLAN_LINKEDIN_POSTS.md",
       "source_location": "L171",
       "_origin": "ast",
       "community": 80,
-      "norm_label": "lp-4 \u2014 pilot \u2014 \u2705 built + connected (2026-07-22), gate compressed by owner decision",
+      "norm_label": "lp-4 — pilot — ✅ built + connected (2026-07-22), gate compressed by owner decision",
       "id": "docs_plan_linkedin_posts_lp_4_pilot_built_connected_2026_07_22_gate_compressed_by_owner_decision"
     },
     {
-      "label": "LP-5 \u2014 UI + PocketBase \u2014 \u2705 MOSTLY BUILT (2026-07-22); email harvest still open",
+      "label": "LP-5 — UI + PocketBase — ✅ MOSTLY BUILT (2026-07-22); email harvest still open",
       "file_type": "document",
       "source_file": "docs/PLAN_LINKEDIN_POSTS.md",
       "source_location": "L193",
       "_origin": "ast",
       "community": 80,
-      "norm_label": "lp-5 \u2014 ui + pocketbase \u2014 \u2705 mostly built (2026-07-22); email harvest still open",
+      "norm_label": "lp-5 — ui + pocketbase — ✅ mostly built (2026-07-22); email harvest still open",
       "id": "docs_plan_linkedin_posts_lp_5_ui_pocketbase_mostly_built_2026_07_22_email_harvest_still_open"
     },
     {
@@ -20134,13 +20024,13 @@
       "id": "salary_guidlines_hk_finance_salary_guidelines_commercial_retail_banking_relationship_management"
     },
     {
-      "label": "Middle office \u2014 Risk / Compliance / Audit (Banking)",
+      "label": "Middle office — Risk / Compliance / Audit (Banking)",
       "file_type": "document",
       "source_file": "salary_guidlines/HK_FINANCE_SALARY_GUIDELINES.md",
       "source_location": "L67",
       "_origin": "ast",
       "community": 50,
-      "norm_label": "middle office \u2014 risk / compliance / audit (banking)",
+      "norm_label": "middle office — risk / compliance / audit (banking)",
       "id": "salary_guidlines_hk_finance_salary_guidelines_middle_office_risk_compliance_audit_banking"
     },
     {
@@ -22131,7 +22021,7 @@
       "label": "HK Financial Job-Market Intelligence Platform",
       "file_type": "concept",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a700 Overview",
+      "source_location": "§00 Overview",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22145,12 +22035,12 @@
       "label": "Stale CLAUDE.md Scope Statement",
       "file_type": "rationale",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a700",
+      "source_location": "§00",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "CLAUDE.md still says 'scraping + enrichment + storage backend only \u2014 no web UI'. That was true when written; the repo has since grown webapp/ (FastAPI + React) and hk_jobs/posts/. The guide declares itself, not CLAUDE.md, the current source of truth.",
+      "rationale": "CLAUDE.md still says 'scraping + enrichment + storage backend only — no web UI'. That was true when written; the repo has since grown webapp/ (FastAPI + React) and hk_jobs/posts/. The guide declares itself, not CLAUDE.md, the current source of truth.",
       "id": "docs_architecture_guide_stale_claude_md",
       "community": 96,
       "norm_label": "stale claude.md scope statement"
@@ -22159,7 +22049,7 @@
       "label": "Adapter Abstraction",
       "file_type": "rationale",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a701, \u00a703",
+      "source_location": "§01, §03",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22173,7 +22063,7 @@
       "label": "Canonical Job Model",
       "file_type": "concept",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a702",
+      "source_location": "§02",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22187,7 +22077,7 @@
       "label": "Adapter Priority Fallback Chain",
       "file_type": "concept",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a703",
+      "source_location": "§03",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22201,7 +22091,7 @@
       "label": "Graceful Per-Company Failure (_safe_fetch)",
       "file_type": "rationale",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a701, \u00a703",
+      "source_location": "§01, §03",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22215,7 +22105,7 @@
       "label": "Longtail LLM Adapter",
       "file_type": "concept",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a703",
+      "source_location": "§03",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22229,7 +22119,7 @@
       "label": "Six-Phase Daily Pipeline",
       "file_type": "concept",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a701",
+      "source_location": "§01",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22243,7 +22133,7 @@
       "label": "Daily Automation via daily_run.sh Cron",
       "file_type": "concept",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a701, \u00a710",
+      "source_location": "§01, §10",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22257,7 +22147,7 @@
       "label": "DeepSeek AI Enrichment Pass",
       "file_type": "concept",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a704",
+      "source_location": "§04",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22271,7 +22161,7 @@
       "label": "Salary Clamping Against Anchor Tables",
       "file_type": "rationale",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a704",
+      "source_location": "§04",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22285,7 +22175,7 @@
       "label": "Finance-Only Tech Filter",
       "file_type": "concept",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a702",
+      "source_location": "§02",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22299,7 +22189,7 @@
       "label": "Recruiter Posts (Secret Market) Subsystem",
       "file_type": "concept",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a705",
+      "source_location": "§05",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22313,12 +22203,12 @@
       "label": "Paid Vendor Exception with $30/mo Cap",
       "file_type": "rationale",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a705",
+      "source_location": "§05",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "The one deliberate exception to 'no paid services'. DIY LinkedIn scraping was evaluated and rejected (authwall, legal risk, anti-bot arms race, per docs/PLAN_LINKEDIN_POSTS.md \u00a73), so Apify/HarvestAPI performs the access instead. vendor_client.py is the only file allowed to call a paid API; budget.py refuses (not merely logs) calls once month-to-date spend in vendor_costs hits US$30.",
+      "rationale": "The one deliberate exception to 'no paid services'. DIY LinkedIn scraping was evaluated and rejected (authwall, legal risk, anti-bot arms race, per docs/PLAN_LINKEDIN_POSTS.md §3), so Apify/HarvestAPI performs the access instead. vendor_client.py is the only file allowed to call a paid API; budget.py refuses (not merely logs) calls once month-to-date spend in vendor_costs hits US$30.",
       "id": "docs_architecture_guide_paid_vendor_exception",
       "community": 0,
       "norm_label": "paid vendor exception with $30/mo cap"
@@ -22327,7 +22217,7 @@
       "label": "SQLite Storage & Table Schema (jobs.db)",
       "file_type": "concept",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a706",
+      "source_location": "§06",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22341,7 +22231,7 @@
       "label": "Soft Delete & Cross-Post Reconciliation",
       "file_type": "rationale",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a706, \u00a707",
+      "source_location": "§06, §07",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22355,7 +22245,7 @@
       "label": "Read-Only FastAPI Layer",
       "file_type": "concept",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a707",
+      "source_location": "§07",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22369,7 +22259,7 @@
       "label": "Sector is Computed, Not Stored",
       "file_type": "rationale",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a707",
+      "source_location": "§07",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22383,7 +22273,7 @@
       "label": "Cross-Posted Jobs Share Board Signals",
       "file_type": "concept",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a707",
+      "source_location": "§07",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22397,12 +22287,12 @@
       "label": "React Job Board Frontend",
       "file_type": "concept",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a708",
+      "source_location": "§08",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "Vite + React 19 + TypeScript + Tailwind v4 (@tailwindcss/vite, no config file), react-router-dom v7, oxlint instead of ESLint, no state library \u2014 just React state plus useSavedJobs, useDebounce and useModalHistoryGuard. Routes: / LandingPage, /jobs JobBoardPage, /saved SavedJobsPage, /about AboutPage.",
+      "rationale": "Vite + React 19 + TypeScript + Tailwind v4 (@tailwindcss/vite, no config file), react-router-dom v7, oxlint instead of ESLint, no state library — just React state plus useSavedJobs, useDebounce and useModalHistoryGuard. Routes: / LandingPage, /jobs JobBoardPage, /saved SavedJobsPage, /about AboutPage.",
       "id": "docs_architecture_guide_react_job_board",
       "community": 96,
       "norm_label": "react job board frontend"
@@ -22411,7 +22301,7 @@
       "label": "Filter to URL Serialisation",
       "file_type": "concept",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a708",
+      "source_location": "§08",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22422,10 +22312,10 @@
       "norm_label": "filter to url serialisation"
     },
     {
-      "label": "Tier Tabs \u2014 All / Exclusive / Recruiter Posts",
+      "label": "Tier Tabs — All / Exclusive / Recruiter Posts",
       "file_type": "concept",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a708",
+      "source_location": "§08",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22433,13 +22323,13 @@
       "rationale": "The three board tabs are just the tier filter: boutique = longtail/LLM-scraped firms, mainstream = the five structured adapters, social = promoted Recruiter Posts.",
       "id": "docs_architecture_guide_tier_tabs",
       "community": 96,
-      "norm_label": "tier tabs \u2014 all / exclusive / recruiter posts"
+      "norm_label": "tier tabs — all / exclusive / recruiter posts"
     },
     {
       "label": "Four Delivery Surfaces",
       "file_type": "concept",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a700, \u00a709",
+      "source_location": "§00, §09",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22453,12 +22343,12 @@
       "label": "PocketBase Read-Only Mirror",
       "file_type": "concept",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a709",
+      "source_location": "§09",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "A self-contained Go binary plus pb_migrations/. sync_pocketbase.py pushes active jobs daily in Phase 4 so stakeholders get a browsable admin UI without touching SQLite. Explicitly non-fatal \u2014 a PocketBase outage does not fail the run.",
+      "rationale": "A self-contained Go binary plus pb_migrations/. sync_pocketbase.py pushes active jobs daily in Phase 4 so stakeholders get a browsable admin UI without touching SQLite. Explicitly non-fatal — a PocketBase outage does not fail the run.",
       "id": "docs_architecture_guide_pocketbase_mirror",
       "community": 96,
       "norm_label": "pocketbase read-only mirror"
@@ -22467,12 +22357,12 @@
       "label": "Fixture-Based Adapter Tests",
       "file_type": "concept",
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a711",
+      "source_location": "§11",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "pytest, one test file per module; network-dependent adapter tests use recorded fixtures in tests/fixtures/, never live calls. The frontend has no test files \u2014 the local react-doctor skill covers lint/a11y/architecture triage instead.",
+      "rationale": "pytest, one test file per module; network-dependent adapter tests use recorded fixtures in tests/fixtures/, never live calls. The frontend has no test files — the local react-doctor skill covers lint/a11y/architecture triage instead.",
       "id": "docs_architecture_guide_fixture_based_tests",
       "community": 21,
       "norm_label": "fixture-based adapter tests"
@@ -22481,12 +22371,12 @@
       "label": "Two Independent Email Senders",
       "file_type": "concept",
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a701",
+      "source_location": "§01",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "The single most important thing to hold in your head: two systems sharing only credentials and transport \u2014 different code, triggers, processes and failure modes. When email 'doesn't work', the first question is always which one.",
+      "rationale": "The single most important thing to hold in your head: two systems sharing only credentials and transport — different code, triggers, processes and failure modes. When email 'doesn't work', the first question is always which one.",
       "id": "docs_email_system_two_sender_split",
       "community": 92,
       "norm_label": "two independent email senders"
@@ -22495,7 +22385,7 @@
       "label": "Nightly Market Brief (Sender A)",
       "file_type": "concept",
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a701, \u00a703",
+      "source_location": "§01, §03",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22509,7 +22399,7 @@
       "label": "Immediate Pipeline Failure Alert",
       "file_type": "concept",
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a701, \u00a703",
+      "source_location": "§01, §03",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22520,24 +22410,10 @@
       "norm_label": "immediate pipeline failure alert"
     },
     {
-      "label": "Website Form Submission Flow (Sender B)",
-      "file_type": "concept",
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a701, \u00a703",
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "rationale": "webapp/backend/mailer.py, running inside uvicorn \u2014 a completely separate program from the scraper sharing none of its environment. Order: validate payload (lengths, career-stage enum, real email, http(s) apply URL), check honeypot, rate-limit by IP, append to data/enquiries.jsonl or submitted_roles.jsonl, then email via send_mail() best-effort.",
-      "id": "docs_email_system_enquiry_email_flow",
-      "community": 79,
-      "norm_label": "website form submission flow (sender b)"
-    },
-    {
       "label": "Gmail SMTP Transport (587/STARTTLS)",
       "file_type": "concept",
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a701",
+      "source_location": "§01",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22551,35 +22427,21 @@
       "label": "Why Port 587 and Not 465",
       "file_type": "rationale",
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a701",
+      "source_location": "§01",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "587 opens in the clear then upgrades via STARTTLS; 465 is TLS from the first byte. Both work but are not interchangeable \u2014 pointing 587's code at 465 hangs until timeout because the server waits for a TLS handshake while the client waits for a greeting. Changing SMTP_PORT means changing the connection method too.",
+      "rationale": "587 opens in the clear then upgrades via STARTTLS; 465 is TLS from the first byte. Both work but are not interchangeable — pointing 587's code at 465 hangs until timeout because the server waits for a TLS handshake while the client waits for a greeting. Changing SMTP_PORT means changing the connection method too.",
       "id": "docs_email_system_port_587_choice",
       "community": 79,
       "norm_label": "why port 587 and not 465"
     },
     {
-      "label": "Credential Resolution Order",
-      "file_type": "concept",
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a702",
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "rationale": "Highest wins: (1) the real process environment, e.g. Railway dashboard variables, which nothing may overwrite; (2) config/api_keys.env; (3) hardcoded defaults for host and port only \u2014 deliberately no default password. The ordering exists so the platform can always override a file lying around on disk. Variables: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, NOTIFY_EMAIL, ENQUIRY_EMAIL.",
-      "id": "docs_email_system_credential_resolution_order",
-      "community": 92,
-      "norm_label": "credential resolution order"
-    },
-    {
       "label": "env_file.py Gap-Filling Loader",
       "file_type": "concept",
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a702",
+      "source_location": "§02",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22593,12 +22455,12 @@
       "label": "Bare-Environment Backend Bug",
       "file_type": "concept",
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a702",
+      "source_location": "§02",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "daily_run.sh line 26 runs `source config/api_keys.env`, so scraper phases inherit credentials \u2014 which is why the nightly brief always worked. uvicorn main:app had no equivalent step, so mailer.py read SMTP_USER, got '', logged a warning and returned False, while the endpoint still returned 200 because the submission was already on disk. Same credentials, same file, same machine; one process could see them and the other could not.",
+      "rationale": "daily_run.sh line 26 runs `source config/api_keys.env`, so scraper phases inherit credentials — which is why the nightly brief always worked. uvicorn main:app had no equivalent step, so mailer.py read SMTP_USER, got '', logged a warning and returned False, while the endpoint still returned 200 because the submission was already on disk. Same credentials, same file, same machine; one process could see them and the other could not.",
       "id": "docs_email_system_bare_environment_bug",
       "community": 92,
       "norm_label": "bare-environment backend bug"
@@ -22607,7 +22469,7 @@
       "label": "Disk-First, Mail-Best-Effort Ordering",
       "file_type": "rationale",
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a704",
+      "source_location": "§04",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22618,24 +22480,10 @@
       "norm_label": "disk-first, mail-best-effort ordering"
     },
     {
-      "label": "Append-Only Enquiry Queue",
-      "file_type": "concept",
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a704",
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "rationale": "data/enquiries.jsonl holds one JSON object per line with a received_at timestamp. The queue is the source of truth; the email is only a notification about it \u2014 which is why nothing was lost during the broken period.",
-      "id": "docs_email_system_enquiry_queue",
-      "community": 92,
-      "norm_label": "append-only enquiry queue"
-    },
-    {
       "label": "Role Submission Human Review Gate",
       "file_type": "concept",
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a704",
+      "source_location": "§04",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22646,29 +22494,15 @@
       "norm_label": "role submission human review gate"
     },
     {
-      "label": "Fixed Recipient Module Constant",
-      "file_type": "rationale",
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a705",
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "rationale": "ENQUIRY_EMAIL is a module constant never read from a request. Stops anyone POSTing a `to` field and using the Gmail account to mail strangers \u2014 a `to` in the payload is simply ignored. Without this a public mail-sending endpoint is an open relay.",
-      "id": "docs_email_system_fixed_recipient_constant",
-      "community": 79,
-      "norm_label": "fixed recipient module constant"
-    },
-    {
       "label": "CRLF Header-Safety Guard",
       "file_type": "concept",
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a705",
+      "source_location": "§05",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "_header_safe() strips CRLF from every header. A name like 'Jane\\r\\nBcc: victim@\u2026' would otherwise append a real Bcc and turn the form into a spam cannon. A test drives the real mailer and asserts no Bcc exists.",
+      "rationale": "_header_safe() strips CRLF from every header. A name like 'Jane\\r\\nBcc: victim@…' would otherwise append a real Bcc and turn the form into a spam cannon. A test drives the real mailer and asserts no Bcc exists.",
       "id": "docs_email_system_header_injection_guard",
       "community": 79,
       "norm_label": "crlf header-safety guard"
@@ -22677,12 +22511,12 @@
       "label": "Off-Screen Honeypot Field",
       "file_type": "concept",
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a705",
+      "source_location": "§05",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "Positioned off-screen rather than display:none, because some bots skip hidden inputs but fill positioned ones. A filled honeypot returns a normal 200 and sends nothing \u2014 telling the bot it was caught only helps it adapt. Symptom in the runbook: form says success but the queue file is empty.",
+      "rationale": "Positioned off-screen rather than display:none, because some bots skip hidden inputs but fill positioned ones. A filled honeypot returns a normal 200 and sends nothing — telling the bot it was caught only helps it adapt. Symptom in the runbook: form says success but the queue file is empty.",
       "id": "docs_email_system_honeypot",
       "community": 79,
       "norm_label": "off-screen honeypot field"
@@ -22691,7 +22525,7 @@
       "label": "Per-IP Per-Endpoint Rate Limit",
       "file_type": "concept",
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a701, \u00a705",
+      "source_location": "§01, §05",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22705,7 +22539,7 @@
       "label": "Gmail App Password, Not Account Password",
       "file_type": "rationale",
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a702, \u00a705",
+      "source_location": "§02, §05",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22716,52 +22550,24 @@
       "norm_label": "gmail app password, not account password"
     },
     {
-      "label": "MIMEMultipart vs EmailMessage Construction",
-      "file_type": "concept",
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a703",
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "rationale": "The scraper uses MIMEMultipart('alternative') with text attached before HTML \u2014 clients render the last part they understand, so HTML wins where supported and text is the fallback. The backend uses the newer EmailMessage API with a single plain-text body, because an enquiry has nothing to gain from markup. Reply-To on consultation enquiries is set to the enquirer so replying just works.",
-      "id": "docs_email_system_mime_multipart_vs_emailmessage",
-      "community": 92,
-      "norm_label": "mimemultipart vs emailmessage construction"
-    },
-    {
-      "label": "Health Endpoint Email Diagnostics",
-      "file_type": "concept",
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a706",
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "rationale": "GET /health reports email: 'configured' or 'NOT CONFIGURED \u2014 enquiries queue but no mail is sent', plus enquiry_recipient. Works in production without shell access, which is the point \u2014 step 1 of the runbook.",
-      "id": "docs_email_system_health_endpoint",
-      "community": 79,
-      "norm_label": "health endpoint email diagnostics"
-    },
-    {
       "label": "Log Successes, Not Only Failures",
       "file_type": "rationale",
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a706",
+      "source_location": "§06",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "The outage was invisible for a day because success was never logged and only warnings surfaced. Boot now logs the env_file load and 'Email configured', and each send logs 'Sent \u2026 to \u2026'. 'No error in the log' was never good evidence that mail was flowing.",
+      "rationale": "The outage was invisible for a day because success was never logged and only warnings surfaced. Boot now logs the env_file load and 'Email configured', and each send logs 'Sent … to …'. 'No error in the log' was never good evidence that mail was flowing.",
       "id": "docs_email_system_success_logging",
       "community": 21,
       "norm_label": "log successes, not only failures"
     },
     {
-      "label": "When Mail Stops \u2014 Diagnostic Runbook",
+      "label": "When Mail Stops — Diagnostic Runbook",
       "file_type": "document",
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a706",
+      "source_location": "§06",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22769,18 +22575,18 @@
       "rationale": "Ordered by cheapness: ask /health whether it is configured, read the boot lines, match the symptom to a cause class (config / disk / auth / port / split / upstream / bot), then isolate transport from application by calling mailer.send_mail directly outside FastAPI.",
       "id": "docs_email_system_mail_runbook",
       "community": 79,
-      "norm_label": "when mail stops \u2014 diagnostic runbook"
+      "norm_label": "when mail stops — diagnostic runbook"
     },
     {
       "label": "Production Prerequisites Checklist",
       "file_type": "concept",
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a707",
+      "source_location": "§07",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "Required: SMTP_USER/SMTP_PASS in the platform environment; CORS_ORIGINS set to the real frontend domain (it fails first \u2014 the browser blocks the request before the endpoint is reached); SUBMISSIONS_DIR on a persistent volume, since ephemeral container storage erases the queue on every deploy and the durability guarantee quietly becomes false. Recommended: move off the personal Gmail (~500 msgs/day limit, abuse can lock the whole account).",
+      "rationale": "Required: SMTP_USER/SMTP_PASS in the platform environment; CORS_ORIGINS set to the real frontend domain (it fails first — the browser blocks the request before the endpoint is reached); SUBMISSIONS_DIR on a persistent volume, since ephemeral container storage erases the queue on every deploy and the durability guarantee quietly becomes false. Recommended: move off the personal Gmail (~500 msgs/day limit, abuse can lock the whole account).",
       "id": "docs_email_system_production_checklist",
       "community": 92,
       "norm_label": "production prerequisites checklist"
@@ -22808,7 +22614,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "Every claim carries a grade \u2014 Well supported, Directional, Not supported, Artefact, Not usable \u2014 and nothing is asserted above its grade. The cross-section (what roles exist, what they pay, what they ask) is solid; the time series is not, and publishing a 'who's hiring' leaderboard today would report scraper behaviour as market behaviour.",
+      "rationale": "Every claim carries a grade — Well supported, Directional, Not supported, Artefact, Not usable — and nothing is asserted above its grade. The cross-section (what roles exist, what they pay, what they ask) is solid; the time series is not, and publishing a 'who's hiring' leaderboard today would report scraper behaviour as market behaviour.",
       "id": "docs_market_panel_analysis_evidential_grading",
       "community": 79,
       "norm_label": "evidential status grading"
@@ -22817,12 +22623,12 @@
       "label": "Zero-Observation Defect",
       "file_type": "concept",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a701",
+      "source_location": "§01",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "323 of 1,314 company-days in the stable window record exactly zero jobs \u2014 adapter failures, not empty careers pages. AXA reads 44, 48, 0, 53, 0, 52\u2026; Zurich reads 18, 20, 0, 20, 0, 20. A zero followed by full recovery is a failed fetch recorded as a fact.",
+      "rationale": "323 of 1,314 company-days in the stable window record exactly zero jobs — adapter failures, not empty careers pages. AXA reads 44, 48, 0, 53, 0, 52…; Zurich reads 18, 20, 0, 20, 0, 20. A zero followed by full recovery is a failed fetch recorded as a fact.",
       "id": "docs_market_panel_analysis_zero_observation_defect",
       "community": 21,
       "norm_label": "zero-observation defect"
@@ -22831,12 +22637,12 @@
       "label": "Pagination Fingerprint Defect",
       "file_type": "concept",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a701",
+      "source_location": "§01",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "Counts cluster on exactly 10 and exactly 20 far beyond chance (56 and 29 observations, 22 companies landing there repeatedly). Those are page sizes, not job counts \u2014 Goldman Sachs reads 59, 49, 10, 10, 18, 10\u2026; Standard Chartered 45, 67, 10, 20, 72\u2026. A paginated fetch stopping after page one is recorded as a collapse in hiring.",
+      "rationale": "Counts cluster on exactly 10 and exactly 20 far beyond chance (56 and 29 observations, 22 companies landing there repeatedly). Those are page sizes, not job counts — Goldman Sachs reads 59, 49, 10, 10, 18, 10…; Standard Chartered 45, 67, 10, 20, 72…. A paginated fetch stopping after page one is recorded as a collapse in hiring.",
       "id": "docs_market_panel_analysis_pagination_fingerprint",
       "community": 21,
       "norm_label": "pagination fingerprint defect"
@@ -22845,7 +22651,7 @@
       "label": "jobs_added Re-Seed Defect",
       "file_type": "concept",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a701",
+      "source_location": "§01",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22859,7 +22665,7 @@
       "label": "Retracted Hiring-Velocity Analysis",
       "file_type": "concept",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a701",
+      "source_location": "§01",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22870,10 +22676,10 @@
       "norm_label": "retracted hiring-velocity analysis"
     },
     {
-      "label": "Stable-Roster Window (16\u201325 July)",
+      "label": "Stable-Roster Window (16–25 July)",
       "file_type": "concept",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a701",
+      "source_location": "§01",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22881,18 +22687,18 @@
       "rationale": "The panel opens on 1 June tracking 28 companies and closes tracking 146, so total counts rise for reasons unrelated to the market. Every time-based figure is confined to the nine scrape dates where the roster is constant at 146.",
       "id": "docs_market_panel_analysis_stable_roster_window",
       "community": 79,
-      "norm_label": "stable-roster window (16\u201325 july)"
+      "norm_label": "stable-roster window (16–25 july)"
     },
     {
       "label": "Observation-Window Trap",
       "file_type": "rationale",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a702",
+      "source_location": "§02",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "A first pass reported 28-day median life for ATS feeds against 2 days for eFinancialCareers. Invalid: Workday and Eightfold have 55 days of observation, eFC only 11, so only short-lived eFC postings can appear closed. The giveaway was 86 active eFC listings over 30 days old. The correction \u2014 shown rather than hidden \u2014 is a fixed 7-day follow-up horizon applied identically to every source.",
+      "rationale": "A first pass reported 28-day median life for ATS feeds against 2 days for eFinancialCareers. Invalid: Workday and Eightfold have 55 days of observation, eFC only 11, so only short-lived eFC postings can appear closed. The giveaway was 86 active eFC listings over 30 days old. The correction — shown rather than hidden — is a fixed 7-day follow-up horizon applied identically to every source.",
       "id": "docs_market_panel_analysis_observation_window_trap",
       "community": 21,
       "norm_label": "observation-window trap"
@@ -22901,7 +22707,7 @@
       "label": "Uniform 7-Day Closure Rate",
       "file_type": "concept",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a702",
+      "source_location": "§02",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22915,12 +22721,12 @@
       "label": "Listing Churn Measures Board Hygiene, Not Fills",
       "file_type": "concept",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a702, \u00a708",
+      "source_location": "§02, §08",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "Each source's disappearance rate is mostly a property of its own retention policy. Only employer-ATS feeds track the actual role, and they say finance roles stay open for weeks \u2014 under 6% close within a week. A vanished aggregator listing is weak evidence that a role is gone.",
+      "rationale": "Each source's disappearance rate is mostly a property of its own retention policy. Only employer-ATS feeds track the actual role, and they say finance roles stay open for weeks — under 6% close within a week. A vanished aggregator listing is weak evidence that a role is gone.",
       "id": "docs_market_panel_analysis_listing_churn_finding",
       "community": 21,
       "norm_label": "listing churn measures board hygiene, not fills"
@@ -22929,12 +22735,12 @@
       "label": "JobsDB 30-Day Delisting Timer",
       "file_type": "concept",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a702",
+      "source_location": "§02",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "In a like-for-like survival curve (both scraped since 31 May) the JobsDB curve does not decay \u2014 it falls vertically to exactly zero at day 30. That is a retention policy rendered as a survival curve. The ATS curve declines gradually and continues past day 30, which is what a real hiring process looks like. Indeed by contrast leaves dead listings up for years.",
+      "rationale": "In a like-for-like survival curve (both scraped since 31 May) the JobsDB curve does not decay — it falls vertically to exactly zero at day 30. That is a retention policy rendered as a survival curve. The ATS curve declines gradually and continues past day 30, which is what a real hiring process looks like. Indeed by contrast leaves dead listings up for years.",
       "id": "docs_market_panel_analysis_jobsdb_30_day_timer",
       "community": 21,
       "norm_label": "jobsdb 30-day delisting timer"
@@ -22943,12 +22749,12 @@
       "label": "Re-Listing Under a New ID",
       "file_type": "concept",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a702, \u00a708",
+      "source_location": "§02, §08",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "For 81 of 277 eFC listings closed since 1 July (29.2%) the same employer still has an identical title live under a different listing ID \u2014 HKEX and DBS cycling Treasures Relationship Manager and Post-Trade Systems roles. Because the test requires exact title match and only counts roles live today, 29.2% is a floor, not an estimate. Users currently see these as expired.",
+      "rationale": "For 81 of 277 eFC listings closed since 1 July (29.2%) the same employer still has an identical title live under a different listing ID — HKEX and DBS cycling Treasures Relationship Manager and Post-Trade Systems roles. Because the test requires exact title match and only counts roles live today, 29.2% is a floor, not an estimate. Users currently see these as expired.",
       "id": "docs_market_panel_analysis_relisting_under_new_id",
       "community": 21,
       "norm_label": "re-listing under a new id"
@@ -22957,12 +22763,12 @@
       "label": "60-Day Stale Tail on the Live Board",
       "file_type": "concept",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a702, \u00a708",
+      "source_location": "§02, §08",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "Of 4,852 active postings with a usable date, only 13.6% were posted in the last three days while 15.6% are over two months old. Since ATS evidence shows most roles resolving well inside two months, much of that tail is filled roles nobody retracted \u2014 a default freshness filter would improve perceived quality more than any new source.",
+      "rationale": "Of 4,852 active postings with a usable date, only 13.6% were posted in the last three days while 15.6% are over two months old. Since ATS evidence shows most roles resolving well inside two months, much of that tail is filled roles nobody retracted — a default freshness filter would improve perceived quality more than any new source.",
       "id": "docs_market_panel_analysis_board_staleness",
       "community": 0,
       "norm_label": "60-day stale tail on the live board"
@@ -22971,7 +22777,7 @@
       "label": "3.5x Weekday Posting Rhythm",
       "file_type": "concept",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a703",
+      "source_location": "§03",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -22985,12 +22791,12 @@
       "label": "Thursday Peak is an Instrument Artefact",
       "file_type": "concept",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a703",
+      "source_location": "§03",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "Chi-square against uniform weekdays gives 21.51 on 4 df, past the 9.49 critical value \u2014 but with 9,941 observations almost any wobble would be significant. The real test is replication across independent sources, and it fails: the entire effect lives in JobsDB (23.5%), while LinkedIn 16.9%, Workday 17.2% and Eightfold 18.1% sit below uniform. An effect that reverses sign when you change measuring instrument is a property of the instrument.",
+      "rationale": "Chi-square against uniform weekdays gives 21.51 on 4 df, past the 9.49 critical value — but with 9,941 observations almost any wobble would be significant. The real test is replication across independent sources, and it fails: the entire effect lives in JobsDB (23.5%), while LinkedIn 16.9%, Workday 17.2% and Eightfold 18.1% sit below uniform. An effect that reverses sign when you change measuring instrument is a property of the instrument.",
       "id": "docs_market_panel_analysis_thursday_artefact",
       "community": 21,
       "norm_label": "thursday peak is an instrument artefact"
@@ -22999,12 +22805,12 @@
       "label": "'Apply Within the Hour' Null Result",
       "file_type": "concept",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a704",
+      "source_location": "§04",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "Tested on 665 live postings carrying LinkedIn applicant counts: Spearman rho = 0.029, t = 0.76, nowhere near 1.96. Week-one postings average 37.5 applicants, month-two 46.2, and weeks 3\u20134 are the crowded bucket \u2014 a shape indistinguishable from noise. It does not mean applying early is harmful; it means there is no evidence a same-day application beats a considered one three days later.",
+      "rationale": "Tested on 665 live postings carrying LinkedIn applicant counts: Spearman rho = 0.029, t = 0.76, nowhere near 1.96. Week-one postings average 37.5 applicants, month-two 46.2, and weeks 3–4 are the crowded bucket — a shape indistinguishable from noise. It does not mean applying early is harmful; it means there is no evidence a same-day application beats a considered one three days later.",
       "id": "docs_market_panel_analysis_apply_early_null_result",
       "community": 84,
       "norm_label": "'apply within the hour' null result"
@@ -23013,7 +22819,7 @@
       "label": "Survivorship Caveat on Applicant Counts",
       "file_type": "rationale",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a704",
+      "source_location": "§04",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -23027,12 +22833,12 @@
       "label": "28% Row-Count vs Opportunity-Count Gap",
       "file_type": "concept",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a705",
+      "source_location": "§05",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "Of 4,986 active rows, 2,304 are flagged cross-posted and 1,375 of those are suppressed as non-primary duplicates, so the board represents roughly 3,611 distinct roles \u2014 the visible board is ~28% smaller than its row count.",
+      "rationale": "Of 4,986 active rows, 2,304 are flagged cross-posted and 1,375 of those are suppressed as non-primary duplicates, so the board represents roughly 3,611 distinct roles — the visible board is ~28% smaller than its row count.",
       "id": "docs_market_panel_analysis_cross_post_suppression",
       "community": 21,
       "norm_label": "28% row-count vs opportunity-count gap"
@@ -23041,7 +22847,7 @@
       "label": "Unaudited Fuzzy Cross-Post Matcher",
       "file_type": "concept",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a705, \u00a709",
+      "source_location": "§05, §09",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -23055,12 +22861,12 @@
       "label": "Sole-Source Coverage Per Adapter",
       "file_type": "concept",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a705",
+      "source_location": "§05",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "Every source is the sole home of a meaningful block of roles \u2014 dropping JobsDB would cost 1,715 roles nothing else covers, dropping the paid LinkedIn-posts feed 196. No single source makes the others redundant, which is the strongest available justification for the multi-adapter architecture.",
+      "rationale": "Every source is the sole home of a meaningful block of roles — dropping JobsDB would cost 1,715 roles nothing else covers, dropping the paid LinkedIn-posts feed 196. No single source makes the others redundant, which is the strongest available justification for the multi-adapter architecture.",
       "id": "docs_market_panel_analysis_sole_source_coverage",
       "community": 21,
       "norm_label": "sole-source coverage per adapter"
@@ -23069,12 +22875,12 @@
       "label": "Seniority Salary Ladder",
       "file_type": "concept",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a706",
+      "source_location": "§06",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "Model estimates, not advertised salaries: of 9,057 estimates only 62 (0.7%) are high confidence, 8,282 medium, 713 low. Calibrated against Hays 2026 anchors and clamped by a deterministic rule, so the shape is dependable and the levels only indicative. Rungs separate cleanly with no overlap \u2014 the best evidence the enrichment behaves sensibly \u2014 and the steepest jump is mid to senior, where the floor rises 64% from HK$34.9k to HK$57.3k.",
+      "rationale": "Model estimates, not advertised salaries: of 9,057 estimates only 62 (0.7%) are high confidence, 8,282 medium, 713 low. Calibrated against Hays 2026 anchors and clamped by a deterministic rule, so the shape is dependable and the levels only indicative. Rungs separate cleanly with no overlap — the best evidence the enrichment behaves sensibly — and the steepest jump is mid to senior, where the floor rises 64% from HK$34.9k to HK$57.3k.",
       "id": "docs_market_panel_analysis_salary_ladder",
       "community": 0,
       "norm_label": "seniority salary ladder"
@@ -23083,12 +22889,12 @@
       "label": "Mandate Skills Command the Premium",
       "file_type": "concept",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a706",
+      "source_location": "§06",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "Against a HK$43,000 market median: investment advisory +74% (75 postings), team leadership +49%, portfolio management +40%, stakeholder management +23%, risk management +22% \u2014 while the highest-frequency skills, regulatory compliance (1,043 postings, 21.5%) and relationship management (810), sit at the median. Ubiquity and premium are close to opposites: what everyone must have prices like a floor, not a differentiator.",
+      "rationale": "Against a HK$43,000 market median: investment advisory +74% (75 postings), team leadership +49%, portfolio management +40%, stakeholder management +23%, risk management +22% — while the highest-frequency skills, regulatory compliance (1,043 postings, 21.5%) and relationship management (810), sit at the median. Ubiquity and premium are close to opposites: what everyone must have prices like a floor, not a differentiator.",
       "id": "docs_market_panel_analysis_skill_premium",
       "community": 0,
       "norm_label": "mandate skills command the premium"
@@ -23097,7 +22903,7 @@
       "label": "Skill Casing Fragmentation",
       "file_type": "concept",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a706, \u00a709",
+      "source_location": "§06, §09",
       "source_url": null,
       "captured_at": null,
       "author": null,
@@ -23111,12 +22917,12 @@
       "label": "Secret Market Unit Economics",
       "file_type": "concept",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a707",
+      "source_location": "§07",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "578 posts ingested, 196 promoted to live roles, 100% of which appear on no other source, for US$4.21 of the US$30 cap \u2014 14% of budget for ~4% of the active board, about 2 US cents per exclusive role. The best-performing source in the system. The constraint on scaling is watchlist coverage, not budget: the last run polled 59 recruiters and 8 failed.",
+      "rationale": "578 posts ingested, 196 promoted to live roles, 100% of which appear on no other source, for US$4.21 of the US$30 cap — 14% of budget for ~4% of the active board, about 2 US cents per exclusive role. The best-performing source in the system. The constraint on scaling is watchlist coverage, not budget: the last run polled 59 recruiters and 8 failed.",
       "id": "docs_market_panel_analysis_secret_market_economics",
       "community": 0,
       "norm_label": "secret market unit economics"
@@ -23125,12 +22931,12 @@
       "label": "Ranked Remediation Backlog",
       "file_type": "concept",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a709",
+      "source_location": "§09",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "Ranked by analytical capability unlocked per unit of work: never write a zero on a failed fetch (raise, record the company-day as missing \u2014 repairs 24.6% of observations, highest value); assert full pagination before persisting; fix the jobs_added re-seed; add first_seen_at and per-adapter start dates; detect re-listings instead of counting them as closures; normalise skill casing at write time; precision-audit the fuzzy matcher; capture applicant counts longitudinally.",
+      "rationale": "Ranked by analytical capability unlocked per unit of work: never write a zero on a failed fetch (raise, record the company-day as missing — repairs 24.6% of observations, highest value); assert full pagination before persisting; fix the jobs_added re-seed; add first_seen_at and per-adapter start dates; detect re-listings instead of counting them as closures; normalise skill casing at write time; precision-audit the fuzzy matcher; capture applicant counts longitudinally.",
       "id": "docs_market_panel_analysis_remediation_backlog",
       "community": 21,
       "norm_label": "ranked remediation backlog"
@@ -23139,12 +22945,12 @@
       "label": "first_seen_at Column Proposal",
       "file_type": "concept",
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a709",
+      "source_location": "§09",
       "source_url": null,
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "rationale": "Lifespan is currently reconstructed from posted_at, which relies on source-supplied dates of wildly varying quality, and nothing in the schema records how long each source has been observed \u2014 exactly what produced the retracted 2-day eFC figure. A first-seen timestamp we control plus a per-adapter start date makes lifespan analysis exact and makes the window trap impossible to fall into twice.",
+      "rationale": "Lifespan is currently reconstructed from posted_at, which relies on source-supplied dates of wildly varying quality, and nothing in the schema records how long each source has been observed — exactly what produced the retracted 2-day eFC figure. A first-seen timestamp we control plus a per-adapter start date makes lifespan analysis exact and makes the window trap impossible to fall into twice.",
       "id": "docs_market_panel_analysis_first_seen_at_proposal",
       "community": 21,
       "norm_label": "first_seen_at column proposal"
@@ -23475,7 +23281,7 @@
       "norm_label": "banking grade ladder (analyst/associate/vp/director/md by years of experience)"
     },
     {
-      "label": "Insurance Grade Ladder (officer_senior_analyst \u2192 head)",
+      "label": "Insurance Grade Ladder (officer_senior_analyst → head)",
       "file_type": "concept",
       "source_file": "salary_guidlines/persolkelly_2025.json",
       "source_location": "line 6",
@@ -23485,7 +23291,7 @@
       "contributor": null,
       "id": "salary_guidlines_persolkelly_2025_insurance_grades",
       "community": 18,
-      "norm_label": "insurance grade ladder (officer_senior_analyst \u2192 head)"
+      "norm_label": "insurance grade ladder (officer_senior_analyst → head)"
     },
     {
       "label": "Merged HK Salary Anchors Dataset (single source of truth)",
@@ -23540,7 +23346,7 @@
       "norm_label": "global max monthly hkd cap (200,000)"
     },
     {
-      "label": "Seniority Mapping (Analyst\u2192junior \u2026 Director/MD/Head/CxO\u2192lead)",
+      "label": "Seniority Mapping (Analyst→junior … Director/MD/Head/CxO→lead)",
       "file_type": "concept",
       "source_file": "salary_guidlines/hk_salary_anchors.json",
       "source_location": "line 6",
@@ -23550,7 +23356,7 @@
       "contributor": null,
       "id": "salary_guidlines_hk_salary_anchors_seniority_mapping",
       "community": 18,
-      "norm_label": "seniority mapping (analyst\u2192junior ... director/md/head/cxo\u2192lead)"
+      "norm_label": "seniority mapping (analyst→junior ... director/md/head/cxo→lead)"
     },
     {
       "label": "Modest-Tier Default & Disclosed-Salary Override Rule",
@@ -23579,7 +23385,7 @@
       "norm_label": "tier_order_low_to_high (7-tier ordering)"
     },
     {
-      "label": "ladders_monthly_hkd (tier \u00d7 junior/mid/senior/lead coarse bands)",
+      "label": "ladders_monthly_hkd (tier × junior/mid/senior/lead coarse bands)",
       "file_type": "concept",
       "source_file": "salary_guidlines/hk_salary_anchors.json",
       "source_location": "line 22 onward",
@@ -23589,10 +23395,10 @@
       "contributor": null,
       "id": "salary_guidlines_hk_salary_anchors_ladders_monthly_hkd",
       "community": 18,
-      "norm_label": "ladders_monthly_hkd (tier \u00d7 junior/mid/senior/lead coarse bands)"
+      "norm_label": "ladders_monthly_hkd (tier × junior/mid/senior/lead coarse bands)"
     },
     {
-      "label": "tables_monthly_hkd (tier \u00d7 named role \u00d7 grade fine-grained bands)",
+      "label": "tables_monthly_hkd (tier × named role × grade fine-grained bands)",
       "file_type": "concept",
       "source_file": "salary_guidlines/hk_salary_anchors.json",
       "source_location": null,
@@ -23602,7 +23408,7 @@
       "contributor": null,
       "id": "salary_guidlines_hk_salary_anchors_tables_monthly_hkd",
       "community": 18,
-      "norm_label": "tables_monthly_hkd (tier \u00d7 named role \u00d7 grade fine-grained bands)"
+      "norm_label": "tables_monthly_hkd (tier × named role × grade fine-grained bands)"
     },
     {
       "label": "management_grade_caps_monthly_hkd (deterministic title-grade overrides)",
@@ -23759,19 +23565,6 @@
       "id": "backend_requirements_pydantic",
       "community": 125,
       "norm_label": "pydantic==2.13.4 (request/response validation)"
-    },
-    {
-      "label": "email-validator==2.3.0 (backs EmailStr on /api/contact and /api/post-role)",
-      "file_type": "code",
-      "source_file": "webapp/backend/requirements.txt",
-      "source_location": "lines 4-6",
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "id": "backend_requirements_email_validator",
-      "community": 125,
-      "norm_label": "email-validator==2.3.0 (backs emailstr on /api/contact and /api/post-role)"
     },
     {
       "label": "SPA Root Mount Point (#root)",
@@ -25163,16 +24956,6 @@
       "target": "backend_main"
     },
     {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "webapp/backend/requirements.txt",
-      "source_location": "lines 4-5 (names /api/contact and /api/post-role)",
-      "weight": 1.0,
-      "source": "backend_requirements_email_validator",
-      "target": "backend_main"
-    },
-    {
       "relation": "shares_data_with",
       "confidence": "INFERRED",
       "confidence_score": 0.85,
@@ -25187,7 +24970,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a707",
+      "source_location": "§07",
       "weight": 1.0,
       "source": "docs_architecture_guide_cross_post_signal_sharing",
       "target": "backend_main"
@@ -25197,29 +24980,9 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a707",
+      "source_location": "§07",
       "weight": 1.0,
       "source": "docs_architecture_guide_fastapi_read_only_layer",
-      "target": "backend_main"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a701, \u00a704",
-      "weight": 1.0,
-      "source": "docs_email_system_enquiry_email_flow",
-      "target": "backend_main"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a706",
-      "weight": 1.0,
-      "source": "docs_email_system_health_endpoint",
       "target": "backend_main"
     },
     {
@@ -25831,16 +25594,6 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "webapp/backend/main.py",
-      "source_location": "L962",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_main_rationale_962",
-      "target": "backend_main_submit_enquiry"
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/backend/main.py",
       "source_location": "L991",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -26229,17 +25982,6 @@
       "confidence_score": 1.0,
       "source": "pages_landingpage",
       "target": "api_client_fetchstats"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/pages/LandingPage.tsx",
-      "source_location": "L7",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "pages_landingpage",
-      "target": "components_enquiryform"
     },
     {
       "relation": "imports_from",
@@ -27621,7 +27363,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a703",
+      "source_location": "§03",
       "weight": 1.0,
       "source": "docs_architecture_guide_adapter_abstraction",
       "target": "adapters_base"
@@ -28279,7 +28021,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a703",
+      "source_location": "§03",
       "weight": 1.0,
       "source": "docs_architecture_guide_adapter_priority_chain",
       "target": "adapters_efc"
@@ -28289,7 +28031,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a702",
+      "source_location": "§02",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_observation_window_trap",
       "target": "adapters_efc"
@@ -28299,7 +28041,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a702",
+      "source_location": "§02",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_relisting_under_new_id",
       "target": "adapters_efc"
@@ -28860,7 +28602,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a703",
+      "source_location": "§03",
       "weight": 1.0,
       "source": "docs_architecture_guide_adapter_priority_chain",
       "target": "adapters_eightfold"
@@ -28870,7 +28612,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a702",
+      "source_location": "§02",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_seven_day_closure_rate",
       "target": "adapters_eightfold"
@@ -29296,7 +29038,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a703",
+      "source_location": "§03",
       "weight": 1.0,
       "source": "docs_architecture_guide_adapter_priority_chain",
       "target": "adapters_indeed"
@@ -30200,7 +29942,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a703",
+      "source_location": "§03",
       "weight": 1.0,
       "source": "docs_architecture_guide_adapter_priority_chain",
       "target": "adapters_jobsdb"
@@ -30210,7 +29952,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a702",
+      "source_location": "§02",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_jobsdb_30_day_timer",
       "target": "adapters_jobsdb"
@@ -30220,7 +29962,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a703",
+      "source_location": "§03",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_thursday_artefact",
       "target": "adapters_jobsdb"
@@ -31158,7 +30900,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a703",
+      "source_location": "§03",
       "weight": 1.0,
       "source": "docs_architecture_guide_adapter_priority_chain",
       "target": "adapters_linkedin"
@@ -31168,7 +30910,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a704",
+      "source_location": "§04",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_apply_early_null_result",
       "target": "adapters_linkedin"
@@ -32572,7 +32314,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a703",
+      "source_location": "§03",
       "weight": 1.0,
       "source": "docs_architecture_guide_adapter_priority_chain",
       "target": "adapters_workday"
@@ -32582,7 +32324,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a702",
+      "source_location": "§02",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_seven_day_closure_rate",
       "target": "adapters_workday"
@@ -34480,7 +34222,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a702, \u00a704",
+      "source_location": "§02, §04",
       "weight": 1.0,
       "source": "docs_architecture_guide_ai_enrichment",
       "target": "hk_jobs_enrich"
@@ -34490,7 +34232,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a706",
+      "source_location": "§06",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_salary_ladder",
       "target": "hk_jobs_enrich"
@@ -34500,7 +34242,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a706",
+      "source_location": "§06",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_skill_casing_fragmentation",
       "target": "hk_jobs_enrich"
@@ -37849,7 +37591,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a701, \u00a702",
+      "source_location": "§01, §02",
       "weight": 1.0,
       "source": "docs_architecture_guide_daily_pipeline",
       "target": "hk_jobs_pipeline"
@@ -37859,7 +37601,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a701",
+      "source_location": "§01",
       "weight": 1.0,
       "source": "docs_email_system_failure_alert",
       "target": "hk_jobs_pipeline"
@@ -37869,7 +37611,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a701",
+      "source_location": "§01",
       "weight": 1.0,
       "source": "docs_email_system_nightly_brief",
       "target": "hk_jobs_pipeline"
@@ -45529,7 +45271,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a702",
+      "source_location": "§02",
       "weight": 1.0,
       "source": "docs_architecture_guide_canonical_job_model",
       "target": "hk_jobs_schema"
@@ -45539,7 +45281,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.85,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a709",
+      "source_location": "§09",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_first_seen_at_proposal",
       "target": "hk_jobs_schema"
@@ -46310,7 +46052,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a706",
+      "source_location": "§06",
       "weight": 1.0,
       "source": "docs_architecture_guide_soft_delete_cross_posting",
       "target": "hk_jobs_storage"
@@ -46320,7 +46062,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a702, \u00a706",
+      "source_location": "§02, §06",
       "weight": 1.0,
       "source": "docs_architecture_guide_storage_schema",
       "target": "hk_jobs_storage"
@@ -46330,7 +46072,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a705",
+      "source_location": "§05",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_fuzzy_matcher_risk",
       "target": "hk_jobs_storage"
@@ -46340,7 +46082,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a701",
+      "source_location": "§01",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_hiring_velocity_retracted",
       "target": "hk_jobs_storage"
@@ -59554,16 +59296,6 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_submit_endpoints.py",
-      "source_location": "L1",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "tests_test_submit_endpoints_rationale_1",
-      "target": "tests_test_submit_endpoints"
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "tests/test_submit_endpoints.py",
       "source_location": "L27",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -60844,16 +60576,6 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "webapp/frontend/src/api/client.ts",
-      "source_location": "L206",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "api_client",
-      "target": "api_client_career_stages"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/api/client.ts",
       "source_location": "L261",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -60869,16 +60591,6 @@
       "confidence_score": 1.0,
       "source": "api_client",
       "target": "api_client_default_filters"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/api/client.ts",
-      "source_location": "L213",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "api_client",
-      "target": "api_client_enquirypayload"
     },
     {
       "relation": "contains",
@@ -61044,16 +60756,6 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "webapp/frontend/src/api/client.ts",
-      "source_location": "L265",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "api_client",
-      "target": "api_client_submitenquiry"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/api/client.ts",
       "source_location": "L269",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -61069,17 +60771,6 @@
       "confidence_score": 1.0,
       "source": "api_client",
       "target": "api_client_tiertab"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L3",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_enquiryform",
-      "target": "api_client"
     },
     {
       "relation": "imports_from",
@@ -61423,28 +61114,6 @@
       "target": "api_client_fetchjobdetail"
     },
     {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L3",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_enquiryform",
-      "target": "api_client_career_stages"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/api/client.ts",
-      "source_location": "L266",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "api_client_submitenquiry",
-      "target": "api_client_postjson"
-    },
-    {
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
@@ -61454,17 +61123,6 @@
       "confidence_score": 1.0,
       "source": "api_client_submitrole",
       "target": "api_client_postjson"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L3",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_enquiryform",
-      "target": "api_client_submitenquiry"
     },
     {
       "relation": "imports",
@@ -61496,46 +61154,6 @@
       "confidence_score": 1.0,
       "source": "components_emptystate",
       "target": "components_emptystate_props"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L17",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_enquiryform",
-      "target": "components_enquiryform_enquiryform"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L164",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_enquiryform",
-      "target": "components_enquiryform_field"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L7",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_enquiryform",
-      "target": "components_enquiryform_max"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L5",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_enquiryform",
-      "target": "components_enquiryform_status"
     },
     {
       "relation": "contains",
@@ -64450,16 +64068,6 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/PLAN_FRONT_PAGE.md",
-      "source_location": "L193",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_plan_front_page_5_implementation",
-      "target": "docs_plan_front_page_5_5_backend_post_api_contact"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/PLAN_FRONT_PAGE.md",
       "source_location": "L249",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -66411,7 +66019,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a700",
+      "source_location": "§00",
       "weight": 1.0,
       "source": "docs_architecture_guide_platform_overview",
       "target": "docs_architecture_guide_four_delivery_surfaces"
@@ -66421,7 +66029,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a700",
+      "source_location": "§00",
       "weight": 1.0,
       "source": "docs_architecture_guide_platform_overview",
       "target": "docs_architecture_guide_stale_claude_md"
@@ -66431,7 +66039,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a701, \u00a703",
+      "source_location": "§01, §03",
       "weight": 1.0,
       "source": "docs_architecture_guide_adapter_abstraction",
       "target": "docs_architecture_guide_canonical_job_model"
@@ -66441,7 +66049,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a703",
+      "source_location": "§03",
       "weight": 1.0,
       "source": "docs_architecture_guide_adapter_priority_chain",
       "target": "docs_architecture_guide_adapter_abstraction"
@@ -66451,7 +66059,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a703",
+      "source_location": "§03",
       "weight": 1.0,
       "source": "docs_architecture_guide_graceful_failure",
       "target": "docs_architecture_guide_adapter_abstraction"
@@ -66461,7 +66069,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a705",
+      "source_location": "§05",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_fuzzy_matcher_risk",
       "target": "docs_architecture_guide_canonical_job_model"
@@ -66471,7 +66079,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a703",
+      "source_location": "§03",
       "weight": 1.0,
       "source": "docs_architecture_guide_adapter_priority_chain",
       "target": "docs_architecture_guide_longtail_llm_adapter"
@@ -66481,7 +66089,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a711",
+      "source_location": "§11",
       "weight": 1.0,
       "source": "docs_architecture_guide_fixture_based_tests",
       "target": "docs_architecture_guide_adapter_priority_chain"
@@ -66491,7 +66099,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a705",
+      "source_location": "§05",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_sole_source_coverage",
       "target": "docs_architecture_guide_adapter_priority_chain"
@@ -66501,7 +66109,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.85,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a701 vs ARCHITECTURE_GUIDE \u00a703",
+      "source_location": "§01 vs ARCHITECTURE_GUIDE §03",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_zero_observation_defect",
       "target": "docs_architecture_guide_graceful_failure"
@@ -66511,7 +66119,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.95,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a708",
+      "source_location": "§08",
       "weight": 1.0,
       "source": "docs_architecture_guide_longtail_llm_adapter",
       "target": "docs_architecture_guide_tier_tabs"
@@ -66521,7 +66129,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a701, \u00a710",
+      "source_location": "§01, §10",
       "weight": 1.0,
       "source": "docs_architecture_guide_daily_automation",
       "target": "docs_architecture_guide_daily_pipeline"
@@ -66531,7 +66139,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a701",
+      "source_location": "§01",
       "weight": 1.0,
       "source": "docs_architecture_guide_daily_pipeline",
       "target": "docs_architecture_guide_ai_enrichment"
@@ -66541,7 +66149,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a701, \u00a709",
+      "source_location": "§01, §09",
       "weight": 1.0,
       "source": "docs_architecture_guide_daily_pipeline",
       "target": "docs_architecture_guide_pocketbase_mirror"
@@ -66551,7 +66159,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a701",
+      "source_location": "§01",
       "weight": 1.0,
       "source": "docs_email_system_nightly_brief",
       "target": "docs_architecture_guide_daily_automation"
@@ -66561,7 +66169,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a704, \u00a706",
+      "source_location": "§04, §06",
       "weight": 1.0,
       "source": "docs_architecture_guide_ai_enrichment",
       "target": "docs_architecture_guide_storage_schema"
@@ -66571,7 +66179,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a704",
+      "source_location": "§04",
       "weight": 1.0,
       "source": "docs_architecture_guide_salary_clamp",
       "target": "docs_architecture_guide_ai_enrichment"
@@ -66581,7 +66189,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.95,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a706",
+      "source_location": "§06",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_skill_casing_fragmentation",
       "target": "docs_architecture_guide_ai_enrichment"
@@ -66591,7 +66199,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a706",
+      "source_location": "§06",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_salary_ladder",
       "target": "docs_architecture_guide_salary_clamp"
@@ -66601,7 +66209,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a706",
+      "source_location": "§06",
       "weight": 1.0,
       "source": "docs_architecture_guide_tech_filter",
       "target": "docs_architecture_guide_storage_schema"
@@ -66611,7 +66219,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a705",
+      "source_location": "§05",
       "weight": 1.0,
       "source": "docs_architecture_guide_paid_vendor_exception",
       "target": "docs_architecture_guide_recruiter_posts_subsystem"
@@ -66621,7 +66229,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a705, \u00a706",
+      "source_location": "§05, §06",
       "weight": 1.0,
       "source": "docs_architecture_guide_recruiter_posts_subsystem",
       "target": "docs_architecture_guide_storage_schema"
@@ -66631,7 +66239,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a705, \u00a708",
+      "source_location": "§05, §08",
       "weight": 1.0,
       "source": "docs_architecture_guide_recruiter_posts_subsystem",
       "target": "docs_architecture_guide_tier_tabs"
@@ -66641,7 +66249,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a707",
+      "source_location": "§07",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_secret_market_economics",
       "target": "docs_architecture_guide_recruiter_posts_subsystem"
@@ -66651,7 +66259,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a703",
+      "source_location": "§03",
       "weight": 1.0,
       "source": "docs_email_system_nightly_brief",
       "target": "docs_architecture_guide_paid_vendor_exception"
@@ -66661,7 +66269,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a707",
+      "source_location": "§07",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_secret_market_economics",
       "target": "docs_architecture_guide_paid_vendor_exception"
@@ -66671,7 +66279,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a707",
+      "source_location": "§07",
       "weight": 1.0,
       "source": "docs_architecture_guide_fastapi_read_only_layer",
       "target": "docs_architecture_guide_storage_schema"
@@ -66681,7 +66289,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a706",
+      "source_location": "§06",
       "weight": 1.0,
       "source": "docs_architecture_guide_soft_delete_cross_posting",
       "target": "docs_architecture_guide_storage_schema"
@@ -66691,7 +66299,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a706, \u00a707",
+      "source_location": "§06, §07",
       "weight": 1.0,
       "source": "docs_architecture_guide_cross_post_signal_sharing",
       "target": "docs_architecture_guide_soft_delete_cross_posting"
@@ -66701,7 +66309,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.95,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a705",
+      "source_location": "§05",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_cross_post_suppression",
       "target": "docs_architecture_guide_soft_delete_cross_posting"
@@ -66711,7 +66319,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a707",
+      "source_location": "§07",
       "weight": 1.0,
       "source": "docs_architecture_guide_computed_sector",
       "target": "docs_architecture_guide_fastapi_read_only_layer"
@@ -66721,7 +66329,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a708",
+      "source_location": "§08",
       "weight": 1.0,
       "source": "docs_architecture_guide_filter_url_serialisation",
       "target": "docs_architecture_guide_fastapi_read_only_layer"
@@ -66731,7 +66339,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.75,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a707 vs MARKET_PANEL_ANALYSIS \u00a706",
+      "source_location": "§07 vs MARKET_PANEL_ANALYSIS §06",
       "weight": 1.0,
       "source": "docs_architecture_guide_computed_sector",
       "target": "docs_market_panel_analysis_skill_casing_fragmentation"
@@ -66741,7 +66349,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a709",
+      "source_location": "§09",
       "weight": 1.0,
       "source": "docs_architecture_guide_four_delivery_surfaces",
       "target": "docs_architecture_guide_react_job_board"
@@ -66751,7 +66359,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a708",
+      "source_location": "§08",
       "weight": 1.0,
       "source": "docs_architecture_guide_tier_tabs",
       "target": "docs_architecture_guide_react_job_board"
@@ -66761,7 +66369,7 @@
       "confidence": "AMBIGUOUS",
       "confidence_score": 0.25,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a702",
+      "source_location": "§02",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_board_staleness",
       "target": "docs_architecture_guide_filter_url_serialisation"
@@ -66771,7 +66379,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html",
-      "source_location": "\u00a709",
+      "source_location": "§09",
       "weight": 1.0,
       "source": "docs_architecture_guide_four_delivery_surfaces",
       "target": "docs_architecture_guide_pocketbase_mirror"
@@ -66781,7 +66389,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.85,
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a704 vs ARCHITECTURE_GUIDE \u00a709",
+      "source_location": "§04 vs ARCHITECTURE_GUIDE §09",
       "weight": 1.0,
       "source": "docs_email_system_disk_first_ordering",
       "target": "docs_architecture_guide_pocketbase_mirror"
@@ -66791,37 +66399,17 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a702",
+      "source_location": "§02",
       "weight": 1.0,
       "source": "docs_email_system_bare_environment_bug",
       "target": "docs_email_system_two_sender_split"
     },
     {
-      "relation": "conceptually_related_to",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a703",
-      "weight": 1.0,
-      "source": "docs_email_system_mime_multipart_vs_emailmessage",
-      "target": "docs_email_system_two_sender_split"
-    },
-    {
       "relation": "references",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a701",
-      "weight": 1.0,
-      "source": "docs_email_system_two_sender_split",
-      "target": "docs_email_system_enquiry_email_flow"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a701",
+      "source_location": "§01",
       "weight": 1.0,
       "source": "docs_email_system_two_sender_split",
       "target": "docs_email_system_nightly_brief"
@@ -66831,7 +66419,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a701",
+      "source_location": "§01",
       "weight": 1.0,
       "source": "docs_email_system_failure_alert",
       "target": "docs_email_system_nightly_brief"
@@ -66841,7 +66429,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a701",
+      "source_location": "§01",
       "weight": 1.0,
       "source": "docs_email_system_nightly_brief",
       "target": "docs_email_system_gmail_smtp_transport"
@@ -66851,67 +66439,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a704",
-      "weight": 1.0,
-      "source": "docs_email_system_disk_first_ordering",
-      "target": "docs_email_system_enquiry_email_flow"
-    },
-    {
-      "relation": "calls",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a701",
-      "weight": 1.0,
-      "source": "docs_email_system_enquiry_email_flow",
-      "target": "docs_email_system_gmail_smtp_transport"
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a705",
-      "weight": 1.0,
-      "source": "docs_email_system_fixed_recipient_constant",
-      "target": "docs_email_system_enquiry_email_flow"
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a705",
-      "weight": 1.0,
-      "source": "docs_email_system_header_injection_guard",
-      "target": "docs_email_system_enquiry_email_flow"
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a705",
-      "weight": 1.0,
-      "source": "docs_email_system_honeypot",
-      "target": "docs_email_system_enquiry_email_flow"
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a705",
-      "weight": 1.0,
-      "source": "docs_email_system_rate_limit",
-      "target": "docs_email_system_enquiry_email_flow"
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a701",
+      "source_location": "§01",
       "weight": 1.0,
       "source": "docs_email_system_port_587_choice",
       "target": "docs_email_system_gmail_smtp_transport"
@@ -66921,69 +66449,19 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a706",
+      "source_location": "§06",
       "weight": 1.0,
       "source": "docs_email_system_mail_runbook",
       "target": "docs_email_system_port_587_choice"
     },
     {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a702",
-      "weight": 1.0,
-      "source": "docs_email_system_bare_environment_bug",
-      "target": "docs_email_system_credential_resolution_order"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a702",
-      "weight": 1.0,
-      "source": "docs_email_system_credential_resolution_order",
-      "target": "docs_email_system_app_password"
-    },
-    {
-      "relation": "implements",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a702",
-      "weight": 1.0,
-      "source": "docs_email_system_env_file_loader",
-      "target": "docs_email_system_credential_resolution_order"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a707",
-      "weight": 1.0,
-      "source": "docs_email_system_production_checklist",
-      "target": "docs_email_system_credential_resolution_order"
-    },
-    {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a702",
+      "source_location": "§02",
       "weight": 1.0,
       "source": "docs_email_system_env_file_loader",
-      "target": "docs_email_system_bare_environment_bug"
-    },
-    {
-      "relation": "conceptually_related_to",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a704",
-      "weight": 1.0,
-      "source": "docs_email_system_enquiry_queue",
       "target": "docs_email_system_bare_environment_bug"
     },
     {
@@ -66991,77 +66469,27 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a706",
+      "source_location": "§06",
       "weight": 1.0,
       "source": "docs_email_system_mail_runbook",
       "target": "docs_email_system_bare_environment_bug"
     },
     {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a704",
-      "weight": 1.0,
-      "source": "docs_email_system_disk_first_ordering",
-      "target": "docs_email_system_enquiry_queue"
-    },
-    {
       "relation": "references",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a707",
-      "weight": 1.0,
-      "source": "docs_email_system_production_checklist",
-      "target": "docs_email_system_enquiry_queue"
-    },
-    {
-      "relation": "conceptually_related_to",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a704",
-      "weight": 1.0,
-      "source": "docs_email_system_role_submission_review",
-      "target": "docs_email_system_enquiry_queue"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a706",
+      "source_location": "§06",
       "weight": 1.0,
       "source": "docs_email_system_mail_runbook",
       "target": "docs_email_system_honeypot"
     },
     {
-      "relation": "semantically_similar_to",
-      "confidence": "INFERRED",
-      "confidence_score": 0.65,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a706 vs MARKET_PANEL_ANALYSIS Findings",
-      "weight": 1.0,
-      "source": "docs_email_system_health_endpoint",
-      "target": "docs_market_panel_analysis_evidential_grading"
-    },
-    {
       "relation": "references",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a706",
-      "weight": 1.0,
-      "source": "docs_email_system_mail_runbook",
-      "target": "docs_email_system_health_endpoint"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a706",
+      "source_location": "§06",
       "weight": 1.0,
       "source": "docs_email_system_mail_runbook",
       "target": "docs_email_system_success_logging"
@@ -67071,7 +66499,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.75,
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "\u00a706 vs MARKET_PANEL_ANALYSIS \u00a701",
+      "source_location": "§06 vs MARKET_PANEL_ANALYSIS §01",
       "weight": 1.0,
       "source": "docs_email_system_success_logging",
       "target": "docs_market_panel_analysis_zero_observation_defect"
@@ -67091,7 +66519,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a701",
+      "source_location": "§01",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_stable_roster_window",
       "target": "docs_market_panel_analysis_panel"
@@ -67101,7 +66529,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a701",
+      "source_location": "§01",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_hiring_velocity_retracted",
       "target": "docs_market_panel_analysis_zero_observation_defect"
@@ -67111,7 +66539,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a709",
+      "source_location": "§09",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_remediation_backlog",
       "target": "docs_market_panel_analysis_zero_observation_defect"
@@ -67121,7 +66549,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a701",
+      "source_location": "§01",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_hiring_velocity_retracted",
       "target": "docs_market_panel_analysis_pagination_fingerprint"
@@ -67131,7 +66559,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a709",
+      "source_location": "§09",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_remediation_backlog",
       "target": "docs_market_panel_analysis_pagination_fingerprint"
@@ -67141,7 +66569,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a701",
+      "source_location": "§01",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_hiring_velocity_retracted",
       "target": "docs_market_panel_analysis_jobs_added_reseed"
@@ -67151,7 +66579,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a709",
+      "source_location": "§09",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_remediation_backlog",
       "target": "docs_market_panel_analysis_jobs_added_reseed"
@@ -67161,7 +66589,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a709",
+      "source_location": "§09",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_first_seen_at_proposal",
       "target": "docs_market_panel_analysis_observation_window_trap"
@@ -67171,7 +66599,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a702",
+      "source_location": "§02",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_observation_window_trap",
       "target": "docs_market_panel_analysis_seven_day_closure_rate"
@@ -67181,7 +66609,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a702",
+      "source_location": "§02",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_seven_day_closure_rate",
       "target": "docs_market_panel_analysis_listing_churn_finding"
@@ -67191,7 +66619,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a702",
+      "source_location": "§02",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_board_staleness",
       "target": "docs_market_panel_analysis_listing_churn_finding"
@@ -67201,7 +66629,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a702",
+      "source_location": "§02",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_jobsdb_30_day_timer",
       "target": "docs_market_panel_analysis_listing_churn_finding"
@@ -67211,7 +66639,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a702",
+      "source_location": "§02",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_relisting_under_new_id",
       "target": "docs_market_panel_analysis_listing_churn_finding"
@@ -67221,7 +66649,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a709",
+      "source_location": "§09",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_remediation_backlog",
       "target": "docs_market_panel_analysis_relisting_under_new_id"
@@ -67231,7 +66659,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a703",
+      "source_location": "§03",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_thursday_artefact",
       "target": "docs_market_panel_analysis_weekday_rhythm"
@@ -67241,7 +66669,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a704",
+      "source_location": "§04",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_survivorship_caveat",
       "target": "docs_market_panel_analysis_apply_early_null_result"
@@ -67251,7 +66679,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a705",
+      "source_location": "§05",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_cross_post_suppression",
       "target": "docs_market_panel_analysis_fuzzy_matcher_risk"
@@ -67261,7 +66689,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a709",
+      "source_location": "§09",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_remediation_backlog",
       "target": "docs_market_panel_analysis_fuzzy_matcher_risk"
@@ -67271,7 +66699,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a706",
+      "source_location": "§06",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_skill_premium",
       "target": "docs_market_panel_analysis_skill_casing_fragmentation"
@@ -67281,7 +66709,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a709",
+      "source_location": "§09",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_remediation_backlog",
       "target": "docs_market_panel_analysis_skill_casing_fragmentation"
@@ -67291,7 +66719,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/MARKET_PANEL_ANALYSIS.html",
-      "source_location": "\u00a709",
+      "source_location": "§09",
       "weight": 1.0,
       "source": "docs_market_panel_analysis_remediation_backlog",
       "target": "docs_market_panel_analysis_first_seen_at_proposal"
@@ -67631,7 +67059,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.95,
       "source_file": "salary_guidlines/hk_salary_anchors.json",
-      "source_location": "line 11 grade_ladder_note (Insurance roles use Officer-Senior Analyst \u2026 Head rows)",
+      "source_location": "line 11 grade_ladder_note (Insurance roles use Officer-Senior Analyst … Head rows)",
       "weight": 1.0,
       "source": "salary_guidlines_hk_salary_anchors_insurance",
       "target": "salary_guidlines_persolkelly_2025_insurance_grades"
@@ -67815,16 +67243,6 @@
       "weight": 1.0,
       "source": "backend_requirements_uvicorn",
       "target": "backend_requirements_fastapi"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "webapp/backend/requirements.txt",
-      "source_location": "lines 4-6 (backs pydantic's EmailStr)",
-      "weight": 1.0,
-      "source": "backend_requirements_email_validator",
-      "target": "backend_requirements_pydantic"
     },
     {
       "relation": "references",
@@ -68383,21 +67801,6 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/ARCHITECTURE_GUIDE.html"
-    },
-    {
-      "id": "public_endpoint_guardrails",
-      "label": "Guardrails Making a Public Mail Endpoint Safe",
-      "nodes": [
-        "docs_email_system_fixed_recipient_constant",
-        "docs_email_system_header_injection_guard",
-        "docs_email_system_honeypot",
-        "docs_email_system_rate_limit",
-        "docs_email_system_app_password"
-      ],
-      "relation": "form",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/docs/EMAIL_SYSTEM.html"
     },
     {
       "id": "time_series_invalidating_defects",

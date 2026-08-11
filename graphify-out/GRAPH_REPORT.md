@@ -414,7 +414,6 @@ Nodes (47): JobDetail, JobFilters, JobListResponse, JobSummary, Everything the b
 
 ### Community 29 - "SuccessFactors Adapter Tests"
 Cohesion: 0.10
-Nodes (34): ApiError, apiFetch(), authError(), CAREER_STAGES, deleteAccount(), Employer, employerAuthError(), EmployerRegisterPayload (+26 more)
 
 ### Community 30 - "Identity Linking"
 Cohesion: 0.07
@@ -526,7 +525,6 @@ Nodes (45): ExtractionResult, Connection, datetime, Job, Row, _call_deepseek(), 
 
 ### Community 57 - "Single-Origin Tests"
 Cohesion: 0.13
-Nodes (27): client(), enquiry(), Tests for the two write endpoints — /api/contact and /api/post-role.  These are, End-to-end: real send_mail, only the SMTP socket faked.      Mocking send_mail h, _header_safe is the last line of defence; test it directly., An attacker-supplied 'to' must be ignored, not honoured., Mail is best-effort; the JSONL queue is the source of truth., A fresh app per test, writing its JSONL queue into tmp_path. (+19 more)
 
 ### Community 58 - "LinkedIn Adapter"
 Cohesion: 0.06
@@ -946,7 +944,6 @@ Nodes (4): Alternatives rejected, Browsing is filtered; addressing is not, Conse
 
 ### Community 163 - "Community 163"
 Cohesion: 0.67
-Nodes (3): POST /api/contact, /post-a-role Direct Role Submission, data/submitted_roles.jsonl Queue
 
 ### Community 164 - "Community 164"
 Cohesion: 0.29

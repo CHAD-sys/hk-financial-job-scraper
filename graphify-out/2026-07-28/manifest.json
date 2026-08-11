@@ -949,11 +949,6 @@
     "ast_hash": "365bb33d47508a0dcaa7d63c97f9ab96",
     "semantic_hash": ""
   },
-  "webapp/frontend/src/components/EnquiryForm.tsx": {
-    "mtime": 1785182451.084715,
-    "ast_hash": "f31295e491daaa18f991225cf285b6fd",
-    "semantic_hash": ""
-  },
   "webapp/frontend/src/components/ProductDoor.tsx": {
     "mtime": 1785182696.5292811,
     "ast_hash": "9a5789f4a69f193177a93388b02b1eec",
@@ -1618,11 +1613,6 @@
     "mtime": 1784222303.1984298,
     "ast_hash": "ab2a08879e4c5b9a1b2e0e31c91f98e7",
     "semantic_hash": "ab2a08879e4c5b9a1b2e0e31c91f98e7"
-  },
-  "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/EnquiryForm.tsx": {
-    "mtime": 1785182451.084715,
-    "ast_hash": "f31295e491daaa18f991225cf285b6fd",
-    "semantic_hash": "f31295e491daaa18f991225cf285b6fd"
   },
   "/Users/mohamedaminechahid/Desktop/FinEX/Job_Board/hk-job-scraper/webapp/frontend/src/components/FilterBar.tsx": {
     "mtime": 1784806744.061719,

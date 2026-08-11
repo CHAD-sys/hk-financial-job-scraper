@@ -645,7 +645,6 @@ Nodes (10): Finance-Only Tech Filter, SQLite Storage & Table Schema (jobs.db), S
 
 ### Community 92 - "Email Credential Resolution"
 Cohesion: 0.28
-Nodes (9): Two Independent Email Senders, Credential Resolution Order, env_file.py Gap-Filling Loader, Bare-Environment Backend Bug, Append-Only Enquiry Queue, Role Submission Human Review Gate, Gmail App Password, Not Account Password, MIMEMultipart vs EmailMessage Construction (+1 more)
 
 ### Community 79 - "Email System & Market Panel Docs"
 Cohesion: 0.18

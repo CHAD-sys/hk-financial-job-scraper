@@ -1377,16 +1377,6 @@
       "id": "backend_main_rationale_894"
     },
     {
-      "label": "Executive Career Consultation enquiry → JSONL queue + email notification.",
-      "file_type": "rationale",
-      "source_file": "webapp/backend/main.py",
-      "source_location": "L962",
-      "_origin": "ast",
-      "community": 64,
-      "norm_label": "executive career consultation enquiry → jsonl queue + email notification.",
-      "id": "backend_main_rationale_962"
-    },
-    {
       "label": "Recruiter/employer role submission → JSONL moderation queue + email.      Note t",
       "file_type": "rationale",
       "source_file": "webapp/backend/main.py",
@@ -16514,16 +16504,6 @@
       "id": "tests_test_submit_endpoints_test_cors_allows_post"
     },
     {
-      "label": "Tests for the two write endpoints — /api/contact and /api/post-role.  These are",
-      "file_type": "rationale",
-      "source_file": "tests/test_submit_endpoints.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 24,
-      "norm_label": "tests for the two write endpoints — /api/contact and /api/post-role.  these are",
-      "id": "tests_test_submit_endpoints_rationale_1"
-    },
-    {
       "label": "A fresh app per test, writing its JSONL queue into tmp_path.",
       "file_type": "rationale",
       "source_file": "tests/test_submit_endpoints.py",
@@ -17624,26 +17604,6 @@
       "id": "api_client_fetchstats"
     },
     {
-      "label": "CAREER_STAGES",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/api/client.ts",
-      "source_location": "L206",
-      "_origin": "ast",
-      "community": 45,
-      "norm_label": "career_stages",
-      "id": "api_client_career_stages"
-    },
-    {
-      "label": "EnquiryPayload",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/api/client.ts",
-      "source_location": "L213",
-      "_origin": "ast",
-      "community": 45,
-      "norm_label": "enquirypayload",
-      "id": "api_client_enquirypayload"
-    },
-    {
       "label": "RolePayload",
       "file_type": "code",
       "source_file": "webapp/frontend/src/api/client.ts",
@@ -17662,16 +17622,6 @@
       "community": 45,
       "norm_label": "postjson()",
       "id": "api_client_postjson"
-    },
-    {
-      "label": "submitEnquiry()",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/api/client.ts",
-      "source_location": "L265",
-      "_origin": "ast",
-      "community": 45,
-      "norm_label": "submitenquiry()",
-      "id": "api_client_submitenquiry"
     },
     {
       "label": "submitRole()",
@@ -17742,56 +17692,6 @@
       "community": 45,
       "norm_label": "emptystate()",
       "id": "components_emptystate_emptystate"
-    },
-    {
-      "label": "EnquiryForm.tsx",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 45,
-      "norm_label": "enquiryform.tsx",
-      "id": "components_enquiryform"
-    },
-    {
-      "label": "Status",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L5",
-      "_origin": "ast",
-      "community": 45,
-      "norm_label": "status",
-      "id": "components_enquiryform_status"
-    },
-    {
-      "label": "MAX",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L7",
-      "_origin": "ast",
-      "community": 45,
-      "norm_label": "max",
-      "id": "components_enquiryform_max"
-    },
-    {
-      "label": "EnquiryForm()",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L17",
-      "_origin": "ast",
-      "community": 45,
-      "norm_label": "enquiryform()",
-      "id": "components_enquiryform_enquiryform"
-    },
-    {
-      "label": "Field()",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L164",
-      "_origin": "ast",
-      "community": 45,
-      "norm_label": "field()",
-      "id": "components_enquiryform_field"
     },
     {
       "label": "FilterBar.tsx",
@@ -20042,16 +19942,6 @@
       "community": 48,
       "norm_label": "5.4 frontend — nav",
       "id": "docs_plan_front_page_5_4_frontend_nav"
-    },
-    {
-      "label": "5.5 Backend — `POST /api/contact`",
-      "file_type": "document",
-      "source_file": "docs/PLAN_FRONT_PAGE.md",
-      "source_location": "L193",
-      "_origin": "ast",
-      "community": 48,
-      "norm_label": "5.5 backend — `post /api/contact`",
-      "id": "docs_plan_front_page_5_5_backend_post_api_contact"
     },
     {
       "label": "5.8 Direct role submission (new capability)",
@@ -22740,20 +22630,6 @@
       "id": "docs_email_system_failure_alert"
     },
     {
-      "label": "Website Form Submission Flow (Sender B)",
-      "file_type": "concept",
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§01, §03",
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "rationale": "webapp/backend/mailer.py, running inside uvicorn — a completely separate program from the scraper sharing none of its environment. Order: validate payload (lengths, career-stage enum, real email, http(s) apply URL), check honeypot, rate-limit by IP, append to data/enquiries.jsonl or submitted_roles.jsonl, then email via send_mail() best-effort.",
-      "community": 79,
-      "norm_label": "website form submission flow (sender b)",
-      "id": "docs_email_system_enquiry_email_flow"
-    },
-    {
       "label": "Gmail SMTP Transport (587/STARTTLS)",
       "file_type": "concept",
       "source_file": "docs/EMAIL_SYSTEM.html",
@@ -22780,20 +22656,6 @@
       "community": 79,
       "norm_label": "why port 587 and not 465",
       "id": "docs_email_system_port_587_choice"
-    },
-    {
-      "label": "Credential Resolution Order",
-      "file_type": "concept",
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§02",
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "rationale": "Highest wins: (1) the real process environment, e.g. Railway dashboard variables, which nothing may overwrite; (2) config/api_keys.env; (3) hardcoded defaults for host and port only — deliberately no default password. The ordering exists so the platform can always override a file lying around on disk. Variables: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, NOTIFY_EMAIL, ENQUIRY_EMAIL.",
-      "community": 92,
-      "norm_label": "credential resolution order",
-      "id": "docs_email_system_credential_resolution_order"
     },
     {
       "label": "env_file.py Gap-Filling Loader",
@@ -22838,20 +22700,6 @@
       "id": "docs_email_system_disk_first_ordering"
     },
     {
-      "label": "Append-Only Enquiry Queue",
-      "file_type": "concept",
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§04",
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "rationale": "data/enquiries.jsonl holds one JSON object per line with a received_at timestamp. The queue is the source of truth; the email is only a notification about it — which is why nothing was lost during the broken period.",
-      "community": 92,
-      "norm_label": "append-only enquiry queue",
-      "id": "docs_email_system_enquiry_queue"
-    },
-    {
       "label": "Role Submission Human Review Gate",
       "file_type": "concept",
       "source_file": "docs/EMAIL_SYSTEM.html",
@@ -22864,20 +22712,6 @@
       "community": 92,
       "norm_label": "role submission human review gate",
       "id": "docs_email_system_role_submission_review"
-    },
-    {
-      "label": "Fixed Recipient Module Constant",
-      "file_type": "rationale",
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§05",
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "rationale": "ENQUIRY_EMAIL is a module constant never read from a request. Stops anyone POSTing a `to` field and using the Gmail account to mail strangers — a `to` in the payload is simply ignored. Without this a public mail-sending endpoint is an open relay.",
-      "community": 79,
-      "norm_label": "fixed recipient module constant",
-      "id": "docs_email_system_fixed_recipient_constant"
     },
     {
       "label": "CRLF Header-Safety Guard",
@@ -22934,34 +22768,6 @@
       "community": 92,
       "norm_label": "gmail app password, not account password",
       "id": "docs_email_system_app_password"
-    },
-    {
-      "label": "MIMEMultipart vs EmailMessage Construction",
-      "file_type": "concept",
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§03",
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "rationale": "The scraper uses MIMEMultipart('alternative') with text attached before HTML — clients render the last part they understand, so HTML wins where supported and text is the fallback. The backend uses the newer EmailMessage API with a single plain-text body, because an enquiry has nothing to gain from markup. Reply-To on consultation enquiries is set to the enquirer so replying just works.",
-      "community": 92,
-      "norm_label": "mimemultipart vs emailmessage construction",
-      "id": "docs_email_system_mime_multipart_vs_emailmessage"
-    },
-    {
-      "label": "Health Endpoint Email Diagnostics",
-      "file_type": "concept",
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§06",
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "rationale": "GET /health reports email: 'configured' or 'NOT CONFIGURED — enquiries queue but no mail is sent', plus enquiry_recipient. Works in production without shell access, which is the point — step 1 of the runbook.",
-      "community": 79,
-      "norm_label": "health endpoint email diagnostics",
-      "id": "docs_email_system_health_endpoint"
     },
     {
       "label": "Log Successes, Not Only Failures",
@@ -23979,19 +23785,6 @@
       "community": 125,
       "norm_label": "pydantic==2.13.4 (request/response validation)",
       "id": "backend_requirements_pydantic"
-    },
-    {
-      "label": "email-validator==2.3.0 (backs EmailStr on /api/contact and /api/post-role)",
-      "file_type": "code",
-      "source_file": "webapp/backend/requirements.txt",
-      "source_location": "lines 4-6",
-      "source_url": null,
-      "captured_at": null,
-      "author": null,
-      "contributor": null,
-      "community": 125,
-      "norm_label": "email-validator==2.3.0 (backs emailstr on /api/contact and /api/post-role)",
-      "id": "backend_requirements_email_validator"
     },
     {
       "label": "SPA Root Mount Point (#root)",
@@ -25415,17 +25208,6 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "webapp/frontend/src/pages/LandingPage.tsx",
-      "source_location": "L7",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "pages_landingpage",
-      "target": "components_enquiryform"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/pages/LandingPage.tsx",
       "source_location": "L6",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -26499,16 +26281,6 @@
       "target": "backend_main"
     },
     {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "webapp/backend/requirements.txt",
-      "source_location": "lines 4-5 (names /api/contact and /api/post-role)",
-      "weight": 1.0,
-      "source": "backend_requirements_email_validator",
-      "target": "backend_main"
-    },
-    {
       "relation": "shares_data_with",
       "confidence": "INFERRED",
       "confidence_score": 0.85,
@@ -26536,26 +26308,6 @@
       "source_location": "§07",
       "weight": 1.0,
       "source": "docs_architecture_guide_fastapi_read_only_layer",
-      "target": "backend_main"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§01, §04",
-      "weight": 1.0,
-      "source": "docs_email_system_enquiry_email_flow",
-      "target": "backend_main"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§06",
-      "weight": 1.0,
-      "source": "docs_email_system_health_endpoint",
       "target": "backend_main"
     },
     {
@@ -27162,16 +26914,6 @@
       "confidence_score": 1.0,
       "source": "backend_main_submit_role",
       "target": "backend_main_submitresponse"
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/backend/main.py",
-      "source_location": "L962",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_main_rationale_962",
-      "target": "backend_main_submit_enquiry"
     },
     {
       "relation": "rationale_for",
@@ -60281,16 +60023,6 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_submit_endpoints.py",
-      "source_location": "L1",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "tests_test_submit_endpoints_rationale_1",
-      "target": "tests_test_submit_endpoints"
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "tests/test_submit_endpoints.py",
       "source_location": "L27",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -61517,16 +61249,6 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "webapp/frontend/src/api/client.ts",
-      "source_location": "L206",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "api_client",
-      "target": "api_client_career_stages"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/api/client.ts",
       "source_location": "L261",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -61542,16 +61264,6 @@
       "confidence_score": 1.0,
       "source": "api_client",
       "target": "api_client_default_filters"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/api/client.ts",
-      "source_location": "L213",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "api_client",
-      "target": "api_client_enquirypayload"
     },
     {
       "relation": "contains",
@@ -61717,16 +61429,6 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "webapp/frontend/src/api/client.ts",
-      "source_location": "L265",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "api_client",
-      "target": "api_client_submitenquiry"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/api/client.ts",
       "source_location": "L269",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -61742,17 +61444,6 @@
       "confidence_score": 1.0,
       "source": "api_client",
       "target": "api_client_tiertab"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L3",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_enquiryform",
-      "target": "api_client"
     },
     {
       "relation": "imports_from",
@@ -62096,28 +61787,6 @@
       "target": "api_client_fetchjobdetail"
     },
     {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L3",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_enquiryform",
-      "target": "api_client_career_stages"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/api/client.ts",
-      "source_location": "L266",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "api_client_submitenquiry",
-      "target": "api_client_postjson"
-    },
-    {
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
@@ -62127,17 +61796,6 @@
       "confidence_score": 1.0,
       "source": "api_client_submitrole",
       "target": "api_client_postjson"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L3",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_enquiryform",
-      "target": "api_client_submitenquiry"
     },
     {
       "relation": "imports",
@@ -62169,46 +61827,6 @@
       "confidence_score": 1.0,
       "source": "components_emptystate",
       "target": "components_emptystate_props"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L17",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_enquiryform",
-      "target": "components_enquiryform_enquiryform"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L164",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_enquiryform",
-      "target": "components_enquiryform_field"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L7",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_enquiryform",
-      "target": "components_enquiryform_max"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L5",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_enquiryform",
-      "target": "components_enquiryform_status"
     },
     {
       "relation": "contains",
@@ -65123,16 +64741,6 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/PLAN_FRONT_PAGE.md",
-      "source_location": "L193",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_plan_front_page_5_implementation",
-      "target": "docs_plan_front_page_5_5_backend_post_api_contact"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/PLAN_FRONT_PAGE.md",
       "source_location": "L249",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -67476,26 +67084,6 @@
       "target": "docs_email_system_two_sender_split"
     },
     {
-      "relation": "conceptually_related_to",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§03",
-      "weight": 1.0,
-      "source": "docs_email_system_mime_multipart_vs_emailmessage",
-      "target": "docs_email_system_two_sender_split"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§01",
-      "weight": 1.0,
-      "source": "docs_email_system_two_sender_split",
-      "target": "docs_email_system_enquiry_email_flow"
-    },
-    {
       "relation": "references",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
@@ -67530,66 +67118,6 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§04",
-      "weight": 1.0,
-      "source": "docs_email_system_disk_first_ordering",
-      "target": "docs_email_system_enquiry_email_flow"
-    },
-    {
-      "relation": "calls",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§01",
-      "weight": 1.0,
-      "source": "docs_email_system_enquiry_email_flow",
-      "target": "docs_email_system_gmail_smtp_transport"
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§05",
-      "weight": 1.0,
-      "source": "docs_email_system_fixed_recipient_constant",
-      "target": "docs_email_system_enquiry_email_flow"
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§05",
-      "weight": 1.0,
-      "source": "docs_email_system_header_injection_guard",
-      "target": "docs_email_system_enquiry_email_flow"
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§05",
-      "weight": 1.0,
-      "source": "docs_email_system_honeypot",
-      "target": "docs_email_system_enquiry_email_flow"
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§05",
-      "weight": 1.0,
-      "source": "docs_email_system_rate_limit",
-      "target": "docs_email_system_enquiry_email_flow"
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
       "source_location": "§01",
       "weight": 1.0,
       "source": "docs_email_system_port_587_choice",
@@ -67606,46 +67134,6 @@
       "target": "docs_email_system_port_587_choice"
     },
     {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§02",
-      "weight": 1.0,
-      "source": "docs_email_system_bare_environment_bug",
-      "target": "docs_email_system_credential_resolution_order"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§02",
-      "weight": 1.0,
-      "source": "docs_email_system_credential_resolution_order",
-      "target": "docs_email_system_app_password"
-    },
-    {
-      "relation": "implements",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§02",
-      "weight": 1.0,
-      "source": "docs_email_system_env_file_loader",
-      "target": "docs_email_system_credential_resolution_order"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§07",
-      "weight": 1.0,
-      "source": "docs_email_system_production_checklist",
-      "target": "docs_email_system_credential_resolution_order"
-    },
-    {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
@@ -67653,16 +67141,6 @@
       "source_location": "§02",
       "weight": 1.0,
       "source": "docs_email_system_env_file_loader",
-      "target": "docs_email_system_bare_environment_bug"
-    },
-    {
-      "relation": "conceptually_related_to",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§04",
-      "weight": 1.0,
-      "source": "docs_email_system_enquiry_queue",
       "target": "docs_email_system_bare_environment_bug"
     },
     {
@@ -67674,36 +67152,6 @@
       "weight": 1.0,
       "source": "docs_email_system_mail_runbook",
       "target": "docs_email_system_bare_environment_bug"
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§04",
-      "weight": 1.0,
-      "source": "docs_email_system_disk_first_ordering",
-      "target": "docs_email_system_enquiry_queue"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§07",
-      "weight": 1.0,
-      "source": "docs_email_system_production_checklist",
-      "target": "docs_email_system_enquiry_queue"
-    },
-    {
-      "relation": "conceptually_related_to",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§04",
-      "weight": 1.0,
-      "source": "docs_email_system_role_submission_review",
-      "target": "docs_email_system_enquiry_queue"
     },
     {
       "relation": "references",
@@ -67714,26 +67162,6 @@
       "weight": 1.0,
       "source": "docs_email_system_mail_runbook",
       "target": "docs_email_system_honeypot"
-    },
-    {
-      "relation": "semantically_similar_to",
-      "confidence": "INFERRED",
-      "confidence_score": 0.65,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§06 vs MARKET_PANEL_ANALYSIS Findings",
-      "weight": 1.0,
-      "source": "docs_email_system_health_endpoint",
-      "target": "docs_market_panel_analysis_evidential_grading"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html",
-      "source_location": "§06",
-      "weight": 1.0,
-      "source": "docs_email_system_mail_runbook",
-      "target": "docs_email_system_health_endpoint"
     },
     {
       "relation": "references",
@@ -68494,16 +67922,6 @@
       "weight": 1.0,
       "source": "backend_requirements_uvicorn",
       "target": "backend_requirements_fastapi"
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "webapp/backend/requirements.txt",
-      "source_location": "lines 4-6 (backs pydantic's EmailStr)",
-      "weight": 1.0,
-      "source": "backend_requirements_email_validator",
-      "target": "backend_requirements_pydantic"
     },
     {
       "relation": "references",
@@ -69364,21 +68782,6 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/ARCHITECTURE_GUIDE.html"
-    },
-    {
-      "id": "public_endpoint_guardrails",
-      "label": "Guardrails Making a Public Mail Endpoint Safe",
-      "nodes": [
-        "docs_email_system_fixed_recipient_constant",
-        "docs_email_system_header_injection_guard",
-        "docs_email_system_honeypot",
-        "docs_email_system_rate_limit",
-        "docs_email_system_app_password"
-      ],
-      "relation": "form",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/EMAIL_SYSTEM.html"
     },
     {
       "id": "time_series_invalidating_defects",

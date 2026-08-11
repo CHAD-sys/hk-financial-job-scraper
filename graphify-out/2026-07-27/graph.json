@@ -555,13 +555,13 @@
       "id": "scripts_review_submissions_rationale_1"
     },
     {
-      "label": "Rewrite the queue atomically \u2014 a half-written queue would lose submissions.",
+      "label": "Rewrite the queue atomically — a half-written queue would lose submissions.",
       "file_type": "rationale",
       "source_file": "scripts/review_submissions.py",
       "source_location": "L55",
       "_origin": "ast",
       "community": 65,
-      "norm_label": "rewrite the queue atomically \u2014 a half-written queue would lose submissions.",
+      "norm_label": "rewrite the queue atomically — a half-written queue would lose submissions.",
       "id": "scripts_review_submissions_rationale_55"
     },
     {
@@ -575,13 +575,13 @@
       "id": "scripts_review_submissions_rationale_64"
     },
     {
-      "label": "Same fingerprint the scraper uses \u2014 see Job.dedup_hash() in hk_jobs/schema.py:",
+      "label": "Same fingerprint the scraper uses — see Job.dedup_hash() in hk_jobs/schema.py:",
       "file_type": "rationale",
       "source_file": "scripts/review_submissions.py",
       "source_location": "L79",
       "_origin": "ast",
       "community": 65,
-      "norm_label": "same fingerprint the scraper uses \u2014 see job.dedup_hash() in hk_jobs/schema.py:",
+      "norm_label": "same fingerprint the scraper uses — see job.dedup_hash() in hk_jobs/schema.py:",
       "id": "scripts_review_submissions_rationale_79"
     },
     {
@@ -1065,13 +1065,13 @@
       "id": "adapters_efc_extract_efc_id"
     },
     {
-      "label": "eFinancialCareers adapter (per-company, JSON API).  \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+      "label": "eFinancialCareers adapter (per-company, JSON API).  ╔═══════════════════════════",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/efc.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 89,
-      "norm_label": "efinancialcareers adapter (per-company, json api).  \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+      "norm_label": "efinancialcareers adapter (per-company, json api).  ╔═══════════════════════════",
       "id": "adapters_efc_rationale_1"
     },
     {
@@ -1255,13 +1255,13 @@
       "id": "adapters_eightfold_rationale_62"
     },
     {
-      "label": "Public entry point \u2014 wraps _fetch_all in _safe_fetch for error isolation.",
+      "label": "Public entry point — wraps _fetch_all in _safe_fetch for error isolation.",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/eightfold.py",
       "source_location": "L89",
       "_origin": "ast",
       "community": 60,
-      "norm_label": "public entry point \u2014 wraps _fetch_all in _safe_fetch for error isolation.",
+      "norm_label": "public entry point — wraps _fetch_all in _safe_fetch for error isolation.",
       "id": "adapters_eightfold_rationale_89"
     },
     {
@@ -1445,13 +1445,13 @@
       "id": "adapters_indeed_extract_signals"
     },
     {
-      "label": "Indeed fallback adapter.  \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+      "label": "Indeed fallback adapter.  ╔═════════════════════════════════════════════════════",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/indeed.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 47,
-      "norm_label": "indeed fallback adapter.  \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+      "norm_label": "indeed fallback adapter.  ╔═════════════════════════════════════════════════════",
       "id": "adapters_indeed_rationale_1"
     },
     {
@@ -1485,23 +1485,23 @@
       "id": "adapters_indeed_rationale_112"
     },
     {
-      "label": "Fetch url and return (http_status, html_string).          Single mockable seam \u2014",
+      "label": "Fetch url and return (http_status, html_string).          Single mockable seam —",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/indeed.py",
       "source_location": "L154",
       "_origin": "ast",
       "community": 45,
-      "norm_label": "fetch url and return (http_status, html_string).          single mockable seam \u2014",
+      "norm_label": "fetch url and return (http_status, html_string).          single mockable seam —",
       "id": "adapters_indeed_rationale_154"
     },
     {
-      "label": "page 1 \u2192 base URL; page N \u2192 ?start=(N-1)*20 (steps of 20, never 10).",
+      "label": "page 1 → base URL; page N → ?start=(N-1)*20 (steps of 20, never 10).",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/indeed.py",
       "source_location": "L175",
       "_origin": "ast",
       "community": 45,
-      "norm_label": "page 1 \u2192 base url; page n \u2192 ?start=(n-1)*20 (steps of 20, never 10).",
+      "norm_label": "page 1 → base url; page n → ?start=(n-1)*20 (steps of 20, never 10).",
       "id": "adapters_indeed_rationale_175"
     },
     {
@@ -1735,13 +1735,13 @@
       "id": "adapters_jobsdb_extract_source_id"
     },
     {
-      "label": "JobsDB fallback adapter.  \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+      "label": "JobsDB fallback adapter.  ╔═════════════════════════════════════════════════════",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/jobsdb.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 61,
-      "norm_label": "jobsdb fallback adapter.  \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+      "norm_label": "jobsdb fallback adapter.  ╔═════════════════════════════════════════════════════",
       "id": "adapters_jobsdb_rationale_1"
     },
     {
@@ -1785,13 +1785,13 @@
       "id": "adapters_jobsdb_rationale_130"
     },
     {
-      "label": "Fetch url and return (http_status, html_string).          Single mockable seam \u2014",
+      "label": "Fetch url and return (http_status, html_string).          Single mockable seam —",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/jobsdb.py",
       "source_location": "L194",
       "_origin": "ast",
       "community": 15,
-      "norm_label": "fetch url and return (http_status, html_string).          single mockable seam \u2014",
+      "norm_label": "fetch url and return (http_status, html_string).          single mockable seam —",
       "id": "adapters_jobsdb_rationale_194"
     },
     {
@@ -2035,13 +2035,13 @@
       "id": "adapters_linkedin_parse_cards"
     },
     {
-      "label": "LinkedIn fallback adapter (public *guest* jobs API \u2014 no login).  \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+      "label": "LinkedIn fallback adapter (public *guest* jobs API — no login).  ╔══════════════",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/linkedin.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 125,
-      "norm_label": "linkedin fallback adapter (public *guest* jobs api \u2014 no login).  \u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+      "norm_label": "linkedin fallback adapter (public *guest* jobs api — no login).  ╔══════════════",
       "id": "adapters_linkedin_rationale_1"
     },
     {
@@ -2065,13 +2065,13 @@
       "id": "adapters_linkedin_rationale_94"
     },
     {
-      "label": "Fetch url and return (http_status, html_string).          Single mockable seam \u2014",
+      "label": "Fetch url and return (http_status, html_string).          Single mockable seam —",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/linkedin.py",
       "source_location": "L143",
       "_origin": "ast",
       "community": 118,
-      "norm_label": "fetch url and return (http_status, html_string).          single mockable seam \u2014",
+      "norm_label": "fetch url and return (http_status, html_string).          single mockable seam —",
       "id": "adapters_linkedin_rationale_143"
     },
     {
@@ -2315,13 +2315,13 @@
       "id": "adapters_longtail_longtailadapter_posting_to_job"
     },
     {
-      "label": "Longtail adapter \u2014 LLM-based extraction for medium/boutique HK companies that ar",
+      "label": "Longtail adapter — LLM-based extraction for medium/boutique HK companies that ar",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/longtail.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 77,
-      "norm_label": "longtail adapter \u2014 llm-based extraction for medium/boutique hk companies that ar",
+      "norm_label": "longtail adapter — llm-based extraction for medium/boutique hk companies that ar",
       "id": "adapters_longtail_rationale_1"
     },
     {
@@ -2385,33 +2385,33 @@
       "id": "adapters_longtail_rationale_162"
     },
     {
-      "label": "Static fetch via httpx \u2192 (status, html); (0, '') on error. Mockable seam.",
+      "label": "Static fetch via httpx → (status, html); (0, '') on error. Mockable seam.",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/longtail.py",
       "source_location": "L182",
       "_origin": "ast",
       "community": 31,
-      "norm_label": "static fetch via httpx \u2192 (status, html); (0, '') on error. mockable seam.",
+      "norm_label": "static fetch via httpx → (status, html); (0, '') on error. mockable seam.",
       "id": "adapters_longtail_rationale_182"
     },
     {
-      "label": "Rendered fetch via Scrapling's headless browser \u2192 (status, html). Mockable seam.",
+      "label": "Rendered fetch via Scrapling's headless browser → (status, html). Mockable seam.",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/longtail.py",
       "source_location": "L192",
       "_origin": "ast",
       "community": 31,
-      "norm_label": "rendered fetch via scrapling's headless browser \u2192 (status, html). mockable seam.",
+      "norm_label": "rendered fetch via scrapling's headless browser → (status, html). mockable seam.",
       "id": "adapters_longtail_rationale_192"
     },
     {
-      "label": "Visible-text \u2192 DeepSeek \u2192 Job objects for one fetched page.",
+      "label": "Visible-text → DeepSeek → Job objects for one fetched page.",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/longtail.py",
       "source_location": "L209",
       "_origin": "ast",
       "community": 31,
-      "norm_label": "visible-text \u2192 deepseek \u2192 job objects for one fetched page.",
+      "norm_label": "visible-text → deepseek → job objects for one fetched page.",
       "id": "adapters_longtail_rationale_209"
     },
     {
@@ -2615,13 +2615,13 @@
       "id": "adapters_workday_rationale_95"
     },
     {
-      "label": "Public entry point \u2014 wraps _fetch_all in _safe_fetch for error isolation.",
+      "label": "Public entry point — wraps _fetch_all in _safe_fetch for error isolation.",
       "file_type": "rationale",
       "source_file": "hk_jobs/adapters/workday.py",
       "source_location": "L135",
       "_origin": "ast",
       "community": 28,
-      "norm_label": "public entry point \u2014 wraps _fetch_all in _safe_fetch for error isolation.",
+      "norm_label": "public entry point — wraps _fetch_all in _safe_fetch for error isolation.",
       "id": "adapters_workday_rationale_135"
     },
     {
@@ -3505,13 +3505,13 @@
       "id": "enrichers_deepseek_deepseekenricher_enrich_with_retry"
     },
     {
-      "label": "DeepSeek LLM enricher \u2014 v4: adds English translation of Chinese postings.  v1: t",
+      "label": "DeepSeek LLM enricher — v4: adds English translation of Chinese postings.  v1: t",
       "file_type": "rationale",
       "source_file": "hk_jobs/enrichers/deepseek.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 83,
-      "norm_label": "deepseek llm enricher \u2014 v4: adds english translation of chinese postings.  v1: t",
+      "norm_label": "deepseek llm enricher — v4: adds english translation of chinese postings.  v1: t",
       "id": "enrichers_deepseek_rationale_1"
     },
     {
@@ -3665,23 +3665,23 @@
       "id": "hk_jobs_enrichment_py_row"
     },
     {
-      "label": "Phase 12: LLM-based job enrichment pipeline \u2014 optimized.  Uses ThreadPoolExecuto",
+      "label": "Phase 12: LLM-based job enrichment pipeline — optimized.  Uses ThreadPoolExecuto",
       "file_type": "rationale",
       "source_file": "hk_jobs/enrichment.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 37,
-      "norm_label": "phase 12: llm-based job enrichment pipeline \u2014 optimized.  uses threadpoolexecuto",
+      "norm_label": "phase 12: llm-based job enrichment pipeline — optimized.  uses threadpoolexecuto",
       "id": "hk_jobs_enrichment_rationale_1"
     },
     {
-      "label": "Salary estimates may come back as int, float, str, or null \u2014 coerce to int|None.",
+      "label": "Salary estimates may come back as int, float, str, or null — coerce to int|None.",
       "file_type": "rationale",
       "source_file": "hk_jobs/enrichment.py",
       "source_location": "L45",
       "_origin": "ast",
       "community": 37,
-      "norm_label": "salary estimates may come back as int, float, str, or null \u2014 coerce to int|none.",
+      "norm_label": "salary estimates may come back as int, float, str, or null — coerce to int|none.",
       "id": "hk_jobs_enrichment_rationale_45"
     },
     {
@@ -4055,13 +4055,13 @@
       "id": "hk_jobs_migrations_migrate_to_phase_28"
     },
     {
-      "label": "Database migrations for hk_jobs.  Each migration function is idempotent \u2014 safe t",
+      "label": "Database migrations for hk_jobs.  Each migration function is idempotent — safe t",
       "file_type": "rationale",
       "source_file": "hk_jobs/migrations.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 1,
-      "norm_label": "database migrations for hk_jobs.  each migration function is idempotent \u2014 safe t",
+      "norm_label": "database migrations for hk_jobs.  each migration function is idempotent — safe t",
       "id": "hk_jobs_migrations_rationale_1"
     },
     {
@@ -4165,13 +4165,13 @@
       "id": "hk_jobs_migrations_rationale_311"
     },
     {
-      "label": "Add board_signals \u2014 a JSON blob of per-board market signals (P2/P3).      Each a",
+      "label": "Add board_signals — a JSON blob of per-board market signals (P2/P3).      Each a",
       "file_type": "rationale",
       "source_file": "hk_jobs/migrations.py",
       "source_location": "L337",
       "_origin": "ast",
       "community": 1,
-      "norm_label": "add board_signals \u2014 a json blob of per-board market signals (p2/p3).      each a",
+      "norm_label": "add board_signals — a json blob of per-board market signals (p2/p3).      each a",
       "id": "hk_jobs_migrations_rationale_337"
     },
     {
@@ -5115,23 +5115,23 @@
       "id": "posts_extractor_rationale_168"
     },
     {
-      "label": "Single mockable seam for the Haiku path \u2014 patch this in tests, same     conventi",
+      "label": "Single mockable seam for the Haiku path — patch this in tests, same     conventi",
       "file_type": "rationale",
       "source_file": "hk_jobs/posts/extractor.py",
       "source_location": "L206",
       "_origin": "ast",
       "community": 20,
-      "norm_label": "single mockable seam for the haiku path \u2014 patch this in tests, same     conventi",
+      "norm_label": "single mockable seam for the haiku path — patch this in tests, same     conventi",
       "id": "posts_extractor_rationale_206"
     },
     {
-      "label": "Single mockable seam \u2014 patch this in tests to inject a canned reply.",
+      "label": "Single mockable seam — patch this in tests to inject a canned reply.",
       "file_type": "rationale",
       "source_file": "hk_jobs/posts/extractor.py",
       "source_location": "L264",
       "_origin": "ast",
       "community": 20,
-      "norm_label": "single mockable seam \u2014 patch this in tests to inject a canned reply.",
+      "norm_label": "single mockable seam — patch this in tests to inject a canned reply.",
       "id": "posts_extractor_rationale_264"
     },
     {
@@ -5305,13 +5305,13 @@
       "id": "posts_fetcher_rationale_59"
     },
     {
-      "label": "backfill=False (normal daily poll): since = max(last_fetched_at, now-48h)     \u2014",
+      "label": "backfill=False (normal daily poll): since = max(last_fetched_at, now-48h)     —",
       "file_type": "rationale",
       "source_file": "hk_jobs/posts/fetcher.py",
       "source_location": "L121",
       "_origin": "ast",
       "community": 8,
-      "norm_label": "backfill=false (normal daily poll): since = max(last_fetched_at, now-48h)     \u2014",
+      "norm_label": "backfill=false (normal daily poll): since = max(last_fetched_at, now-48h)     —",
       "id": "posts_fetcher_rationale_121"
     },
     {
@@ -5525,13 +5525,13 @@
       "id": "posts_ghost_check_rationale_111"
     },
     {
-      "label": "Single mockable seam \u2014 patch this in tests to inject a canned reply.",
+      "label": "Single mockable seam — patch this in tests to inject a canned reply.",
       "file_type": "rationale",
       "source_file": "hk_jobs/posts/ghost_check.py",
       "source_location": "L207",
       "_origin": "ast",
       "community": 10,
-      "norm_label": "single mockable seam \u2014 patch this in tests to inject a canned reply.",
+      "norm_label": "single mockable seam — patch this in tests to inject a canned reply.",
       "id": "posts_ghost_check_rationale_207"
     },
     {
@@ -5585,13 +5585,13 @@
       "id": "posts_metrics_format_metrics"
     },
     {
-      "label": "LP-3 daily metrics (PLAN_LINKEDIN_POSTS.md \u00a77) \u2014 computed on every run, permanen",
+      "label": "LP-3 daily metrics (PLAN_LINKEDIN_POSTS.md §7) — computed on every run, permanen",
       "file_type": "rationale",
       "source_file": "hk_jobs/posts/metrics.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 0,
-      "norm_label": "lp-3 daily metrics (plan_linkedin_posts.md \u00a77) \u2014 computed on every run, permanen",
+      "norm_label": "lp-3 daily metrics (plan_linkedin_posts.md §7) — computed on every run, permanen",
       "id": "posts_metrics_rationale_1"
     },
     {
@@ -5955,13 +5955,13 @@
       "id": "posts_store_rationale_52"
     },
     {
-      "label": "Store the harvested email (or None if the search found none \u2014 still         reco",
+      "label": "Store the harvested email (or None if the search found none — still         reco",
       "file_type": "rationale",
       "source_file": "hk_jobs/posts/store.py",
       "source_location": "L113",
       "_origin": "ast",
       "community": 5,
-      "norm_label": "store the harvested email (or none if the search found none \u2014 still         reco",
+      "norm_label": "store the harvested email (or none if the search found none — still         reco",
       "id": "posts_store_rationale_113"
     },
     {
@@ -6155,13 +6155,13 @@
       "id": "posts_vendor_client_rationale_157"
     },
     {
-      "label": "Single mockable seam \u2014 patch this in tests to inject fixture JSON         instea",
+      "label": "Single mockable seam — patch this in tests to inject fixture JSON         instea",
       "file_type": "rationale",
       "source_file": "hk_jobs/posts/vendor_client.py",
       "source_location": "L178",
       "_origin": "ast",
       "community": 79,
-      "norm_label": "single mockable seam \u2014 patch this in tests to inject fixture json         instea",
+      "norm_label": "single mockable seam — patch this in tests to inject fixture json         instea",
       "id": "posts_vendor_client_rationale_178"
     },
     {
@@ -6295,13 +6295,13 @@
       "id": "reports_weekly_generate_weekly_report"
     },
     {
-      "label": "Weekly hiring trends report \u2014 emailed every Monday 9 AM HKT.  Run manually:   py",
+      "label": "Weekly hiring trends report — emailed every Monday 9 AM HKT.  Run manually:   py",
       "file_type": "rationale",
       "source_file": "hk_jobs/reports/weekly.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 78,
-      "norm_label": "weekly hiring trends report \u2014 emailed every monday 9 am hkt.  run manually:   py",
+      "norm_label": "weekly hiring trends report — emailed every monday 9 am hkt.  run manually:   py",
       "id": "reports_weekly_rationale_1"
     },
     {
@@ -6625,13 +6625,13 @@
       "id": "hk_jobs_schema_jobs_from_jsonl"
     },
     {
-      "label": "Canonical Job schema.  Every adapter \u2014 regardless of source ATS \u2014 maps its raw d",
+      "label": "Canonical Job schema.  Every adapter — regardless of source ATS — maps its raw d",
       "file_type": "rationale",
       "source_file": "hk_jobs/schema.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 19,
-      "norm_label": "canonical job schema.  every adapter \u2014 regardless of source ats \u2014 maps its raw d",
+      "norm_label": "canonical job schema.  every adapter — regardless of source ats — maps its raw d",
       "id": "hk_jobs_schema_rationale_1"
     },
     {
@@ -7255,13 +7255,13 @@
       "id": "hk_jobs_tech_filter_run_tech_filter"
     },
     {
-      "label": "Tech-role filter \u2014 keep the board FINANCE-only by dropping hard tech/IT roles.",
+      "label": "Tech-role filter — keep the board FINANCE-only by dropping hard tech/IT roles.",
       "file_type": "rationale",
       "source_file": "hk_jobs/tech_filter.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 122,
-      "norm_label": "tech-role filter \u2014 keep the board finance-only by dropping hard tech/it roles.",
+      "norm_label": "tech-role filter — keep the board finance-only by dropping hard tech/it roles.",
       "id": "hk_jobs_tech_filter_rationale_1"
     },
     {
@@ -7724,33 +7724,33 @@
       "id": "scripts_discover_companies_main"
     },
     {
-      "label": "Candidate JobsDB slugs: 'Standard Chartered' \u2192 Standard-Chartered, standard-char",
+      "label": "Candidate JobsDB slugs: 'Standard Chartered' → Standard-Chartered, standard-char",
       "file_type": "rationale",
       "source_file": "scripts/discover_companies.py",
       "source_location": "L92",
       "_origin": "ast",
       "community": 44,
-      "norm_label": "candidate jobsdb slugs: 'standard chartered' \u2192 standard-chartered, standard-char",
+      "norm_label": "candidate jobsdb slugs: 'standard chartered' → standard-chartered, standard-char",
       "id": "scripts_discover_companies_rationale_92"
     },
     {
-      "label": "Candidate Workday tenants: 'AIA Hong Kong' \u2192 aia; 'Standard Chartered' \u2192 standar",
+      "label": "Candidate Workday tenants: 'AIA Hong Kong' → aia; 'Standard Chartered' → standar",
       "file_type": "rationale",
       "source_file": "scripts/discover_companies.py",
       "source_location": "L108",
       "_origin": "ast",
       "community": 44,
-      "norm_label": "candidate workday tenants: 'aia hong kong' \u2192 aia; 'standard chartered' \u2192 standar",
+      "norm_label": "candidate workday tenants: 'aia hong kong' → aia; 'standard chartered' → standar",
       "id": "scripts_discover_companies_rationale_108"
     },
     {
-      "label": "Last resort \u2014 uses the headless browser, so keep candidates to \u22642 and page 1 onl",
+      "label": "Last resort — uses the headless browser, so keep candidates to ≤2 and page 1 onl",
       "file_type": "rationale",
       "source_file": "scripts/discover_companies.py",
       "source_location": "L189",
       "_origin": "ast",
       "community": 44,
-      "norm_label": "last resort \u2014 uses the headless browser, so keep candidates to \u22642 and page 1 onl",
+      "norm_label": "last resort — uses the headless browser, so keep candidates to ≤2 and page 1 onl",
       "id": "scripts_discover_companies_rationale_189"
     },
     {
@@ -8684,17 +8684,17 @@
       "id": "scripts_merge_indeed_entries_main"
     },
     {
-      "label": "Merge resolved Indeed entries into companies.yaml \u2014 safely, with validation.  Ta",
+      "label": "Merge resolved Indeed entries into companies.yaml — safely, with validation.  Ta",
       "file_type": "rationale",
       "source_file": "scripts/merge_indeed_entries.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 32,
-      "norm_label": "merge resolved indeed entries into companies.yaml \u2014 safely, with validation.  ta",
+      "norm_label": "merge resolved indeed entries into companies.yaml — safely, with validation.  ta",
       "id": "scripts_merge_indeed_entries_rationale_1"
     },
     {
-      "label": "Split resolver output into individual '  - name: \u2026' entry blocks (drop banner).",
+      "label": "Split resolver output into individual '  - name: …' entry blocks (drop banner).",
       "file_type": "rationale",
       "source_file": "scripts/merge_indeed_entries.py",
       "source_location": "L44",
@@ -8814,13 +8814,13 @@
       "id": "scripts_probe_indeed_main"
     },
     {
-      "label": "THROWAWAY PROBE \u2014 Indeed company-page scrapeability check (Phase 1, verification",
+      "label": "THROWAWAY PROBE — Indeed company-page scrapeability check (Phase 1, verification",
       "file_type": "rationale",
       "source_file": "scripts/probe_indeed.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 43,
-      "norm_label": "throwaway probe \u2014 indeed company-page scrapeability check (phase 1, verification",
+      "norm_label": "throwaway probe — indeed company-page scrapeability check (phase 1, verification",
       "id": "scripts_probe_indeed_rationale_1"
     },
     {
@@ -8894,13 +8894,13 @@
       "id": "scripts_probe_indeed_rationale_267"
     },
     {
-      "label": "# NOTE: do NOT key off \"secure.indeed.com\" or \"cf_chl\" \u2014 both appear on a perfec",
+      "label": "# NOTE: do NOT key off \"secure.indeed.com\" or \"cf_chl\" — both appear on a perfec",
       "file_type": "rationale",
       "source_file": "scripts/probe_indeed.py",
       "source_location": "L41",
       "_origin": "ast",
       "community": 43,
-      "norm_label": "# note: do not key off \"secure.indeed.com\" or \"cf_chl\" \u2014 both appear on a perfec",
+      "norm_label": "# note: do not key off \"secure.indeed.com\" or \"cf_chl\" — both appear on a perfec",
       "id": "scripts_probe_indeed_rationale_41"
     },
     {
@@ -9084,23 +9084,23 @@
       "id": "scripts_resolve_indeed_slugs_main"
     },
     {
-      "label": "Indeed /cmp slug resolver \u2014 extend the Indeed source to ALL firms (run locally).",
+      "label": "Indeed /cmp slug resolver — extend the Indeed source to ALL firms (run locally).",
       "file_type": "rationale",
       "source_file": "scripts/resolve_indeed_slugs.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 32,
-      "norm_label": "indeed /cmp slug resolver \u2014 extend the indeed source to all firms (run locally).",
+      "norm_label": "indeed /cmp slug resolver — extend the indeed source to all firms (run locally).",
       "id": "scripts_resolve_indeed_slugs_rationale_1"
     },
     {
-      "label": "['goldman','sachs'] \u2192 'Goldman-Sachs' (Indeed uses Title-Case-Hyphen).",
+      "label": "['goldman','sachs'] → 'Goldman-Sachs' (Indeed uses Title-Case-Hyphen).",
       "file_type": "rationale",
       "source_file": "scripts/resolve_indeed_slugs.py",
       "source_location": "L59",
       "_origin": "ast",
       "community": 32,
-      "norm_label": "['goldman','sachs'] \u2192 'goldman-sachs' (indeed uses title-case-hyphen).",
+      "norm_label": "['goldman','sachs'] → 'goldman-sachs' (indeed uses title-case-hyphen).",
       "id": "scripts_resolve_indeed_slugs_rationale_59"
     },
     {
@@ -9224,13 +9224,13 @@
       "id": "scripts_resolve_linkedin_ids_main"
     },
     {
-      "label": "LinkedIn company-id resolver \u2014 extend the LinkedIn source to firms (run locally)",
+      "label": "LinkedIn company-id resolver — extend the LinkedIn source to firms (run locally)",
       "file_type": "rationale",
       "source_file": "scripts/resolve_linkedin_ids.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 63,
-      "norm_label": "linkedin company-id resolver \u2014 extend the linkedin source to firms (run locally)",
+      "norm_label": "linkedin company-id resolver — extend the linkedin source to firms (run locally)",
       "id": "scripts_resolve_linkedin_ids_rationale_1"
     },
     {
@@ -9264,13 +9264,13 @@
       "id": "scripts_resolve_linkedin_ids_rationale_177"
     },
     {
-      "label": "Try candidate slugs \u2192 enumerate all ids on the page \u2192 verify each via guest",
+      "label": "Try candidate slugs → enumerate all ids on the page → verify each via guest",
       "file_type": "rationale",
       "source_file": "scripts/resolve_linkedin_ids.py",
       "source_location": "L184",
       "_origin": "ast",
       "community": 63,
-      "norm_label": "try candidate slugs \u2192 enumerate all ids on the page \u2192 verify each via guest",
+      "norm_label": "try candidate slugs → enumerate all ids on the page → verify each via guest",
       "id": "scripts_resolve_linkedin_ids_rationale_184"
     },
     {
@@ -9352,13 +9352,13 @@
       "id": "scripts_try_efc_live_main"
     },
     {
-      "label": "Live smoke-test for the eFinancialCareers adapter (JSON API).  \u26a0  LEGAL: hits eF",
+      "label": "Live smoke-test for the eFinancialCareers adapter (JSON API).  ⚠  LEGAL: hits eF",
       "file_type": "rationale",
       "source_file": "scripts/try_efc_live.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 89,
-      "norm_label": "live smoke-test for the efinancialcareers adapter (json api).  \u26a0  legal: hits ef",
+      "norm_label": "live smoke-test for the efinancialcareers adapter (json api).  ⚠  legal: hits ef",
       "id": "scripts_try_efc_live_rationale_1"
     },
     {
@@ -9412,13 +9412,13 @@
       "id": "scripts_try_jobsdb_live_main"
     },
     {
-      "label": "Live smoke-test for the JobsDB fallback adapter.  \u26a0  LEGAL: This script scrapes",
+      "label": "Live smoke-test for the JobsDB fallback adapter.  ⚠  LEGAL: This script scrapes",
       "file_type": "rationale",
       "source_file": "scripts/try_jobsdb_live.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 15,
-      "norm_label": "live smoke-test for the jobsdb fallback adapter.  \u26a0  legal: this script scrapes",
+      "norm_label": "live smoke-test for the jobsdb fallback adapter.  ⚠  legal: this script scrapes",
       "id": "scripts_try_jobsdb_live_rationale_1"
     },
     {
@@ -9442,13 +9442,13 @@
       "id": "scripts_try_linkedin_posts_live_main"
     },
     {
-      "label": "Live smoke-test for the Apify/HarvestAPI vendor client (LP-2).  \u26a0  LEGAL: hits A",
+      "label": "Live smoke-test for the Apify/HarvestAPI vendor client (LP-2).  ⚠  LEGAL: hits A",
       "file_type": "rationale",
       "source_file": "scripts/try_linkedin_posts_live.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 5,
-      "norm_label": "live smoke-test for the apify/harvestapi vendor client (lp-2).  \u26a0  legal: hits a",
+      "norm_label": "live smoke-test for the apify/harvestapi vendor client (lp-2).  ⚠  legal: hits a",
       "id": "scripts_try_linkedin_posts_live_rationale_1"
     },
     {
@@ -9872,13 +9872,13 @@
       "id": "tests_test_config_test_build_adapter_returns_correct_type"
     },
     {
-      "label": "Tests for hk_jobs/config.py \u2014 companies.yaml loader and validator.",
+      "label": "Tests for hk_jobs/config.py — companies.yaml loader and validator.",
       "file_type": "rationale",
       "source_file": "tests/test_config.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 32,
-      "norm_label": "tests for hk_jobs/config.py \u2014 companies.yaml loader and validator.",
+      "norm_label": "tests for hk_jobs/config.py — companies.yaml loader and validator.",
       "id": "tests_test_config_rationale_1"
     },
     {
@@ -9892,13 +9892,13 @@
       "id": "tests_test_config_rationale_53"
     },
     {
-      "label": "Sanity-check we have a reasonable mix \u2014 not all jobsdb fallbacks.",
+      "label": "Sanity-check we have a reasonable mix — not all jobsdb fallbacks.",
       "file_type": "rationale",
       "source_file": "tests/test_config.py",
       "source_location": "L74",
       "_origin": "ast",
       "community": 32,
-      "norm_label": "sanity-check we have a reasonable mix \u2014 not all jobsdb fallbacks.",
+      "norm_label": "sanity-check we have a reasonable mix — not all jobsdb fallbacks.",
       "id": "tests_test_config_rationale_74"
     },
     {
@@ -11172,13 +11172,13 @@
       "id": "tests_test_enrich_test_enrich_with_llm_raises_not_implemented"
     },
     {
-      "label": "Tests for hk_jobs/enrich.py \u2014 rule-based enrichment.",
+      "label": "Tests for hk_jobs/enrich.py — rule-based enrichment.",
       "file_type": "rationale",
       "source_file": "tests/test_enrich.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 2,
-      "norm_label": "tests for hk_jobs/enrich.py \u2014 rule-based enrichment.",
+      "norm_label": "tests for hk_jobs/enrich.py — rule-based enrichment.",
       "id": "tests_test_enrich_rationale_1"
     },
     {
@@ -11462,13 +11462,13 @@
       "id": "tests_test_extractor_rationale_1"
     },
     {
-      "label": "_call_haiku returns the model's continuation AFTER the '{' prefill \u2014     _call_h",
+      "label": "_call_haiku returns the model's continuation AFTER the '{' prefill —     _call_h",
       "file_type": "rationale",
       "source_file": "tests/test_extractor.py",
       "source_location": "L143",
       "_origin": "ast",
       "community": 20,
-      "norm_label": "_call_haiku returns the model's continuation after the '{' prefill \u2014     _call_h",
+      "norm_label": "_call_haiku returns the model's continuation after the '{' prefill —     _call_h",
       "id": "tests_test_extractor_rationale_143"
     },
     {
@@ -11752,13 +11752,13 @@
       "id": "tests_test_http_utils_test_raises_after_max_attempts_429"
     },
     {
-      "label": "Tests for hk_jobs/http_utils.py \u2014 retry-with-backoff helper.",
+      "label": "Tests for hk_jobs/http_utils.py — retry-with-backoff helper.",
       "file_type": "rationale",
       "source_file": "tests/test_http_utils.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 41,
-      "norm_label": "tests for hk_jobs/http_utils.py \u2014 retry-with-backoff helper.",
+      "norm_label": "tests for hk_jobs/http_utils.py — retry-with-backoff helper.",
       "id": "tests_test_http_utils_rationale_1"
     },
     {
@@ -12172,13 +12172,13 @@
       "id": "tests_test_indeed_rationale_146"
     },
     {
-      "label": "Card company is blank on employer pages \u2192 stamp the configured company name.",
+      "label": "Card company is blank on employer pages → stamp the configured company name.",
       "file_type": "rationale",
       "source_file": "tests/test_indeed.py",
       "source_location": "L165",
       "_origin": "ast",
       "community": 36,
-      "norm_label": "card company is blank on employer pages \u2192 stamp the configured company name.",
+      "norm_label": "card company is blank on employer pages → stamp the configured company name.",
       "id": "tests_test_indeed_rationale_165"
     },
     {
@@ -12192,13 +12192,13 @@
       "id": "tests_test_indeed_rationale_182"
     },
     {
-      "label": "Page 2 repeats one card (ccc333) \u2014 output must contain 5 unique jobs, not 6.",
+      "label": "Page 2 repeats one card (ccc333) — output must contain 5 unique jobs, not 6.",
       "file_type": "rationale",
       "source_file": "tests/test_indeed.py",
       "source_location": "L191",
       "_origin": "ast",
       "community": 33,
-      "norm_label": "page 2 repeats one card (ccc333) \u2014 output must contain 5 unique jobs, not 6.",
+      "norm_label": "page 2 repeats one card (ccc333) — output must contain 5 unique jobs, not 6.",
       "id": "tests_test_indeed_rationale_191"
     },
     {
@@ -12212,13 +12212,13 @@
       "id": "tests_test_indeed_rationale_221"
     },
     {
-      "label": "A login/verify wall must yield [] and never raise \u2014 we do not cross it.",
+      "label": "A login/verify wall must yield [] and never raise — we do not cross it.",
       "file_type": "rationale",
       "source_file": "tests/test_indeed.py",
       "source_location": "L261",
       "_origin": "ast",
       "community": 33,
-      "norm_label": "a login/verify wall must yield [] and never raise \u2014 we do not cross it.",
+      "norm_label": "a login/verify wall must yield [] and never raise — we do not cross it.",
       "id": "tests_test_indeed_rationale_261"
     },
     {
@@ -12622,33 +12622,33 @@
       "id": "tests_test_jobsdb_rationale_1"
     },
     {
-      "label": "Card 1 has data-automation='jobAdvertiser' \u2014 must be extracted.",
+      "label": "Card 1 has data-automation='jobAdvertiser' — must be extracted.",
       "file_type": "rationale",
       "source_file": "tests/test_jobsdb.py",
       "source_location": "L86",
       "_origin": "ast",
       "community": 69,
-      "norm_label": "card 1 has data-automation='jobadvertiser' \u2014 must be extracted.",
+      "norm_label": "card 1 has data-automation='jobadvertiser' — must be extracted.",
       "id": "tests_test_jobsdb_rationale_86"
     },
     {
-      "label": "Card 2 has a DIFFERENT advertiser (AIA) \u2014 must be captured, not the config name.",
+      "label": "Card 2 has a DIFFERENT advertiser (AIA) — must be captured, not the config name.",
       "file_type": "rationale",
       "source_file": "tests/test_jobsdb.py",
       "source_location": "L92",
       "_origin": "ast",
       "community": 69,
-      "norm_label": "card 2 has a different advertiser (aia) \u2014 must be captured, not the config name.",
+      "norm_label": "card 2 has a different advertiser (aia) — must be captured, not the config name.",
       "id": "tests_test_jobsdb_rationale_92"
     },
     {
-      "label": "Card 3 has no advertiser node \u2014 must return None, not empty string.",
+      "label": "Card 3 has no advertiser node — must return None, not empty string.",
       "file_type": "rationale",
       "source_file": "tests/test_jobsdb.py",
       "source_location": "L98",
       "_origin": "ast",
       "community": 69,
-      "norm_label": "card 3 has no advertiser node \u2014 must return none, not empty string.",
+      "norm_label": "card 3 has no advertiser node — must return none, not empty string.",
       "id": "tests_test_jobsdb_rationale_98"
     },
     {
@@ -12662,13 +12662,13 @@
       "id": "tests_test_jobsdb_rationale_171"
     },
     {
-      "label": "Card 3 has no advertiser node \u2014 must fall back to config company.",
+      "label": "Card 3 has no advertiser node — must fall back to config company.",
       "file_type": "rationale",
       "source_file": "tests/test_jobsdb.py",
       "source_location": "L180",
       "_origin": "ast",
       "community": 14,
-      "norm_label": "card 3 has no advertiser node \u2014 must fall back to config company.",
+      "norm_label": "card 3 has no advertiser node — must fall back to config company.",
       "id": "tests_test_jobsdb_rationale_180"
     },
     {
@@ -12682,13 +12682,13 @@
       "id": "tests_test_jobsdb_rationale_202"
     },
     {
-      "label": "Without detail pages, descriptions are empty strings \u2014 expected.",
+      "label": "Without detail pages, descriptions are empty strings — expected.",
       "file_type": "rationale",
       "source_file": "tests/test_jobsdb.py",
       "source_location": "L208",
       "_origin": "ast",
       "community": 14,
-      "norm_label": "without detail pages, descriptions are empty strings \u2014 expected.",
+      "norm_label": "without detail pages, descriptions are empty strings — expected.",
       "id": "tests_test_jobsdb_rationale_208"
     },
     {
@@ -13052,13 +13052,13 @@
       "id": "tests_test_linkedin_rationale_85"
     },
     {
-      "label": "Page 2 repeats card 333 \u2014 output must be 4 unique jobs, not 5.",
+      "label": "Page 2 repeats card 333 — output must be 4 unique jobs, not 5.",
       "file_type": "rationale",
       "source_file": "tests/test_linkedin.py",
       "source_location": "L159",
       "_origin": "ast",
       "community": 4,
-      "norm_label": "page 2 repeats card 333 \u2014 output must be 4 unique jobs, not 5.",
+      "norm_label": "page 2 repeats card 333 — output must be 4 unique jobs, not 5.",
       "id": "tests_test_linkedin_rationale_159"
     },
     {
@@ -13482,23 +13482,23 @@
       "id": "tests_test_pipeline_test_company_timeout_is_positive"
     },
     {
-      "label": "Tests for hk_jobs/pipeline.py \u2014 pipeline orchestrator.",
+      "label": "Tests for hk_jobs/pipeline.py — pipeline orchestrator.",
       "file_type": "rationale",
       "source_file": "tests/test_pipeline.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 32,
-      "norm_label": "tests for hk_jobs/pipeline.py \u2014 pipeline orchestrator.",
+      "norm_label": "tests for hk_jobs/pipeline.py — pipeline orchestrator.",
       "id": "tests_test_pipeline_rationale_1"
     },
     {
-      "label": "Minimal adapter stub \u2014 returns pre-set jobs without any network calls.",
+      "label": "Minimal adapter stub — returns pre-set jobs without any network calls.",
       "file_type": "rationale",
       "source_file": "tests/test_pipeline.py",
       "source_location": "L57",
       "_origin": "ast",
       "community": 32,
-      "norm_label": "minimal adapter stub \u2014 returns pre-set jobs without any network calls.",
+      "norm_label": "minimal adapter stub — returns pre-set jobs without any network calls.",
       "id": "tests_test_pipeline_rationale_57"
     },
     {
@@ -14762,13 +14762,13 @@
       "id": "tests_test_schema_test_jsonl_empty_list"
     },
     {
-      "label": "Tests for hk_jobs/schema.py \u2014 the canonical Job model.",
+      "label": "Tests for hk_jobs/schema.py — the canonical Job model.",
       "file_type": "rationale",
       "source_file": "tests/test_schema.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 19,
-      "norm_label": "tests for hk_jobs/schema.py \u2014 the canonical job model.",
+      "norm_label": "tests for hk_jobs/schema.py — the canonical job model.",
       "id": "tests_test_schema_rationale_1"
     },
     {
@@ -15072,13 +15072,13 @@
       "id": "tests_test_storage_test_context_manager"
     },
     {
-      "label": "Tests for hk_jobs/storage.py \u2014 SQLite persistence layer.",
+      "label": "Tests for hk_jobs/storage.py — SQLite persistence layer.",
       "file_type": "rationale",
       "source_file": "tests/test_storage.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 27,
-      "norm_label": "tests for hk_jobs/storage.py \u2014 sqlite persistence layer.",
+      "norm_label": "tests for hk_jobs/storage.py — sqlite persistence layer.",
       "id": "tests_test_storage_rationale_1"
     },
     {
@@ -15290,16 +15290,6 @@
       "community": 24,
       "norm_label": "test_cors_allows_post()",
       "id": "tests_test_submit_endpoints_test_cors_allows_post"
-    },
-    {
-      "label": "Tests for the two write endpoints \u2014 /api/contact and /api/post-role.  These are",
-      "file_type": "rationale",
-      "source_file": "tests/test_submit_endpoints.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 24,
-      "norm_label": "tests for the two write endpoints \u2014 /api/contact and /api/post-role.  these are",
-      "id": "tests_test_submit_endpoints_rationale_1"
     },
     {
       "label": "A fresh app per test, writing its JSONL queue into tmp_path.",
@@ -15532,13 +15522,13 @@
       "id": "tests_test_vendor_client_rationale_171"
     },
     {
-      "label": "$10/1k email rate differs from the $2/1k post rate \u2014 must not be conflated.",
+      "label": "$10/1k email rate differs from the $2/1k post rate — must not be conflated.",
       "file_type": "rationale",
       "source_file": "tests/test_vendor_client.py",
       "source_location": "L196",
       "_origin": "ast",
       "community": 46,
-      "norm_label": "$10/1k email rate differs from the $2/1k post rate \u2014 must not be conflated.",
+      "norm_label": "$10/1k email rate differs from the $2/1k post rate — must not be conflated.",
       "id": "tests_test_vendor_client_rationale_196"
     },
     {
@@ -15912,13 +15902,13 @@
       "id": "backend_mailer_rationale_1"
     },
     {
-      "label": "Send one plain-text message to RECIPIENT. Returns False on any failure \u2014     cal",
+      "label": "Send one plain-text message to RECIPIENT. Returns False on any failure —     cal",
       "file_type": "rationale",
       "source_file": "webapp/backend/mailer.py",
       "source_location": "L48",
       "_origin": "ast",
       "community": 18,
-      "norm_label": "send one plain-text message to recipient. returns false on any failure \u2014     cal",
+      "norm_label": "send one plain-text message to recipient. returns false on any failure —     cal",
       "id": "backend_mailer_rationale_48"
     },
     {
@@ -16282,13 +16272,13 @@
       "id": "backend_main_health"
     },
     {
-      "label": "FinEx Careers \u2014 FastAPI backend  Read access to jobs.db (SQLite), plus two write",
+      "label": "FinEx Careers — FastAPI backend  Read access to jobs.db (SQLite), plus two write",
       "file_type": "rationale",
       "source_file": "webapp/backend/main.py",
       "source_location": "L1",
       "_origin": "ast",
       "community": 18,
-      "norm_label": "finex careers \u2014 fastapi backend  read access to jobs.db (sqlite), plus two write",
+      "norm_label": "finex careers — fastapi backend  read access to jobs.db (sqlite), plus two write",
       "id": "backend_main_rationale_1"
     },
     {
@@ -16342,23 +16332,13 @@
       "id": "backend_main_rationale_852"
     },
     {
-      "label": "Executive Career Consultation enquiry \u2192 JSONL queue + email notification.",
-      "file_type": "rationale",
-      "source_file": "webapp/backend/main.py",
-      "source_location": "L920",
-      "_origin": "ast",
-      "community": 18,
-      "norm_label": "executive career consultation enquiry \u2192 jsonl queue + email notification.",
-      "id": "backend_main_rationale_920"
-    },
-    {
-      "label": "Recruiter/employer role submission \u2192 JSONL moderation queue + email.      Note t",
+      "label": "Recruiter/employer role submission → JSONL moderation queue + email.      Note t",
       "file_type": "rationale",
       "source_file": "webapp/backend/main.py",
       "source_location": "L949",
       "_origin": "ast",
       "community": 18,
-      "norm_label": "recruiter/employer role submission \u2192 jsonl moderation queue + email.      note t",
+      "norm_label": "recruiter/employer role submission → jsonl moderation queue + email.      note t",
       "id": "backend_main_rationale_949"
     },
     {
@@ -16912,26 +16892,6 @@
       "id": "api_client_fetchstats"
     },
     {
-      "label": "CAREER_STAGES",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/api/client.ts",
-      "source_location": "L206",
-      "_origin": "ast",
-      "community": 51,
-      "norm_label": "career_stages",
-      "id": "api_client_career_stages"
-    },
-    {
-      "label": "EnquiryPayload",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/api/client.ts",
-      "source_location": "L213",
-      "_origin": "ast",
-      "community": 51,
-      "norm_label": "enquirypayload",
-      "id": "api_client_enquirypayload"
-    },
-    {
       "label": "RolePayload",
       "file_type": "code",
       "source_file": "webapp/frontend/src/api/client.ts",
@@ -16950,16 +16910,6 @@
       "community": 51,
       "norm_label": "postjson()",
       "id": "api_client_postjson"
-    },
-    {
-      "label": "submitEnquiry()",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/api/client.ts",
-      "source_location": "L265",
-      "_origin": "ast",
-      "community": 51,
-      "norm_label": "submitenquiry()",
-      "id": "api_client_submitenquiry"
     },
     {
       "label": "submitRole()",
@@ -17030,56 +16980,6 @@
       "community": 25,
       "norm_label": "emptystate()",
       "id": "components_emptystate_emptystate"
-    },
-    {
-      "label": "EnquiryForm.tsx",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 51,
-      "norm_label": "enquiryform.tsx",
-      "id": "components_enquiryform"
-    },
-    {
-      "label": "Status",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L5",
-      "_origin": "ast",
-      "community": 51,
-      "norm_label": "status",
-      "id": "components_enquiryform_status"
-    },
-    {
-      "label": "MAX",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L7",
-      "_origin": "ast",
-      "community": 51,
-      "norm_label": "max",
-      "id": "components_enquiryform_max"
-    },
-    {
-      "label": "EnquiryForm()",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L17",
-      "_origin": "ast",
-      "community": 51,
-      "norm_label": "enquiryform()",
-      "id": "components_enquiryform_enquiryform"
-    },
-    {
-      "label": "Field()",
-      "file_type": "code",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L164",
-      "_origin": "ast",
-      "community": 51,
-      "norm_label": "field()",
-      "id": "components_enquiryform_field"
     },
     {
       "label": "FilterBar.tsx",
@@ -18582,13 +18482,13 @@
       "id": "claude"
     },
     {
-      "label": "CLAUDE.md \u2014 HK Financial Job Scraper",
+      "label": "CLAUDE.md — HK Financial Job Scraper",
       "file_type": "document",
       "source_file": "CLAUDE.md",
       "source_location": "L1",
       "_origin": "ast",
       "community": 81,
-      "norm_label": "claude.md \u2014 hk financial job scraper",
+      "norm_label": "claude.md — hk financial job scraper",
       "id": "claude_claude_md_hk_financial_job_scraper"
     },
     {
@@ -18602,13 +18502,13 @@
       "id": "claude_what_we_are_building"
     },
     {
-      "label": "Core domain knowledge (read this \u2014 it drives every design decision)",
+      "label": "Core domain knowledge (read this — it drives every design decision)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
       "source_location": "L17",
       "_origin": "ast",
       "community": 81,
-      "norm_label": "core domain knowledge (read this \u2014 it drives every design decision)",
+      "norm_label": "core domain knowledge (read this — it drives every design decision)",
       "id": "claude_core_domain_knowledge_read_this_it_drives_every_design_decision"
     },
     {
@@ -18672,13 +18572,13 @@
       "id": "claude_architecture_the_shape_of_the_solution"
     },
     {
-      "label": "Tech stack (decided \u2014 do not substitute without asking)",
+      "label": "Tech stack (decided — do not substitute without asking)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
       "source_location": "L90",
       "_origin": "ast",
       "community": 81,
-      "norm_label": "tech stack (decided \u2014 do not substitute without asking)",
+      "norm_label": "tech stack (decided — do not substitute without asking)",
       "id": "claude_tech_stack_decided_do_not_substitute_without_asking"
     },
     {
@@ -18742,13 +18642,13 @@
       "id": "deploy_what_the_code_already_does_done_for_you"
     },
     {
-      "label": "Manual steps in Railway (you do these \u2014 I can't use your login/payment)",
+      "label": "Manual steps in Railway (you do these — I can't use your login/payment)",
       "file_type": "document",
       "source_file": "DEPLOY.md",
       "source_location": "L33",
       "_origin": "ast",
       "community": 68,
-      "norm_label": "manual steps in railway (you do these \u2014 i can't use your login/payment)",
+      "norm_label": "manual steps in railway (you do these — i can't use your login/payment)",
       "id": "deploy_manual_steps_in_railway_you_do_these_i_can_t_use_your_login_payment"
     },
     {
@@ -19042,13 +18942,13 @@
       "id": "docs_bakeoff_results"
     },
     {
-      "label": "LP-0 \u2014 Vendor Bake-off Results",
+      "label": "LP-0 — Vendor Bake-off Results",
       "file_type": "document",
       "source_file": "docs/BAKEOFF_RESULTS.md",
       "source_location": "L1",
       "_origin": "ast",
       "community": 73,
-      "norm_label": "lp-0 \u2014 vendor bake-off results",
+      "norm_label": "lp-0 — vendor bake-off results",
       "id": "docs_bakeoff_results_lp_0_vendor_bake_off_results"
     },
     {
@@ -19062,23 +18962,23 @@
       "id": "docs_bakeoff_results_why_piloterr_was_disqualified_without_a_live_test"
     },
     {
-      "label": "Apify test 1 \u2014 `harvestapi/linkedin-profile-posts` (watchlist simulation)",
+      "label": "Apify test 1 — `harvestapi/linkedin-profile-posts` (watchlist simulation)",
       "file_type": "document",
       "source_file": "docs/BAKEOFF_RESULTS.md",
       "source_location": "L26",
       "_origin": "ast",
       "community": 73,
-      "norm_label": "apify test 1 \u2014 `harvestapi/linkedin-profile-posts` (watchlist simulation)",
+      "norm_label": "apify test 1 — `harvestapi/linkedin-profile-posts` (watchlist simulation)",
       "id": "docs_bakeoff_results_apify_test_1_harvestapi_linkedin_profile_posts_watchlist_simulation"
     },
     {
-      "label": "Apify test 2 \u2014 `harvestapi/linkedin-post-search` (discovery simulation)",
+      "label": "Apify test 2 — `harvestapi/linkedin-post-search` (discovery simulation)",
       "file_type": "document",
       "source_file": "docs/BAKEOFF_RESULTS.md",
       "source_location": "L54",
       "_origin": "ast",
       "community": 73,
-      "norm_label": "apify test 2 \u2014 `harvestapi/linkedin-post-search` (discovery simulation)",
+      "norm_label": "apify test 2 — `harvestapi/linkedin-post-search` (discovery simulation)",
       "id": "docs_bakeoff_results_apify_test_2_harvestapi_linkedin_post_search_discovery_simulation"
     },
     {
@@ -19202,13 +19102,13 @@
       "id": "docs_data_model_companies_config_hk_jobs_companies_yaml"
     },
     {
-      "label": "Company list (name \u2192 adapter \u2192 slug \u2192 enabled)",
+      "label": "Company list (name → adapter → slug → enabled)",
       "file_type": "document",
       "source_file": "docs/DATA_MODEL.md",
       "source_location": "L115",
       "_origin": "ast",
       "community": 70,
-      "norm_label": "company list (name \u2192 adapter \u2192 slug \u2192 enabled)",
+      "norm_label": "company list (name → adapter → slug → enabled)",
       "id": "docs_data_model_company_list_name_adapter_slug_enabled"
     },
     {
@@ -19252,13 +19152,13 @@
       "id": "docs_plan_front_page"
     },
     {
-      "label": "PLAN \u2014 New Front Page (three-product portal)",
+      "label": "PLAN — New Front Page (three-product portal)",
       "file_type": "document",
       "source_file": "docs/PLAN_FRONT_PAGE.md",
       "source_location": "L1",
       "_origin": "ast",
       "community": 26,
-      "norm_label": "plan \u2014 new front page (three-product portal)",
+      "norm_label": "plan — new front page (three-product portal)",
       "id": "docs_plan_front_page_plan_new_front_page_three_product_portal"
     },
     {
@@ -19322,13 +19222,13 @@
       "id": "docs_plan_front_page_5_implementation"
     },
     {
-      "label": "5.1 Frontend \u2014 `/` rebuild",
+      "label": "5.1 Frontend — `/` rebuild",
       "file_type": "document",
       "source_file": "docs/PLAN_FRONT_PAGE.md",
       "source_location": "L126",
       "_origin": "ast",
       "community": 26,
-      "norm_label": "5.1 frontend \u2014 `/` rebuild",
+      "norm_label": "5.1 frontend — `/` rebuild",
       "id": "docs_plan_front_page_5_1_frontend_rebuild"
     },
     {
@@ -19342,34 +19242,24 @@
       "id": "docs_plan_front_page_5_2_the_outbound_consultation_link"
     },
     {
-      "label": "5.3 Frontend \u2014 `/jobs` additions",
+      "label": "5.3 Frontend — `/jobs` additions",
       "file_type": "document",
       "source_file": "docs/PLAN_FRONT_PAGE.md",
       "source_location": "L166",
       "_origin": "ast",
       "community": 26,
-      "norm_label": "5.3 frontend \u2014 `/jobs` additions",
+      "norm_label": "5.3 frontend — `/jobs` additions",
       "id": "docs_plan_front_page_5_3_frontend_jobs_additions"
     },
     {
-      "label": "5.4 Frontend \u2014 Nav",
+      "label": "5.4 Frontend — Nav",
       "file_type": "document",
       "source_file": "docs/PLAN_FRONT_PAGE.md",
       "source_location": "L177",
       "_origin": "ast",
       "community": 26,
-      "norm_label": "5.4 frontend \u2014 nav",
+      "norm_label": "5.4 frontend — nav",
       "id": "docs_plan_front_page_5_4_frontend_nav"
-    },
-    {
-      "label": "5.5 Backend \u2014 `POST /api/contact`",
-      "file_type": "document",
-      "source_file": "docs/PLAN_FRONT_PAGE.md",
-      "source_location": "L193",
-      "_origin": "ast",
-      "community": 26,
-      "norm_label": "5.5 backend \u2014 `post /api/contact`",
-      "id": "docs_plan_front_page_5_5_backend_post_api_contact"
     },
     {
       "label": "5.8 Direct role submission (new capability)",
@@ -19382,13 +19272,13 @@
       "id": "docs_plan_front_page_5_8_direct_role_submission_new_capability"
     },
     {
-      "label": "5.6 Frontend \u2014 API client",
+      "label": "5.6 Frontend — API client",
       "file_type": "document",
       "source_file": "docs/PLAN_FRONT_PAGE.md",
       "source_location": "L249",
       "_origin": "ast",
       "community": 26,
-      "norm_label": "5.6 frontend \u2014 api client",
+      "norm_label": "5.6 frontend — api client",
       "id": "docs_plan_front_page_5_6_frontend_api_client"
     },
     {
@@ -19452,13 +19342,13 @@
       "id": "docs_plan_linkedin_posts"
     },
     {
-      "label": "Plan \u2014 LinkedIn Posts \"Secret Market\" Section",
+      "label": "Plan — LinkedIn Posts \"Secret Market\" Section",
       "file_type": "document",
       "source_file": "docs/PLAN_LINKEDIN_POSTS.md",
       "source_location": "L1",
       "_origin": "ast",
       "community": 48,
-      "norm_label": "plan \u2014 linkedin posts \"secret market\" section",
+      "norm_label": "plan — linkedin posts \"secret market\" section",
       "id": "docs_plan_linkedin_posts_plan_linkedin_posts_secret_market_section"
     },
     {
@@ -19512,63 +19402,63 @@
       "id": "docs_plan_linkedin_posts_5_phases"
     },
     {
-      "label": "LP-0 \u2014 Vendor bake-off \u2014 \u2705 COMPLETE (2026-07-19, cost $0.21)",
+      "label": "LP-0 — Vendor bake-off — ✅ COMPLETE (2026-07-19, cost $0.21)",
       "file_type": "document",
       "source_file": "docs/PLAN_LINKEDIN_POSTS.md",
       "source_location": "L101",
       "_origin": "ast",
       "community": 117,
-      "norm_label": "lp-0 \u2014 vendor bake-off \u2014 \u2705 complete (2026-07-19, cost $0.21)",
+      "norm_label": "lp-0 — vendor bake-off — ✅ complete (2026-07-19, cost $0.21)",
       "id": "docs_plan_linkedin_posts_lp_0_vendor_bake_off_complete_2026_07_19_cost_0_21"
     },
     {
-      "label": "LP-1 \u2014 Watchlist bootstrap (~2 days, parallel with boss's manual list)",
+      "label": "LP-1 — Watchlist bootstrap (~2 days, parallel with boss's manual list)",
       "file_type": "document",
       "source_file": "docs/PLAN_LINKEDIN_POSTS.md",
       "source_location": "L113",
       "_origin": "ast",
       "community": 117,
-      "norm_label": "lp-1 \u2014 watchlist bootstrap (~2 days, parallel with boss's manual list)",
+      "norm_label": "lp-1 — watchlist bootstrap (~2 days, parallel with boss's manual list)",
       "id": "docs_plan_linkedin_posts_lp_1_watchlist_bootstrap_2_days_parallel_with_boss_s_manual_list"
     },
     {
-      "label": "LP-2 \u2014 Ingestion backbone \u2014 \u2705 BUILT (2026-07-22), pending your review",
+      "label": "LP-2 — Ingestion backbone — ✅ BUILT (2026-07-22), pending your review",
       "file_type": "document",
       "source_file": "docs/PLAN_LINKEDIN_POSTS.md",
       "source_location": "L121",
       "_origin": "ast",
       "community": 117,
-      "norm_label": "lp-2 \u2014 ingestion backbone \u2014 \u2705 built (2026-07-22), pending your review",
+      "norm_label": "lp-2 — ingestion backbone — ✅ built (2026-07-22), pending your review",
       "id": "docs_plan_linkedin_posts_lp_2_ingestion_backbone_built_2026_07_22_pending_your_review"
     },
     {
-      "label": "LP-3 \u2014 Extraction & promotion (~2\u20133 days)",
+      "label": "LP-3 — Extraction & promotion (~2–3 days)",
       "file_type": "document",
       "source_file": "docs/PLAN_LINKEDIN_POSTS.md",
       "source_location": "L160",
       "_origin": "ast",
       "community": 117,
-      "norm_label": "lp-3 \u2014 extraction & promotion (~2\u20133 days)",
+      "norm_label": "lp-3 — extraction & promotion (~2–3 days)",
       "id": "docs_plan_linkedin_posts_lp_3_extraction_promotion_2_3_days"
     },
     {
-      "label": "LP-4 \u2014 PILOT \u2014 \u2705 BUILT + CONNECTED (2026-07-22), gate compressed by owner decision",
+      "label": "LP-4 — PILOT — ✅ BUILT + CONNECTED (2026-07-22), gate compressed by owner decision",
       "file_type": "document",
       "source_file": "docs/PLAN_LINKEDIN_POSTS.md",
       "source_location": "L171",
       "_origin": "ast",
       "community": 117,
-      "norm_label": "lp-4 \u2014 pilot \u2014 \u2705 built + connected (2026-07-22), gate compressed by owner decision",
+      "norm_label": "lp-4 — pilot — ✅ built + connected (2026-07-22), gate compressed by owner decision",
       "id": "docs_plan_linkedin_posts_lp_4_pilot_built_connected_2026_07_22_gate_compressed_by_owner_decision"
     },
     {
-      "label": "LP-5 \u2014 UI + PocketBase \u2014 \u2705 MOSTLY BUILT (2026-07-22); email harvest still open",
+      "label": "LP-5 — UI + PocketBase — ✅ MOSTLY BUILT (2026-07-22); email harvest still open",
       "file_type": "document",
       "source_file": "docs/PLAN_LINKEDIN_POSTS.md",
       "source_location": "L193",
       "_origin": "ast",
       "community": 117,
-      "norm_label": "lp-5 \u2014 ui + pocketbase \u2014 \u2705 mostly built (2026-07-22); email harvest still open",
+      "norm_label": "lp-5 — ui + pocketbase — ✅ mostly built (2026-07-22); email harvest still open",
       "id": "docs_plan_linkedin_posts_lp_5_ui_pocketbase_mostly_built_2026_07_22_email_harvest_still_open"
     },
     {
@@ -19582,13 +19472,13 @@
       "id": "docs_plan_linkedin_posts_post_lp_5_fixes_2026_07_23"
     },
     {
-      "label": "LP-6 \u2014 Steady state (post-GO)",
+      "label": "LP-6 — Steady state (post-GO)",
       "file_type": "document",
       "source_file": "docs/PLAN_LINKEDIN_POSTS.md",
       "source_location": "L360",
       "_origin": "ast",
       "community": 117,
-      "norm_label": "lp-6 \u2014 steady state (post-go)",
+      "norm_label": "lp-6 — steady state (post-go)",
       "id": "docs_plan_linkedin_posts_lp_6_steady_state_post_go"
     },
     {
@@ -19692,13 +19582,13 @@
       "id": "salary_guidlines_hk_finance_salary_guidelines_commercial_retail_banking_relationship_management"
     },
     {
-      "label": "Middle office \u2014 Risk / Compliance / Audit (Banking)",
+      "label": "Middle office — Risk / Compliance / Audit (Banking)",
       "file_type": "document",
       "source_file": "salary_guidlines/HK_FINANCE_SALARY_GUIDELINES.md",
       "source_location": "L67",
       "_origin": "ast",
       "community": 90,
-      "norm_label": "middle office \u2014 risk / compliance / audit (banking)",
+      "norm_label": "middle office — risk / compliance / audit (banking)",
       "id": "salary_guidlines_hk_finance_salary_guidelines_middle_office_risk_compliance_audit_banking"
     },
     {
@@ -19772,13 +19662,13 @@
       "id": "frontend_design"
     },
     {
-      "label": "FinEx Careers \u2014 Design System",
+      "label": "FinEx Careers — Design System",
       "file_type": "document",
       "source_file": "webapp/frontend/DESIGN.md",
       "source_location": "L1",
       "_origin": "ast",
       "community": 59,
-      "norm_label": "finex careers \u2014 design system",
+      "norm_label": "finex careers — design system",
       "id": "frontend_design_finex_careers_design_system"
     },
     {
@@ -21909,17 +21799,6 @@
       "confidence_score": 1.0,
       "source": "pages_landingpage",
       "target": "api_client_fetchstats"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/pages/LandingPage.tsx",
-      "source_location": "L7",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "pages_landingpage",
-      "target": "components_enquiryform"
     },
     {
       "relation": "imports_from",
@@ -54784,16 +54663,6 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_submit_endpoints.py",
-      "source_location": "L1",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "tests_test_submit_endpoints_rationale_1",
-      "target": "tests_test_submit_endpoints"
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "tests/test_submit_endpoints.py",
       "source_location": "L27",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -56447,16 +56316,6 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "webapp/backend/main.py",
-      "source_location": "L920",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "backend_main_rationale_920",
-      "target": "backend_main_submit_enquiry"
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/backend/main.py",
       "source_location": "L949",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -56871,16 +56730,6 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "webapp/frontend/src/api/client.ts",
-      "source_location": "L206",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "api_client",
-      "target": "api_client_career_stages"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/api/client.ts",
       "source_location": "L261",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -56896,16 +56745,6 @@
       "confidence_score": 1.0,
       "source": "api_client",
       "target": "api_client_default_filters"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/api/client.ts",
-      "source_location": "L213",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "api_client",
-      "target": "api_client_enquirypayload"
     },
     {
       "relation": "contains",
@@ -57071,16 +56910,6 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "webapp/frontend/src/api/client.ts",
-      "source_location": "L265",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "api_client",
-      "target": "api_client_submitenquiry"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/api/client.ts",
       "source_location": "L269",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -57096,17 +56925,6 @@
       "confidence_score": 1.0,
       "source": "api_client",
       "target": "api_client_tiertab"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L3",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_enquiryform",
-      "target": "api_client"
     },
     {
       "relation": "imports_from",
@@ -57450,28 +57268,6 @@
       "target": "api_client_fetchjobdetail"
     },
     {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L3",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_enquiryform",
-      "target": "api_client_career_stages"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/api/client.ts",
-      "source_location": "L266",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "api_client_submitenquiry",
-      "target": "api_client_postjson"
-    },
-    {
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
@@ -57481,17 +57277,6 @@
       "confidence_score": 1.0,
       "source": "api_client_submitrole",
       "target": "api_client_postjson"
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L3",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_enquiryform",
-      "target": "api_client_submitenquiry"
     },
     {
       "relation": "imports",
@@ -57523,46 +57308,6 @@
       "confidence_score": 1.0,
       "source": "components_emptystate",
       "target": "components_emptystate_props"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L17",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_enquiryform",
-      "target": "components_enquiryform_enquiryform"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L164",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_enquiryform",
-      "target": "components_enquiryform_field"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L7",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_enquiryform",
-      "target": "components_enquiryform_max"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "webapp/frontend/src/components/EnquiryForm.tsx",
-      "source_location": "L5",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "components_enquiryform",
-      "target": "components_enquiryform_status"
     },
     {
       "relation": "contains",
@@ -60502,16 +60247,6 @@
       "confidence_score": 1.0,
       "source": "docs_plan_front_page_5_implementation",
       "target": "docs_plan_front_page_5_4_frontend_nav"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "docs/PLAN_FRONT_PAGE.md",
-      "source_location": "L193",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "docs_plan_front_page_5_implementation",
-      "target": "docs_plan_front_page_5_5_backend_post_api_contact"
     },
     {
       "relation": "contains",

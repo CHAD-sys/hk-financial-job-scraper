@@ -420,7 +420,6 @@ Nodes (48): JobDetail, JobFilters, JobListResponse, JobSummary, Everything the b
 
 ### Community 29 - "SuccessFactors Adapter Tests"
 Cohesion: 0.13
-Nodes (30): apiFetch(), authError(), deleteAccount(), Employer, employerAuthError(), EmployerRegisterPayload, EnquiryPayload, fetchEmployerMe() (+22 more)
 
 ### Community 30 - "Identity Linking"
 Cohesion: 0.07
@@ -432,7 +431,6 @@ Nodes (39): Tests for the Seeker account HTTP surface (phase 2 of docs/PLAN_ACCO
 
 ### Community 32 - "Board Filter UX States"
 Cohesion: 0.06
-Nodes (22): CAREER_STAGES, fetchFilters(), fetchStats(), MAX, Status, CoverageRadar(), DataFlow(), DATAFLOW_OUTS (+14 more)
 
 ### Community 33 - "Source Registry Contract Tests"
 Cohesion: 0.06
@@ -532,7 +530,6 @@ Nodes (26): _call_deepseek(), _call_haiku(), extract_post(), extract_post_haiku(
 
 ### Community 57 - "Single-Origin Tests"
 Cohesion: 0.13
-Nodes (27): client(), enquiry(), Tests for the two write endpoints — /api/contact and /api/post-role.  These are, End-to-end: real send_mail, only the SMTP socket faked.      Mocking send_mail h, _header_safe is the last line of defence; test it directly., An attacker-supplied 'to' must be ignored, not honoured., Mail is best-effort; the JSONL queue is the source of truth., A fresh app per test, writing its JSONL queue into tmp_path. (+19 more)
 
 ### Community 58 - "LinkedIn Adapter"
 Cohesion: 0.06
@@ -948,7 +945,6 @@ Nodes (4): Alternatives rejected, Browsing is filtered; addressing is not, Conse
 
 ### Community 163 - "Community 163"
 Cohesion: 0.67
-Nodes (3): POST /api/contact, /post-a-role Direct Role Submission, data/submitted_roles.jsonl Queue
 
 ### Community 164 - "Community 164"
 Cohesion: 0.13
@@ -1015,7 +1011,6 @@ Nodes (4): migrate_to_phase_10(), Create the `jobs` table and its indexes — th
   docs/HK_MARKET_REPORT.html · relation: conceptually_related_to
 
 ## Knowledge Gaps
-- **501 isolated node(s):** `StatsResponse`, `EnquiryPayload`, `RolePayload`, `SavedRole`, `Employer` (+496 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **59 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 

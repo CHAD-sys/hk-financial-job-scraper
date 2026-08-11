@@ -274,7 +274,6 @@ Nodes (25): dependencies, lucide-react, react, react-dom, react-router-dom, tail
 
 ### Community 24 - "Post Promotion Pipeline"
 Cohesion: 0.13
-Nodes (27): client(), enquiry(), Tests for the two write endpoints — /api/contact and /api/post-role.  These are, End-to-end: real send_mail, only the SMTP socket faked.      Mocking send_mail h, _header_safe is the last line of defence; test it directly., An attacker-supplied 'to' must be ignored, not honoured., Mail is best-effort; the JSONL queue is the source of truth., A fresh app per test, writing its JSONL queue into tmp_path. (+19 more)
 
 ### Community 25 - "API Client (client.ts)"
 Cohesion: 0.11
@@ -382,7 +381,6 @@ Nodes (17): Job Detail Modal Screenshot, AI Estimate Confidence Label, AI Job De
 
 ### Community 51 - "LinkedIn Guest Jobs Adapter"
 Cohesion: 0.12
-Nodes (15): CAREER_STAGES, DEFAULT_FILTERS, EnquiryPayload, fetchJobs(), JobListResponse, NameCount, postJson(), RolePayload (+7 more)
 
 ### Community 52 - "DeepSeek Enrichment Retry Logic"
 Cohesion: 0.12

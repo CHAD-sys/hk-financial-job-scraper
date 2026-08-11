@@ -380,7 +380,6 @@ Nodes (27): _extract_source_id(), _parse_listing_html(), Extract job cards from 
 
 ### Community 22 - "Frontend API Client"
 Cohesion: 0.11
-Nodes (27): ApiError, apiFetch(), authError(), CAREER_STAGES, deleteAccount(), EnquiryPayload, fetchJobDetail(), fetchMe() (+19 more)
 
 ### Community 23 - "Filter Bar UI"
 Cohesion: 0.10
@@ -480,7 +479,6 @@ Nodes (8): adapter(), _MockTransport, Request, Response, Tests for the Eightfold
 
 ### Community 47 - "Submit Endpoint Tests"
 Cohesion: 0.13
-Nodes (27): client(), enquiry(), Tests for the two write endpoints — /api/contact and /api/post-role.  These are, End-to-end: real send_mail, only the SMTP socket faked.      Mocking send_mail h, _header_safe is the last line of defence; test it directly., An attacker-supplied 'to' must be ignored, not honoured., Mail is best-effort; the JSONL queue is the source of truth., A fresh app per test, writing its JSONL queue into tmp_path. (+19 more)
 
 ### Community 48 - "CLI Modes"
 Cohesion: 0.11
@@ -804,7 +802,6 @@ Nodes (10): Workday additionalJobDescription append field, Workday jobDescriptio
 
 ### Community 131 - "Webapp/backend/requirements.txt"
 Cohesion: 0.29
-Nodes (7): webapp/backend/requirements.txt, POST /api/contact, linkedin_posts (Secret Market source), /post-a-role Direct Role Submission, Resolve Pins at Install Time, Never Guess, data/submitted_roles.jsonl Queue, Web App Tech Stack
 
 ### Community 132 - "Three Door Portal Front"
 Cohesion: 0.40

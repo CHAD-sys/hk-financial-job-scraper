@@ -949,11 +949,6 @@
     "ast_hash": "365bb33d47508a0dcaa7d63c97f9ab96",
     "semantic_hash": "365bb33d47508a0dcaa7d63c97f9ab96"
   },
-  "webapp/frontend/src/components/EnquiryForm.tsx": {
-    "mtime": 1785182451.084715,
-    "ast_hash": "f31295e491daaa18f991225cf285b6fd",
-    "semantic_hash": "f31295e491daaa18f991225cf285b6fd"
-  },
   "webapp/frontend/src/components/ProductDoor.tsx": {
     "mtime": 1785182696.5292811,
     "ast_hash": "9a5789f4a69f193177a93388b02b1eec",

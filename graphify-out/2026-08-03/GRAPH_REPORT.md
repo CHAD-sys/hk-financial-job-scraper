@@ -332,7 +332,6 @@ Nodes (27): _job(), Tests for Phase 19 cross-source apply routing:   - JobStore.
 
 ### Community 25 - "JobsDB Adapter Core"
 Cohesion: 0.13
-Nodes (27): client(), enquiry(), Tests for the two write endpoints — /api/contact and /api/post-role.  These are, End-to-end: real send_mail, only the SMTP socket faked.      Mocking send_mail h, _header_safe is the last line of defence; test it directly., An attacker-supplied 'to' must be ignored, not honoured., Mail is best-effort; the JSONL queue is the source of truth., A fresh app per test, writing its JSONL queue into tmp_path. (+19 more)
 
 ### Community 26 - "DeepSeek Enricher & Salary Audit"
 Cohesion: 0.12
@@ -520,7 +519,6 @@ Nodes (13): `companies.yaml` is no longer the single source of company config, C
 
 ### Community 73 - "Submission Review CLI"
 Cohesion: 0.22
-Nodes (12): _client_ip(), EnquiryIn, _persist(), _rate_limited(), Left-most X-Forwarded-For entry when behind a proxy (Railway), else peer., Append one submission to data/{kind}.jsonl. Returns False if it could not     be, Executive Career Consultation enquiry → JSONL queue + email notification., Recruiter/employer role submission → JSONL moderation queue + email.      Note t (+4 more)
 
 ### Community 74 - "Workday Job Detail Fixtures"
 Cohesion: 0.10
@@ -552,7 +550,6 @@ Nodes (11): ExperienceRange, FiltersResponse, get_db(), get_filters(), get_stats
 
 ### Community 81 - "Trend Report Generator"
 Cohesion: 0.22
-Nodes (9): 5.1 Frontend — `/` rebuild, 5.2 The outbound consultation link, 5.3 Frontend — `/jobs` additions, 5.4 Frontend — Nav, 5.5 Backend — `POST /api/contact`, 5.6 Frontend — API client, 5.7 Metadata, 5.8 Direct role submission (new capability) (+1 more)
 
 ### Community 82 - "Indeed Slug Resolver"
 Cohesion: 0.15
@@ -592,7 +589,6 @@ Nodes (8): _advertiser_accepted(), _normalize_advertiser_tokens(), Lowercase, st
 
 ### Community 91 - "Apify Budget Cap"
 Cohesion: 0.12
-Nodes (15): CAREER_STAGES, EnquiryPayload, fetchJobDetail(), fetchJobs(), filtersToSearchParams(), NameCount, postJson(), RolePayload (+7 more)
 
 ### Community 93 - "Vendor Client Actor Calls"
 Cohesion: 0.20
