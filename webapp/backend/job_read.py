@@ -3,7 +3,7 @@ Reading Roles out of jobs.db.
 
 WHY THIS MODULE EXISTS
 ----------------------
-The rule for which rows a visitor may see — `is_active = 1 AND is_primary = 1` —
+The catalogue-row rule for browsing — `is_active = 1 AND is_primary = 1` —
 used to live inside one filter-building function in main.py, and two of the three
 read paths never called it. `get_job` applied half of it; `list_saved` applied
 none, so a Saved Role that had closed months ago came back looking live, which is
@@ -11,9 +11,14 @@ the exact behaviour CONTEXT.md promises Saved Roles do not have. The rule had no
 home, so callers forgot it.
 
 It has a home now. Everything the three read paths share sits behind this
-module's interface: the select and its column aliases, the visibility rule, the
+module's interface: the select and its column aliases, the row-visibility rule, the
 filters, the sort, the count, the row-to-wire mapping, and the cross-post signal
-aggregation. A caller cannot spell a visibility rule of its own.
+aggregation. A caller cannot spell a row-visibility rule of its own.
+
+Request authorization is a different question. ADR 0018's public research
+requirement and short-lived detail grants live at the HTTP edge in ``main.py``
+and ``role_access.py``. Internal ranking and admin reads may still call this
+module without a public Research Scope.
 
 TWO VISIBILITY RULES, NOT ONE
 -----------------------------
@@ -291,6 +296,9 @@ class JobSummary(BaseModel):
     closed: bool = False
     # Market signals by board, e.g. { indeed: { urgently_hiring, applicant_count } }
     board_signals: dict[str, dict] = {}
+    #: Short-lived proof that this Role reached the caller through an allowed
+    #: discovery path. Issued at the HTTP edge; jobs.db never stores it.
+    access_token: Optional[str] = None
 
 
 class JobDetail(JobSummary):
@@ -305,6 +313,30 @@ class JobListResponse(BaseModel):
     page_size: int
     total_pages: int
     jobs: list[JobSummary]
+
+
+class NameCount(BaseModel):
+    name: str
+    count: int
+
+
+class NumericRange(BaseModel):
+    min: Optional[int]
+    max: Optional[int]
+
+
+class ResearchFacets(BaseModel):
+    """Every filter choice available inside one text-research result set."""
+
+    research_total: int
+    tier_counts: dict[str, int]
+    companies: list[NameCount]
+    sectors: list[NameCount]
+    skills: list[NameCount]
+    seniority_levels: list[str]
+    remote_types: list[str]
+    salary_range: NumericRange
+    experience_range: NumericRange
 
 
 @dataclass(frozen=True)
@@ -659,6 +691,105 @@ def list_jobs(
         page_size=page_size,
         total_pages=math.ceil(total / page_size) if total else 0,
         jobs=summaries,
+    )
+
+
+def research_facets(conn: sqlite3.Connection, query: str) -> ResearchFacets:
+    """Filter choices and counts drawn only from Roles matched by ``query``."""
+    rowids = search_index.matching_rowids(conn, query)
+    research = (
+        f"{BOARD_WHERE} AND j.rowid IN ({','.join(str(rowid) for rowid in rowids)})"
+        if rowids
+        else f"{BOARD_WHERE} AND 0"
+    )
+
+    total = conn.execute(f"SELECT COUNT(*) FROM jobs j WHERE {research}").fetchone()[0]
+    companies = [
+        NameCount(name=row["company"], count=row["cnt"])
+        for row in conn.execute(
+            "SELECT j.company, COUNT(*) AS cnt FROM jobs j"
+            f" WHERE {research} GROUP BY j.company ORDER BY cnt DESC, j.company",
+        ).fetchall()
+    ]
+    sectors = [
+        NameCount(name=row["sector"], count=row["cnt"])
+        for row in conn.execute(
+            f"""
+            SELECT sector, COUNT(*) AS cnt FROM (
+              SELECT ({SECTOR_SQL}) AS sector
+              FROM jobs j
+              LEFT JOIN job_enrichments e
+                ON j.source=e.source AND j.source_id=e.source_id
+              WHERE {research}
+            ) scoped GROUP BY sector ORDER BY cnt DESC, sector
+            """
+        ).fetchall()
+    ]
+    skills = [
+        NameCount(name=row["skill"], count=row["cnt"])
+        for row in conn.execute(
+            f"""
+            SELECT LOWER(sk.value) AS skill, COUNT(*) AS cnt
+            FROM jobs j
+            JOIN job_enrichments e
+              ON j.source=e.source AND j.source_id=e.source_id
+            JOIN json_each(e.required_skills) sk
+            WHERE {research}
+              AND e.required_skills IS NOT NULL
+              AND e.required_skills != '[]'
+            GROUP BY LOWER(sk.value)
+            ORDER BY cnt DESC, skill
+            LIMIT 100
+            """
+        ).fetchall()
+    ]
+    seniority_levels = [
+        row[0]
+        for row in conn.execute(
+            "SELECT DISTINCT e.seniority FROM job_enrichments e"
+            " JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
+            f" WHERE {research} AND e.seniority IS NOT NULL ORDER BY e.seniority"
+        ).fetchall()
+    ]
+    remote_types = [
+        row[0]
+        for row in conn.execute(
+            "SELECT DISTINCT e.remote_type FROM job_enrichments e"
+            " JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
+            f" WHERE {research} AND e.remote_type IS NOT NULL ORDER BY e.remote_type"
+        ).fetchall()
+    ]
+    salary = conn.execute(
+        "SELECT MIN(COALESCE(e.salary_hkd_min, e.salary_estimated_min)),"
+        " MAX(COALESCE(e.salary_hkd_max, e.salary_estimated_max))"
+        " FROM job_enrichments e"
+        " JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
+        f" WHERE {research}"
+    ).fetchone()
+    experience = conn.execute(
+        "SELECT MIN(e.years_experience_required), MAX(e.years_experience_required)"
+        " FROM job_enrichments e"
+        " JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
+        f" WHERE {research}"
+    ).fetchone()
+    tier_counts = {
+        row["tier"]: row["cnt"]
+        for row in conn.execute(
+            "SELECT COALESCE(j.source_tier, 'mainstream') AS tier, COUNT(*) AS cnt"
+            f" FROM jobs j WHERE {research} GROUP BY tier"
+        ).fetchall()
+    }
+
+    return ResearchFacets(
+        research_total=total,
+        tier_counts=tier_counts,
+        companies=companies,
+        sectors=sectors,
+        skills=skills,
+        seniority_levels=seniority_levels,
+        remote_types=remote_types,
+        salary_range=NumericRange(min=salary[0], max=salary[1]),
+        experience_range=NumericRange(min=experience[0], max=experience[1]),
     )
 
 

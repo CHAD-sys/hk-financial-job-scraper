@@ -211,10 +211,10 @@ def test_employer_and_seeker_sessions_are_independent(client):
     assert client.get("/api/auth/me").status_code == 401
 
 
-def test_jobs_endpoints_are_unaffected_by_employer_accounts(client):
-    """Nothing is gated. Mirrors the Seeker-side ADR 0002 test."""
-    anon = client.get("/api/jobs")
+def test_employer_accounts_do_not_bypass_the_research_scope(client):
+    anon = client.get("/api/jobs", params={"search": "credit risk"})
     assert anon.status_code == 200
+    assert client.get("/api/jobs").status_code == 422
     assert anon.json()["jobs"][0]["title"] == "Credit Risk Analyst"
 
 

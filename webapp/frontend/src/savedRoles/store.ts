@@ -83,7 +83,7 @@ export const localStore: SavedRolesStore = {
 /** What a signed-in Seeker has saved. References, resolved server-side. */
 export const serverStore: SavedRolesStore = {
   list: fetchSavedRoles,
-  save: (job) => saveRole(job.source, job.source_id),
+  save: (job) => saveRole(job.source, job.source_id, job.access_token),
   unsave: (job) => unsaveRole(job.source, job.source_id),
 }
 
@@ -100,11 +100,25 @@ export const serverStore: SavedRolesStore = {
  */
 export async function liftLocalRolesIntoAccount(): Promise<number> {
   const local = Object.values(readLocal())
-  if (local.length > 0) {
-    await mergeSavedRoles(local.map(job => ({ source: job.source, source_id: job.source_id })))
+  const eligible = local.filter(
+    (job): job is Job & { access_token: string } => Boolean(job.access_token),
+  )
+  let accepted = new Set<string>()
+  if (eligible.length > 0) {
+    const result = await mergeSavedRoles(eligible.map(job => ({
+      source: job.source,
+      source_id: job.source_id,
+      access_token: job.access_token,
+    })))
+    accepted = new Set(result.accepted.map(role => `${role.source}__${role.source_id}`))
   }
-  clearLocal()
-  return local.length
+  const remaining = local.filter(job => !accepted.has(roleKey(job)))
+  if (remaining.length > 0) {
+    writeLocal(Object.fromEntries(remaining.map(job => [roleKey(job), job])))
+  } else {
+    clearLocal()
+  }
+  return accepted.size
 }
 
 /** Exposed for the cross-tab listener, which needs to know which key to watch. */

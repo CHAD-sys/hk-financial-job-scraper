@@ -165,7 +165,7 @@ function ResumeProof({ signedIn, loading, error, matches, onRetry }: {
           <p>Market check complete</p>
           <h3>No strong live Role match yet.</h3>
           <small>We’ll check again when the market refreshes.</small>
-          <Link className="resume-feature-spotlight__result-link" to="/jobs">Browse all Roles <ArrowRight size={14} aria-hidden="true" /></Link>
+          <Link className="resume-feature-spotlight__result-link" to="/jobs">Search Roles <ArrowRight size={14} aria-hidden="true" /></Link>
         </div>
       </div>
     )

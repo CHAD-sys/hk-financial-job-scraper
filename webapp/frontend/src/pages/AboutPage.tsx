@@ -10,7 +10,7 @@ import Nav from '../components/Nav'
 import { DataFlow, CoverageRadar, GrowthBars } from '../components/Illustrations'
 import PrivacyNotice from '../components/PrivacyNotice'
 import useHashScroll from '../hooks/useHashScroll'
-import { fetchStats, fetchFilters } from '../api/client'
+import { fetchStats } from '../api/client'
 
 // Consultation points off-site to the Club's mentor programme now, rather
 // than the on-page enquiry form it used to open (see LandingPage.tsx).
@@ -79,10 +79,8 @@ export default function AboutPage() {
       setSectors(String(Object.keys(s.by_sector).length))
       setBoutique(s.by_source_tier?.boutique ?? null)
       setSocial(s.by_source_tier?.social ?? null)
+      setEmployers(s.employer_count.toLocaleString())
     }).catch(() => {})
-    // Employer count is not on /api/stats (top_companies is capped at 15), so it
-    // comes from the filters endpoint, which returns the full company list.
-    fetchFilters().then(f => setEmployers(f.companies.length.toLocaleString())).catch(() => {})
   }, [])
 
   return (
@@ -332,7 +330,7 @@ export default function AboutPage() {
             <div className="candidate-data-policy__principles">
               <article>
                 <EyeOff size={20} strokeWidth={1.9} aria-hidden="true" />
-                <div><h3>Browse without being profiled</h3><p>Every Role stays public. Anonymous searches and browsing are not added to a recommendation profile.</p></div>
+                <div><h3>Research without being profiled</h3><p>Search stays open without an account. Anonymous research is not added to a recommendation profile, and filters only narrow the Roles relevant to that research.</p></div>
               </article>
               <article>
                 <FileText size={20} strokeWidth={1.9} aria-hidden="true" />
@@ -361,7 +359,7 @@ export default function AboutPage() {
                     style={{ backgroundColor: 'var(--color-ink)', color: 'var(--color-ink-inverse)' }}
                     onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--color-blue)')}
                     onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--color-ink)')}>
-              Browse all roles <ArrowRight size={15} />
+              Search roles <ArrowRight size={15} />
             </button>
             <a href={CONSULTATION_URL} target="_blank" rel="noopener noreferrer"
                className="inline-flex items-center gap-1.5 text-sm font-semibold no-underline"

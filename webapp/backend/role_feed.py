@@ -86,7 +86,12 @@ def roles_for_seeker(
     page_size: int,
     now: datetime | None = None,
 ) -> RoleFeed:
-    """Return and attribute one diverse Role feed for a Seeker or anonymous visitor."""
+    """Return and attribute one evidence-based Role feed for a signed-in Seeker.
+
+    An anonymous visitor, or a Seeker with no settled first-party signal, gets
+    an empty feed. A generic market sample would be another catalogue-browsing
+    path and would not be relevant to that person's research.
+    """
     generated_at = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     safe_page = max(1, min(int(page), _MAX_FEED_PAGES))
     safe_page_size = max(1, min(int(page_size), 24))
@@ -116,6 +121,25 @@ def roles_for_seeker(
         if resume_row
         else None
     )
+
+    has_relevance_evidence = bool(
+        saved_rows or activity or more_like_order or clicked_order or resume_evidence
+    )
+    if not seeker_id or not has_relevance_evidence:
+        return RoleFeed(
+            personalized=False,
+            personalization_enabled=bool(seeker_id),
+            model_version=recommendations.MODEL_VERSION,
+            signal_count=0,
+            saved_role_count=0,
+            activity_count=0,
+            eligible_count=0,
+            page=safe_page,
+            page_size=safe_page_size,
+            total_pages=0,
+            generated_at=generated_at.isoformat(),
+            batch_id=None,
+        )
 
     candidates = _candidates(conn)
     saved_roles = job_read.jobs_by_refs(conn, saved_order, visibility=Visibility.ADDRESSABLE)

@@ -57,6 +57,15 @@ def _register(client, **over):
     return client.post("/api/auth/register", json={**GOOD, **over})
 
 
+def _save_payload(client) -> dict:
+    role = client.get("/api/jobs", params={"search": "credit risk"}).json()["jobs"][0]
+    return {
+        "source": role["source"],
+        "source_id": role["source_id"],
+        "access_token": role["access_token"],
+    }
+
+
 # ── Registration ──────────────────────────────────────────────────────────────
 
 def test_register_creates_seeker_and_signs_them_in(client):
@@ -254,13 +263,17 @@ def test_save_list_and_unsave(client):
     _register(client)
     assert client.get("/api/me/saved").json() == []
 
-    assert client.post("/api/me/saved",
-                       json={"source": "workday", "source_id": "J1"}).status_code == 204
+    assert client.post("/api/me/saved", json=_save_payload(client)).status_code == 204
     saved = client.get("/api/me/saved").json()
     assert len(saved) == 1
     # Resolved from jobs.db at read time — the title was never stored by us.
     assert saved[0]["title"] == "Credit Risk Analyst"
     assert saved[0]["company"] == "HSBC"
+    detail = client.get(
+        "/api/jobs/workday/J1",
+        headers={"X-Role-Access": saved[0]["access_token"]},
+    )
+    assert detail.status_code == 200
 
     assert client.delete("/api/me/saved/workday/J1").status_code == 204
     assert client.get("/api/me/saved").json() == []
@@ -269,15 +282,19 @@ def test_save_list_and_unsave(client):
 def test_saving_twice_is_idempotent(client):
     _register(client)
     for _ in range(2):
-        client.post("/api/me/saved", json={"source": "workday", "source_id": "J1"})
+        client.post("/api/me/saved", json=_save_payload(client))
     assert len(client.get("/api/me/saved").json()) == 1
 
 
 def test_a_reference_to_a_vanished_role_is_skipped_not_a_500(client):
     """A Role that has left jobs.db entirely must not break the whole list."""
     _register(client)
-    client.post("/api/me/saved", json={"source": "workday", "source_id": "J1"})
-    client.post("/api/me/saved", json={"source": "ghost", "source_id": "GONE"})
+    client.post("/api/me/saved", json=_save_payload(client))
+    refused = client.post(
+        "/api/me/saved",
+        json={"source": "ghost", "source_id": "GONE", "access_token": "forged"},
+    )
+    assert refused.status_code == 404
     saved = client.get("/api/me/saved").json()
     assert [s["source_id"] for s in saved] == ["J1"]
 
@@ -285,12 +302,9 @@ def test_a_reference_to_a_vanished_role_is_skipped_not_a_500(client):
 def test_merge_is_a_union_and_is_idempotent(client):
     """Decision 14: first sign-in lifts localStorage saves in, losing nothing."""
     _register(client)
-    client.post("/api/me/saved", json={"source": "workday", "source_id": "J1"})
-
-    body = {"roles": [{"source": "workday", "source_id": "J1"},
-                      {"source": "jobsdb", "source_id": "X9"}]}
+    body = {"roles": [_save_payload(client)]}
     first = client.post("/api/me/saved/merge", json=body).json()
-    assert first["merged"] == 1, "already-saved role should not be double counted"
+    assert first["merged"] == 1
 
     second = client.post("/api/me/saved/merge", json=body).json()
     assert second["merged"] == 0, "merge must be idempotent"
@@ -300,7 +314,7 @@ def test_merge_is_a_union_and_is_idempotent(client):
 
 def test_delete_account_really_deletes(client):
     _register(client)
-    client.post("/api/me/saved", json={"source": "workday", "source_id": "J1"})
+    client.post("/api/me/saved", json=_save_payload(client))
 
     assert client.delete("/api/me").status_code == 204
     assert client.get("/api/auth/me").status_code == 401
@@ -314,12 +328,12 @@ def test_delete_requires_sign_in(client):
     assert client.delete("/api/me").status_code == 401
 
 
-# ── The board stays public (ADR 0002) ─────────────────────────────────────────
+# ── Public research, scoped catalogue (ADR 0002 superseded) ───────────────────
 
-def test_jobs_endpoints_are_unaffected_by_accounts(client):
-    """Nothing is gated. An anonymous visitor sees exactly what they always did."""
-    anon = client.get("/api/jobs")
+def test_anonymous_research_is_allowed_but_unscoped_catalogue_access_is_not(client):
+    anon = client.get("/api/jobs", params={"search": "credit risk"})
     assert anon.status_code == 200
+    assert client.get("/api/jobs").status_code == 422
     row = anon.json()["jobs"][0]
     # The fields the deleted plan proposed gating are all still present to an
     # anonymous caller: the apply link, the title, the company, the salary keys.

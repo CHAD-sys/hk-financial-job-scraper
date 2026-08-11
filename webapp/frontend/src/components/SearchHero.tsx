@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Search, ArrowRight } from 'lucide-react'
-import type { FiltersResponse } from '../api/client'
 
 /**
  * TEMPORARY UI EXPERIMENT — the search-engine face of the board.
@@ -18,9 +17,8 @@ import type { FiltersResponse } from '../api/client'
  */
 
 interface Props {
-  /** Live totals for the sub-headline. Null until /api/filters answers. */
-  filterData: FiltersResponse | null
   boardTotal: number | null
+  employerCount: number | null
   /**
    * Run a text query — the only thing on this screen that moves the page into
    * results mode. The sector counts below are read-only stats, and there is no
@@ -45,7 +43,7 @@ const POPULAR_QUERIES = [
   'Wealth management',
 ]
 
-export default function SearchHero({ filterData, boardTotal, onSearch }: Props) {
+export default function SearchHero({ boardTotal, employerCount, onSearch }: Props) {
   const [value, setValue] = useState('')
 
   // Explicit submit, not the live-debounced search the results board uses. On a
@@ -56,8 +54,6 @@ export default function SearchHero({ filterData, boardTotal, onSearch }: Props) 
     const q = value.trim()
     if (q) onSearch(q)
   }
-
-  const employers = filterData?.companies.length ?? null
 
   return (
     <section
@@ -104,14 +100,14 @@ export default function SearchHero({ filterData, boardTotal, onSearch }: Props) 
                 {boardTotal.toLocaleString()}
               </span>{' '}
               live roles
-              {employers ? (
+              {employerCount ? (
                 <>
                   {' '}across{' '}
                   <span
                     className="font-semibold tabular-nums"
                     style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-inverse)' }}
                   >
-                    {employers.toLocaleString()}
+                    {employerCount.toLocaleString()}
                   </span>{' '}
                   employers
                 </>

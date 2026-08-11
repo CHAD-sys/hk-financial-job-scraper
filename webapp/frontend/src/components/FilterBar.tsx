@@ -113,7 +113,7 @@ export default function FilterBar({ filters, filterData, activeCount, onUpdate, 
               onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-ink-muted)')}
             >
               <X size={13} />
-              Clear all ({activeCount})
+              Clear filters ({activeCount})
             </button>
           )}
         </div>
@@ -413,7 +413,7 @@ function ActiveChips({
         onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-ink-muted)')}
         onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-ink-faint)')}
       >
-        Clear all
+        Clear filters
       </button>
     </div>
   )

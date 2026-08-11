@@ -55,7 +55,7 @@ def api_only_client(tmp_path):
 # ── The API must not be shadowed ──────────────────────────────────────────────
 
 def test_api_jobs_still_responds(client):
-    r = client.get("/api/jobs")
+    r = client.get("/api/jobs", params={"search": "credit risk"})
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("application/json")
     body = r.json()
@@ -64,7 +64,11 @@ def test_api_jobs_still_responds(client):
 
 
 def test_api_job_detail_still_responds(client):
-    r = client.get("/api/jobs/workday/J1")
+    listing = client.get("/api/jobs", params={"search": "credit risk"}).json()
+    r = client.get(
+        "/api/jobs/workday/J1",
+        headers={"X-Role-Access": listing["jobs"][0]["access_token"]},
+    )
     assert r.status_code == 200
     assert r.json()["company"] == "HSBC"
 
@@ -145,7 +149,7 @@ def test_path_traversal_cannot_escape_the_bundle(client):
 def test_api_boots_without_a_bundle(api_only_client):
     """Backend-only development, and a deploy whose frontend build failed: a
     working API with no UI beats a service that refuses to start."""
-    assert api_only_client.get("/api/jobs").status_code == 200
+    assert api_only_client.get("/api/jobs", params={"search": "credit risk"}).status_code == 200
     assert api_only_client.get("/health").status_code == 200
 
 

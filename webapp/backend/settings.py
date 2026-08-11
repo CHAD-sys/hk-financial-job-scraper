@@ -90,6 +90,12 @@ class Settings:
     #: the ingestion endpoint disabled, which is the safe local default.
     pipeline_sync_token: str = ""
 
+    #: Signs short-lived grants proving that a Role reached the browser through
+    #: research, recommendations, resume matching, or Saved Roles. When empty,
+    #: the app generates a process-local secret at startup; production should
+    #: set ROLE_ACCESS_SECRET so grants survive restarts and multiple replicas.
+    role_access_secret: str = ""
+
     def __post_init__(self) -> None:
         # Submissions default to sitting beside the database, which is the
         # Railway volume in production. Computed here rather than as a default
@@ -122,6 +128,7 @@ class Settings:
             trust_proxy_headers=_flag("TRUST_PROXY_HEADERS", default=True),
             redis_url=os.environ.get("REDIS_URL", "").strip(),
             pipeline_sync_token=os.environ.get("PIPELINE_SYNC_TOKEN", "").strip(),
+            role_access_secret=os.environ.get("ROLE_ACCESS_SECRET", "").strip(),
         )
 
     # ── Derived ───────────────────────────────────────────────────────────────

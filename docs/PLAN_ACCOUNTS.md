@@ -19,7 +19,8 @@ A **Seeker** account: sign in with Google or email + password, keep Saved Roles 
 server instead of in the browser, delete your account when you want to.
 
 That is a deliberately small feature, and the reason matters. **v1 is not built because
-Seekers are asking for it.** Nothing on the board is gated (ADR 0002) and there are no
+Seekers are asking for it.** At the time, nothing on the board was gated (ADR 0002,
+later superseded by ADR 0018's public Research Scope) and there are no
 alerts, so the account's entire benefit is that Saved Roles survive the browser and stop
 going stale. Expect very few signups.
 
@@ -42,7 +43,7 @@ Every line was a deliberate choice. Do not silently reverse one.
 |---|----------|-------|
 | 1 | Seekers only. Employers are a separate aggregate later, **not a `role` column** | ADR 0001 |
 | 2 | Carrot = durable Saved Roles. Alerts, application tracking, CV matching all deferred | ADR 0001 |
-| 3 | **Nothing is gated.** The board stays fully public to anonymous visitors | ADR 0002 |
+| 3 | **Public without an account.** Superseded: research remains anonymous, while catalogue enumeration is closed | ADR 0018 |
 | 4 | Google + email/password. LinkedIn is a fast-follow, not v1 — **shipped 2026-08-07**, once a Company Page + Developer app existed | ADR 0003 |
 | 5 | Auth assembled from Python libraries inside the existing FastAPI service | ADR 0004 |
 | 6 | **FastAPI serves the React bundle** — one origin, one service | ADR 0005 |

@@ -105,6 +105,11 @@ def _seed():
                    seniority="junior"),
         # AM has NO salary at all — it must sink in BOTH salary directions.
     ]
+    # A fixture-only research term shared by every row. Tests that exercise
+    # filtering/sorting can work inside one legitimate research scope without
+    # reopening the production endpoint's former unscoped catalogue access.
+    for row in jobs:
+        row["description_clean"] = f"{row['description_clean']} finexscope".strip()
     return jobs, enrichments
 
 
@@ -123,9 +128,22 @@ def _ids(body) -> list[str]:
 
 
 def _get(client, **params):
+    params.setdefault("search", "finexscope")
     r = client.get("/api/jobs", params=params)
     assert r.status_code == 200, r.text
     return r.json()
+
+
+def _detail(client, source: str, source_id: str):
+    listing = _get(client, page_size=100)
+    grant = next(
+        job["access_token"]
+        for job in listing["jobs"]
+        if job["source"] == source and job["source_id"] == source_id
+    )
+    return client.get(
+        f"/api/jobs/{source}/{source_id}", headers={"X-Role-Access": grant}
+    )
 
 
 # ── Visibility ────────────────────────────────────────────────────────────────
@@ -138,6 +156,12 @@ def test_listing_excludes_inactive_and_non_primary(client):
     assert "SECONDARY" not in ids
     assert "XPOST_HIDDEN" not in ids
     assert "XPOST" in ids
+
+
+def test_listing_refuses_an_unscoped_catalogue_read(client):
+    response = client.get("/api/jobs", params={"page_size": 100})
+    assert response.status_code == 422
+    assert "specific search" in response.json()["detail"]
 
 
 def test_total_counts_the_same_rows_it_returns(client):
@@ -301,11 +325,11 @@ def test_internship_filter(client):
 # ── Detail endpoint ───────────────────────────────────────────────────────────
 
 def test_detail_returns_the_role(client):
-    r = client.get("/api/jobs/workday/BANK")
+    r = _detail(client, "workday", "BANK")
     assert r.status_code == 200
     body = r.json()
     assert body["company"] == BANKING
-    assert body["description_clean"] == "Analyse credit risk."
+    assert body["description_clean"].startswith("Analyse credit risk.")
 
 
 def test_detail_404s_for_an_unknown_role(client):
@@ -315,30 +339,28 @@ def test_detail_404s_for_an_unknown_role(client):
 def test_detail_lists_every_board_the_role_is_on(client):
     """The cross-post group is keyed by the shared apply_url, so the detail must
     name both boards even though only one copy is ever listed."""
-    body = client.get("/api/jobs/jobsdb/XPOST").json()
+    body = _detail(client, "jobsdb", "XPOST").json()
     assert sorted(body["sources"]) == ["indeed", "jobsdb"]
 
 
 def test_detail_of_a_single_source_role_lists_only_itself(client):
-    assert client.get("/api/jobs/workday/BANK").json()["sources"] == ["workday"]
+    assert _detail(client, "workday", "BANK").json()["sources"] == ["workday"]
 
 
-def test_detail_reaches_a_non_primary_copy(client):
-    """A deep link names one specific copy. Requiring is_primary here would 404
-    a link whose copy stopped being primary at the last reconciliation."""
-    assert client.get("/api/jobs/indeed/XPOST_HIDDEN").status_code == 200
+def test_detail_does_not_expose_a_guessed_non_primary_copy(client):
+    assert client.get("/api/jobs/indeed/XPOST_HIDDEN").status_code == 404
 
 
-def test_detail_reaches_a_closed_role_and_says_so(client):
-    """
-    Changed deliberately. Addressing a Role by reference now returns it marked
-    closed rather than pretending it never existed — soft-delete keeps the row
-    precisely so a Seeker can look at a vacancy they applied to after it closed,
-    and a 404 threw that away.
-    """
-    r = client.get("/api/jobs/workday/CLOSED")
-    assert r.status_code == 200
-    assert r.json()["closed"] is True
+def test_detail_does_not_expose_a_guessed_closed_role(client):
+    assert client.get("/api/jobs/workday/CLOSED").status_code == 404
+
+
+def test_detail_grant_cannot_be_reused_for_another_role(client):
+    bank = next(job for job in _get(client, page_size=100)["jobs"] if job["source_id"] == "BANK")
+    response = client.get(
+        "/api/jobs/workday/IB", headers={"X-Role-Access": bank["access_token"]}
+    )
+    assert response.status_code == 404
 
 
 def test_the_board_never_returns_a_closed_role(client):
@@ -363,8 +385,22 @@ def test_stats_and_jobs_agree_on_what_is_open(client):
 def test_filters_lists_only_sectors_that_are_open(client):
     """Every sector the filter bar offers must return at least one Role — an
     option that yields nothing is the visible symptom of the two disagreeing."""
-    for sector in client.get("/api/filters").json()["sectors"]:
+    facets = client.get("/api/filters", params={"search": "finexscope"}).json()
+    for sector in facets["sectors"]:
         assert _get(client, sectors=[sector["name"]], page_size=1)["total"] == sector["count"]
+
+
+def test_filter_facets_are_scoped_to_the_research_results(client):
+    response = client.get("/api/filters", params={"search": "Actuarial"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["research_total"] == 1
+    assert body["companies"] == [{"name": INSURANCE, "count": 1}]
+    assert body["sectors"] == [{"name": "Insurance", "count": 1}]
+
+
+def test_filter_facets_refuse_a_global_catalogue_read(client):
+    assert client.get("/api/filters").status_code == 422
 
 
 def test_stats_counts_internships_the_same_way_the_filter_does(client):

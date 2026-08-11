@@ -52,7 +52,7 @@ const CLAUSES: Clause[] = [
         <ul className="mt-2 flex flex-col gap-2">
           {[
             ACCOUNTS_LIVE &&
-              'Account details — your name and email address always; a password, stored only as a cryptographic hash we can never read back, if you set one. If you sign in with Google instead, we receive your name and email address from Google and store no password at all.',
+              'Account details — your name and email address always; a password, stored only as a cryptographic hash we can never read back, if you set one. If you sign in with Google or LinkedIn instead, we receive the identity details that provider returns and store no provider password.',
             'Role submissions — if you post a role, your name and email address alongside the role details you supply.',
             ACCOUNTS_LIVE
               ? 'Saved roles — held against your account so they follow you between devices. Without an account they stay in your own browser and never reach us.'
@@ -75,8 +75,10 @@ const CLAUSES: Clause[] = [
             ))}
         </ul>
         <p className="mt-3">
-          Browsing the job index requires none of this. You can read every listing without
-          signing in, and anonymous browsing is not added to a recommendation profile.
+          Researching Roles requires none of this. You can search and open the relevant
+          results without signing in, and anonymous research is not added to a recommendation
+          profile. Filters and counts stay inside the research you started rather than exposing
+          the complete Role catalogue.
         </p>
       </>
     ),
@@ -89,8 +91,8 @@ const CLAUSES: Clause[] = [
         Strictly the purpose described here: reviewing a role you
         submitted{ACCOUNTS_LIVE ? ', operating your account, keeping your saved roles in sync, ordering the “Roles for you” feed from first-party activity, and—only if you upload a resume—surfacing strong experience matches and adding a limited resume signal to that feed' : ''},
         and keeping the forms free of abuse. The recommendation ranking is automated, but it
-        only orders public vacancies: it does not decide whether you are eligible, restrict
-        what you can view or apply for, or send data to an employer.
+        only orders current vacancies: it does not decide whether you are eligible, prevent
+        you applying to a Role you found, or send data to an employer.
       </>
     ),
   },
@@ -102,8 +104,8 @@ const CLAUSES: Clause[] = [
         We do not sell your personal data, rent it, or pass it to advertisers or data
         brokers. We run no third-party advertising or analytics trackers on this site. We
         do not send your resume to employers or third-party resume-analysis services, use it
-        to decide whether you are eligible, apply to a Role for you, or restrict what you can
-        view. Resume matching is discovery guidance based on observable text, not a hiring
+        to decide whether you are eligible, apply to a Role for you, or block a Role from your
+        research. Resume matching is discovery guidance based on observable text, not a hiring
         decision.
       </>
     ),
@@ -242,9 +244,9 @@ export default function PrivacyNotice() {
           </h2>
 
           <p className="mt-4 text-base leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
-            You can read every job without telling us anything. If you choose personalised
-            discovery, we use only the account activity described below—and one resume if you
-            add it. We do not profile anonymous browsing or sell career data.
+            You can research and open relevant Roles without telling us who you are. If you
+            choose personalised discovery, we use only the account activity described below—and
+            one resume if you add it. We do not profile anonymous research or sell career data.
           </p>
 
           <div className="resume-privacy-summary" aria-label="Resume privacy at a glance">

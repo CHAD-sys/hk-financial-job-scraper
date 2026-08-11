@@ -38,6 +38,7 @@ function makeJob(overrides: Partial<Job> = {}): Job {
     description_excerpt: '',
     closed: false,
     board_signals: {},
+    access_token: 'role-grant-J1',
     ...overrides,
   }
 }
@@ -58,11 +59,16 @@ vi.mock('../auth/useAuth', () => ({
 }))
 
 const fetchRecommendations = vi.fn<(page?: number, pageSize?: number) => Promise<unknown>>()
-const trackRecommendationClick = vi.fn(async (_source: string, _sourceId: string) => {})
+const trackRecommendationClick = vi.fn(async (
+  _source: string,
+  _sourceId: string,
+  _accessToken?: string | null,
+) => {})
 const submitRecommendationFeedback = vi.fn(async (
   _source: string,
   _sourceId: string,
   _action: string,
+  _accessToken?: string | null,
   _detail?: string,
 ) => {})
 const removeRecommendationFeedback = vi.fn(async (
@@ -77,10 +83,10 @@ vi.mock('../api/client', async (importOriginal) => ({
     fetchRecommendations(...(args as [number, number]))
   ),
   trackRecommendationClick: (...args: unknown[]) => (
-    trackRecommendationClick(...(args as [string, string]))
+    trackRecommendationClick(...(args as [string, string, string?]))
   ),
   submitRecommendationFeedback: (...args: unknown[]) => (
-    submitRecommendationFeedback(...(args as [string, string, string, string?]))
+    submitRecommendationFeedback(...(args as [string, string, string, string?, string?]))
   ),
   removeRecommendationFeedback: (...args: unknown[]) => (
     removeRecommendationFeedback(...(args as [string, string, string]))
@@ -127,7 +133,6 @@ function renderSubject(onSelect = vi.fn()) {
           saved={() => false}
           onToggleSave={vi.fn()}
           onSelect={onSelect}
-          onExploreAll={vi.fn()}
         />
       </MemoryRouter>,
     ),
@@ -156,20 +161,13 @@ describe('Roles for you', () => {
     expect(screen.queryByRole('button', { name: 'Tune your feed' })).not.toBeInTheDocument()
   })
 
-  it('is honest about the market fallback for an anonymous visitor', async () => {
+  it('does not expose a generic market feed to an anonymous visitor', async () => {
     authState = { seeker: null, loading: false }
-    fetchRecommendations.mockResolvedValue({
-      ...personalized,
-      personalized: false,
-      saved_role_count: 0,
-      activity_count: 0,
-    })
 
     renderSubject()
 
-    expect(await screen.findByText(/Sign in to shape this with Saved Roles and searches/)).toBeInTheDocument()
-    expect(screen.queryByText('Market signal')).not.toBeInTheDocument()
-    expect(screen.queryByText('Why it fits')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Roles for you' })).not.toBeInTheDocument()
+    expect(fetchRecommendations).not.toHaveBeenCalled()
   })
 
   it('records an opened recommendation before showing its detail', async () => {
@@ -180,7 +178,11 @@ describe('Roles for you', () => {
     fireEvent.click(role)
 
     await waitFor(() => {
-      expect(trackRecommendationClick).toHaveBeenCalledWith('workday', 'J1')
+      expect(trackRecommendationClick).toHaveBeenCalledWith(
+        'workday',
+        'J1',
+        'role-grant-J1',
+      )
     })
     expect(onSelect).toHaveBeenCalledWith(personalized.items[0].job)
   })
@@ -204,6 +206,7 @@ describe('Roles for you', () => {
         'workday',
         'J1',
         'more_like',
+        'role-grant-J1',
       )
     })
     expect(screen.getByText(/We’ll show you more Roles like this/)).toBeInTheDocument()
@@ -219,6 +222,7 @@ describe('Roles for you', () => {
         'workday',
         'J1',
         'not_interested',
+        'role-grant-J1',
       )
     })
     expect(await screen.findByRole('button', { name: 'Undo' })).toBeInTheDocument()

@@ -34,7 +34,7 @@ const SORT_OPTIONS = [
 ]
 
 const TIER_TABS: { value: TierTab; label: string; star?: boolean; eyeOff?: boolean }[] = [
-  { value: 'all', label: 'All jobs' },
+  { value: 'all', label: 'All results' },
   { value: 'mainstream', label: 'Mainstream' },
   { value: 'boutique', label: 'Exclusive', star: true },
   { value: 'social', label: 'Recruiter Posts', eyeOff: true },
@@ -63,7 +63,8 @@ export default function JobBoardPage() {
   const [filterData, setFilterData] = useState<FiltersResponse | null>(null)
   const [result, setResult] = useState<JobListResponse | null>(null)
   const [boardTotal, setBoardTotal] = useState<number | null>(null) // unfiltered active total
-  const [tierCounts, setTierCounts] = useState<Record<string, number>>({})
+  const [employerCount, setEmployerCount] = useState<number | null>(null)
+  const [sectorCount, setSectorCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   // Recruiter Posts contextual sub-section (decision #9): a separate fetch/
@@ -74,12 +75,13 @@ export default function JobBoardPage() {
   const { toggle: toggleSave, isSaved } = useSavedRoles()
   const { seeker } = useAuth()
 
-  // Load filter options + unfiltered board total once
+  // Public market totals are aggregate context only. Filter choices are never
+  // loaded globally; the separate effect below derives them from one research.
   useEffect(() => {
-    fetchFilters().then(setFilterData).catch(console.error)
     fetchStats().then(s => {
       setBoardTotal(s.total_active_jobs)
-      setTierCounts(s.by_source_tier ?? {})
+      setEmployerCount(s.employer_count)
+      setSectorCount(Object.keys(s.by_sector).length)
     }).catch(console.error)
   }, [])
 
@@ -89,28 +91,37 @@ export default function JobBoardPage() {
     () => ({ ...baseFilters, search: debouncedSearch }),
     [baseFilters, debouncedSearch],
   )
-  const activeCount = countActiveFilters(activeFilters)
+  const filterCount = countActiveFilters({ ...activeFilters, search: '' })
+  const hasResearch = activeFilters.search.trim().length >= 2
 
-  // ── TEMPORARY UI EXPERIMENT: two modes ──────────────────────────────────────
+  useEffect(() => {
+    if (!hasResearch) {
+      setFilterData(null)
+      return
+    }
+    let cancelled = false
+    fetchFilters(activeFilters.search)
+      .then(data => { if (!cancelled) setFilterData(data) })
+      .catch(console.error)
+    return () => { cancelled = true }
+  }, [activeFilters.search, hasResearch])
+
+  // ── Two modes ───────────────────────────────────────────────────────────────
   // The page is now a search engine, which means it is two screens rather than
   // one: a home that asks a question, and a results page that answers it.
   //
   //   discover  — no query, no filters. SearchHero + a sampled strip of roles.
   //   board     — the ordinary index: filter bar, tier tabs, grid, pagination.
   //
-  // `forceBoard` exists for the search box: its 300ms debounce means activeCount
-  // is still 0 for a beat after submit, which would leave the hero on screen
-  // while the results are already loading. A deep link with filters in the URL
-  // lands on the board directly, since activeCount is already > 0 on mount.
-  const [forceBoard, setForceBoard] = useState(false)
-  const showBoard = forceBoard || activeCount > 0 || activeFilters.tier !== 'all'
+  // A research query is the boundary between the two. Structured filters can
+  // narrow its result set but can never open the catalogue by themselves.
+  const showBoard = hasResearch
 
   const runSearch = useCallback((query: string) => {
     setSearchInput(query)
     setBaseFilters(DEFAULT_FILTERS)
     setSort('relevance')
     setPage(1)
-    setForceBoard(true)
   }, [])
 
   const backToSearch = useCallback(() => {
@@ -118,15 +129,6 @@ export default function JobBoardPage() {
     setSearchInput(DEFAULT_FILTERS.search)
     setSort('newest')
     setPage(1)
-    setForceBoard(false)
-  }, [])
-
-  const browseAll = useCallback(() => {
-    setBaseFilters(DEFAULT_FILTERS)
-    setSearchInput(DEFAULT_FILTERS.search)
-    setSort('newest')
-    setPage(1)
-    setForceBoard(true)
   }, [])
 
   // Typing a fresh query straight into the board's own search field (rather
@@ -163,10 +165,8 @@ export default function JobBoardPage() {
   //
   // Note what it would collide with: `showBoard` already falls back to discover
   // when the last filter goes, so "Clear all" on a Role reached by deep link
-  // does return to the hero (forceBoard is only set by the search box and the
-  // sector chips, never by a deep link). That is this page's existing
-  // behaviour, not something this effect does — verified in the browser — and
-  // whether it is right is a separate question from what Careers should do.
+  // does return to the hero. That is this page's existing behaviour, not
+  // something this effect does.
   const location = useLocation()
   useEffect(() => {
     if (!(location.state as { discover?: boolean } | null)?.discover) return
@@ -197,7 +197,7 @@ export default function JobBoardPage() {
         // Waiting until a result page has settled also gives rapid filter
         // changes a chance to cancel this timer. Page 2+ is navigation through
         // the same intent, so only page 1 becomes a discovery event.
-        if (seeker && page === 1 && activeCount > 0) {
+        if (seeker && page === 1 && hasResearch) {
           discoveryTimer = setTimeout(() => {
             recordDiscovery(activeFilters, r.total).catch(console.error)
           }, 1_200)
@@ -209,7 +209,7 @@ export default function JobBoardPage() {
       cancelled = true
       if (discoveryTimer) clearTimeout(discoveryTimer)
     }
-  }, [activeCount, activeFilters, page, seeker, showBoard, sort])
+  }, [activeFilters, hasResearch, page, seeker, showBoard, sort])
 
   // Recruiter Posts preview strip: same active filters (sector/search/
   // seniority/etc.), tier forced to 'social', small page. Skipped entirely
@@ -236,8 +236,7 @@ export default function JobBoardPage() {
 
   const clearFilters = useCallback(() => {
     setBaseFilters(DEFAULT_FILTERS)
-    setSearchInput(DEFAULT_FILTERS.search)
-    setSort('newest')
+    setSort('relevance')
     setPage(1)
   }, [])
 
@@ -258,8 +257,8 @@ export default function JobBoardPage() {
       {!showBoard && (
         <>
           <SearchHero
-            filterData={filterData}
             boardTotal={boardTotal}
+            employerCount={employerCount}
             onSearch={runSearch}
           />
           {/* The page rises over the masthead rather than starting after it.
@@ -296,9 +295,12 @@ export default function JobBoardPage() {
               saved={isSaved}
               onToggleSave={toggleSave}
               onSelect={setSelectedJob}
-              onExploreAll={browseAll}
             />
-            <IndexStats boardTotal={boardTotal} filterData={filterData} />
+            <IndexStats
+              boardTotal={boardTotal}
+              employerCount={employerCount}
+              sectorCount={sectorCount}
+            />
           </main>
         </>
       )}
@@ -359,7 +361,7 @@ export default function JobBoardPage() {
       <FilterBar
         filters={{ ...activeFilters, search: searchInput }}
         filterData={filterData}
-        activeCount={activeCount}
+        activeCount={filterCount}
         onUpdate={updateFilters}
         onClear={clearFilters}
       />
@@ -383,9 +385,15 @@ export default function JobBoardPage() {
         >
           {TIER_TABS.map(tab => {
             const selected = activeFilters.tier === tab.value
-            const count = tab.value === 'all'
-              ? (boardTotal ?? undefined)
-              : tierCounts[tab.value]
+            const researchCount = tab.value === 'all'
+              ? filterData?.research_total
+              : filterData?.tier_counts[tab.value]
+            // Once a refinement is active, only the selected tier's returned
+            // total is truthful. The other tier counts describe the wider
+            // research and would imply that the filter had not narrowed it.
+            const count = filterCount > 0
+              ? (selected ? total : undefined)
+              : researchCount
             return (
               <button type="button"
                 key={tab.value}
@@ -439,7 +447,7 @@ export default function JobBoardPage() {
         <TierExplainer tier={activeFilters.tier} />
 
         {/* Results header. The count text is hidden below sm: — it's redundant
-            with the "All jobs N" tab badge just above and was one of two
+            with the "All results N" tab badge just above and was one of two
             stacked rows contributing to excess chrome above the fold. */}
         <div className="flex items-center justify-end sm:justify-between mb-3 sm:mb-5">
           <p className="hidden sm:block text-sm" style={{ color: 'var(--color-ink-muted)' }}>
@@ -451,8 +459,8 @@ export default function JobBoardPage() {
                 <span className="font-semibold tabular-nums" style={{ color: 'var(--color-ink)', fontFamily: 'var(--font-mono)' }}>
                   {total.toLocaleString()}
                 </span>
-                {activeCount > 0 && boardTotal != null && (
-                  <> of <span className="tabular-nums" style={{ fontFamily: 'var(--font-mono)' }}>{boardTotal.toLocaleString()}</span></>
+                {filterCount > 0 && filterData != null && (
+                  <> of <span className="tabular-nums" style={{ fontFamily: 'var(--font-mono)' }}>{filterData.research_total.toLocaleString()}</span> in this research</>
                 )}{' '}
                 role{total !== 1 ? 's' : ''}
               </>
@@ -504,7 +512,7 @@ export default function JobBoardPage() {
                 </h2>
                 <span className="text-xs" style={{ color: 'var(--color-ink-muted)' }}>
                   {recruiterPosts.total} role{recruiterPosts.total === 1 ? '' : 's'} sourced from recruiter posts
-                  {activeCount > 0 ? ' matching your filters' : ''} — not on any public board
+                  {' matching your research'} — not on any public board
                 </span>
               </div>
               <button
@@ -556,7 +564,6 @@ export default function JobBoardPage() {
           <Pagination page={page} totalPages={totalPages} onChange={setPage} />
         )}
 
-        <IndexStats boardTotal={boardTotal} filterData={filterData} />
       </main>
         </>
       )}
@@ -633,15 +640,14 @@ function TierExplainer({ tier }: { tier: TierTab }) {
  */
 function IndexStats({
   boardTotal,
-  filterData,
+  employerCount,
+  sectorCount,
 }: {
   boardTotal: number | null
-  filterData: FiltersResponse | null
+  employerCount: number | null
+  sectorCount: number | null
 }) {
   if (boardTotal == null) return null
-
-  const employers = filterData?.companies.length
-  const sectors = filterData?.sectors.length
 
   return (
     <section
@@ -662,12 +668,12 @@ function IndexStats({
           sub="Duplicates across sources already merged"
         />
         <StatCard
-          value={employers ? employers.toLocaleString() : '—'}
+          value={employerCount ? employerCount.toLocaleString() : '—'}
           label="Employers"
           sub="Banks, insurers, asset managers & more"
         />
         <StatCard
-          value={sectors ? String(sectors) : '—'}
+          value={sectorCount ? String(sectorCount) : '—'}
           label="Sectors"
           sub="Banking · IB · Insurance · AM · Prof. services"
         />

@@ -88,6 +88,13 @@ and resume evidence; for a visitor it reflects the current market. It is discove
 guidance, not a hiring assessment or a claim that the Seeker should remain in one field.
 _Avoid_: job match, CV match, guaranteed fit, recommendation algorithm (the implementation)
 
+**Research Scope**:
+The live set of Roles matched by one Seeker or visitor's specific text query.
+Filters, facets, counts, sorting and pagination may narrow or arrange this set
+but never expand beyond it. A Research Scope is public and needs no account; it
+is not permission to enumerate the Role catalogue. See `docs/adr/0018`.
+_Avoid_: all jobs, database view, global filter set
+
 ### Collection
 
 **Daily Run**:

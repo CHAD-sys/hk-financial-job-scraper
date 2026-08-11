@@ -129,7 +129,7 @@ export default function RegisterPage() {
       standfirst={
         <>
           Add one private resume to see where your experience aligns across the live market,
-          shape “Roles for you”, and keep Saved Roles across devices. Browsing the board needs
+          shape “Roles for you”, and keep Saved Roles across devices. Searching the board needs
           no account and never will.
         </>
       }

@@ -107,7 +107,7 @@ def recommendation_clients(recommendation_db, tmp_path, monkeypatch):
     return anonymous, signed_in
 
 
-def test_anonymous_feed_is_market_based_and_writes_no_seeker_data(
+def test_anonymous_feed_cannot_be_used_as_a_catalogue_browsing_path(
     recommendation_clients,
 ):
     import seekers_store
@@ -115,13 +115,19 @@ def test_anonymous_feed_is_market_based_and_writes_no_seeker_data(
     anonymous, _ = recommendation_clients
     response = anonymous.get("/api/recommendations", params={"page_size": 2})
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["personalized"] is False
-    assert body["model_version"] == "signals-v3"
-    assert body["personalization_enabled"] is False
-    assert len(body["items"]) == 2
+    assert response.status_code == 401
     assert seekers_store.get_store().recommendation_health()["impressions"] == 0
+
+
+def test_new_seeker_feed_is_empty_until_relevance_evidence_exists(
+    recommendation_clients,
+):
+    _, signed_in = recommendation_clients
+    response = signed_in.get("/api/recommendations", params={"page_size": 2})
+
+    assert response.status_code == 200
+    assert response.json()["items"] == []
+    assert response.json()["eligible_count"] == 0
 
 
 def test_discovery_capture_requires_a_seeker_session(recommendation_clients):
@@ -166,6 +172,21 @@ def test_discovery_capture_persists_the_settled_filter_state(recommendation_clie
     assert event["result_count"] == 2
 
 
+def test_discovery_filters_cannot_exist_without_a_research_query(
+    recommendation_clients,
+):
+    _, signed_in = recommendation_clients
+    response = signed_in.post(
+        "/api/me/discovery",
+        json={
+            "search_query": "",
+            "filters": {"sectors": ["Banking"]},
+            "result_count": 2,
+        },
+    )
+    assert response.status_code == 422
+
+
 def test_personalized_feed_uses_saved_and_discovery_signals_and_records_impressions(
     recommendation_clients,
 ):
@@ -173,7 +194,12 @@ def test_personalized_feed_uses_saved_and_discovery_signals_and_records_impressi
 
     _, signed_in = recommendation_clients
     assert signed_in.post(
-        "/api/me/saved", json={"source": "workday", "source_id": "SAVED"}
+        "/api/me/saved",
+        json={
+            "source": "workday",
+            "source_id": "SAVED",
+            "access_token": signed_in.app.state.role_access.issue("workday", "SAVED"),
+        },
     ).status_code == 204
     assert signed_in.post(
         "/api/me/discovery",
@@ -199,7 +225,13 @@ def test_personalized_feed_uses_saved_and_discovery_signals_and_records_impressi
     assert len(impressions) == len(body["items"])
     assert {row["batch_id"] for row in impressions} == {body["batch_id"]}
 
-    clicked = signed_in.post("/api/me/recommendations/workday/RISK/click")
+    risk_job = next(
+        item["job"] for item in body["items"] if item["job"]["source_id"] == "RISK"
+    )
+    clicked = signed_in.post(
+        "/api/me/recommendations/workday/RISK/click",
+        headers={"X-Role-Access": risk_job["access_token"]},
+    )
     assert clicked.status_code == 204
     clicked_row = next(
         row
@@ -216,14 +248,18 @@ def test_v2_feedback_is_user_controlled_but_signal_sources_are_not(
 
     _, signed_in = recommendation_clients
     seeker_id = signed_in.get("/api/auth/me").json()["id"]
+    risk_token = signed_in.app.state.role_access.issue("workday", "RISK")
+    actuary_token = signed_in.app.state.role_access.issue("eightfold", "ACTUARY")
 
     assert signed_in.post(
         "/api/me/recommendations/workday/RISK/feedback",
         json={"action": "more_like"},
+        headers={"X-Role-Access": risk_token},
     ).status_code == 204
     assert signed_in.post(
         "/api/me/recommendations/eightfold/ACTUARY/feedback",
         json={"action": "not_interested"},
+        headers={"X-Role-Access": actuary_token},
     ).status_code == 204
 
     feed = signed_in.get("/api/recommendations", params={"page_size": 3}).json()
@@ -262,7 +298,19 @@ def test_v2_feedback_is_user_controlled_but_signal_sources_are_not(
     assert signed_in.post(
         "/api/me/recommendations/workday/RISK/feedback",
         json={"action": "wrong_reason", "detail": "No longer exposed"},
+        headers={"X-Role-Access": risk_token},
     ).status_code == 422
+
+
+def test_recommendation_feedback_cannot_be_injected_for_a_guessed_role(
+    recommendation_clients,
+):
+    _, signed_in = recommendation_clients
+    response = signed_in.post(
+        "/api/me/recommendations/workday/RISK/feedback",
+        json={"action": "more_like"},
+    )
+    assert response.status_code == 404
 
 
 def test_resume_upload_status_replacement_matches_and_deletion(
