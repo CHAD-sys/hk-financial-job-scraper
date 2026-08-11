@@ -89,6 +89,12 @@ def publish_client(tmp_path, monkeypatch):
     with sqlite3.connect(live) as conn:
         conn.row_factory = sqlite3.Row
         conn.execute(
+            """INSERT INTO pipeline_operations (
+                   run_id, scraped_date, status, phases_json, recorded_at
+               ) VALUES ('railway-current', '2026-08-11', 'success', '[]',
+                         '2026-08-11T02:00:00+08:00')"""
+        )
+        conn.execute(
             """
             INSERT INTO job_enrichments (
                 source, source_id, seniority, salary_estimated_min,
@@ -163,6 +169,7 @@ def test_catalog_restore_snapshot_is_protected_and_excludes_railway_owned_rows(
         ).fetchone()
         if sync_table:
             assert conn.execute("SELECT COUNT(*) FROM pipeline_catalog_sync").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM pipeline_operations").fetchone()[0] == 0
         assert conn.execute("SELECT COUNT(*) FROM jobs_fts").fetchone()[0] == 1
 
 
@@ -238,6 +245,9 @@ def test_catalog_publish_is_atomic_and_preserves_railway_owned_data(publish_clie
         assert enrichment[0] == 88000
         assert enrichment[1]
         assert conn.execute("SELECT COUNT(*) FROM admin_edits").fetchone()[0] == 2
+        assert conn.execute(
+            "SELECT run_id FROM pipeline_operations"
+        ).fetchone()[0] == "railway-current"
         assert (
             conn.execute("SELECT source_run_id FROM pipeline_catalog_sync").fetchone()[0] == "777"
         )

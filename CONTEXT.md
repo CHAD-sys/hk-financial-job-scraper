@@ -71,3 +71,18 @@ A standing request to be told when new Roles match a Seeker's criteria. An Alert
 saved search — the same criteria the board already filters on, kept and re-run — not a
 separate notion of what a Seeker wants. Decided but not yet built.
 _Avoid_: job alert, notification, subscription, watch
+
+### Collection
+
+**Daily Run**:
+One attempt to refresh and publish the Role catalogue. Every Daily Run uses the same
+phase names and outcome meanings, whether a hosted or local execution profile performs
+it; a profile may include different phases without creating a different kind of run.
+_Avoid_: pipeline (when referring to one execution), scrape (only one phase), cron job
+
+**Daily Run Record**:
+The authoritative account of one Daily Run: its phase outcomes, timing, restored and
+published catalogue identity, collection quality, source health, AI usage, overall
+result and diagnostics. Admin reporting, result email and automation summaries describe
+this same record rather than independently reconstructing what happened.
+_Avoid_: telemetry payload, operations blob, log summary
