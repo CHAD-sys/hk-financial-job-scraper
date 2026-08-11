@@ -156,6 +156,42 @@ export interface StatsResponse {
   internship_count: number
 }
 
+export interface LearningEvent {
+  id: string
+  title: string
+  date: string
+  start_at: string
+  end_at: string | null
+  venue: string
+  online: boolean
+  detail_url: string
+  image_url: string | null
+}
+
+export interface LearningVideo {
+  id: string
+  title: string
+  topic: string
+  published_at: string
+  watch_url: string
+  thumbnail_url: string
+}
+
+export interface LearningContentResponse {
+  schema_version: number
+  available: boolean
+  updated_at: string | null
+  storage_bytes: number
+  events: LearningEvent[]
+  videos: LearningVideo[]
+  sources: Record<string, {
+    last_success_at: string | null
+    last_attempt_at: string | null
+    error: string | null
+    count?: number
+  }>
+}
+
 export interface RecommendedRole {
   job: Job
   score: number
@@ -344,6 +380,12 @@ export async function fetchFilters(search: string): Promise<FiltersResponse> {
 export async function fetchStats(): Promise<StatsResponse> {
   const res = await apiFetch('/api/stats')
   if (!res.ok) throw new Error(`Stats fetch failed: ${res.status}`)
+  return res.json()
+}
+
+export async function fetchLearningContent(): Promise<LearningContentResponse> {
+  const res = await apiFetch('/api/learning')
+  if (!res.ok) throw new Error(`Learning content fetch failed: ${res.status}`)
   return res.json()
 }
 
