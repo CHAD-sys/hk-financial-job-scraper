@@ -52,18 +52,16 @@ export default function ResumeFeatureSpotlight() {
             Resume intelligence
           </div>
           <h2 id="resume-feature-heading">
-            See where your experience is strongest across the market.
+            Turn one resume into better job discovery.
           </h2>
           <p className="resume-feature-spotlight__lead">
-            Add one private resume and FinEx reads the experience you already have, compares it
-            with the live Hong Kong finance market, and explains the Roles where that evidence
-            aligns.
+            See the strengths we find and the live Roles they support.
           </p>
 
-          <ul className="resume-feature-spotlight__benefits" aria-label="What resume intelligence provides">
-            <li><BadgeCheck size={17} aria-hidden="true" /> Evidence-led matches, with reasons</li>
-            <li><FileText size={17} aria-hidden="true" /> PDF or DOCX, one resume at a time</li>
-            <li><ShieldCheck size={17} aria-hidden="true" /> Private to your account and removable anytime</li>
+          <ul className="resume-feature-spotlight__benefits" aria-label="Resume matching essentials">
+            <li><FileText size={17} aria-hidden="true" /> One file</li>
+            <li><ShieldCheck size={17} aria-hidden="true" /> Private</li>
+            <li><BadgeCheck size={17} aria-hidden="true" /> Updated daily</li>
           </ul>
 
           <div className="resume-feature-spotlight__actions">
@@ -78,9 +76,6 @@ export default function ResumeFeatureSpotlight() {
               </Link>
             )}
           </div>
-          <p className="resume-feature-spotlight__public-note">
-            The careers index stays free and open. A resume only unlocks private, personalised discovery.
-          </p>
         </div>
 
         <ResumeProof
@@ -110,9 +105,9 @@ function ResumeProof({ signedIn, loading, error, matches, onRetry }: {
           <div><strong>Evidence-led discovery</strong><small>Optional · private · based on live Roles</small></div>
         </div>
         <ol className="resume-feature-spotlight__steps" aria-label="How resume matching works">
-          <li><span>1</span><div><strong>Add one resume</strong><small>Choose a PDF or DOCX from your account.</small></div></li>
-          <li><span>2</span><div><strong>Review extracted evidence</strong><small>Skills, experience, sectors and role families stay visible to you.</small></div></li>
-          <li><span>3</span><div><strong>Explore live Role matches</strong><small>See the specific evidence behind each match—never an invented result.</small></div></li>
+          <li><span>1</span><div><strong>Upload</strong><small>PDF or DOCX.</small></div></li>
+          <li><span>2</span><div><strong>Review strengths</strong><small>Skills, experience and sectors.</small></div></li>
+          <li><span>3</span><div><strong>Explore matches</strong><small>Live Roles with a clear reason.</small></div></li>
         </ol>
       </div>
     )
@@ -142,14 +137,14 @@ function ResumeProof({ signedIn, loading, error, matches, onRetry }: {
       <div className="resume-feature-spotlight__proof" aria-labelledby="resume-empty-heading">
         <div className="resume-feature-spotlight__file">
           <span><FileText size={21} strokeWidth={1.9} aria-hidden="true" /></span>
-          <div><strong>No resume added</strong><small>No skills, experience or sectors have been inferred.</small></div>
-          <em>Private by default</em>
+          <div><strong>No resume added</strong><small>Your feed still learns from activity.</small></div>
+          <em>Optional</em>
         </div>
         <div className="resume-feature-spotlight__path" aria-hidden="true"><span /><span>Ready when you are</span><span /></div>
         <div className="resume-feature-spotlight__result">
           <p>Your next step</p>
           <h3 id="resume-empty-heading">Add your resume to start matching.</h3>
-          <small>Until you upload one, FinEx uses only your Saved Roles, searches and filters to shape Roles for you.</small>
+          <small>Add one PDF or DOCX. You can replace or remove it anytime.</small>
           <Link className="resume-feature-spotlight__result-link" to="/account">Upload your resume <ArrowRight size={14} aria-hidden="true" /></Link>
         </div>
       </div>
@@ -169,7 +164,7 @@ function ResumeProof({ signedIn, loading, error, matches, onRetry }: {
         <div className="resume-feature-spotlight__result">
           <p>Market check complete</p>
           <h3>No strong live Role match yet.</h3>
-          <small>We’ll compare the same evidence again as the daily market changes. This is not a decision about your eligibility.</small>
+          <small>We’ll check again when the market refreshes.</small>
           <Link className="resume-feature-spotlight__result-link" to="/jobs">Browse all Roles <ArrowRight size={14} aria-hidden="true" /></Link>
         </div>
       </div>
@@ -188,7 +183,7 @@ function ResumeProof({ signedIn, loading, error, matches, onRetry }: {
         <p>{match.match_score}% evidence match</p>
         <h3>{match.job.title}</h3>
         <div>{match.reasons.slice(0, 3).map(reason => <span key={reason}>{reason}</span>)}</div>
-        <small>Based on observable evidence in your resume and this open Role—not a hiring decision.</small>
+        <small>Evidence overlap only—not a hiring decision.</small>
         <Link className="resume-feature-spotlight__result-link" to="/jobs">View your live matches <ArrowRight size={14} aria-hidden="true" /></Link>
       </div>
     </div>

@@ -35,11 +35,10 @@ beforeEach(() => {
 describe('ResumeFeatureSpotlight', () => {
   it('explains the feature and sends a visitor to seeker registration', () => {
     renderSubject()
-    expect(screen.getByRole('heading', { name: /See where your experience is strongest/ })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Turn one resume into better job discovery/ })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Create a Seeker account/ })).toHaveAttribute('href', '/register')
-    expect(screen.getByText(/The careers index stays free and open/)).toBeInTheDocument()
     expect(screen.getByRole('list', { name: 'How resume matching works' })).toBeInTheDocument()
-    expect(screen.getByText('Explore live Role matches')).toBeInTheDocument()
+    expect(screen.getByText('Explore matches')).toBeInTheDocument()
     expect(screen.queryByText('Credit Risk & Portfolio Roles')).not.toBeInTheDocument()
   })
 

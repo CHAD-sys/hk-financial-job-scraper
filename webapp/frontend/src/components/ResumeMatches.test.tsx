@@ -79,7 +79,7 @@ describe('Strong matches for your experience', () => {
     })
     renderSubject()
 
-    expect(await screen.findByRole('heading', { name: /Put your experience against today/ })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /Find Roles that fit you/ })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Upload your resume/ })).toHaveAttribute('href', '/account')
   })
 
@@ -96,8 +96,9 @@ describe('Strong matches for your experience', () => {
     })
     renderSubject()
 
-    expect(await screen.findByRole('heading', { name: 'Strong matches for your experience' })).toBeInTheDocument()
-    expect(screen.getByText(/does not decide eligibility/)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Where your experience stands out' })).toBeInTheDocument()
+    expect(screen.getByText(/not an eligibility decision/)).toBeInTheDocument()
+    expect(screen.getByText('85%')).toBeInTheDocument()
     expect(screen.getByText('Credit Risk Analyst')).toBeInTheDocument()
     expect(screen.getByText('Skills aligned: credit risk, sql')).toBeInTheDocument()
     expect(fetchResumeMatches).toHaveBeenCalledWith(3)
@@ -106,7 +107,7 @@ describe('Strong matches for your experience', () => {
   it('advertises the private feature without calling the account API for anonymous visitors', () => {
     seeker = null
     renderSubject()
-    expect(screen.getByRole('heading', { name: 'See where your experience fits.' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Find Roles that fit you.' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Create account/ })).toHaveAttribute('href', '/register')
     expect(fetchResumeMatches).not.toHaveBeenCalled()
   })

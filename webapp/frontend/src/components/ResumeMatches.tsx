@@ -5,6 +5,7 @@ import type { Job, ResumeMatchesResponse } from '../api/client'
 import { fetchResumeMatches } from '../api/client'
 import { useAuth } from '../auth/useAuth'
 import JobCard from './JobCard'
+import ResumeFlow from './ResumeFlow'
 import SkeletonCard from './SkeletonCard'
 
 interface Props {
@@ -46,8 +47,8 @@ export default function ResumeMatches({ saved, onToggleSave, onSelect }: Props) 
         <span className="resume-match-prompt__mark" aria-hidden="true"><FileSearch size={25} strokeWidth={1.9} /></span>
         <div className="min-w-0 flex-1">
           <span className="resume-match-prompt__kicker">Resume intelligence</span>
-          <h2 id="resume-prompt-heading">See where your experience fits.</h2>
-          <p>Sign in to add one private resume and get evidence-led matches across today&rsquo;s Hong Kong finance market.</p>
+          <h2 id="resume-prompt-heading">Find Roles that fit you.</h2>
+          <ResumeFlow className="resume-match-prompt__flow" />
         </div>
         <div className="resume-match-prompt__actions">
           <Link to="/register" className="resume-match-prompt__primary">Create account <ArrowRight size={14} aria-hidden="true" /></Link>
@@ -88,9 +89,8 @@ export default function ResumeMatches({ saved, onToggleSave, onSelect }: Props) 
         <span className="resume-match-prompt__mark" aria-hidden="true"><FileSearch size={25} strokeWidth={1.9} /></span>
         <div className="min-w-0 flex-1">
           <span className="resume-match-prompt__kicker">Resume intelligence</span>
-          <h2 id="resume-prompt-heading">Put your experience against today&rsquo;s market.</h2>
-          <p>Add one PDF or DOCX resume to surface your strongest current Role matches—with clear reasons for each one.</p>
-          <span className="resume-match-prompt__trust"><ShieldCheck size={13} aria-hidden="true" /> Private and removable anytime</span>
+          <h2 id="resume-prompt-heading">Find Roles that fit you.</h2>
+          <ResumeFlow className="resume-match-prompt__flow" />
         </div>
         <div className="resume-match-prompt__actions">
           <Link to="/account" className="resume-match-prompt__primary">Upload your resume <ArrowRight size={14} aria-hidden="true" /></Link>
@@ -105,12 +105,9 @@ export default function ResumeMatches({ saved, onToggleSave, onSelect }: Props) 
         <div className="max-w-3xl">
           <div className="flex items-center gap-2">
             <BadgeCheck size={18} strokeWidth={2.2} style={{ color: 'var(--color-gold)' }} aria-hidden="true" />
-            <h2 id="resume-matches-heading">Strong matches for your experience</h2>
+            <h2 id="resume-matches-heading">Where your experience stands out</h2>
           </div>
-          <p>
-            Based on observable skills and experience in your resume. This guides discovery—it
-            does not decide eligibility or replace the employer’s requirements.
-          </p>
+          <p>Resume evidence only—not an eligibility decision.</p>
           <span>
             <ShieldCheck size={13} strokeWidth={2.2} aria-hidden="true" /> Private to your account
           </span>
@@ -130,6 +127,7 @@ export default function ResumeMatches({ saved, onToggleSave, onSelect }: Props) 
               />
               <p className="resume-match-card__reason">
                 <BadgeCheck size={14} className="shrink-0" aria-hidden="true" />
+                <strong>{item.match_score}%</strong>
                 {item.reasons[0] || 'Relevant experience found in your resume'}
               </p>
             </article>

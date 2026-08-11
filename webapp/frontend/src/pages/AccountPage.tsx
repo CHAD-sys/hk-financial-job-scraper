@@ -80,8 +80,7 @@ export default function AccountPage() {
           Your account
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
-          Your private career profile lives here. Start with one resume to uncover where your
-          experience is strongest, then keep the rest of your account under your control.
+          Manage your resume, Saved Roles and account details.
         </p>
 
         {loading || !seeker ? (

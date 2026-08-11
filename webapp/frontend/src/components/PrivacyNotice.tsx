@@ -133,7 +133,7 @@ const CLAUSES: Clause[] = [
           : ''}
         . They act on our instructions and for no other purpose.{' '}
         {ACCOUNTS_LIVE &&
-          'If you choose to sign in with Google instead of a password, Google is also party to that exchange under its own privacy policy — we receive only your name, email address and a Google account identifier from it, never your Google password. '}
+          'If you choose to sign in with Google or LinkedIn instead of a password, that provider is also party to the exchange under its own privacy policy. We use only the provider account identifier, name and email address returned for sign-in; we never receive your Google or LinkedIn password. '}
         Job listings themselves come from employers' own public postings and are not personal
         data about you.
       </>

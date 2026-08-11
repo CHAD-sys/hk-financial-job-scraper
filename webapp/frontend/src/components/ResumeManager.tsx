@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import type { ResumeDocument } from '../api/client'
 import { deleteResume, fetchResume, uploadResume } from '../api/client'
+import ResumeFlow from './ResumeFlow'
 
 const MAX_BYTES = 5 * 1024 * 1024
 const ACCEPT = '.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -85,8 +86,8 @@ export default function ResumeManager() {
             <FileSearch size={16} strokeWidth={2.1} aria-hidden="true" />
             Resume intelligence
           </div>
-          <h2 id="resume-manager-heading">Put your experience against the whole market.</h2>
-          <p>Add one resume and FinEx will surface the live Roles where your skills and experience align—with reasons you can inspect.</p>
+          <h2 id="resume-manager-heading">Your resume</h2>
+          <p>Upload once. We find your strengths and refresh your Role matches daily.</p>
         </div>
         <span className="resume-manager__privacy">
           <ShieldCheck size={14} strokeWidth={2.2} aria-hidden="true" />
@@ -94,11 +95,7 @@ export default function ResumeManager() {
         </span>
       </div>
 
-      <ul className="resume-manager__benefits" aria-label="What your resume unlocks">
-        <li><BadgeCheck size={16} aria-hidden="true" /><span><strong>Strong matches</strong> ranked from observable evidence</span></li>
-        <li><FileSearch size={16} aria-hidden="true" /><span><strong>Clear reasons</strong> for why each Role surfaced</span></li>
-        <li><ShieldCheck size={16} aria-hidden="true" /><span><strong>Broader discovery</strong> stays open for career changes</span></li>
-      </ul>
+      <ResumeFlow className="resume-manager__flow" />
 
       <input
         ref={inputRef}
@@ -170,7 +167,7 @@ export default function ResumeManager() {
           </span>
           <span>
             <strong>Upload your resume</strong>
-            <small>PDF or DOCX · up to 5 MB · replaces any previous resume</small>
+            <small>PDF or DOCX · up to 5 MB · one file at a time</small>
           </span>
           <ArrowRight className="resume-manager__empty-arrow" size={18} aria-hidden="true" />
         </button>
@@ -198,7 +195,7 @@ function ResumeEvidenceSummary({ resume }: { resume: ResumeDocument }) {
 
   return (
     <div className="resume-manager__evidence">
-      <p>Evidence found</p>
+      <p>What we found</p>
       {(analysis.skills.length > 0 || evidence.length > 0) ? (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {analysis.skills.slice(0, 8).map(skill => <span key={skill}>{skill}</span>)}
