@@ -23,7 +23,8 @@ describe('SearchHero', () => {
     const onSearch = vi.fn()
     render(<SearchHero boardTotal={3869} employerCount={240} onSearch={onSearch} />)
 
-    expect(screen.getByText('Major categories')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Explore major categories' })).toBeInTheDocument()
+    expect(screen.getByText('13 disciplines')).toBeInTheDocument()
     for (const category of CATEGORIES) {
       expect(screen.getByRole('button', { name: category })).toBeInTheDocument()
     }

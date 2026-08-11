@@ -1,5 +1,20 @@
 import { useState } from 'react'
-import { Search, ArrowRight } from 'lucide-react'
+import {
+  ArrowRight,
+  BadgeDollarSign,
+  Building2,
+  Calculator,
+  ChartCandlestick,
+  Cpu,
+  Handshake,
+  Landmark,
+  Megaphone,
+  Network,
+  Scale,
+  Search,
+  ShieldCheck,
+  Store,
+} from 'lucide-react'
 
 /**
  * TEMPORARY UI EXPERIMENT — the search-engine face of the board.
@@ -35,19 +50,19 @@ interface Props {
  * arrives with.
  */
 const MAJOR_CATEGORIES = [
-  'Risk Management',
-  'Accounting & Finance',
-  'Treasury',
-  'Investment',
-  'Operations',
-  'Technology & Transformation',
-  'Sales and Business Development',
-  'Private Banking',
-  'Commercial Banking',
-  'Investment Banking',
-  'Retail Banking',
-  'Sales & Marketing',
-  'Legal, Compliance & Audit',
+  { label: 'Risk Management', icon: ShieldCheck },
+  { label: 'Accounting & Finance', icon: Calculator },
+  { label: 'Treasury', icon: BadgeDollarSign },
+  { label: 'Investment', icon: ChartCandlestick },
+  { label: 'Operations', icon: Network },
+  { label: 'Technology & Transformation', icon: Cpu },
+  { label: 'Sales and Business Development', icon: Handshake },
+  { label: 'Private Banking', icon: Landmark },
+  { label: 'Commercial Banking', icon: Building2 },
+  { label: 'Investment Banking', icon: ChartCandlestick },
+  { label: 'Retail Banking', icon: Store },
+  { label: 'Sales & Marketing', icon: Megaphone },
+  { label: 'Legal, Compliance & Audit', icon: Scale },
 ]
 
 export default function SearchHero({ boardTotal, employerCount, onSearch }: Props) {
@@ -74,7 +89,7 @@ export default function SearchHero({ boardTotal, employerCount, onSearch }: Prop
           discover page's content sheet overlaps this section (JobBoardPage),
           so the last row of chips needs clearance from an edge that rises to
           meet it. Change one and check the other. */}
-      <div className="mx-auto max-w-3xl px-4 sm:px-6 pt-12 pb-16 sm:pt-16 sm:pb-20 lg:pt-20 lg:pb-24 text-center">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-12 pb-16 sm:pt-16 sm:pb-20 lg:pt-20 lg:pb-24 text-center">
         <p
           className="text-xs font-semibold uppercase mb-3"
           style={{ color: 'var(--color-gold-star)', letterSpacing: '0.14em' }}
@@ -183,31 +198,69 @@ export default function SearchHero({ boardTotal, employerCount, onSearch }: Prop
             The "reduce friction to search" half of the marketplace pattern: a
             visitor who does not know what to type gets a useful finance map. */}
         <div
-          className="mt-6 flex flex-wrap items-center justify-center gap-2"
+          className="mt-8 rounded-xl p-3 sm:p-4"
           aria-labelledby="major-categories-label"
+          style={{
+            backgroundColor: 'rgba(11,22,40,0.42)',
+            border: '1px solid rgba(255,255,255,0.12)',
+          }}
         >
-          <span
-            id="major-categories-label"
-            className="w-full text-xs font-medium mb-1"
-            style={{ color: 'rgba(248,250,252,0.5)' }}
-          >
-            Major categories
-          </span>
-          {MAJOR_CATEGORIES.map(category => (
-            <button
-              key={category}
-              type="button"
-              onClick={() => onSearch(category)}
-              className="hero-chip inline-flex min-h-11 items-center rounded-full px-4 py-2 text-xs font-semibold cursor-pointer outline-none"
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(255,255,255,0.16)',
-                color: 'rgba(248,250,252,0.9)',
-              }}
+          <div className="flex items-end justify-between gap-4 px-1 pb-3 text-left sm:px-2">
+            <div>
+              <h2
+                id="major-categories-label"
+                className="text-sm font-semibold"
+                style={{ color: 'var(--color-ink-inverse)' }}
+              >
+                Explore major categories
+              </h2>
+              <p className="mt-1 text-xs" style={{ color: 'rgba(248,250,252,0.58)' }}>
+                Choose a discipline to see relevant Roles.
+              </p>
+            </div>
+            <span
+              className="hidden shrink-0 text-xs font-medium tabular-nums sm:block"
+              style={{ color: 'var(--color-gold-star)', fontFamily: 'var(--font-mono)' }}
             >
-              {category}
-            </button>
-          ))}
+              13 disciplines
+            </span>
+          </div>
+
+          <div className="major-category-grid grid grid-cols-2 gap-2 lg:grid-cols-3">
+            {MAJOR_CATEGORIES.map(({ label, icon: Icon }) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => onSearch(label)}
+                className="major-category-card group flex min-h-[4.5rem] items-center gap-3 rounded-md px-3 py-3 text-left cursor-pointer outline-none sm:px-4"
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.065)',
+                  border: '1px solid rgba(255,255,255,0.13)',
+                  color: 'var(--color-ink-inverse)',
+                }}
+              >
+                <span
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded"
+                  style={{
+                    backgroundColor: 'rgba(224,161,6,0.13)',
+                    color: 'var(--color-gold-star)',
+                  }}
+                  aria-hidden="true"
+                >
+                  <Icon size={18} strokeWidth={1.8} />
+                </span>
+                <span className="min-w-0 flex-1 text-[0.8125rem] font-semibold leading-snug sm:text-sm">
+                  {label}
+                </span>
+                <ArrowRight
+                  size={15}
+                  strokeWidth={2}
+                  className="major-category-arrow hidden shrink-0 sm:block"
+                  aria-hidden="true"
+                />
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* NOTE — there is deliberately nothing below the major categories.
