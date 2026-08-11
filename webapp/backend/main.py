@@ -56,8 +56,8 @@ from mailer import SUBMISSION_RECIPIENT, SMTP_USER, send_mail  # noqa: E402
 # filtered, sorted, counted and shaped for the wire lives in this module — see
 # its docstring for why "browsing is filtered, addressing is not".
 import job_read  # noqa: E402
-import recommendations as role_recommendations  # noqa: E402
 import resume_intelligence  # noqa: E402
+import role_feed  # noqa: E402
 from rate_limit import RateLimiter, RedisRateLimiter  # noqa: E402
 from sender import Message, Sender, SmtpSender  # noqa: E402
 from settings import Settings  # noqa: E402
@@ -354,29 +354,6 @@ class DiscoveryIn(BaseModel):
     result_count: int = Field(ge=0, le=1_000_000)
 
 
-class RecommendedRoleOut(BaseModel):
-    job: JobSummary
-    score: float
-    reasons: list[str]
-    feedback: list[str] = Field(default_factory=list)
-
-
-class RecommendationsOut(BaseModel):
-    personalized: bool
-    personalization_enabled: bool
-    model_version: str
-    signal_count: int
-    saved_role_count: int
-    activity_count: int
-    eligible_count: int
-    page: int
-    page_size: int
-    total_pages: int
-    generated_at: str
-    batch_id: Optional[str]
-    items: list[RecommendedRoleOut]
-
-
 class RecommendationFeedbackIn(BaseModel):
     action: Literal["more_like", "not_interested"]
     detail: Optional[str] = Field(default=None, max_length=300)
@@ -396,19 +373,6 @@ class ResumeOut(BaseModel):
     size_bytes: int
     uploaded_at: str
     analysis: ResumeAnalysisOut
-
-
-class ResumeMatchOut(BaseModel):
-    job: JobSummary
-    match_score: int
-    reasons: list[str]
-
-
-class ResumeMatchesOut(BaseModel):
-    has_resume: bool
-    resume_uploaded_at: Optional[str] = None
-    model_version: str
-    items: list[ResumeMatchOut] = Field(default_factory=list)
 
 
 def _resume_out(row: dict) -> ResumeOut:
@@ -440,7 +404,7 @@ def record_discovery(payload: DiscoveryIn, request: Request):
 
 @router.get(
     "/api/recommendations",
-    response_model=RecommendationsOut,
+    response_model=role_feed.RoleFeed,
     tags=["recommendations"],
 )
 def recommended_roles(
@@ -450,130 +414,13 @@ def recommended_roles(
 ):
     """Return a diverse, explainable Role page; personalize when signed in."""
     seeker = _current_seeker(request)
-    store = seekers_store.get_store() if seeker else None
-    refs = store.list_saved_roles(seeker["id"]) if store and seeker else []
-    saved_refs = {(row["source"], row["source_id"]) for row in refs}
-    all_activity = store.list_discovery_events(seeker["id"]) if store and seeker else []
-    feedback = store.list_recommendation_feedback(seeker["id"]) if store and seeker else []
-    feedback_by_ref: dict[tuple[str, str], list[str]] = {}
-    for row in feedback:
-        ref = (row["source"], row["source_id"])
-        feedback_by_ref.setdefault(ref, []).append(row["action"])
-    more_like_refs = {
-        (row["source"], row["source_id"])
-        for row in feedback
-        if row["action"] == "more_like"
-    }
-    dismissed_refs = {
-        (row["source"], row["source_id"])
-        for row in feedback
-        if row["action"] == "not_interested"
-    }
-    clicked_rows = (
-        store.list_clicked_recommendation_refs(seeker["id"])
-        if store and seeker
-        else []
-    )
-    clicked_refs = {(row["source"], row["source_id"]) for row in clicked_rows}
-    resume_row = (
-        store.get_resume(seeker["id"], include_document=True)
-        if store and seeker
-        else None
-    )
-    resume_evidence = (
-        resume_intelligence.evidence_from_storage(
-            resume_row["text_content"], resume_row["analysis"]
-        )
-        if resume_row
-        else None
-    )
-    learning_enabled = bool(store and seeker)
-
     with get_db(request) as conn:
-        # Recommendations emphasize the recent market. One thousand candidates
-        # is broad enough for this board while keeping the homepage request
-        # cheap and avoiding an unbounded Python ranking pass as the corpus grows.
-        candidates = job_read.list_jobs(
+        return role_feed.roles_for_seeker(
             conn,
-            JobFilters(),
-            sort=Sort.NEWEST,
-            page=1,
-            page_size=1_000,
-            visibility=Visibility.BOARD,
-        ).jobs
-        saved_jobs = job_read.jobs_by_refs(
-            conn, saved_refs, visibility=Visibility.ADDRESSABLE
+            seeker_id=seeker["id"] if seeker else None,
+            page=page,
+            page_size=page_size,
         )
-        more_like_jobs = job_read.jobs_by_refs(
-            conn, more_like_refs, visibility=Visibility.ADDRESSABLE
-        )
-        clicked_jobs = job_read.jobs_by_refs(
-            conn, clicked_refs, visibility=Visibility.ADDRESSABLE
-        )
-
-    generated_at = datetime.now(timezone.utc)
-    ranked = role_recommendations.rank_roles(
-        candidates,
-        saved_roles=saved_jobs if learning_enabled else [],
-        discovery_events=all_activity if learning_enabled else [],
-        more_like_roles=more_like_jobs if learning_enabled else [],
-        clicked_roles=clicked_jobs if learning_enabled else [],
-        saved_refs=saved_refs,
-        dismissed_refs=dismissed_refs,
-        hidden_employer_keys=set(),
-        resume_evidence=resume_evidence if learning_enabled else None,
-        page=page,
-        page_size=page_size,
-        now=generated_at,
-    )
-    items = [
-        RecommendedRoleOut(
-            job=item.job,
-            score=item.score,
-            reasons=list(item.reasons),
-            feedback=feedback_by_ref.get((item.job.source, item.job.source_id), []),
-        )
-        for item in ranked.items
-    ]
-
-    batch_id = None
-    if store and seeker and learning_enabled and items:
-        batch_id = store.record_recommendation_impressions(
-            seeker["id"],
-            [
-                {
-                    "source": item.job.source,
-                    "source_id": item.job.source_id,
-                    "score": item.score,
-                    "reasons": item.reasons,
-                    "position": position,
-                }
-                for position, item in enumerate(items, start=1)
-            ],
-            model_version=role_recommendations.MODEL_VERSION,
-            now=generated_at,
-        )
-
-    return RecommendationsOut(
-        personalized=ranked.personalized,
-        personalization_enabled=learning_enabled,
-        model_version=role_recommendations.MODEL_VERSION,
-        signal_count=ranked.signal_count,
-        saved_role_count=len(saved_jobs),
-        activity_count=len(all_activity),
-        eligible_count=ranked.eligible_count,
-        page=page,
-        page_size=page_size,
-        # The endpoint intentionally exposes a ten-page recommendation window,
-        # even when the candidate pool is larger. This matches the validated
-        # `page` range above and keeps "Show me others" cycling through the
-        # strongest 240 Roles rather than walking into a page-11 validation
-        # error or dredging the tail of the market.
-        total_pages=min(10, (ranked.eligible_count + page_size - 1) // page_size),
-        generated_at=generated_at.isoformat(),
-        batch_id=batch_id,
-        items=items,
-    )
 
 
 @router.post(
@@ -686,7 +533,7 @@ def delete_resume(request: Request):
 
 @router.get(
     "/api/me/resume-matches",
-    response_model=ResumeMatchesOut,
+    response_model=role_feed.ResumeMatches,
     tags=["resume"],
 )
 def resume_matches(
@@ -695,43 +542,12 @@ def resume_matches(
 ):
     """Return current Roles with the strongest observable resume alignment."""
     seeker = _require_seeker(request)
-    row = seekers_store.get_store().get_resume(
-        seeker["id"], include_document=True
-    )
-    if row is None:
-        return ResumeMatchesOut(
-            has_resume=False,
-            model_version=resume_intelligence.MATCH_MODEL_VERSION,
-        )
-
     with get_db(request) as conn:
-        candidates = job_read.list_jobs(
+        return role_feed.resume_matches_for_seeker(
             conn,
-            JobFilters(),
-            sort=Sort.NEWEST,
-            page=1,
-            page_size=1_000,
-            visibility=Visibility.BOARD,
-        ).jobs
-    evidence = resume_intelligence.evidence_from_storage(
-        row["text_content"], row["analysis"]
-    )
-    matches = resume_intelligence.rank_resume_matches(
-        candidates, evidence, limit=limit
-    )
-    return ResumeMatchesOut(
-        has_resume=True,
-        resume_uploaded_at=row["uploaded_at"],
-        model_version=resume_intelligence.MATCH_MODEL_VERSION,
-        items=[
-            ResumeMatchOut(
-                job=item.job,
-                match_score=item.score,
-                reasons=list(item.reasons),
-            )
-            for item in matches
-        ],
-    )
+            seeker_id=seeker["id"],
+            limit=limit,
+        )
 
 
 # ── /api/jobs/{source}/{source_id} ────────────────────────────────────────────

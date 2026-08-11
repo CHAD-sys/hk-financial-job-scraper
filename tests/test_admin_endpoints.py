@@ -135,17 +135,17 @@ def seeker_client(db, dist, tmp_path, _seekers_env):
 
 
 def test_anonymous_gets_401(client):
-    r = client.get("/api/admin/run/today")
+    r = client.get("/api/admin/intelligence")
     assert r.status_code == 401
 
 
 def test_ordinary_seeker_gets_403(seeker_client):
-    r = seeker_client.get("/api/admin/run/today")
+    r = seeker_client.get("/api/admin/intelligence")
     assert r.status_code == 403
 
 
 def test_admin_gets_200(admin_client):
-    r = admin_client.get("/api/admin/run/today")
+    r = admin_client.get("/api/admin/intelligence")
     assert r.status_code == 200
 
 
@@ -157,10 +157,7 @@ def test_is_admin_appears_on_whoami(admin_client, seeker_client):
 def test_admin_gate_applies_to_every_admin_route(seeker_client):
     for path in (
         "/api/admin/submissions",
-        "/api/admin/run/today",
-        "/api/admin/run/history",
-        "/api/admin/operations",
-        "/api/admin/analytics/overview",
+        "/api/admin/intelligence",
     ):
         assert seeker_client.get(path).status_code == 403
 
@@ -345,10 +342,13 @@ def test_acting_on_an_unknown_submission_id_is_404(admin_client, tmp_path):
 
 
 def test_run_today_never_500s_without_a_job_history_table(admin_client):
-    r = admin_client.get("/api/admin/run/today")
+    r = admin_client.get("/api/admin/intelligence")
     assert r.status_code == 200
-    body = r.json()
+    snapshot = r.json()
+    body = snapshot["today"]
     assert body["ran_today"] is False
+    assert body["tracking_available"] is False
+    assert snapshot["availability"]["history"] is False
     assert body["companies_scraped_today"] == 0
     assert body["zero_companies"] == []
     # The board-level counts DO come from `jobs`, which always exists.
@@ -356,9 +356,9 @@ def test_run_today_never_500s_without_a_job_history_table(admin_client):
 
 
 def test_run_today_reflects_a_seeded_job_history_table(admin_client, db, monkeypatch):
-    import admin
+    import admin_intelligence
 
-    monkeypatch.setattr(admin, "_hong_kong_today", lambda: date(2026, 8, 7))
+    monkeypatch.setattr(admin_intelligence, "_hong_kong_today", lambda: date(2026, 8, 7))
     conn = sqlite3.connect(db)
     conn.execute(
         "CREATE TABLE job_history (company_id TEXT, company_name TEXT, job_count INTEGER, "
@@ -373,7 +373,7 @@ def test_run_today_reflects_a_seeded_job_history_table(admin_client, db, monkeyp
     conn.commit()
     conn.close()
 
-    body = admin_client.get("/api/admin/run/today").json()
+    body = admin_client.get("/api/admin/intelligence").json()["today"]
     assert body["ran_today"] is True
     assert body["companies_scraped_today"] == 2
     assert body["companies_zero_today"] == 1
@@ -383,119 +383,47 @@ def test_run_today_reflects_a_seeded_job_history_table(admin_client, db, monkeyp
     assert body["listings_collected_today"] == 10
 
 
-def _pipeline_snapshot(**over):
-    payload = {
-        "scraped_date": "2026-08-07",
-        "source_run_url": "https://github.com/FinEx-Club/hk-job-scraper/actions/runs/123",
-        "companies": [
-            {
-                "company_id": "hsbc",
-                "company_name": "HSBC",
-                "job_count": 12,
-                "trend_direction": "up",
-                "trend_percent": 20,
-                "jobs_added": 3,
-                "jobs_removed": 1,
-            },
-            {
-                "company_id": "manulife",
-                "company_name": "Manulife",
-                "job_count": 4,
-                "trend_direction": "down",
-                "trend_percent": -20,
-                "jobs_added": 0,
-                "jobs_removed": 1,
-            },
-        ],
-    }
-    payload.update(over)
-    return payload
+def test_run_today_uses_the_atomic_catalogue_receipt(admin_client, db, monkeypatch):
+    import admin_intelligence
 
+    monkeypatch.setattr(admin_intelligence, "_hong_kong_today", lambda: date(2026, 8, 7))
+    with sqlite3.connect(db) as conn:
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS pipeline_catalog_sync (
+                   source_run_id TEXT PRIMARY KEY,
+                   snapshot_sha256 TEXT NOT NULL,
+                   source_run_url TEXT,
+                   received_at TEXT NOT NULL,
+                   active_jobs INTEGER NOT NULL
+               )"""
+        )
+        conn.execute(
+            """INSERT INTO pipeline_catalog_sync VALUES (
+                   '123', ?, 'https://github.test/actions/runs/123',
+                   '2026-08-06T18:30:00+00:00', 42
+               )""",
+            ("a" * 64,),
+        )
 
-def test_pipeline_snapshot_sync_is_disabled_without_a_server_secret(client):
-    response = client.post(
-        "/api/admin/pipeline/snapshot",
-        headers={"X-Pipeline-Sync-Token": "anything"},
-        json=_pipeline_snapshot(),
-    )
-    assert response.status_code == 503
+    today = admin_client.get("/api/admin/intelligence")
 
-
-def test_pipeline_snapshot_rejects_the_wrong_secret(pipeline_sync_client):
-    response = pipeline_sync_client.post(
-        "/api/admin/pipeline/snapshot",
-        headers={"X-Pipeline-Sync-Token": "wrong"},
-        json=_pipeline_snapshot(),
-    )
-    assert response.status_code == 401
-
-
-def test_pipeline_snapshot_is_exactly_replaced_and_visible_to_admins(
-    pipeline_sync_client, admin_client, db, monkeypatch,
-):
-    import admin
-
-    monkeypatch.setattr(admin, "_hong_kong_today", lambda: date(2026, 8, 7))
-    headers = {"X-Pipeline-Sync-Token": "pipeline-sync-secret"}
-    first = pipeline_sync_client.post(
-        "/api/admin/pipeline/snapshot", headers=headers, json=_pipeline_snapshot()
-    )
-    assert first.status_code == 200
-    assert first.json()["companies"] == 2
-    assert first.json()["total_jobs"] == 16
-
-    replacement = _pipeline_snapshot(
-        companies=[
-            {
-                "company_id": "hsbc",
-                "company_name": "HSBC",
-                "job_count": 15,
-                "trend_direction": "up",
-                "trend_percent": 25,
-                "jobs_added": 4,
-                "jobs_removed": 0,
-            }
-        ]
-    )
-    second = pipeline_sync_client.post(
-        "/api/admin/pipeline/snapshot", headers=headers, json=replacement
-    )
-    assert second.status_code == 200
-
-    conn = sqlite3.connect(db)
-    rows = conn.execute(
-        "SELECT company_id, job_count FROM job_history WHERE scraped_date='2026-08-07'"
-    ).fetchall()
-    sync = conn.execute(
-        "SELECT company_count, total_jobs, source_run_url FROM pipeline_snapshot_sync "
-        "WHERE scraped_date='2026-08-07'"
-    ).fetchone()
-    conn.close()
-    assert rows == [("hsbc", 15)]
-    assert sync == (1, 15, replacement["source_run_url"])
-
-    today = admin_client.get("/api/admin/run/today").json()
-    assert today["date"] == "2026-08-07"
-    assert today["ran_today"] is True
-    assert today["companies_scraped_today"] == 1
-    assert today["listings_collected_today"] == 15
-    assert today["jobs_added_today"] == 4
-    assert today["snapshot_received_at"] is not None
+    assert today.status_code == 200
+    assert today.json()["today"]["snapshot_received_at"] == "2026-08-06T18:30:00+00:00"
 
 
 def test_run_history_returns_empty_points_without_a_job_history_table(admin_client):
-    r = admin_client.get("/api/admin/run/history")
+    r = admin_client.get("/api/admin/intelligence")
     assert r.status_code == 200
-    assert r.json()["points"] == []
+    assert r.json()["history"]["points"] == []
 
 
 def test_operations_dashboard_is_admin_only_and_degrades_truthfully(
     admin_client, seeker_client,
 ):
-    assert seeker_client.get("/api/admin/operations").status_code == 403
-    response = admin_client.get("/api/admin/operations")
+    assert seeker_client.get("/api/admin/intelligence").status_code == 403
+    response = admin_client.get("/api/admin/intelligence")
     assert response.status_code == 200
-    body = response.json()
+    body = response.json()["operations"]
     assert [phase["key"] for phase in body["run"]["phases"]] == [
         "restore", "scrape", "descriptions", "deepseek", "salary_audit",
         "linkedin_promote", "publish",
@@ -537,7 +465,7 @@ def test_pipeline_operations_telemetry_is_machine_authored_and_visible_to_admins
     )
     assert written.status_code == 200
 
-    body = admin_client.get("/api/admin/operations").json()
+    body = admin_client.get("/api/admin/intelligence").json()["operations"]
     assert body["run"]["run_id"] == "98765"
     assert body["run"]["status"] == "warning"
     assert body["run"]["restore_source"] == "railway"
@@ -573,7 +501,7 @@ def test_pipeline_accepts_and_preserves_the_canonical_daily_run_record(
     )
 
     assert written.status_code == 200, written.text
-    body = admin_client.get("/api/admin/operations").json()
+    body = admin_client.get("/api/admin/intelligence").json()["operations"]
     assert body["run"]["run_id"] == "canonical-42"
     assert body["run"]["scraped_date"] == "2026-08-11"
     assert [phase["key"] for phase in body["run"]["phases"]] == [
@@ -585,9 +513,9 @@ def test_pipeline_accepts_and_preserves_the_canonical_daily_run_record(
 
 
 def test_analytics_overview_shape_and_board_counts(admin_client):
-    r = admin_client.get("/api/admin/analytics/overview")
+    r = admin_client.get("/api/admin/intelligence")
     assert r.status_code == 200
-    body = r.json()
+    body = r.json()["analytics"]
 
     # 3 active rows, but the JobsDB copy of the HSBC role is a suppressed
     # cross-posted duplicate — the board (and BOARD_WHERE) sees only 2.
@@ -640,7 +568,7 @@ def test_analytics_market_movers_compare_two_well_covered_days(admin_client, db)
     conn.commit()
     conn.close()
 
-    movers = admin_client.get("/api/admin/analytics/overview").json()["market_movers"]
+    movers = admin_client.get("/api/admin/intelligence").json()["analytics"]["market_movers"]
     assert movers["current_date"] == "2000-01-02"
     assert movers["comparison_date"] == "2000-01-01"
     assert movers["gainers"][0] == {
@@ -659,7 +587,7 @@ def test_salary_confidence_uses_the_same_complete_range_sample(admin_client, db)
     conn.commit()
     conn.close()
 
-    body = admin_client.get("/api/admin/analytics/overview").json()
+    body = admin_client.get("/api/admin/intelligence").json()["analytics"]
     assert body["salary_sample_size"] == 1
     assert body["salary_confidence"] == {"high": 1}
     assert body["data_quality"]["high_confidence_salary_pct"] == 100.0
