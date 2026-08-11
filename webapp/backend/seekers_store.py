@@ -1367,7 +1367,7 @@ class SeekerStore:
             "SELECT COUNT(DISTINCT seeker_id) FROM recommendation_impressions"
         ).fetchone()[0]
         window = conn.execute(
-            "SELECT MIN(shown_at), MAX(shown_at) FROM recommendation_impressions"
+            "SELECT MIN(created_at), MAX(created_at) FROM recommendation_impressions"
         ).fetchone()
         feedback = {
             row[0]: row[1]

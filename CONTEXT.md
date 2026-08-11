@@ -72,6 +72,13 @@ saved search — the same criteria the board already filters on, kept and re-run
 separate notion of what a Seeker wants. Decided but not yet built.
 _Avoid_: job alert, notification, subscription, watch
 
+**Role Feed**:
+The ordered, explainable set of open Roles shown as “Roles for you”. For a Seeker it
+learns cautiously from Saved Roles, settled searches, opened Roles, explicit feedback
+and resume evidence; for a visitor it reflects the current market. It is discovery
+guidance, not a hiring assessment or a claim that the Seeker should remain in one field.
+_Avoid_: job match, CV match, guaranteed fit, recommendation algorithm (the implementation)
+
 ### Collection
 
 **Daily Run**:

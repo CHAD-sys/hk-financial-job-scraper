@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import json
 import io
+import json
 import zipfile
 
 import pytest
@@ -121,8 +121,7 @@ def test_anonymous_feed_is_market_based_and_writes_no_seeker_data(
     assert body["model_version"] == "signals-v3"
     assert body["personalization_enabled"] is False
     assert len(body["items"]) == 2
-    conn = seekers_store.get_store()._conn()
-    assert conn.execute("SELECT COUNT(*) FROM recommendation_impressions").fetchone()[0] == 0
+    assert seekers_store.get_store().recommendation_health()["impressions"] == 0
 
 
 def test_discovery_capture_requires_a_seeker_session(recommendation_clients):
