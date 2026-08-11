@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 from collections.abc import Callable, Iterable
 from pathlib import Path
@@ -95,7 +94,7 @@ class RailwayRecordReporter:
         response = self._post(
             self.url,
             headers={"X-Pipeline-Sync-Token": self.token},
-            content=json.dumps(record.to_dict()),
+            json=record.to_dict(),
             timeout=30,
         )
         response.raise_for_status()

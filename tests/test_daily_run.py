@@ -230,6 +230,34 @@ def test_reporting_adapters_are_isolated_and_reclassify_to_warning(tmp_path):
     assert DailyRunRecord.read(record_path).status is RunStatus.WARNING
 
 
+def test_railway_record_reporter_posts_a_json_body():
+    captured = {}
+
+    def post(url, **kwargs):
+        captured["url"] = url
+        captured["kwargs"] = kwargs
+        return httpx.Response(
+            200,
+            json={"ok": True},
+            request=httpx.Request("POST", url),
+        )
+
+    from hk_jobs.daily_run.reporting import RailwayRecordReporter
+
+    record = run_daily("hosted", "railway-report-1", lambda *_: None)
+    reporter = RailwayRecordReporter(
+        "https://railway.test/operations",
+        "token",
+        post=post,
+    )
+
+    assert reporter(record) == "HTTP 200"
+    assert captured["url"] == "https://railway.test/operations"
+    assert captured["kwargs"]["headers"]["X-Pipeline-Sync-Token"] == "token"
+    assert captured["kwargs"]["json"] == record.to_dict()
+    assert "content" not in captured["kwargs"]
+
+
 def test_github_summary_is_rendered_from_the_record():
     record = DailyRunRecord.start(
         "summary-1",

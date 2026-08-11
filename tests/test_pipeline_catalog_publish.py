@@ -282,6 +282,33 @@ def test_catalog_publish_adds_the_allowlisted_closed_at_migration(publish_client
         assert "closed_at" in {row[1] for row in conn.execute("PRAGMA table_info(jobs)")}
 
 
+def test_catalog_publish_upgrades_an_older_live_volume_before_schema_checks(tmp_path):
+    import pipeline_publish
+
+    live = _migrated(tmp_path / "live.db", [("workday", "W1", "Old Role", 1)])
+    incoming = _migrated(tmp_path / "incoming.db", [("workday", "W2", "New Role", 1)])
+    with sqlite3.connect(live) as conn:
+        conn.execute("DROP TABLE pipeline_company_runs")
+
+    body, digest = _gzip_snapshot(incoming)
+    receipt = pipeline_publish.publish_catalogue(
+        live,
+        io.BytesIO(body),
+        identity=pipeline_publish.PublicationIdentity(
+            source_run_id="upgrade-live-schema",
+            snapshot_sha256=digest,
+            source_run_url="https://github.test/actions/runs/upgrade-live-schema",
+        ),
+    )
+
+    assert receipt.source_run_id == "upgrade-live-schema"
+    with sqlite3.connect(live) as conn:
+        assert conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='pipeline_company_runs'"
+        ).fetchone() == (1,)
+        assert conn.execute("SELECT source_id FROM jobs").fetchone()[0] == "W2"
+
+
 def test_catalogue_interface_clears_an_unproduced_pipeline_owned_dataset(tmp_path):
     """Missing optional pipeline facts mean empty, never "keep yesterday"."""
     import pipeline_publish
