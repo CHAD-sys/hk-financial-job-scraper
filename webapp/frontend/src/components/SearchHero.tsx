@@ -7,7 +7,7 @@ import { Search, ArrowRight } from 'lucide-react'
  * The board used to open as a wall: sticky filter bar, four tier tabs, then 24
  * cards out of ~5,000. That asks a visitor to narrow a database they have not
  * seen. This asks them a question instead, which is what a search engine does:
- * one dominant field, a few popular queries underneath, and nothing else
+ * one dominant field, a set of major finance categories underneath, and nothing else
  * competing for the first decision.
  *
  * It renders only while the board has no query and no filters (JobBoardPage's
@@ -28,19 +28,26 @@ interface Props {
 }
 
 /**
- * Suggested queries. Hardcoded rather than read from the live skill counts
+ * Major finance categories. Hardcoded rather than read from the live skill counts
  * because the top skills by volume ("stakeholder management", "project
  * management") are the generic ones every posting lists — true, and useless as
  * a suggestion. These are the queries a Hong Kong finance candidate actually
  * arrives with.
  */
-const POPULAR_QUERIES = [
-  'Private banking',
-  'Risk management',
-  'Compliance',
-  'Equity research',
-  'Actuarial',
-  'Wealth management',
+const MAJOR_CATEGORIES = [
+  'Risk Management',
+  'Accounting & Finance',
+  'Treasury',
+  'Investment',
+  'Operations',
+  'Technology & Transformation',
+  'Sales and Business Development',
+  'Private Banking',
+  'Commercial Banking',
+  'Investment Banking',
+  'Retail Banking',
+  'Sales & Marketing',
+  'Legal, Compliance & Audit',
 ]
 
 export default function SearchHero({ boardTotal, employerCount, onSearch }: Props) {
@@ -172,34 +179,38 @@ export default function SearchHero({ boardTotal, employerCount, onSearch }: Prop
           </div>
         </form>
 
-        {/* ── Popular queries ────────────────────────────────────────────────
+        {/* ── Major categories ───────────────────────────────────────────────
             The "reduce friction to search" half of the marketplace pattern: a
-            visitor who does not know what to type gets six answers. */}
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+            visitor who does not know what to type gets a useful finance map. */}
+        <div
+          className="mt-6 flex flex-wrap items-center justify-center gap-2"
+          aria-labelledby="major-categories-label"
+        >
           <span
-            className="text-xs font-medium mr-1"
+            id="major-categories-label"
+            className="w-full text-xs font-medium mb-1"
             style={{ color: 'rgba(248,250,252,0.5)' }}
           >
-            Popular:
+            Major categories
           </span>
-          {POPULAR_QUERIES.map(q => (
+          {MAJOR_CATEGORIES.map(category => (
             <button
-              key={q}
+              key={category}
               type="button"
-              onClick={() => onSearch(q)}
-              className="hero-chip rounded-full px-3.5 py-2 text-xs font-semibold cursor-pointer outline-none"
+              onClick={() => onSearch(category)}
+              className="hero-chip inline-flex min-h-11 items-center rounded-full px-4 py-2 text-xs font-semibold cursor-pointer outline-none"
               style={{
                 backgroundColor: 'rgba(255,255,255,0.08)',
                 border: '1px solid rgba(255,255,255,0.16)',
                 color: 'rgba(248,250,252,0.9)',
               }}
             >
-              {q}
+              {category}
             </button>
           ))}
         </div>
 
-        {/* NOTE — there is deliberately nothing below the popular queries.
+        {/* NOTE — there is deliberately nothing below the major categories.
             A per-sector count block lived here through two revisions, as
             clickable category chips and then as a stat row, and both were
             wrong for the same underlying reason rather than for want of
