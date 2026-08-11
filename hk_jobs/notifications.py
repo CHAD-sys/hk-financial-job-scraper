@@ -10,7 +10,11 @@ Configuration — set these environment variables (or in config/api_keys.env):
   SMTP_PORT    (default: 587)
   SMTP_USER    your Gmail address
   SMTP_PASS    Gmail App Password (16 chars — NOT your regular password)
-  NOTIFY_EMAIL recipient (default: amine@finexclub.org)
+  NOTIFY_EMAILS comma/semicolon-separated recipients
+                (default: amine@finexclub.org and mohamedaminechahid@gmail.com)
+
+The legacy singular NOTIFY_EMAIL variable is still accepted when
+NOTIFY_EMAILS is absent.
 
 Gmail setup (one-time):
   1. myaccount.google.com → Security → 2-Step Verification → ON
@@ -54,8 +58,35 @@ SMTP_HOST    = os.getenv("SMTP_HOST",    "smtp.gmail.com")
 SMTP_PORT    = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER    = os.getenv("SMTP_USER",    "")
 SMTP_PASS    = os.getenv("SMTP_PASS",    "")
-NOTIFY_EMAIL = os.getenv("NOTIFY_EMAIL", "amine@finexclub.org")
 PROJECT_NAME = "FinEx Careers — HK Job Board"
+
+DEFAULT_NOTIFY_EMAILS = (
+    "amine@finexclub.org",
+    "mohamedaminechahid@gmail.com",
+)
+
+
+def _notification_recipients(raw: str | None = None) -> list[str]:
+    """Return a stable, case-insensitively deduplicated recipient list."""
+    if raw is None:
+        raw = os.getenv("NOTIFY_EMAILS") or os.getenv("NOTIFY_EMAIL")
+    candidates = re.split(r"[,;]", raw) if raw else list(DEFAULT_NOTIFY_EMAILS)
+    recipients: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        address = candidate.strip()
+        normalized = address.casefold()
+        if not address or normalized in seen:
+            continue
+        if "\n" in address or "\r" in address or "@" not in address:
+            logger.warning("Ignoring invalid notification recipient: %r", address)
+            continue
+        seen.add(normalized)
+        recipients.append(address)
+    return recipients
+
+
+NOTIFY_EMAILS = _notification_recipients()
 
 BACKUP_DIR = Path("data/backups")
 APIFY_CAP  = 30.0          # USD/month, see CLAUDE.md and posts/budget.py
@@ -90,11 +121,14 @@ def _send_email(subject: str, body_html: str, body_text: str) -> bool:
             "Set these env vars or add them to config/api_keys.env."
         )
         return False
+    if not NOTIFY_EMAILS:
+        logger.warning("No valid notification recipients configured — skipping notification.")
+        return False
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"]    = SMTP_USER
-        msg["To"]      = NOTIFY_EMAIL
+        msg["To"]      = ", ".join(NOTIFY_EMAILS)
         msg.attach(MIMEText(body_text, "plain"))
         msg.attach(MIMEText(body_html, "html"))
 
@@ -102,9 +136,9 @@ def _send_email(subject: str, body_html: str, body_text: str) -> bool:
             srv.ehlo()
             srv.starttls()
             srv.login(SMTP_USER, SMTP_PASS)
-            srv.sendmail(SMTP_USER, NOTIFY_EMAIL, msg.as_string())
+            srv.sendmail(SMTP_USER, NOTIFY_EMAILS, msg.as_string())
 
-        logger.info("✅ Email sent → %s: %s", NOTIFY_EMAIL, subject)
+        logger.info("✅ Email sent → %s: %s", ", ".join(NOTIFY_EMAILS), subject)
         return True
     except Exception as exc:
         logger.error("❌ Failed to send email: %s", exc)

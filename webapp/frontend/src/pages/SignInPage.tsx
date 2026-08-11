@@ -45,11 +45,10 @@ export default function SignInPage() {
   const [status, setStatus] = useState<Status>(oauthError ? 'error' : 'idle')
   const [error, setError] = useState(oauthError ?? '')
 
-  // Already signed in: this page has nothing to offer. An admin goes to the
-  // chooser, not straight to /admin — ModeChooserPage.tsx is what asks "which
-  // view do you want", every time, rather than assuming last time's answer.
+  // Already signed in: return to the page they were reading. Administrators
+  // use the ordinary site and open the role-gated Admin panel from the nav.
   if (!authLoading && seeker) {
-    return <Navigate to={seeker.is_admin ? '/choose-view' : returnTo} state={{ from: returnTo }} replace />
+    return <Navigate to={returnTo} replace />
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -69,16 +68,8 @@ export default function SignInPage() {
     setStatus('sending')
     setError('')
     try {
-      const me = await login(email, password)
-      // Admin Mode is the same sign-in, so the branch happens here rather than
-      // at the route level. An admin is ASKED which view they want — every
-      // sign-in, not just the first — rather than being dropped straight into
-      // /admin on an assumption. ModeChooserPage carries returnTo forward for
-      // whichever answer they give.
-      navigate(me?.is_admin ? '/choose-view' : returnTo, {
-        replace: true,
-        state: { from: returnTo },
-      })
+      await login(email, password)
+      navigate(returnTo, { replace: true })
     } catch (err) {
       setStatus('error')
       setError(

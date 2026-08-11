@@ -17,10 +17,16 @@ def test_local_daily_summary_email_is_opt_in():
     assert script.index(guard) < script.index(notify) < script.index("\nfi", script.index(notify))
 
 
-def test_github_daily_workflow_explicitly_disables_routine_email():
+def test_github_daily_workflow_emails_both_recipients_only_for_scheduled_runs():
     workflow = (ROOT / ".github" / "workflows" / "daily.yml").read_text(encoding="utf-8")
 
-    assert 'PIPELINE_DAILY_EMAIL: "0"' in workflow
+    assert "needs: scrape" in workflow
+    assert "github.event_name == 'schedule'" in workflow
+    assert "amine@finexclub.org,mohamedaminechahid@gmail.com" in workflow
+    assert "secrets.SMTP_USER" in workflow
+    assert "secrets.SMTP_PASS" in workflow
+    assert "send_daily_summary" in workflow
+    assert "send_failure_alert" in workflow
 
 
 def test_github_daily_workflow_always_publishes_operations_telemetry():

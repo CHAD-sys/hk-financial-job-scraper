@@ -19,10 +19,7 @@ jobs:
   scrape:
     name: Scrape + export
     runs-on: ubuntu-latest
-    # Routine success summaries are deliberately disabled. GitHub's own
-    # failure-only notifications remain controlled by the account settings.
     env:
-      PIPELINE_DAILY_EMAIL: "0"
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       # Your Mac database is already 99.9% current. This ceiling is a guard
       # against an accidental full-catalogue re-enrichment after a bad restore;
@@ -308,3 +305,54 @@ jobs:
             -H "X-Pipeline-Sync-Token: $PIPELINE_SYNC_TOKEN" \
             --data-binary @/tmp/pipeline-operations.json \
             "$PIPELINE_OPERATIONS_URL"
+
+  notify:
+    name: Email scheduled run result
+    needs: scrape
+    if: always() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out notification code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download the completed database
+        if: needs.scrape.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: jobs-db-${{ github.run_id }}
+          path: data
+
+      - name: Send daily result to both administrators
+        env:
+          SMTP_HOST: ${{ vars.SMTP_HOST || 'smtp.gmail.com' }}
+          SMTP_PORT: ${{ vars.SMTP_PORT || '587' }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          NOTIFY_EMAILS: amine@finexclub.org,mohamedaminechahid@gmail.com
+          PIPELINE_RESULT: ${{ needs.scrape.result }}
+          PIPELINE_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import os
+
+          from hk_jobs.notifications import send_daily_summary, send_failure_alert
+
+          result = os.environ["PIPELINE_RESULT"]
+          run_url = os.environ["PIPELINE_RUN_URL"]
+          if result == "success":
+              sent = send_daily_summary("data/jobs.db")
+          else:
+              sent = send_failure_alert(
+                  phase="GitHub daily pipeline",
+                  error=f"Run finished with status {result}. Details: {run_url}",
+              )
+          if not sent:
+              raise SystemExit(
+                  "Daily result email was not sent. Check SMTP_USER and SMTP_PASS secrets."
+              )
+          PY

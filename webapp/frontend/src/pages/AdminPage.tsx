@@ -84,7 +84,7 @@ export default function AdminPage() {
       >
         <header className="mb-8 flex flex-col gap-5 border-b pb-6 sm:flex-row sm:items-end sm:justify-between" style={{ borderColor: 'var(--color-border)' }}>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--color-gold)' }}>Admin Mode</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--color-gold)' }}>Admin panel</p>
             <h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl" style={{ fontFamily: 'var(--font-display)', color: 'var(--color-ink)' }}>
               Intelligence desk
             </h1>
