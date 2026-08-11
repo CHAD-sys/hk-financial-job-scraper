@@ -7,9 +7,9 @@ direct read/write onto a single job's row and its enrichment.
 Every human-facing route here sits behind `require_admin` (the job_edit routes
 ALSO sit behind `require_super_admin`), both dependencies main.py hands to
 `build_router()`.  The machine-facing `/pipeline/database` and
-`/pipeline/snapshot` routes use a separate timing-safe shared secret so the
-scheduled GitHub pipeline can publish its catalogue and completed daily facts
-without possessing a human session.
+`/pipeline/operations` routes use a separate timing-safe shared secret so the
+scheduled GitHub pipeline can publish its catalogue and completed Daily Run
+Record without possessing a human session.
 
 Writes to jobs.db are limited to submission approval, Ultimate Admin job edits,
 and the authenticated daily publication routes described above. All other
@@ -70,32 +70,6 @@ _RUN_STARTED_RE = re.compile(r"===\s*Daily pipeline started\s*===")
 _RUN_FINISHED_RE = re.compile(r"===\s*Daily pipeline finished\s*===")
 _PHASE_RE = re.compile(r"^\[[\d\- :]+\]\s*(Phase .+|=== .+ ===)\s*$")
 _HONG_KONG = ZoneInfo("Asia/Hong_Kong")
-
-_JOB_HISTORY_DDL = """
-CREATE TABLE IF NOT EXISTS job_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    company_id TEXT NOT NULL,
-    company_name TEXT NOT NULL,
-    job_count INTEGER NOT NULL,
-    scraped_date DATE NOT NULL,
-    trend_direction TEXT,
-    trend_percent REAL,
-    jobs_added INTEGER,
-    jobs_removed INTEGER,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (company_id, scraped_date)
-)
-"""
-
-_PIPELINE_SYNC_DDL = """
-CREATE TABLE IF NOT EXISTS pipeline_snapshot_sync (
-    scraped_date DATE PRIMARY KEY,
-    received_at TEXT NOT NULL,
-    company_count INTEGER NOT NULL,
-    total_jobs INTEGER NOT NULL,
-    source_run_url TEXT
-)
-"""
 
 _PIPELINE_OPERATIONS_DDL = """
 CREATE TABLE IF NOT EXISTS pipeline_operations (
@@ -243,7 +217,9 @@ def _run_today(conn: sqlite3.Connection) -> dict[str, Any]:
 
     snapshot_received_at = _scalar(
         conn,
-        "SELECT received_at FROM pipeline_snapshot_sync WHERE scraped_date = ?",
+        "SELECT received_at FROM pipeline_catalog_sync "
+        "WHERE date(received_at, '+8 hours') = ? "
+        "ORDER BY received_at DESC LIMIT 1",
         day,
         default=None,
     )
@@ -939,19 +915,17 @@ def build_router(
         """Give GitHub Actions a consistent pipeline-only restore point."""
         _require_pipeline_token(request, sync_token)
         try:
-            packed, digest = pipeline_publish.export_pipeline_snapshot(
-                Path(cfg(request).jobs_db)
-            )
+            restore_point = pipeline_publish.create_restore_point(Path(cfg(request).jobs_db))
         except sqlite3.OperationalError as exc:
             raise HTTPException(
                 status_code=503, detail="Catalogue snapshot is temporarily busy"
             ) from exc
         return FileResponse(
-            packed,
+            restore_point.path,
             media_type="application/gzip",
             filename="jobs.db.gz",
-            headers={"X-Pipeline-Snapshot-SHA256": digest},
-            background=BackgroundTask(packed.unlink, missing_ok=True),
+            headers={"X-Pipeline-Snapshot-SHA256": restore_point.sha256},
+            background=BackgroundTask(restore_point.path.unlink, missing_ok=True),
         )
 
     @router.post("/pipeline/database")
@@ -966,12 +940,14 @@ def build_router(
         """Publish a completed, checksummed pipeline jobs.db into Railway."""
         _require_pipeline_token(request, sync_token)
         try:
-            return pipeline_publish.publish_snapshot(
+            return pipeline_publish.publish_catalogue(
                 Path(cfg(request).jobs_db),
                 snapshot.file,
-                expected_sha256=snapshot_sha256 or "",
-                source_run_id=source_run_id or "",
-                source_run_url=source_run_url,
+                identity=pipeline_publish.PublicationIdentity(
+                    snapshot_sha256=snapshot_sha256 or "",
+                    source_run_id=source_run_id or "",
+                    source_run_url=source_run_url,
+                ),
             )
         except pipeline_publish.InvalidSnapshot as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from None
@@ -981,105 +957,6 @@ def build_router(
             raise HTTPException(
                 status_code=503, detail="Catalogue publication is temporarily busy"
             ) from exc
-
-    @router.post("/pipeline/snapshot")
-    def ingest_pipeline_snapshot(
-        request: Request,
-        body: dict = Body(...),
-        sync_token: str | None = Header(default=None, alias="X-Pipeline-Sync-Token"),
-    ):
-        """Upsert one completed daily pipeline snapshot from GitHub Actions."""
-        _require_pipeline_token(request, sync_token)
-
-        try:
-            scraped_date = date.fromisoformat(str(body["scraped_date"])).isoformat()
-        except (KeyError, TypeError, ValueError):
-            raise HTTPException(
-                status_code=400, detail="scraped_date must be ISO YYYY-MM-DD"
-            ) from None
-
-        companies = body.get("companies")
-        if not isinstance(companies, list) or not 1 <= len(companies) <= 1000:
-            raise HTTPException(status_code=400, detail="companies must contain 1-1000 rows")
-
-        cleaned: list[tuple[Any, ...]] = []
-        seen: set[str] = set()
-        for row in companies:
-            try:
-                company_id = str(row["company_id"]).strip()
-                company_name = str(row["company_name"]).strip()
-                job_count = max(0, int(row["job_count"]))
-                jobs_added = max(0, int(row.get("jobs_added") or 0))
-                jobs_removed = max(0, int(row.get("jobs_removed") or 0))
-                trend_direction = row.get("trend_direction")
-                trend_percent = float(row.get("trend_percent") or 0)
-            except (KeyError, TypeError, ValueError):
-                raise HTTPException(
-                    status_code=400, detail="Invalid company snapshot row"
-                ) from None
-            if not company_id or not company_name or company_id in seen:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Company IDs and names must be unique and non-empty",
-                )
-            seen.add(company_id)
-            cleaned.append(
-                (
-                    company_id,
-                    company_name,
-                    job_count,
-                    scraped_date,
-                    trend_direction,
-                    trend_percent,
-                    jobs_added,
-                    jobs_removed,
-                )
-            )
-
-        received_at = datetime.now(_HONG_KONG).isoformat()
-        with get_write_db(request) as conn:
-            with conn:
-                conn.execute(_JOB_HISTORY_DDL)
-                conn.execute(_PIPELINE_SYNC_DDL)
-                # A rerun is a complete replacement for the same operating
-                # day. Deleting first prevents companies removed from the
-                # pipeline configuration from surviving as stale rows.
-                conn.execute("DELETE FROM job_history WHERE scraped_date = ?", (scraped_date,))
-                conn.executemany(
-                    """
-                    INSERT INTO job_history
-                        (company_id, company_name, job_count, scraped_date,
-                         trend_direction, trend_percent, jobs_added, jobs_removed)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    cleaned,
-                )
-                conn.execute(
-                    """
-                    INSERT INTO pipeline_snapshot_sync
-                        (scraped_date, received_at, company_count, total_jobs, source_run_url)
-                    VALUES (?, ?, ?, ?, ?)
-                    ON CONFLICT (scraped_date) DO UPDATE SET
-                        received_at=excluded.received_at,
-                        company_count=excluded.company_count,
-                        total_jobs=excluded.total_jobs,
-                        source_run_url=excluded.source_run_url
-                    """,
-                    (
-                        scraped_date,
-                        received_at,
-                        len(cleaned),
-                        sum(row[2] for row in cleaned),
-                        body.get("source_run_url"),
-                    ),
-                )
-
-        return {
-            "scraped_date": scraped_date,
-            "companies": len(cleaned),
-            "total_jobs": sum(row[2] for row in cleaned),
-            "received_at": received_at,
-        }
 
     @router.post("/pipeline/operations")
     def ingest_pipeline_operations(

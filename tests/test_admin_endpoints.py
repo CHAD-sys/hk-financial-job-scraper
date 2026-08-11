@@ -383,104 +383,32 @@ def test_run_today_reflects_a_seeded_job_history_table(admin_client, db, monkeyp
     assert body["listings_collected_today"] == 10
 
 
-def _pipeline_snapshot(**over):
-    payload = {
-        "scraped_date": "2026-08-07",
-        "source_run_url": "https://github.com/FinEx-Club/hk-job-scraper/actions/runs/123",
-        "companies": [
-            {
-                "company_id": "hsbc",
-                "company_name": "HSBC",
-                "job_count": 12,
-                "trend_direction": "up",
-                "trend_percent": 20,
-                "jobs_added": 3,
-                "jobs_removed": 1,
-            },
-            {
-                "company_id": "manulife",
-                "company_name": "Manulife",
-                "job_count": 4,
-                "trend_direction": "down",
-                "trend_percent": -20,
-                "jobs_added": 0,
-                "jobs_removed": 1,
-            },
-        ],
-    }
-    payload.update(over)
-    return payload
-
-
-def test_pipeline_snapshot_sync_is_disabled_without_a_server_secret(client):
-    response = client.post(
-        "/api/admin/pipeline/snapshot",
-        headers={"X-Pipeline-Sync-Token": "anything"},
-        json=_pipeline_snapshot(),
-    )
-    assert response.status_code == 503
-
-
-def test_pipeline_snapshot_rejects_the_wrong_secret(pipeline_sync_client):
-    response = pipeline_sync_client.post(
-        "/api/admin/pipeline/snapshot",
-        headers={"X-Pipeline-Sync-Token": "wrong"},
-        json=_pipeline_snapshot(),
-    )
-    assert response.status_code == 401
-
-
-def test_pipeline_snapshot_is_exactly_replaced_and_visible_to_admins(
-    pipeline_sync_client, admin_client, db, monkeypatch,
-):
+def test_run_today_uses_the_atomic_catalogue_receipt(admin_client, db, monkeypatch):
     import admin
 
     monkeypatch.setattr(admin, "_hong_kong_today", lambda: date(2026, 8, 7))
-    headers = {"X-Pipeline-Sync-Token": "pipeline-sync-secret"}
-    first = pipeline_sync_client.post(
-        "/api/admin/pipeline/snapshot", headers=headers, json=_pipeline_snapshot()
-    )
-    assert first.status_code == 200
-    assert first.json()["companies"] == 2
-    assert first.json()["total_jobs"] == 16
+    with sqlite3.connect(db) as conn:
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS pipeline_catalog_sync (
+                   source_run_id TEXT PRIMARY KEY,
+                   snapshot_sha256 TEXT NOT NULL,
+                   source_run_url TEXT,
+                   received_at TEXT NOT NULL,
+                   active_jobs INTEGER NOT NULL
+               )"""
+        )
+        conn.execute(
+            """INSERT INTO pipeline_catalog_sync VALUES (
+                   '123', ?, 'https://github.test/actions/runs/123',
+                   '2026-08-06T18:30:00+00:00', 42
+               )""",
+            ("a" * 64,),
+        )
 
-    replacement = _pipeline_snapshot(
-        companies=[
-            {
-                "company_id": "hsbc",
-                "company_name": "HSBC",
-                "job_count": 15,
-                "trend_direction": "up",
-                "trend_percent": 25,
-                "jobs_added": 4,
-                "jobs_removed": 0,
-            }
-        ]
-    )
-    second = pipeline_sync_client.post(
-        "/api/admin/pipeline/snapshot", headers=headers, json=replacement
-    )
-    assert second.status_code == 200
+    today = admin_client.get("/api/admin/run/today")
 
-    conn = sqlite3.connect(db)
-    rows = conn.execute(
-        "SELECT company_id, job_count FROM job_history WHERE scraped_date='2026-08-07'"
-    ).fetchall()
-    sync = conn.execute(
-        "SELECT company_count, total_jobs, source_run_url FROM pipeline_snapshot_sync "
-        "WHERE scraped_date='2026-08-07'"
-    ).fetchone()
-    conn.close()
-    assert rows == [("hsbc", 15)]
-    assert sync == (1, 15, replacement["source_run_url"])
-
-    today = admin_client.get("/api/admin/run/today").json()
-    assert today["date"] == "2026-08-07"
-    assert today["ran_today"] is True
-    assert today["companies_scraped_today"] == 1
-    assert today["listings_collected_today"] == 15
-    assert today["jobs_added_today"] == 4
-    assert today["snapshot_received_at"] is not None
+    assert today.status_code == 200
+    assert today.json()["snapshot_received_at"] == "2026-08-06T18:30:00+00:00"
 
 
 def test_run_history_returns_empty_points_without_a_job_history_table(admin_client):

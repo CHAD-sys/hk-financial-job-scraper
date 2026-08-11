@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import gzip
 import hashlib
+import io
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -155,9 +156,7 @@ def test_catalog_restore_snapshot_is_protected_and_excludes_railway_owned_rows(
 
     assert response.status_code == 200, response.text
     raw = gzip.decompress(response.content)
-    assert hashlib.sha256(raw).hexdigest() == response.headers[
-        "X-Pipeline-Snapshot-SHA256"
-    ]
+    assert hashlib.sha256(raw).hexdigest() == response.headers["X-Pipeline-Snapshot-SHA256"]
     restored = tmp_path / "restored.db"
     restored.write_bytes(raw)
     with sqlite3.connect(restored) as conn:
@@ -245,9 +244,10 @@ def test_catalog_publish_is_atomic_and_preserves_railway_owned_data(publish_clie
         assert enrichment[0] == 88000
         assert enrichment[1]
         assert conn.execute("SELECT COUNT(*) FROM admin_edits").fetchone()[0] == 2
-        assert conn.execute(
-            "SELECT run_id FROM pipeline_operations"
-        ).fetchone()[0] == "railway-current"
+        assert (
+            conn.execute("SELECT run_id FROM pipeline_operations").fetchone()[0]
+            == "railway-current"
+        )
         assert (
             conn.execute("SELECT source_run_id FROM pipeline_catalog_sync").fetchone()[0] == "777"
         )
@@ -269,9 +269,7 @@ def test_catalog_publish_can_be_retried_idempotently(publish_client, tmp_path):
     assert second.json()["already_published"] is True
 
 
-def test_catalog_publish_adds_the_allowlisted_closed_at_migration(
-    publish_client, tmp_path
-):
+def test_catalog_publish_adds_the_allowlisted_closed_at_migration(publish_client, tmp_path):
     client, live = publish_client
     with sqlite3.connect(live) as conn:
         conn.execute("ALTER TABLE jobs DROP COLUMN closed_at")
@@ -282,3 +280,41 @@ def test_catalog_publish_adds_the_allowlisted_closed_at_migration(
     assert response.status_code == 200, response.text
     with sqlite3.connect(live) as conn:
         assert "closed_at" in {row[1] for row in conn.execute("PRAGMA table_info(jobs)")}
+
+
+def test_catalogue_interface_clears_an_unproduced_pipeline_owned_dataset(tmp_path):
+    """Missing optional pipeline facts mean empty, never "keep yesterday"."""
+    import pipeline_publish
+
+    live = _migrated(tmp_path / "live.db", [("workday", "W1", "Old Role", 1)])
+    incoming = _migrated(tmp_path / "incoming.db", [("workday", "W2", "New Role", 1)])
+    with sqlite3.connect(live) as conn:
+        conn.execute(
+            """INSERT INTO ai_usage (
+                   run_id, phase, model, calls, roles_processed, recorded_at
+               ) VALUES ('old-run', 'deepseek', 'deepseek-chat', 2, 20,
+                         '2026-08-10T02:00:00+08:00')"""
+        )
+    with sqlite3.connect(incoming) as conn:
+        conn.execute("DROP TABLE ai_usage")
+
+    body, digest = _gzip_snapshot(incoming)
+    receipt = pipeline_publish.publish_catalogue(
+        live,
+        io.BytesIO(body),
+        identity=pipeline_publish.PublicationIdentity(
+            source_run_id="interface-run",
+            snapshot_sha256=digest,
+            source_run_url="https://github.test/actions/runs/interface-run",
+        ),
+    )
+
+    assert receipt == pipeline_publish.PublicationReceipt(
+        source_run_id="interface-run",
+        active_jobs=1,
+        received_at=receipt.received_at,
+        already_published=False,
+    )
+    with sqlite3.connect(live) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM ai_usage").fetchone()[0] == 0
+        assert conn.execute("SELECT source_id FROM jobs").fetchone()[0] == "W2"

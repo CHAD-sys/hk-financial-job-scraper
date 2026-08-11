@@ -93,3 +93,10 @@ published catalogue identity, collection quality, source health, AI usage, overa
 result and diagnostics. Admin reporting, result email and automation summaries describe
 this same record rather than independently reconstructing what happened.
 _Avoid_: telemetry payload, operations blob, log summary
+
+**Catalogue Publication**:
+The atomic handover of a completed Daily Run's Listing facts into the live Role
+catalogue. It preserves Railway-owned direct Roles, admin corrections, operational
+records and receipts, and produces one traceable receipt only after the whole catalogue
+is visible. See `docs/adr/0015`.
+_Avoid_: database replacement, snapshot sync, pipeline snapshot (implementation details)

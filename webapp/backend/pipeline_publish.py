@@ -16,6 +16,7 @@ import shutil
 import sqlite3
 import tempfile
 import threading
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, BinaryIO
@@ -33,12 +34,17 @@ class PublishConflict(RuntimeError):
 
 _LOCK = threading.Lock()
 _MAX_UNCOMPRESSED = 768 * 1024 * 1024
-_REQUIRED_TABLES = ("jobs", "job_enrichments", "job_history", "company_metrics")
-_PIPELINE_TABLES = (
+# This is the ownership boundary, not merely a list of convenient tables to
+# copy.  If a pipeline-owned optional table is absent from an incoming
+# catalogue, its old live contents are cleared instead of silently surviving
+# as facts from an earlier Daily Run.
+_REQUIRED_PIPELINE_TABLES = (
     "jobs",
     "job_enrichments",
     "job_history",
     "company_metrics",
+)
+_OPTIONAL_PIPELINE_TABLES = (
     "salary_audit_log",
     "linkedin_posts",
     "recruiter_fetch_state",
@@ -48,6 +54,45 @@ _PIPELINE_TABLES = (
     "pipeline_company_runs",
     "ai_usage",
 )
+_PIPELINE_OWNED_TABLES = _REQUIRED_PIPELINE_TABLES + _OPTIONAL_PIPELINE_TABLES
+_RAILWAY_OWNED_TABLES = (
+    "admin_edits",
+    # Legacy receipt rows can still exist on an upgraded Railway volume. They
+    # are never allowed into a pipeline restore point.
+    "pipeline_snapshot_sync",
+    "pipeline_catalog_sync",
+    "pipeline_operations",
+)
+_RAILWAY_OWNED_SOURCE = "direct"
+
+
+@dataclass(frozen=True)
+class RestorePoint:
+    """A coherent pipeline-safe catalogue that a Daily Run can resume from."""
+
+    path: Path
+    sha256: str
+
+
+@dataclass(frozen=True)
+class PublicationIdentity:
+    """The immutable identity supplied by one completed Daily Run."""
+
+    source_run_id: str
+    snapshot_sha256: str
+    source_run_url: str | None = None
+
+
+@dataclass(frozen=True)
+class PublicationReceipt:
+    """The traceable outcome stored only after an atomic publication."""
+
+    source_run_id: str
+    active_jobs: int
+    received_at: str
+    already_published: bool
+
+
 # Columns introduced by pipeline migrations that the web service can safely
 # add to an older persistent volume. Never infer DDL from an uploaded file.
 _ADDITIVE_COLUMNS = {("jobs", "closed_at"): "TEXT"}
@@ -123,11 +168,16 @@ def _validate(incoming_path: Path, live_path: Path) -> int:
         try:
             if conn.execute("PRAGMA quick_check").fetchone()[0] != "ok":
                 raise InvalidSnapshot("SQLite integrity check failed")
-            missing = [t for t in _REQUIRED_TABLES if not _table_exists(conn, "main", t)]
+            missing = [
+                table
+                for table in _REQUIRED_PIPELINE_TABLES
+                if not _table_exists(conn, "main", table)
+            ]
             if missing:
                 raise InvalidSnapshot(f"Snapshot is missing tables: {', '.join(missing)}")
             active = conn.execute(
-                "SELECT COUNT(*) FROM jobs WHERE is_active=1 AND source<>'direct'"
+                "SELECT COUNT(*) FROM jobs WHERE is_active=1 AND source<>?",
+                (_RAILWAY_OWNED_SOURCE,),
             ).fetchone()[0]
             if active < 1:
                 raise InvalidSnapshot("Snapshot contains no active pipeline roles")
@@ -139,7 +189,8 @@ def _validate(incoming_path: Path, live_path: Path) -> int:
     if live_path.exists():
         with sqlite3.connect(live_path) as live:
             current = live.execute(
-                "SELECT COUNT(*) FROM jobs WHERE is_active=1 AND source<>'direct'"
+                "SELECT COUNT(*) FROM jobs WHERE is_active=1 AND source<>?",
+                (_RAILWAY_OWNED_SOURCE,),
             ).fetchone()[0]
         if current >= 100 and active < max(25, int(current * 0.25)):
             raise InvalidSnapshot(
@@ -173,7 +224,7 @@ def _backup(live_path: Path, run_id: str) -> Path:
     return target
 
 
-def export_pipeline_snapshot(live_path: Path) -> tuple[Path, str]:
+def create_restore_point(live_path: Path) -> RestorePoint:
     """Return a gzipped, consistent pipeline-only copy of Railway's jobs DB.
 
     The scheduled Action needs the latest enrichment state, but it must not
@@ -184,34 +235,25 @@ def export_pipeline_snapshot(live_path: Path) -> tuple[Path, str]:
     raw = tempfile.NamedTemporaryFile(prefix="finex-restore-", suffix=".db", delete=False)
     raw_path = Path(raw.name)
     raw.close()
-    packed = tempfile.NamedTemporaryFile(
-        prefix="finex-restore-", suffix=".db.gz", delete=False
-    )
+    packed = tempfile.NamedTemporaryFile(prefix="finex-restore-", suffix=".db.gz", delete=False)
     packed_path = Path(packed.name)
     packed.close()
     try:
         with sqlite3.connect(live_path) as source, sqlite3.connect(raw_path) as dest:
             source.backup(dest)
         with sqlite3.connect(raw_path) as snapshot:
-            snapshot.execute("DELETE FROM job_enrichments WHERE source='direct'")
-            snapshot.execute("DELETE FROM jobs WHERE source='direct'")
-            for table in (
-                "admin_edits",
-                "pipeline_snapshot_sync",
-                "pipeline_catalog_sync",
-                "pipeline_operations",
-            ):
+            snapshot.execute("DELETE FROM job_enrichments WHERE source=?", (_RAILWAY_OWNED_SOURCE,))
+            snapshot.execute("DELETE FROM jobs WHERE source=?", (_RAILWAY_OWNED_SOURCE,))
+            for table in _RAILWAY_OWNED_TABLES:
                 if _table_exists(snapshot, "main", table):
                     snapshot.execute(f'DELETE FROM "{table}"')
             _rebuild_search(snapshot)
         digest = hashlib.sha256()
-        with raw_path.open("rb") as source, gzip.open(
-            packed_path, "wb", compresslevel=1
-        ) as dest:
+        with raw_path.open("rb") as source, gzip.open(packed_path, "wb", compresslevel=1) as dest:
             while chunk := source.read(1024 * 1024):
                 digest.update(chunk)
                 dest.write(chunk)
-        return packed_path, digest.hexdigest()
+        return RestorePoint(path=packed_path, sha256=digest.hexdigest())
     except Exception:
         packed_path.unlink(missing_ok=True)
         raise
@@ -226,9 +268,7 @@ def _copy_rows(conn: sqlite3.Connection, table: str) -> None:
     # in different physical order (ALTER TABLE appends). Address every column by
     # name; only a genuinely different set is incompatible.
     missing_live = set(incoming_cols) - set(live_cols)
-    unsupported = {
-        column for column in missing_live if (table, column) not in _ADDITIVE_COLUMNS
-    }
+    unsupported = {column for column in missing_live if (table, column) not in _ADDITIVE_COLUMNS}
     if unsupported or set(live_cols) - set(incoming_cols):
         raise InvalidSnapshot(f"Incompatible {table} schema")
     for column in sorted(missing_live):
@@ -297,15 +337,16 @@ def _insert_dicts(conn: sqlite3.Connection, table: str, rows: list[dict[str, Any
     )
 
 
-def publish_snapshot(
+def publish_catalogue(
     live_path: Path,
     upload: BinaryIO,
     *,
-    expected_sha256: str,
-    source_run_id: str,
-    source_run_url: str | None,
-) -> dict[str, Any]:
+    identity: PublicationIdentity,
+) -> PublicationReceipt:
     """Validate, back up, and transactionally publish one gzipped jobs.db."""
+    expected_sha256 = identity.snapshot_sha256
+    source_run_id = identity.source_run_id
+    source_run_url = identity.source_run_url
     if not re.fullmatch(r"[0-9a-fA-F]{64}", expected_sha256):
         raise InvalidSnapshot("Snapshot SHA-256 must contain 64 hexadecimal characters")
     if not source_run_id or len(source_run_id) > 100:
@@ -326,24 +367,34 @@ def publish_snapshot(
             if prior:
                 if prior[0] != expected_sha256.lower():
                     raise PublishConflict("This run ID was already published with another snapshot")
-                return {
-                    "source_run_id": source_run_id,
-                    "active_jobs": prior[1],
-                    "received_at": prior[2],
-                    "already_published": True,
-                }
+                return PublicationReceipt(
+                    source_run_id=source_run_id,
+                    active_jobs=prior[1],
+                    received_at=prior[2],
+                    already_published=True,
+                )
 
         _backup(live_path, source_run_id)
         conn = sqlite3.connect(live_path, timeout=60)
         try:
             conn.execute("PRAGMA foreign_keys=OFF")
             conn.execute("ATTACH DATABASE ? AS incoming", (str(incoming_path),))
-            direct_jobs = _rows_as_dicts(conn, "jobs", "source='direct'")
-            direct_enrichments = _rows_as_dicts(conn, "job_enrichments", "source='direct'")
+            direct_jobs = _rows_as_dicts(conn, "jobs", f"source='{_RAILWAY_OWNED_SOURCE}'")
+            direct_enrichments = _rows_as_dicts(
+                conn, "job_enrichments", f"source='{_RAILWAY_OWNED_SOURCE}'"
+            )
             conn.execute("BEGIN IMMEDIATE")
-            for table in _PIPELINE_TABLES:
-                if _table_exists(conn, "main", table) and _table_exists(conn, "incoming", table):
+            for table in _PIPELINE_OWNED_TABLES:
+                live_has_table = _table_exists(conn, "main", table)
+                incoming_has_table = _table_exists(conn, "incoming", table)
+                if incoming_has_table and not live_has_table:
+                    raise InvalidSnapshot(f"Live catalogue is missing the supported {table} schema")
+                if incoming_has_table:
                     _copy_rows(conn, table)
+                elif live_has_table:
+                    # An optional pipeline-owned dataset that is not produced by
+                    # this run is empty, not permission to retain yesterday's data.
+                    conn.execute(f'DELETE FROM "{table}"')
             _insert_dicts(conn, "jobs", direct_jobs)
             _insert_dicts(conn, "job_enrichments", direct_enrichments)
             job_edit.reapply_recorded_edits(conn)
@@ -365,12 +416,12 @@ def publish_snapshot(
             raise
         finally:
             conn.close()
-        return {
-            "source_run_id": source_run_id,
-            "active_jobs": active_jobs,
-            "received_at": received_at,
-            "already_published": False,
-        }
+        return PublicationReceipt(
+            source_run_id=source_run_id,
+            active_jobs=active_jobs,
+            received_at=received_at,
+            already_published=False,
+        )
     finally:
         if incoming_path:
             incoming_path.unlink(missing_ok=True)
