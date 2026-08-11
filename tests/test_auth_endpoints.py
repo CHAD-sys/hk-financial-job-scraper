@@ -497,8 +497,8 @@ def test_reset_token_is_single_use(client):
 #
 # What is testable without a real Google Cloud project: the code degrades
 # cleanly with no credentials, and the CSRF state check actually rejects a
-# mismatch. The token exchange itself needs a live `accounts.google.com`
-# round trip and is out of reach here — see PLAN_ACCOUNTS.md §9.
+# mismatch. Successful and malformed exchanges are covered hermetically through
+# identity_protocol's external transport seam in test_identity_protocol.py.
 
 def test_google_start_redirects_to_signin_when_not_configured(client, monkeypatch):
     monkeypatch.delenv("GOOGLE_CLIENT_ID", raising=False)
@@ -552,10 +552,10 @@ def test_google_callback_surfaces_provider_error(client, monkeypatch):
 # Same shape as the Google tests above, for the same reason: what is testable
 # without a real LinkedIn Developer app is that the code degrades cleanly with
 # no credentials and that the CSRF state check actually rejects a mismatch.
-# The token exchange itself needs a live linkedin.com round trip. The
-# identity-linking core (auth.link_or_create_seeker with provider="linkedin")
-# is covered separately in test_auth_core.py — this file only owns the HTTP
-# surface in front of it.
+# The exchange is covered without live LinkedIn access in
+# test_identity_protocol.py. The identity-linking core
+# (auth.link_or_create_seeker with provider="linkedin") is covered separately
+# in test_auth_core.py — this file owns the HTTP surface in front of both.
 
 def test_linkedin_start_redirects_to_signin_when_not_configured(client, monkeypatch):
     monkeypatch.delenv("LINKEDIN_CLIENT_ID", raising=False)
