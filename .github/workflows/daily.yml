@@ -2,7 +2,7 @@ name: Daily HK Jobs Scrape
 
 on:
   schedule:
-    # 02:00 HKT (UTC+8) = 18:00 UTC previous day
+    # 02:00 HKT (UTC+8) = 18:00 UTC on the previous UTC date.
     - cron: "0 18 * * *"
   workflow_dispatch:
     inputs:
@@ -16,15 +16,21 @@ permissions:
   actions: read
 
 jobs:
-  scrape:
-    name: Scrape + export
+  daily-run:
+    name: Daily Run
     runs-on: ubuntu-latest
     env:
+      GH_TOKEN: ${{ github.token }}
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-      # Your Mac database is already 99.9% current. This ceiling is a guard
-      # against an accidental full-catalogue re-enrichment after a bad restore;
-      # normal daily runs only consume the handful of new/stale roles.
       DEEPSEEK_DAILY_ENRICH_LIMIT: "300"
+      PIPELINE_SYNC_TOKEN: ${{ secrets.PIPELINE_SYNC_TOKEN }}
+      PIPELINE_DATABASE_SYNC_URL: https://finex-careers.up.railway.app/api/admin/pipeline/database
+      PIPELINE_OPERATIONS_URL: https://finex-careers.up.railway.app/api/admin/pipeline/operations
+      SMTP_HOST: ${{ vars.SMTP_HOST || 'smtp.gmail.com' }}
+      SMTP_PORT: ${{ vars.SMTP_PORT || '587' }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      NOTIFY_EMAILS: amine@finexclub.org,mohamedaminechahid@gmail.com
 
     steps:
       - name: Check out repository
@@ -34,110 +40,44 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: "pip"
+          cache: pip
 
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Restore the latest enriched Railway database
-        id: restore
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PIPELINE_SYNC_TOKEN: ${{ secrets.PIPELINE_SYNC_TOKEN }}
-          PIPELINE_DATABASE_SYNC_URL: https://finex-careers.up.railway.app/api/admin/pipeline/database
-        run: |
-          mkdir -p data
-          RESTORED_FROM_RAILWAY=0
-          RESTORE_SOURCE=fresh
-          if [[ -n "$PIPELINE_SYNC_TOKEN" ]] && \
-             curl --fail-with-body --retry 3 --retry-all-errors \
-               -H "X-Pipeline-Sync-Token: $PIPELINE_SYNC_TOKEN" \
-               --output /tmp/jobs.db.gz \
-               "$PIPELINE_DATABASE_SYNC_URL" && \
-             gzip --test /tmp/jobs.db.gz && \
-             gzip --decompress --stdout /tmp/jobs.db.gz > data/jobs.db && \
-             python -c "import sqlite3,sys; c=sqlite3.connect('data/jobs.db'); sys.exit(0 if c.execute('PRAGMA quick_check').fetchone()[0] == 'ok' else 1)"; then
-            RESTORED_FROM_RAILWAY=1
-            RESTORE_SOURCE=railway
-            echo "Restored the latest enriched pipeline database from Railway"
-          fi
-
-          if [[ "$RESTORED_FROM_RAILWAY" != "1" ]]; then
-            PRIOR_RUN=$(gh run list --workflow daily.yml --status success --limit 1 \
-              --json databaseId --jq '.[0].databaseId // empty')
-            if [[ -n "$PRIOR_RUN" ]]; then
-              echo "Railway restore unavailable; falling back to run $PRIOR_RUN"
-              gh run download "$PRIOR_RUN" \
-                --name "jobs-db-$PRIOR_RUN" --dir data
-              RESTORE_SOURCE=github_artifact
-            else
-              echo "No reusable database found; starting a new history."
-            fi
-          fi
-          echo "PIPELINE_RESTORE_SOURCE=$RESTORE_SOURCE" >> "$GITHUB_ENV"
-          if [[ -f data/jobs.db ]]; then
-            echo "PIPELINE_RESTORE_SHA256=$(sha256sum data/jobs.db | cut -d ' ' -f 1)" >> "$GITHUB_ENV"
-          fi
-
-      - name: Run scraper
-        id: scrape
+      - name: Execute canonical Daily Run
+        id: daily_run
         env:
           COMPANY: ${{ github.event.inputs.company }}
+          SEND_RESULT_EMAIL: ${{ github.event_name == 'schedule' && '1' || '0' }}
         run: |
-          EXTRA=""
+          ARGS=(
+            --profile hosted
+            --run-id "$GITHUB_RUN_ID"
+            --record data/daily-run.json
+            --database data/jobs.db
+            --export data/jobs.jsonl
+            --report-railway
+          )
           if [[ -n "$COMPANY" ]]; then
-            EXTRA="--company $COMPANY"
+            ARGS+=(--company "$COMPANY")
           fi
-          mkdir -p data
-          python -m hk_jobs.pipeline \
-            --db data/jobs.db \
-            --export data/jobs.jsonl \
-            --log-level INFO \
-            $EXTRA
-
-      - name: Verify DeepSeek configuration
-        run: test -n "$DEEPSEEK_API_KEY"
-
-      - name: Fetch missing job descriptions
-        id: descriptions
-        run: |
-          python -m hk_jobs.pipeline \
-            --db data/jobs.db \
-            --fetch-descriptions \
-            --log-level INFO
-
-      - name: Enrich new and stale roles with DeepSeek
-        id: deepseek
-        run: |
-          python -m hk_jobs.pipeline \
-            --db data/jobs.db \
-            --enrich \
-            --enrich-limit "$DEEPSEEK_DAILY_ENRICH_LIMIT" \
-            --log-level INFO
-
-      - name: Audit salary outliers with DeepSeek
-        id: salary_audit
-        run: |
-          if ! python -m hk_jobs.pipeline \
-            --db data/jobs.db \
-            --audit-salaries \
-            --log-level INFO; then
-            echo "failed" > /tmp/salary-audit-outcome
-            echo "::warning::Salary audit failed; catalogue publication will continue"
+          if [[ "$SEND_RESULT_EMAIL" == "1" ]]; then
+            ARGS+=(--email)
           fi
+          python -m hk_jobs.daily_run "${ARGS[@]}"
 
-      - name: Promote pending LinkedIn posts with DeepSeek
-        id: linkedin
-        run: |
-          if ! python -m hk_jobs.pipeline \
-            --db data/jobs.db \
-            --promote-posts \
-            --log-level INFO; then
-            echo "failed" > /tmp/linkedin-outcome
-            echo "::warning::LinkedIn promotion failed; catalogue publication will continue"
-          fi
+      - name: Upload authoritative Daily Run Record
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-run-${{ github.run_id }}
+          path: data/daily-run.json
+          retention-days: 90
+          if-no-files-found: error
 
       - name: Upload JSONL snapshot
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: jobs-${{ github.run_id }}
@@ -145,214 +85,11 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
-      - name: Upload database (for incremental runs)
+      - name: Upload database for incremental restore
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: jobs-db-${{ github.run_id }}
           path: data/jobs.db
           retention-days: 7
           if-no-files-found: warn
-
-      - name: Publish the completed catalogue to Railway
-        id: publish_catalogue
-        env:
-          PIPELINE_SYNC_TOKEN: ${{ secrets.PIPELINE_SYNC_TOKEN }}
-          PIPELINE_DATABASE_SYNC_URL: https://finex-careers.up.railway.app/api/admin/pipeline/database
-        run: |
-          test -n "$PIPELINE_SYNC_TOKEN"
-          SNAPSHOT_SHA256=$(sha256sum data/jobs.db | cut -d ' ' -f 1)
-          echo "PIPELINE_PUBLISHED_SHA256=$SNAPSHOT_SHA256" >> "$GITHUB_ENV"
-          SOURCE_RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          gzip -1 -c data/jobs.db > /tmp/jobs.db.gz
-          curl --fail-with-body --retry 3 --retry-all-errors \
-            -H "X-Pipeline-Sync-Token: $PIPELINE_SYNC_TOKEN" \
-            -H "X-Pipeline-Run-Id: $GITHUB_RUN_ID" \
-            -H "X-Pipeline-Snapshot-SHA256: $SNAPSHOT_SHA256" \
-            -H "X-Pipeline-Source-Url: $SOURCE_RUN_URL" \
-            -F "snapshot=@/tmp/jobs.db.gz;type=application/gzip" \
-            "$PIPELINE_DATABASE_SYNC_URL" | tee /tmp/catalogue-publication.json
-          echo "PIPELINE_PUBLISHED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
-
-      - name: Publish the completed daily admin summary to Railway
-        id: publish_summary
-        env:
-          PIPELINE_SYNC_TOKEN: ${{ secrets.PIPELINE_SYNC_TOKEN }}
-          PIPELINE_SYNC_URL: https://finex-careers.up.railway.app/api/admin/pipeline/snapshot
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          import sqlite3
-
-          conn = sqlite3.connect("data/jobs.db")
-          conn.row_factory = sqlite3.Row
-          scraped_date = conn.execute("SELECT MAX(scraped_date) FROM job_history").fetchone()[0]
-          if not scraped_date:
-              raise SystemExit("Pipeline produced no job_history snapshot")
-          rows = conn.execute(
-              """
-              SELECT company_id, company_name, job_count, trend_direction,
-                     trend_percent, jobs_added, jobs_removed
-              FROM job_history
-              WHERE scraped_date = ?
-              ORDER BY company_id
-              """,
-              (scraped_date,),
-          ).fetchall()
-          payload = {
-              "scraped_date": scraped_date,
-              "companies": [dict(row) for row in rows],
-              "source_run_url": (
-                  f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}"
-                  f"/actions/runs/{os.environ['GITHUB_RUN_ID']}"
-              ),
-          }
-          with open("/tmp/pipeline-snapshot.json", "w", encoding="utf-8") as fh:
-              json.dump(payload, fh)
-          print(f"Prepared {len(rows)} company rows for {scraped_date}")
-          PY
-          test -n "$PIPELINE_SYNC_TOKEN"
-          curl --fail-with-body --retry 3 --retry-all-errors \
-            -H "Content-Type: application/json" \
-            -H "X-Pipeline-Sync-Token: $PIPELINE_SYNC_TOKEN" \
-            --data-binary @/tmp/pipeline-snapshot.json \
-            "$PIPELINE_SYNC_URL"
-
-      - name: Publish pipeline operations telemetry
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PIPELINE_SYNC_TOKEN: ${{ secrets.PIPELINE_SYNC_TOKEN }}
-          PIPELINE_OPERATIONS_URL: https://finex-careers.up.railway.app/api/admin/pipeline/operations
-          RESTORE_OUTCOME: ${{ steps.restore.outcome }}
-          SCRAPE_OUTCOME: ${{ steps.scrape.outcome }}
-          DESCRIPTIONS_OUTCOME: ${{ steps.descriptions.outcome }}
-          DEEPSEEK_OUTCOME: ${{ steps.deepseek.outcome }}
-          SALARY_OUTCOME: ${{ steps.salary_audit.outcome }}
-          LINKEDIN_OUTCOME: ${{ steps.linkedin.outcome }}
-          PUBLISH_OUTCOME: ${{ steps.publish_catalogue.outcome }}
-          SUMMARY_OUTCOME: ${{ steps.publish_summary.outcome }}
-        run: |
-          test -n "$PIPELINE_SYNC_TOKEN"
-          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" > /tmp/run-metadata.json
-          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs" > /tmp/job-metadata.json
-          python - <<'PY'
-          import json
-          import os
-          from datetime import datetime, timezone
-          from pathlib import Path
-          from zoneinfo import ZoneInfo
-
-          run = json.loads(Path('/tmp/run-metadata.json').read_text())
-          jobs = json.loads(Path('/tmp/job-metadata.json').read_text()).get('jobs', [])
-          api_steps = {step['name']: step for job in jobs for step in job.get('steps', [])}
-          names = {
-              'restore': 'Restore the latest enriched Railway database',
-              'scrape': 'Run scraper',
-              'descriptions': 'Fetch missing job descriptions',
-              'deepseek': 'Enrich new and stale roles with DeepSeek',
-              'salary_audit': 'Audit salary outliers with DeepSeek',
-              'linkedin': 'Promote pending LinkedIn posts with DeepSeek',
-              'publish': 'Publish the completed catalogue to Railway',
-          }
-          labels = {
-              'restore': 'Restore', 'scrape': 'Scrape', 'descriptions': 'Descriptions',
-              'deepseek': 'DeepSeek', 'salary_audit': 'Salary audit',
-              'linkedin': 'LinkedIn', 'publish': 'Railway publish',
-          }
-          outcomes = {
-              'restore': os.getenv('RESTORE_OUTCOME'), 'scrape': os.getenv('SCRAPE_OUTCOME'),
-              'descriptions': os.getenv('DESCRIPTIONS_OUTCOME'),
-              'deepseek': os.getenv('DEEPSEEK_OUTCOME'),
-              'salary_audit': os.getenv('SALARY_OUTCOME'),
-              'linkedin': os.getenv('LINKEDIN_OUTCOME'), 'publish': os.getenv('PUBLISH_OUTCOME'),
-          }
-          def duration(step):
-              if not step or not step.get('started_at') or not step.get('completed_at'):
-                  return None
-              return max(0, int((datetime.fromisoformat(step['completed_at'].replace('Z', '+00:00')) - datetime.fromisoformat(step['started_at'].replace('Z', '+00:00'))).total_seconds()))
-          phases = []
-          optional_failed = {
-              'salary_audit': Path('/tmp/salary-audit-outcome').exists(),
-              'linkedin': Path('/tmp/linkedin-outcome').exists(),
-          }
-          for key in names:
-              outcome = outcomes[key] or 'skipped'
-              status = {'success': 'success', 'failure': 'failed', 'cancelled': 'failed', 'skipped': 'skipped'}.get(outcome, 'not_recorded')
-              if optional_failed.get(key): status = 'warning'
-              detail = None
-              if key == 'restore': detail = f"Source: {os.getenv('PIPELINE_RESTORE_SOURCE', 'not recorded')}"
-              phases.append({'key': key, 'label': labels[key], 'status': status, 'duration_seconds': duration(api_steps.get(names[key])), 'detail': detail})
-          required_failed = any(p['status'] in {'failed', 'skipped'} for p in phases if p['key'] in {'restore','scrape','descriptions','deepseek','publish'})
-          warned = any(p['status'] == 'warning' for p in phases) or os.getenv('SUMMARY_OUTCOME') != 'success'
-          status = 'failed' if required_failed else 'warning' if warned else 'success'
-          payload = {
-              'run_id': os.environ['GITHUB_RUN_ID'],
-              'scraped_date': datetime.now(ZoneInfo('Asia/Hong_Kong')).date().isoformat(),
-              'source_run_url': run.get('html_url'), 'status': status,
-              'started_at': run.get('run_started_at'),
-              'finished_at': datetime.now(timezone.utc).isoformat(),
-              'restore_source': os.getenv('PIPELINE_RESTORE_SOURCE'),
-              'restore_sha256': os.getenv('PIPELINE_RESTORE_SHA256'),
-              'published_sha256': os.getenv('PIPELINE_PUBLISHED_SHA256'),
-              'published_at': os.getenv('PIPELINE_PUBLISHED_AT'),
-              'phases': phases,
-          }
-          Path('/tmp/pipeline-operations.json').write_text(json.dumps(payload))
-          PY
-          curl --fail-with-body --retry 3 --retry-all-errors \
-            -H "Content-Type: application/json" \
-            -H "X-Pipeline-Sync-Token: $PIPELINE_SYNC_TOKEN" \
-            --data-binary @/tmp/pipeline-operations.json \
-            "$PIPELINE_OPERATIONS_URL"
-
-  notify:
-    name: Email scheduled run result
-    needs: scrape
-    if: always() && github.event_name == 'schedule'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out notification code
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Download the completed database
-        if: needs.scrape.result == 'success'
-        uses: actions/download-artifact@v4
-        with:
-          name: jobs-db-${{ github.run_id }}
-          path: data
-
-      - name: Send daily result to both administrators
-        env:
-          SMTP_HOST: ${{ vars.SMTP_HOST || 'smtp.gmail.com' }}
-          SMTP_PORT: ${{ vars.SMTP_PORT || '587' }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASS: ${{ secrets.SMTP_PASS }}
-          NOTIFY_EMAILS: amine@finexclub.org,mohamedaminechahid@gmail.com
-          PIPELINE_RESULT: ${{ needs.scrape.result }}
-          PIPELINE_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          python - <<'PY'
-          import os
-
-          from hk_jobs.notifications import send_daily_summary, send_failure_alert
-
-          result = os.environ["PIPELINE_RESULT"]
-          run_url = os.environ["PIPELINE_RUN_URL"]
-          if result == "success":
-              sent = send_daily_summary("data/jobs.db")
-          else:
-              sent = send_failure_alert(
-                  phase="GitHub daily pipeline",
-                  error=f"Run finished with status {result}. Details: {run_url}",
-              )
-          if not sent:
-              raise SystemExit(
-                  "Daily result email was not sent. Check SMTP_USER and SMTP_PASS secrets."
-              )
-          PY

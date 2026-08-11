@@ -498,7 +498,7 @@ def test_operations_dashboard_is_admin_only_and_degrades_truthfully(
     body = response.json()
     assert [phase["key"] for phase in body["run"]["phases"]] == [
         "restore", "scrape", "descriptions", "deepseek", "salary_audit",
-        "linkedin", "publish",
+        "linkedin_promote", "publish",
     ]
     assert all(phase["status"] == "not_recorded" for phase in body["run"]["phases"])
     assert body["ai_cost"]["tracking_available"] is False
@@ -545,6 +545,40 @@ def test_pipeline_operations_telemetry_is_machine_authored_and_visible_to_admins
     assert by_key["scrape"]["duration_seconds"] == 900
     assert by_key["salary_audit"]["status"] == "warning"
     assert by_key["deepseek"]["status"] == "not_recorded"
+
+
+def test_pipeline_accepts_and_preserves_the_canonical_daily_run_record(
+    pipeline_sync_client, admin_client,
+):
+    from hk_jobs.daily_run import DailyRunRecord, PhaseStatus, profile_for
+
+    record = DailyRunRecord.start(
+        "canonical-42",
+        profile_for("hosted"),
+        source_run_url="https://github.com/FinEx-Club/hk-job-scraper/actions/runs/42",
+        started_at="2026-08-10T18:00:00+00:00",
+    )
+    for phase in record.phases:
+        record.begin_phase(phase.key)
+        record.finish_phase(phase.key, PhaseStatus.SUCCESS, duration_seconds=3)
+    record.restore_source = "railway"
+    record.restore_sha256 = "a" * 64
+    record.published_sha256 = "b" * 64
+    record.finalize(at="2026-08-10T18:10:00+00:00")
+
+    written = pipeline_sync_client.post(
+        "/api/admin/pipeline/operations",
+        headers={"X-Pipeline-Sync-Token": "pipeline-sync-secret"},
+        json=record.to_dict(),
+    )
+
+    assert written.status_code == 200, written.text
+    body = admin_client.get("/api/admin/operations").json()
+    assert body["run"]["run_id"] == "canonical-42"
+    assert body["run"]["scraped_date"] == "2026-08-11"
+    assert [phase["key"] for phase in body["run"]["phases"]] == [
+        phase.key for phase in record.phases
+    ]
 
 
 # ── Analytics ─────────────────────────────────────────────────────────────────

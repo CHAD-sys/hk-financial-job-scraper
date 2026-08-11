@@ -54,6 +54,8 @@ from job_read import BOARD_WHERE, SECTOR_SQL
 from starlette.background import BackgroundTask
 from starlette.responses import FileResponse
 
+from hk_jobs.daily_run.model import DailyRunRecord
+
 #: Repo root, for the pipeline's log file — computed the same way settings.py
 #: computes it, since admin.py sits at the same depth (webapp/backend/).
 _REPO = Path(__file__).resolve().parent.parent.parent
@@ -101,7 +103,7 @@ CREATE TABLE IF NOT EXISTS pipeline_operations (
     status TEXT NOT NULL CHECK (status IN ('success', 'warning', 'failed', 'running')),
     started_at TEXT, finished_at TEXT, restore_source TEXT, restore_sha256 TEXT,
     published_sha256 TEXT, published_at TEXT,
-    phases_json TEXT NOT NULL DEFAULT '[]', recorded_at TEXT NOT NULL
+    phases_json TEXT NOT NULL DEFAULT '[]', record_json TEXT, recorded_at TEXT NOT NULL
 )
 """
 
@@ -111,10 +113,18 @@ _PHASE_KEYS = (
     ("descriptions", "Descriptions"),
     ("deepseek", "DeepSeek"),
     ("salary_audit", "Salary audit"),
-    ("linkedin", "LinkedIn"),
+    ("linkedin_promote", "LinkedIn promotion"),
     ("publish", "Railway publish"),
 )
 _PHASE_STATUSES = {"success", "warning", "failed", "skipped", "running", "not_recorded"}
+_LEGACY_PHASE_LABELS = {**dict(_PHASE_KEYS), "linkedin": "LinkedIn"}
+
+
+def _ensure_pipeline_operations_schema(conn: sqlite3.Connection) -> None:
+    conn.execute(_PIPELINE_OPERATIONS_DDL)
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(pipeline_operations)")}
+    if "record_json" not in columns:
+        conn.execute("ALTER TABLE pipeline_operations ADD COLUMN record_json TEXT")
 
 
 def _hong_kong_today() -> date:
@@ -312,7 +322,30 @@ def _operations_dashboard(conn: sqlite3.Connection) -> dict[str, Any]:
         conn, "SELECT * FROM pipeline_operations ORDER BY recorded_at DESC LIMIT 1"
     )
     operation = dict(latest_operation[0]) if latest_operation else None
-    phases = json.loads(operation["phases_json"]) if operation else []
+    canonical_record = None
+    if operation and operation.get("record_json"):
+        try:
+            canonical_record = DailyRunRecord.from_dict(json.loads(operation["record_json"]))
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+            canonical_record = None
+    if operation:
+        operation.pop("record_json", None)
+    phases = (
+        [
+            {
+                "key": phase.key,
+                "label": phase.label,
+                "status": phase.status.value,
+                "duration_seconds": phase.duration_seconds,
+                "detail": phase.detail,
+            }
+            for phase in canonical_record.phases
+        ]
+        if canonical_record
+        else json.loads(operation["phases_json"])
+        if operation
+        else []
+    )
     seen = {str(phase.get("key")) for phase in phases}
     phases.extend(
         {"key": key, "label": label, "status": "not_recorded", "duration_seconds": None}
@@ -1054,22 +1087,43 @@ def build_router(
         body: dict = Body(...),
         sync_token: str | None = Header(default=None, alias="X-Pipeline-Sync-Token"),
     ):
-        """Persist the always-run GitHub telemetry, including failed phases."""
+        """Persist the authoritative Daily Run Record, including failed phases."""
         _require_pipeline_token(request, sync_token)
+        canonical_record = None
+        if body.get("schema_version") is not None:
+            try:
+                canonical_record = DailyRunRecord.from_dict(body)
+            except (KeyError, TypeError, ValueError) as exc:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"invalid Daily Run Record: {exc}",
+                ) from None
+            body = {
+                **body,
+                "scraped_date": canonical_record.operating_date,
+                "phases": canonical_record.to_dict()["phases"],
+            }
         run_id = str(body.get("run_id") or "").strip()
         if not run_id or len(run_id) > 100:
             raise HTTPException(status_code=400, detail="run_id is required")
         try:
             scraped_date = date.fromisoformat(str(body["scraped_date"])).isoformat()
         except (KeyError, TypeError, ValueError):
-            raise HTTPException(status_code=400, detail="scraped_date must be ISO YYYY-MM-DD") from None
+            raise HTTPException(
+                status_code=400,
+                detail="scraped_date must be ISO YYYY-MM-DD",
+            ) from None
         status = str(body.get("status") or "").strip()
         if status not in {"success", "warning", "failed", "running"}:
             raise HTTPException(status_code=400, detail="invalid pipeline status")
         raw_phases = body.get("phases")
         if not isinstance(raw_phases, list) or len(raw_phases) > 20:
             raise HTTPException(status_code=400, detail="phases must be a list of at most 20 items")
-        labels = dict(_PHASE_KEYS)
+        labels = (
+            {phase.key: phase.label for phase in canonical_record.phases}
+            if canonical_record
+            else _LEGACY_PHASE_LABELS
+        )
         phases = []
         seen: set[str] = set()
         for raw in raw_phases:
@@ -1082,7 +1136,10 @@ def build_router(
             try:
                 duration = None if duration is None else max(0, int(duration))
             except (TypeError, ValueError):
-                raise HTTPException(status_code=400, detail="phase duration must be seconds") from None
+                raise HTTPException(
+                    status_code=400,
+                    detail="phase duration must be seconds",
+                ) from None
             phases.append(
                 {
                     "key": key,
@@ -1101,14 +1158,14 @@ def build_router(
         stamp = datetime.now(_HONG_KONG).isoformat()
         with get_write_db(request) as conn:
             with conn:
-                conn.execute(_PIPELINE_OPERATIONS_DDL)
+                _ensure_pipeline_operations_schema(conn)
                 conn.execute(
                     """
                     INSERT INTO pipeline_operations (
                         run_id, scraped_date, source_run_url, status, started_at,
                         finished_at, restore_source, restore_sha256, published_sha256,
-                        published_at, phases_json, recorded_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        published_at, phases_json, record_json, recorded_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT (run_id) DO UPDATE SET
                         source_run_url=excluded.source_run_url, status=excluded.status,
                         started_at=excluded.started_at, finished_at=excluded.finished_at,
@@ -1116,15 +1173,31 @@ def build_router(
                         restore_sha256=excluded.restore_sha256,
                         published_sha256=excluded.published_sha256,
                         published_at=excluded.published_at,
-                        phases_json=excluded.phases_json, recorded_at=excluded.recorded_at
+                        phases_json=excluded.phases_json,
+                        record_json=excluded.record_json,
+                        recorded_at=excluded.recorded_at
                     """,
                     (
-                        run_id, scraped_date, body.get("source_run_url"), status,
-                        body.get("started_at"), body.get("finished_at"),
-                        body.get("restore_source"), hashes["restore_sha256"],
-                        hashes["published_sha256"], body.get("published_at"),
-                        json.dumps(phases, separators=(",", ":")), stamp,
+                        run_id,
+                        scraped_date,
+                        body.get("source_run_url"),
+                        status,
+                        body.get("started_at"),
+                        body.get("finished_at"),
+                        body.get("restore_source"),
+                        hashes["restore_sha256"],
+                        hashes["published_sha256"],
+                        body.get("published_at"),
+                        json.dumps(phases, separators=(",", ":")),
+                        json.dumps(canonical_record.to_dict(), separators=(",", ":"))
+                        if canonical_record
+                        else None,
+                        stamp,
                     ),
+                )
+                conn.execute(
+                    "DELETE FROM pipeline_operations "
+                    "WHERE datetime(recorded_at) < datetime('now', '-90 days')"
                 )
         return {"run_id": run_id, "status": status, "phases": len(phases), "recorded_at": stamp}
 

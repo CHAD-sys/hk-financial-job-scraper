@@ -47,7 +47,6 @@ _PIPELINE_TABLES = (
     "tech_title_cache",
     "pipeline_company_runs",
     "ai_usage",
-    "pipeline_operations",
 )
 # Columns introduced by pipeline migrations that the web service can safely
 # add to an older persistent volume. Never infer DDL from an uploaded file.
@@ -196,7 +195,12 @@ def export_pipeline_snapshot(live_path: Path) -> tuple[Path, str]:
         with sqlite3.connect(raw_path) as snapshot:
             snapshot.execute("DELETE FROM job_enrichments WHERE source='direct'")
             snapshot.execute("DELETE FROM jobs WHERE source='direct'")
-            for table in ("admin_edits", "pipeline_snapshot_sync", "pipeline_catalog_sync"):
+            for table in (
+                "admin_edits",
+                "pipeline_snapshot_sync",
+                "pipeline_catalog_sync",
+                "pipeline_operations",
+            ):
                 if _table_exists(snapshot, "main", table):
                     snapshot.execute(f'DELETE FROM "{table}"')
             _rebuild_search(snapshot)

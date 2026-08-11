@@ -51,6 +51,10 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from html import escape
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from hk_jobs.daily_run.model import DailyRunRecord
 
 logger = logging.getLogger(__name__)
 
@@ -386,15 +390,17 @@ def _render_html(d: dict) -> str:
     else:
         opened = closed = "n/a"
         onote = cnote = "no prior snapshot"
+    distinct_note = f"{_n(d['distinct_roles'])} unduplicated"
+    enrichment_note = f"{d['enrich_pct']}% covered"
 
     stats = (
         f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
         f'style="border-collapse:collapse;background:{C_CARD};">'
         f'<tr>'
-        f'{_stat(_n(d["active"]), "Live roles", f"{_n(d['distinct_roles'])} unduplicated")}'
+        f'{_stat(_n(d["active"]), "Live roles", distinct_note)}'
         f'{_stat(opened, "New today", onote, C_GOOD)}'
         f'{_stat(closed, "Closed today", cnote, C_MUTED)}'
-        f'{_stat(_n(d["enriched_today"]), "Enriched", f"{d['enrich_pct']}% covered", C_BLUE)}'
+        f'{_stat(_n(d["enriched_today"]), "Enriched", enrichment_note, C_BLUE)}'
         f'</tr></table>'
     )
 
@@ -553,7 +559,7 @@ def _render_html(d: dict) -> str:
 def _render_text(d: dict) -> str:
     delta = d["delta"]
     L = []
-    L.append(f"FINEX CAREERS — DAILY MARKET BRIEF")
+    L.append("FINEX CAREERS — DAILY MARKET BRIEF")
     L.append(d["date"].strftime("%A, %d %B %Y"))
     L.append("=" * 58)
     L.append("")
@@ -693,3 +699,64 @@ def send_daily_summary(db_path: str = "data/jobs.db") -> bool:
     subject = f"HK Jobs · {d['date']:%d %b} — {head}{tail}"
 
     return _send_email(subject, _render_html(d), _render_text(d))
+
+
+def send_daily_run_result(
+    record: "DailyRunRecord", db_path: str = "data/jobs.db"
+) -> bool:
+    """Send status and phase evidence from the authoritative run record."""
+    from hk_jobs.daily_run.model import PhaseStatus, RunStatus
+
+    if record.status is RunStatus.FAILED:
+        failed = next(
+            (phase for phase in record.phases if phase.status is PhaseStatus.FAILED),
+            None,
+        )
+        return send_failure_alert(
+            phase=failed.label if failed else "Daily Run",
+            error=(failed.detail if failed else None)
+            or f"Run {record.run_id} failed. {record.source_run_url or ''}".strip(),
+        )
+
+    try:
+        market = _collect(db_path)
+    except Exception as exc:
+        logger.error("Failed to query DB for Daily Run result: %s", exc)
+        return False
+
+    outcome = record.status.value.upper()
+    subject = (
+        f"HK Jobs · {record.operating_date} — {outcome} · "
+        f"{market['active']:,} live Roles"
+    )
+    phase_rows = "".join(
+        f"<tr><td style='padding:6px 10px;border-bottom:1px solid {C_RULE};'>"
+        f"{escape(phase.label)}</td>"
+        f"<td style='padding:6px 10px;border-bottom:1px solid {C_RULE};'>"
+        f"{escape(phase.status.value)}</td>"
+        f"<td style='padding:6px 10px;border-bottom:1px solid {C_RULE};'>"
+        f"{escape(phase.detail or '')}</td></tr>"
+        for phase in record.phases
+    )
+    html = (
+        f"<html><body style='font-family:{F_SANS};color:{C_INK};'>"
+        f"<h2>Daily Run: {outcome}</h2>"
+        f"<p><strong>{market['active']:,}</strong> live Roles · "
+        f"{market['zero_today']} sources down</p>"
+        f"<table style='border-collapse:collapse;width:100%;max-width:760px;'>"
+        f"<tr><th align='left'>Phase</th><th align='left'>Outcome</th>"
+        f"<th align='left'>Detail</th></tr>{phase_rows}</table>"
+        f"<p>Run ID: {escape(record.run_id)}</p></body></html>"
+    )
+    phase_lines = "\n".join(
+        f"- {phase.label}: {phase.status.value}"
+        + (f" — {phase.detail}" if phase.detail else "")
+        for phase in record.phases
+    )
+    text = (
+        f"FINEX CAREERS — DAILY RUN {outcome}\n"
+        f"{record.operating_date}\n\n"
+        f"{market['active']:,} live Roles · {market['zero_today']} sources down\n\n"
+        f"{phase_lines}\n\nRun ID: {record.run_id}"
+    )
+    return _send_email(subject, html, text)
