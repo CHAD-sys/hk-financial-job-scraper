@@ -1,13 +1,15 @@
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowUpRight, Clock, GraduationCap, MapPin, Radio } from 'lucide-react'
 import Nav from '../components/Nav'
 import VideoFacade from '../components/VideoFacade'
+import { fetchLearningContent, type LearningContentResponse } from '../api/client'
 import {
-  FEATURED_VIDEOS, CHANNEL_URL, PLATFORM_URL, SUBSCRIBER_LINE,
+  FEATURED_VIDEOS, CHANNEL_URL, PLATFORM_URL, SUBSCRIBER_LINE, type FeaturedVideo,
 } from '../content/featuredVideos'
 import {
   MISSION, STRANDS, COURSES, TRAINER, EVENTS,
-  EDUCATION_URL, TECH_TRAINING_URL, EVENTS_URL,
+  EDUCATION_URL, TECH_TRAINING_URL, EVENTS_URL, type ClubEvent,
 } from '../content/learning'
 
 /**
@@ -51,16 +53,51 @@ function formatDate(iso: string): string {
   return `${Number(d)} ${MONTHS[Number(m) - 1]} ${y}`
 }
 
+type LearningEventView = ClubEvent & { id?: string; detail_url?: string }
+
+function formatRefreshDate(iso: string): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Hong_Kong',
+  }).format(new Date(iso))
+}
+
+function hongKongToday(): string {
+  const parts = new Intl.DateTimeFormat('en', {
+    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Hong_Kong',
+  }).formatToParts(new Date())
+  const value = Object.fromEntries(parts.map(part => [part.type, part.value]))
+  return `${value.year}-${value.month}-${value.day}`
+}
+
 export default function LearningPage() {
+  const [live, setLive] = useState<LearningContentResponse | null>(null)
+
+  useEffect(() => {
+    let active = true
+    fetchLearningContent()
+      .then(content => {
+        if (active && content.available) setLive(content)
+      })
+      .catch(() => undefined) // the compiled curated shelf remains the safe fallback
+    return () => { active = false }
+  }, [])
+
+  const videos: FeaturedVideo[] = live?.videos.length
+    ? live.videos.slice(0, 6).map(({ id, title, topic }) => ({ id, title, topic }))
+    : FEATURED_VIDEOS
+  const events: LearningEventView[] = live?.events.length
+    ? live.events
+    : EVENTS
+
   return (
     <div style={{ backgroundColor: 'var(--color-surface-2)', minHeight: '100dvh' }}>
       <Nav />
       <main>
-        <LearningHero />
+        <LearningHero eventCount={events.length} />
         <StrandsSection />
-        <LibrarySection />
+        <LibrarySection videos={videos} updatedAt={live?.sources.videos?.last_success_at} />
         <TrainingSection />
-        <EventsSection />
+        <EventsSection events={events} updatedAt={live?.sources.events?.last_success_at} />
       </main>
       <LearningFooter />
     </div>
@@ -74,7 +111,7 @@ export default function LearningPage() {
  * page a dark opening is what makes it read as its own destination rather than a
  * continuation of wherever you came from.
  */
-function LearningHero() {
+function LearningHero({ eventCount }: { eventCount: number }) {
   return (
     <section aria-labelledby="learning-heading" style={{ backgroundColor: 'var(--color-masthead)' }}>
       <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-20">
@@ -115,7 +152,7 @@ function LearningHero() {
           <Stat value={SUBSCRIBER_LINE.replace(' subscribers', '')} label="Subscribers" />
           <Stat value={String(STRANDS.length)} label="Programme strands" />
           <Stat value={String(COURSES.length)} label="AI / Tech courses" />
-          <Stat value={String(EVENTS.length)} label="Sessions convened in 2026" />
+          <Stat value={String(eventCount)} label="Sessions listed" />
         </dl>
       </div>
     </section>
@@ -283,7 +320,13 @@ function StrandsSection() {
 
 // ── 02 · The video shelf ──────────────────────────────────────────────────────
 
-function LibrarySection() {
+function LibrarySection({
+  videos,
+  updatedAt,
+}: {
+  videos: FeaturedVideo[]
+  updatedAt?: string | null
+}) {
   return (
     <section
       aria-labelledby="library-heading"
@@ -292,16 +335,15 @@ function LibrarySection() {
       <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-20">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
-            <SectionHead id="library-heading" eyebrow="Online platform" title="From the library">
-              Interviews, training sessions and market analysis, free to watch. Six from the
-              Club&rsquo;s curated shelf.
+            <SectionHead id="library-heading" eyebrow="Online platform" title="Latest from FinEx Club">
+              Interviews, training sessions and market analysis from the Club&rsquo;s channel.
             </SectionHead>
           </div>
           <span
             className="shrink-0 text-sm font-semibold tabular-nums"
             style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink)' }}
           >
-            {SUBSCRIBER_LINE}
+            {updatedAt ? `Updated ${formatRefreshDate(updatedAt)}` : SUBSCRIBER_LINE}
           </span>
         </div>
 
@@ -309,7 +351,7 @@ function LibrarySection() {
             so the markup is identical at every width — no resize listener, and
             `display:none` grid items collapse their row gap too. */}
         <div className="mt-10 grid gap-x-6 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURED_VIDEOS.map((v, i) => (
+          {videos.map((v, i) => (
             <div key={v.id} className={i >= MOBILE_VIDEO_COUNT ? 'hidden sm:block' : undefined}>
               <VideoFacade video={v} />
             </div>
@@ -459,19 +501,44 @@ function CredentialList({ title, items }: { title: string; items: string[] }) {
  * Marriott — it is doing the job the "Trust & Authority" pattern wants anyway:
  * industry recognition, verifiable.
  */
-function EventsSection() {
+function EventsSection({
+  events,
+  updatedAt,
+}: {
+  events: LearningEventView[]
+  updatedAt?: string | null
+}) {
+  const today = hongKongToday()
+  const { upcoming, recent } = useMemo(() => ({
+    upcoming: events.filter(event => event.date >= today).sort((a, b) => a.date.localeCompare(b.date)),
+    recent: events.filter(event => event.date < today).sort((a, b) => b.date.localeCompare(a.date)),
+  }), [events, today])
+  const visibleEvents = [...upcoming, ...recent.slice(0, 7)]
+  const hasUpcoming = upcoming.length > 0
+
   return (
     <section aria-labelledby="events-heading">
       <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-20">
-        <SectionHead id="events-heading" eyebrow="Seminars &amp; events" title="Where the Club has convened">
-          Recent sessions, hosted with partner institutions across Hong Kong. Dates shown are
-          when each session ran &mdash; see the Club&rsquo;s events page for what is next.
+        <SectionHead
+          id="events-heading"
+          eyebrow="Seminars &amp; events"
+          title={hasUpcoming ? 'Coming up at FinEx Club' : 'Where the Club has convened'}
+        >
+          {hasUpcoming
+            ? 'Upcoming seminars and events, followed by the Club’s most recent sessions.'
+            : 'Recent sessions hosted with partner institutions across Hong Kong.'}
         </SectionHead>
 
+        {updatedAt && (
+          <p className="mt-4 text-xs font-medium" style={{ color: 'var(--color-ink-faint)' }}>
+            Updated automatically {formatRefreshDate(updatedAt)}
+          </p>
+        )}
+
         <ul className="mt-10 flex flex-col">
-          {EVENTS.map((e, i) => (
+          {visibleEvents.map((e, i) => (
             <li
-              key={e.title}
+              key={e.id ?? `${e.date}:${e.title}`}
               className="flex flex-col gap-2 py-5 sm:flex-row sm:items-baseline sm:gap-8"
               style={{ borderTop: i === 0 ? 'none' : '1px solid var(--color-border)' }}
             >
@@ -483,11 +550,23 @@ function EventsSection() {
                 {formatDate(e.date)}
               </time>
               <div className="min-w-0">
-                <p className="text-base leading-snug" style={{ color: 'var(--color-ink)', fontWeight: 500 }}>
-                  {e.title}
-                </p>
+                {e.detail_url ? (
+                  <a
+                    href={e.detail_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-base font-medium leading-snug no-underline hover:underline"
+                    style={{ color: 'var(--color-ink)' }}
+                  >
+                    {e.title}
+                  </a>
+                ) : (
+                  <p className="text-base leading-snug" style={{ color: 'var(--color-ink)', fontWeight: 500 }}>
+                    {e.title}
+                  </p>
+                )}
                 <p
-                  className="mt-1.5 inline-flex items-center gap-1.5 text-sm"
+                  className="mt-1.5 flex items-center gap-1.5 text-sm"
                   style={{ color: 'var(--color-ink-muted)' }}
                 >
                   {e.online

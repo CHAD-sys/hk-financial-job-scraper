@@ -1,20 +1,5 @@
 import { useState } from 'react'
-import {
-  ArrowRight,
-  BadgeDollarSign,
-  Building2,
-  Calculator,
-  ChartCandlestick,
-  Cpu,
-  Handshake,
-  Landmark,
-  Megaphone,
-  Network,
-  Scale,
-  Search,
-  ShieldCheck,
-  Store,
-} from 'lucide-react'
+import { ArrowRight, Search } from 'lucide-react'
 
 /**
  * TEMPORARY UI EXPERIMENT — the search-engine face of the board.
@@ -50,19 +35,19 @@ interface Props {
  * arrives with.
  */
 const MAJOR_CATEGORIES = [
-  { label: 'Risk Management', icon: ShieldCheck },
-  { label: 'Accounting & Finance', icon: Calculator },
-  { label: 'Treasury', icon: BadgeDollarSign },
-  { label: 'Investment', icon: ChartCandlestick },
-  { label: 'Operations', icon: Network },
-  { label: 'Technology & Transformation', icon: Cpu },
-  { label: 'Sales and Business Development', icon: Handshake },
-  { label: 'Private Banking', icon: Landmark },
-  { label: 'Commercial Banking', icon: Building2 },
-  { label: 'Investment Banking', icon: ChartCandlestick },
-  { label: 'Retail Banking', icon: Store },
-  { label: 'Sales & Marketing', icon: Megaphone },
-  { label: 'Legal, Compliance & Audit', icon: Scale },
+  'Risk Management',
+  'Accounting & Finance',
+  'Treasury',
+  'Investment',
+  'Operations',
+  'Technology & Transformation',
+  'Sales and Business Development',
+  'Private Banking',
+  'Commercial Banking',
+  'Investment Banking',
+  'Retail Banking',
+  'Sales & Marketing',
+  'Legal, Compliance & Audit',
 ]
 
 export default function SearchHero({ boardTotal, employerCount, onSearch }: Props) {
@@ -80,19 +65,17 @@ export default function SearchHero({ boardTotal, employerCount, onSearch }: Prop
   return (
     <section
       style={{
-        backgroundColor: 'var(--color-masthead)',
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        backgroundColor: 'var(--color-bg)',
+        borderBottom: '1px solid var(--color-border)',
       }}
       aria-label="Search the Financial Careers Index"
     >
-      {/* The bottom padding is a step deeper than the top on purpose: the
-          discover page's content sheet overlaps this section (JobBoardPage),
-          so the last row of chips needs clearance from an edge that rises to
-          meet it. Change one and check the other. */}
+      {/* A light search surface directly beneath the dark navigation. The
+          masthead is enough brand contrast; the task area itself stays calm. */}
       <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-12 pb-16 sm:pt-16 sm:pb-20 lg:pt-20 lg:pb-24 text-center">
         <p
           className="text-xs font-semibold uppercase mb-3"
-          style={{ color: 'var(--color-gold-star)', letterSpacing: '0.14em' }}
+          style={{ color: 'var(--color-gold)', letterSpacing: '0.14em' }}
         >
           Hong Kong · Live Market Data
         </p>
@@ -101,7 +84,7 @@ export default function SearchHero({ boardTotal, employerCount, onSearch }: Prop
           className="text-3xl sm:text-5xl font-bold leading-tight mb-3"
           style={{
             fontFamily: 'var(--font-display)',
-            color: 'var(--color-ink-inverse)',
+            color: 'var(--color-ink)',
             letterSpacing: '-0.02em',
           }}
         >
@@ -110,14 +93,14 @@ export default function SearchHero({ boardTotal, employerCount, onSearch }: Prop
 
         <p
           className="text-sm sm:text-base mb-8 sm:mb-10 mx-auto"
-          style={{ color: 'rgba(248,250,252,0.72)', maxWidth: '34rem', lineHeight: 1.6 }}
+          style={{ color: 'var(--color-ink-muted)', maxWidth: '34rem', lineHeight: 1.6 }}
         >
           {boardTotal != null ? (
             <>
               Search{' '}
               <span
                 className="font-semibold tabular-nums"
-                style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-inverse)' }}
+                style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink)' }}
               >
                 {boardTotal.toLocaleString()}
               </span>{' '}
@@ -127,7 +110,7 @@ export default function SearchHero({ boardTotal, employerCount, onSearch }: Prop
                   {' '}across{' '}
                   <span
                     className="font-semibold tabular-nums"
-                    style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-inverse)' }}
+                    style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink)' }}
                   >
                     {employerCount.toLocaleString()}
                   </span>{' '}
@@ -153,8 +136,8 @@ export default function SearchHero({ boardTotal, employerCount, onSearch }: Prop
             className="search-hero-field flex items-center gap-2 rounded-full pl-4 pr-2 py-2"
             style={{
               backgroundColor: 'var(--color-surface)',
-              boxShadow: 'var(--shadow-float)',
-              border: '1px solid transparent',
+              boxShadow: 'var(--shadow-raised)',
+              border: '1px solid var(--color-border-strong)',
             }}
           >
             <Search
@@ -197,67 +180,42 @@ export default function SearchHero({ boardTotal, employerCount, onSearch }: Prop
         {/* ── Major categories ───────────────────────────────────────────────
             The "reduce friction to search" half of the marketplace pattern: a
             visitor who does not know what to type gets a useful finance map. */}
-        <div
-          className="mt-8 rounded-xl p-3 sm:p-4"
-          aria-labelledby="major-categories-label"
-          style={{
-            backgroundColor: 'rgba(11,22,40,0.42)',
-            border: '1px solid rgba(255,255,255,0.12)',
-          }}
-        >
-          <div className="flex items-end justify-between gap-4 px-1 pb-3 text-left sm:px-2">
+        <div className="mt-10 border-t pt-7" aria-labelledby="major-categories-label">
+          <div className="flex items-end justify-between gap-4 pb-4 text-left">
             <div>
               <h2
                 id="major-categories-label"
                 className="text-sm font-semibold"
-                style={{ color: 'var(--color-ink-inverse)' }}
+                style={{ color: 'var(--color-ink)' }}
               >
                 Explore major categories
               </h2>
-              <p className="mt-1 text-xs" style={{ color: 'rgba(248,250,252,0.58)' }}>
+              <p className="mt-1 text-xs" style={{ color: 'var(--color-ink-muted)' }}>
                 Choose a discipline to see relevant Roles.
               </p>
             </div>
             <span
               className="hidden shrink-0 text-xs font-medium tabular-nums sm:block"
-              style={{ color: 'var(--color-gold-star)', fontFamily: 'var(--font-mono)' }}
+              style={{ color: 'var(--color-gold)', fontFamily: 'var(--font-mono)' }}
             >
               13 disciplines
             </span>
           </div>
 
           <div className="major-category-grid grid grid-cols-2 gap-2 lg:grid-cols-3">
-            {MAJOR_CATEGORIES.map(({ label, icon: Icon }) => (
+            {MAJOR_CATEGORIES.map(label => (
               <button
                 key={label}
                 type="button"
                 onClick={() => onSearch(label)}
-                className="major-category-card group flex min-h-[4.5rem] items-center gap-3 rounded-md px-3 py-3 text-left cursor-pointer outline-none sm:px-4"
+                className="major-category-card flex min-h-14 items-center justify-center rounded-md px-3 py-3 text-center text-[0.8125rem] font-semibold leading-snug cursor-pointer outline-none sm:px-4 sm:text-sm"
                 style={{
-                  backgroundColor: 'rgba(255,255,255,0.065)',
-                  border: '1px solid rgba(255,255,255,0.13)',
-                  color: 'var(--color-ink-inverse)',
+                  backgroundColor: 'var(--color-surface)',
+                  border: '1px solid var(--color-border)',
+                  color: 'var(--color-ink)',
                 }}
               >
-                <span
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded"
-                  style={{
-                    backgroundColor: 'rgba(224,161,6,0.13)',
-                    color: 'var(--color-gold-star)',
-                  }}
-                  aria-hidden="true"
-                >
-                  <Icon size={18} strokeWidth={1.8} />
-                </span>
-                <span className="min-w-0 flex-1 text-[0.8125rem] font-semibold leading-snug sm:text-sm">
-                  {label}
-                </span>
-                <ArrowRight
-                  size={15}
-                  strokeWidth={2}
-                  className="major-category-arrow hidden shrink-0 sm:block"
-                  aria-hidden="true"
-                />
+                {label}
               </button>
             ))}
           </div>

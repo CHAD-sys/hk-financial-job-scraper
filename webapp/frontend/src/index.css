@@ -490,23 +490,15 @@ select.finex-input {
     transform 120ms var(--ease-out-expo);
 }
 .major-category-card:hover {
-  background-color: rgb(255 255 255 / 0.12) !important;
-  border-color: rgb(224 161 6 / 0.62) !important;
-  box-shadow: 0 5px 18px rgb(0 0 0 / 0.16);
+  background-color: var(--color-surface-2) !important;
+  border-color: var(--color-border-strong) !important;
+  box-shadow: var(--shadow-card);
 }
 .major-category-card:focus-visible {
-  outline: 2px solid var(--color-gold-star);
+  outline: 2px solid var(--color-ring);
   outline-offset: 2px;
 }
 .major-category-card:active { transform: scale(0.985); }
-.major-category-arrow {
-  color: rgb(248 250 252 / 0.42);
-  transition: color 180ms var(--ease-out-expo), transform 180ms var(--ease-out-expo);
-}
-.major-category-card:hover .major-category-arrow {
-  color: var(--color-gold-star);
-  transform: translateX(2px);
-}
 .major-category-grid > :last-child:nth-child(odd) {
   grid-column: 1 / -1;
   justify-self: center;

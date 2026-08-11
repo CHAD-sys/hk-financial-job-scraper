@@ -52,6 +52,10 @@ class Settings:
     #: Where recruiter Role submissions are appended as JSONL.
     submissions_dir: Path | None = None
 
+    #: Last-known-good public metadata for the Learning page. This tiny JSON
+    #: file sits on the Railway volume; videos and images remain upstream.
+    learning_content_path: Path | None = None
+
     #: The built React bundle. Absent is not fatal — the API serves without a UI.
     frontend_dist: Path = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
@@ -102,7 +106,11 @@ class Settings:
         # because it depends on another field.
         if self.submissions_dir is None:
             object.__setattr__(self, "submissions_dir", self.jobs_db.parent)
-        for name in ("jobs_db", "submissions_dir", "frontend_dist"):
+        if self.learning_content_path is None:
+            object.__setattr__(
+                self, "learning_content_path", self.jobs_db.parent / "learning_content.json"
+            )
+        for name in ("jobs_db", "submissions_dir", "learning_content_path", "frontend_dist"):
             object.__setattr__(self, name, Path(getattr(self, name)).resolve())
 
     @classmethod
@@ -117,9 +125,11 @@ class Settings:
         origins = ("*",) if cors == "*" else tuple(o.strip() for o in cors.split(",") if o.strip())
 
         submissions = os.environ.get("SUBMISSIONS_DIR")
+        learning_content = os.environ.get("LEARNING_CONTENT_PATH")
         return cls(
             jobs_db=Path(os.environ.get("JOBS_DB_PATH", str(cls.jobs_db))),
             submissions_dir=Path(submissions) if submissions else None,
+            learning_content_path=Path(learning_content) if learning_content else None,
             frontend_dist=Path(os.environ.get("FRONTEND_DIST", str(cls.frontend_dist))),
             cors_origins=origins,
             cookie_secure=_flag("SESSION_COOKIE_SECURE", default=True),

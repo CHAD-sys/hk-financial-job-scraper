@@ -62,6 +62,7 @@ from mailer import SUBMISSION_RECIPIENT, SMTP_USER, send_mail  # noqa: E402
 # filtered, sorted, counted and shaped for the wire lives in this module — see
 # its docstring for why "browsing is filtered, addressing is not".
 import job_read  # noqa: E402
+import learning_content  # noqa: E402
 import resume_intelligence  # noqa: E402
 import role_access  # noqa: E402
 import role_feed  # noqa: E402
@@ -720,6 +721,15 @@ def get_stats(request: Request):
         top_companies=top_companies,
         internship_count=intern_count,
     )
+
+
+# ── /api/learning ─────────────────────────────────────────────────────────────
+
+@router.get("/api/learning", tags=["learning"])
+def get_learning_content(request: Request):
+    """Serve the last-known-good metadata without contacting either source."""
+
+    return learning_content.public_snapshot(cfg(request).learning_content_path)
 
 
 # ── Write endpoints ───────────────────────────────────────────────────────────

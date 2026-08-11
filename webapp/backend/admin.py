@@ -36,6 +36,7 @@ from zoneinfo import ZoneInfo
 
 import admin_intelligence
 import job_edit
+import learning_content
 import pipeline_publish
 import submissions
 from fastapi import (
@@ -286,6 +287,23 @@ def build_router(
                     "WHERE datetime(recorded_at) < datetime('now', '-90 days')"
                 )
         return {"run_id": run_id, "status": status, "phases": len(phases), "recorded_at": stamp}
+
+    @router.post("/learning/refresh")
+    def refresh_learning_content(
+        request: Request,
+        force: bool = Query(default=False),
+        sync_token: str | None = Header(default=None, alias="X-Pipeline-Sync-Token"),
+    ):
+        """Refresh Learning metadata while preserving every last-known-good source."""
+
+        _require_pipeline_token(request, sync_token)
+        result = learning_content.refresh_content(
+            Path(cfg(request).learning_content_path), force=force
+        )
+        snapshot = result["snapshot"]
+        if result["status"] == "failed" and not snapshot["events"] and not snapshot["videos"]:
+            raise HTTPException(status_code=502, detail="Both Learning sources failed")
+        return result
 
     # ── Recruiter submissions ───────────────────────────────────────────────
 

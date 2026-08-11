@@ -1,0 +1,40 @@
+name: Refresh Learning content
+
+on:
+  schedule:
+    # Daily trigger; the backend fetches only when a source is at least 72h old.
+    # 19:15 UTC = 03:15 Hong Kong time.
+    - cron: "15 19 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Refresh both sources even if they are not due
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: learning-content-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Refresh Railway's last-known-good snapshot
+        env:
+          PIPELINE_SYNC_TOKEN: ${{ secrets.PIPELINE_SYNC_TOKEN }}
+          FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force || false }}
+        run: |
+          test -n "$PIPELINE_SYNC_TOKEN"
+          response=$(curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "X-Pipeline-Sync-Token: $PIPELINE_SYNC_TOKEN" \
+            "https://finex-careers.up.railway.app/api/admin/learning/refresh?force=$FORCE")
+          echo "$response" | jq '{status, outcomes, storage_bytes}'
+          status=$(echo "$response" | jq -r '.status')
+          test "$status" != "failed"
+          test "$status" != "partial"
