@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams, useLocation } from 'react-router-dom'
-import { ChevronDown, Star, EyeOff, ArrowLeft } from 'lucide-react'
+import { ChevronDown, ArrowLeft } from 'lucide-react'
 import type {
   Job,
   FiltersResponse,
   JobListResponse,
   ResumeMatchesResponse,
-  TierTab,
 } from '../api/client'
 import {
   DEFAULT_FILTERS, fetchJobs, fetchFilters, fetchStats,
@@ -39,18 +38,6 @@ const SORT_OPTIONS = [
   { value: 'company', label: 'Company A–Z' },
 ]
 
-const TIER_TABS: { value: TierTab; label: string; star?: boolean; eyeOff?: boolean }[] = [
-  { value: 'all', label: 'All results' },
-  { value: 'mainstream', label: 'Mainstream' },
-  { value: 'boutique', label: 'Exclusive', star: true },
-  { value: 'social', label: 'Recruiter Posts', eyeOff: true },
-]
-
-// How many Recruiter Posts cards to show in the contextual sub-section
-// (decision #9) — a preview strip, not the full list; "View all" switches to
-// the tab.
-const RECRUITER_POSTS_PREVIEW_SIZE = 3
-
 export default function JobBoardPage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -74,11 +61,6 @@ export default function JobBoardPage() {
   const [loading, setLoading] = useState(true)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [resumeMatches, setResumeMatches] = useState<ResumeMatchesResponse | null>(null)
-  // Recruiter Posts contextual sub-section (decision #9): a separate fetch/
-  // state pair so these jobs render in their own distinct block, never mixed
-  // into the main grid's `jobs.map(...)` loop above.
-  const [recruiterPosts, setRecruiterPosts] = useState<JobListResponse | null>(null)
-
   const { toggle: toggleSave, isSaved } = useSavedRoles()
   const { seeker } = useAuth()
 
@@ -118,7 +100,7 @@ export default function JobBoardPage() {
   // one: a home that asks a question, and a results page that answers it.
   //
   //   discover  — no query, no filters. SearchHero + a sampled strip of roles.
-  //   board     — the ordinary index: filter bar, tier tabs, grid, pagination.
+  //   board     — one research stream: filter bar, grid, pagination.
   //
   // A research query is the boundary between the two. Structured filters can
   // narrow its result set but can never open the catalogue by themselves.
@@ -217,22 +199,6 @@ export default function JobBoardPage() {
       if (discoveryTimer) clearTimeout(discoveryTimer)
     }
   }, [activeFilters, hasResearch, page, seeker, showBoard, sort])
-
-  // Recruiter Posts preview strip: same active filters (sector/search/
-  // seniority/etc.), tier forced to 'social', small page. Skipped entirely
-  // when already ON the Recruiter Posts tab — the main grid below already
-  // shows exactly this.
-  useEffect(() => {
-    if (!showBoard || activeFilters.tier === 'social') {
-      setRecruiterPosts(null)
-      return
-    }
-    let cancelled = false
-    fetchJobs({ ...activeFilters, tier: 'social' }, 'newest', 1, RECRUITER_POSTS_PREVIEW_SIZE)
-      .then(r => { if (!cancelled) setRecruiterPosts(r) })
-      .catch(console.error)
-    return () => { cancelled = true }
-  }, [activeFilters, showBoard])
 
   const updateFilters = useCallback((patch: Partial<JobFilters>) => {
     const { search, ...rest } = patch
@@ -373,90 +339,13 @@ export default function JobBoardPage() {
       />
 
       {/* ── Main content ────────────────────────────────────── */}
-      <main id="main-content" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-3 pb-6 sm:py-6">
+      <main id="main-content" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-5 sm:py-7">
 
-        {/* Tier tabs: All / Mainstream / Exclusive / Recruiter Posts — segmented control.
-            Below sm: this scrolls horizontally instead of wrapping, since 3
-            tabs with icon+label+count can exceed a 360px viewport; wrapping
-            them would push everything below down by an extra row. */}
-        <div
-          role="tablist"
-          aria-label="Job tier"
-          className="flex flex-nowrap sm:inline-flex sm:flex-wrap items-stretch gap-1.5 mb-3 sm:mb-6 p-1.5 rounded-xl overflow-x-auto sm:overflow-visible"
-          style={{
-            backgroundColor: 'var(--color-surface-2)',
-            border: '1px solid var(--color-border-strong)',
-            boxShadow: 'var(--shadow-card)',
-          }}
-        >
-          {TIER_TABS.map(tab => {
-            const selected = activeFilters.tier === tab.value
-            const researchCount = tab.value === 'all'
-              ? filterData?.research_total
-              : filterData?.tier_counts[tab.value]
-            // Once a refinement is active, only the selected tier's returned
-            // total is truthful. The other tier counts describe the wider
-            // research and would imply that the filter had not narrowed it.
-            const count = filterCount > 0
-              ? (selected ? total : undefined)
-              : researchCount
-            return (
-              <button type="button"
-                key={tab.value}
-                role="tab"
-                aria-selected={selected}
-                onClick={() => updateFilters({ tier: tab.value })}
-                className="tier-tab flex-shrink-0 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer outline-none"
-                style={{
-                  backgroundColor: selected ? 'var(--color-ink)' : 'transparent',
-                  color: selected ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
-                  boxShadow: selected ? 'var(--shadow-raised)' : 'none',
-                  border: `1px solid ${selected ? 'var(--color-ink)' : 'transparent'}`,
-                }}
-              >
-                {tab.star && (
-                  <Star
-                    size={15}
-                    strokeWidth={2.25}
-                    style={{ color: 'var(--color-gold-star, #E0A106)' }}
-                    fill="var(--color-gold-star, #E0A106)"
-                    aria-hidden="true"
-                  />
-                )}
-                {tab.eyeOff && (
-                  <EyeOff
-                    size={15}
-                    strokeWidth={2.25}
-                    style={{ color: selected ? 'var(--color-ink-inverse)' : '#6B4EFF' }}
-                    aria-hidden="true"
-                  />
-                )}
-                {tab.label}
-                {count != null && (
-                  <span
-                    className="tabular-nums text-xs font-bold rounded-full px-2 py-0.5 min-w-[1.5rem] text-center"
-                    style={{
-                      fontFamily: 'var(--font-mono)',
-                      backgroundColor: selected ? 'rgba(255,255,255,0.16)' : 'var(--color-surface)',
-                      color: selected ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
-                      border: selected ? '1px solid rgba(255,255,255,0.12)' : '1px solid var(--color-border)',
-                    }}
-                  >
-                    {count.toLocaleString()}
-                  </span>
-                )}
-              </button>
-            )
-          })}
-        </div>
-
-        <TierExplainer tier={activeFilters.tier} />
-
-        {/* Results header. The count text is hidden below sm: — it's redundant
-            with the "All results N" tab badge just above and was one of two
-            stacked rows contributing to excess chrome above the fold. */}
-        <div className="flex items-center justify-end sm:justify-between mb-3 sm:mb-5">
-          <p className="hidden sm:block text-sm" style={{ color: 'var(--color-ink-muted)' }}>
+        {/* One Google-style result stream: every matching source falls into
+            the same ranked grid. Source attribution remains on individual
+            cards, but it never becomes a separate lane or browsing mode. */}
+        <div className="flex items-center justify-between gap-4 mb-4 sm:mb-5">
+          <p className="text-sm" style={{ color: 'var(--color-ink-muted)' }}>
             {loading ? (
               <span className="animate-pulse">Loading…</span>
             ) : (
@@ -499,50 +388,6 @@ export default function JobBoardPage() {
             />
           </div>
         </div>
-
-        {/* Recruiter Posts contextual sub-section (decision #9): a distinct
-            block, never intermixed with the main grid below. Only shown when
-            there's something to show and we're not already ON the Recruiter
-            Posts tab. */}
-        {activeFilters.tier !== 'social' && recruiterPosts && recruiterPosts.total > 0 && (
-          <section
-            className="hidden sm:block sm:mb-6 rounded-xl p-4 sm:p-5"
-            style={{ backgroundColor: 'rgba(107,78,255,0.05)', border: '1px solid rgba(107,78,255,0.2)' }}
-            aria-label="Recruiter Posts — hidden roles matching your filters"
-          >
-            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-              <div className="flex items-center gap-2">
-                <EyeOff size={16} strokeWidth={2.25} style={{ color: '#6B4EFF' }} aria-hidden="true" />
-                <h2 className="text-sm font-bold" style={{ color: 'var(--color-ink)' }}>
-                  Recruiter Posts
-                </h2>
-                <span className="text-xs" style={{ color: 'var(--color-ink-muted)' }}>
-                  {recruiterPosts.total} role{recruiterPosts.total === 1 ? '' : 's'} sourced from recruiter posts
-                  {' matching your research'} — not on any public board
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => updateFilters({ tier: 'social' })}
-                className="text-xs font-semibold cursor-pointer"
-                style={{ color: '#6B4EFF' }}
-              >
-                View all {recruiterPosts.total} →
-              </button>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {recruiterPosts.jobs.map(job => (
-                <JobCard
-                  key={`${job.source}__${job.source_id}`}
-                  job={job}
-                  saved={isSaved(job)}
-                  onToggleSave={toggleSave}
-                  onClick={setSelectedJob}
-                />
-              ))}
-            </div>
-          </section>
-        )}
 
         {/* Job grid */}
         {loading ? (
@@ -587,60 +432,13 @@ export default function JobBoardPage() {
   )
 }
 
-// ── Tier explainer ────────────────────────────────────────────────────────────
-
-/**
- * What "Exclusive" and "Recruiter Posts" actually mean, shown only while that
- * tab is active.
- *
- * The landing page used to carry two large callouts explaining these tiers; the
- * portal rebuild moved that job here. It is deliberately NOT a copy of those
- * callouts — the tabs above already sell the tiers. What was missing was the
- * explanation of where the data comes from, which matters most at the moment
- * someone switches to the tab and wonders what they are looking at.
- */
-const TIER_NOTES: Partial<Record<TierTab, { title: string; body: string; colour: string }>> = {
-  boutique: {
-    title: 'Roles the major boards miss',
-    body:
-      'Openings at boutique and specialist firms — smaller institutions and niche players whose roles rarely reach the large aggregators. Read from each employer\'s own public hiring activity, then structured with AI.',
-    colour: 'var(--color-gold)',
-  },
-  social: {
-    title: 'Mandates that never reach a job board',
-    body:
-      'LinkedIn posts from recruiters and headhunters working Hong Kong finance — live mandates often shared with their network before, or instead of, a formal listing. Where a post also matches a listing already on the board we mark it Verified.',
-    colour: '#6B4EFF',
-  },
-}
-
-function TierExplainer({ tier }: { tier: TierTab }) {
-  const note = TIER_NOTES[tier]
-  if (!note) return null
-
-  return (
-    <div
-      className="mb-4 sm:mb-6 rounded-lg px-4 py-3"
-      style={{ backgroundColor: 'var(--color-surface-2)', borderLeft: `3px solid ${note.colour}` }}
-    >
-      <p className="text-sm font-semibold" style={{ color: 'var(--color-ink)' }}>
-        {note.title}
-      </p>
-      <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
-        {note.body}
-      </p>
-    </div>
-  )
-}
-
 // ── Index stats ───────────────────────────────────────────────────────────────
 
 /**
  * The four stat cards that used to sit on the landing page.
  *
  * Placed at the foot of the board rather than above the filter bar: this page
- * has an explicit, hard-won budget for above-the-fold chrome (see the comments
- * on the tier tabs and results header), and four stat cards between the nav and
+ * has an explicit, hard-won budget for above-the-fold chrome, and four stat cards between the nav and
  * the first job would spend all of it on something a browsing visitor did not
  * come for. At the foot they still back the numbers up for anyone who scrolls.
  */

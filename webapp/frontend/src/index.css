@@ -436,19 +436,6 @@ select.finex-input {
   overflow: hidden;
 }
 
-/* ── Segmented tier tabs (All / Exclusive / Mainstream …) ─────── */
-.tier-tab {
-  transition: background-color 160ms var(--ease-out-expo), color 160ms,
-              box-shadow 160ms, transform 120ms, border-color 160ms;
-}
-.tier-tab[aria-selected="false"]:hover {
-  background-color: var(--color-surface) !important;
-  color: var(--color-ink) !important;
-  box-shadow: var(--shadow-card) !important;
-  border-color: var(--color-border) !important;
-}
-.tier-tab:active { transform: scale(0.97); }
-
 /* ── Filter pills (sector / level / work-type / internships) ──── */
 .filter-pill {
   transition: background-color 150ms, color 150ms, border-color 150ms, transform 120ms;

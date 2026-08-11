@@ -1037,7 +1037,6 @@ export function filtersToSearchParams(
   page: number,
 ): URLSearchParams {
   const p = new URLSearchParams()
-  if (filters.tier !== 'all') p.set('tier', filters.tier)
   if (filters.search) p.set('q', filters.search)
   filters.sectors.forEach(s => p.append('sector', s))
   filters.companies.forEach(c => p.append('company', c))
@@ -1063,10 +1062,12 @@ export function filtersToSearchParams(
 export function searchParamsToFilters(
   p: URLSearchParams,
 ): { filters: JobFilters; sort: string; page: number } {
-  const tierParam = p.get('tier')
   return {
     filters: {
-      tier: (tierParam === 'boutique' || tierParam === 'mainstream' || tierParam === 'social') ? tierParam : 'all',
+      // Source tiers are an internal attribution detail, not a public browsing
+      // mode. Old shared URLs carrying `?tier=` deliberately collapse into the
+      // same all-source research stream.
+      tier: 'all',
       search: p.get('q') ?? '',
       sectors: p.getAll('sector'),
       companies: p.getAll('company'),

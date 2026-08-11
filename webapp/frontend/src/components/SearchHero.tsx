@@ -19,7 +19,7 @@ import {
 /**
  * TEMPORARY UI EXPERIMENT — the search-engine face of the board.
  *
- * The board used to open as a wall: sticky filter bar, four tier tabs, then 24
+ * The board used to open as a wall: sticky filters, controls, then 24
  * cards out of ~5,000. That asks a visitor to narrow a database they have not
  * seen. This asks them a question instead, which is what a search engine does:
  * one dominant field, a set of major finance categories underneath, and nothing else
