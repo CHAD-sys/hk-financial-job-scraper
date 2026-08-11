@@ -9,18 +9,9 @@ import OperationsCenter from '../components/admin/OperationsCenter'
 import SubmissionsPanel from '../components/admin/SubmissionsPanel'
 import { useAuth } from '../auth/useAuth'
 import {
-  fetchAdminAnalyticsOverview,
-  fetchAdminOperations,
-  fetchAdminRunHistory,
-  fetchAdminRunToday,
-  type AdminAnalyticsOverview,
-  type AdminOperationsDashboard,
-  type AdminRunHistoryPoint,
-  type AdminRunToday,
+  fetchAdminIntelligence,
+  type AdminIntelligenceSnapshot,
 } from '../api/client'
-
-type DashboardSection = 'operations center' | 'market intelligence' | 'run history' | 'pipeline status'
-type DashboardErrors = Partial<Record<DashboardSection, string>>
 
 /**
  * Admin Mode — operational control plus a decision-grade market brief.
@@ -32,34 +23,20 @@ type DashboardErrors = Partial<Record<DashboardSection, string>>
  */
 export default function AdminPage() {
   const { seeker, loading } = useAuth()
-  const [today, setToday] = useState<AdminRunToday | null>(null)
-  const [history, setHistory] = useState<AdminRunHistoryPoint[] | null>(null)
-  const [overview, setOverview] = useState<AdminAnalyticsOverview | null>(null)
-  const [operations, setOperations] = useState<AdminOperationsDashboard | null>(null)
-  const [sectionErrors, setSectionErrors] = useState<DashboardErrors>({})
+  const [snapshot, setSnapshot] = useState<AdminIntelligenceSnapshot | null>(null)
+  const [dashboardError, setDashboardError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
 
   const loadDashboard = useCallback(async () => {
     setRefreshing(true)
-    setSectionErrors({})
-    const results = await Promise.allSettled([
-      fetchAdminRunToday(),
-      fetchAdminRunHistory(30),
-      fetchAdminAnalyticsOverview(),
-      fetchAdminOperations(),
-    ])
-    const nextErrors: DashboardErrors = {}
-    const [todayResult, historyResult, overviewResult, operationsResult] = results
-    if (todayResult.status === 'fulfilled') setToday(todayResult.value)
-    else nextErrors['pipeline status'] = todayResult.reason instanceof Error ? todayResult.reason.message : 'Could not load pipeline status.'
-    if (historyResult.status === 'fulfilled') setHistory(historyResult.value)
-    else nextErrors['run history'] = historyResult.reason instanceof Error ? historyResult.reason.message : 'Could not load run history.'
-    if (overviewResult.status === 'fulfilled') setOverview(overviewResult.value)
-    else nextErrors['market intelligence'] = overviewResult.reason instanceof Error ? overviewResult.reason.message : 'Could not load market intelligence.'
-    if (operationsResult.status === 'fulfilled') setOperations(operationsResult.value)
-    else nextErrors['operations center'] = operationsResult.reason instanceof Error ? operationsResult.reason.message : 'Could not load pipeline operations.'
-    setSectionErrors(nextErrors)
-    setRefreshing(false)
+    setDashboardError(null)
+    try {
+      setSnapshot(await fetchAdminIntelligence(30))
+    } catch (error) {
+      setDashboardError(error instanceof Error ? error.message : 'Could not load admin intelligence.')
+    } finally {
+      setRefreshing(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -71,9 +48,12 @@ export default function AdminPage() {
     return <Navigate to="/signin" state={{ from: '/admin' }} replace />
   }
 
-  const loadingDashboard = !overview && !sectionErrors['market intelligence']
-  const loadingOperations = !operations && !sectionErrors['operations center']
-  const errorEntries = Object.entries(sectionErrors)
+  const today = snapshot?.today ?? null
+  const history = snapshot?.history.points ?? []
+  const overview = snapshot?.analytics ?? null
+  const operations = snapshot?.operations ?? null
+  const loadingDashboard = !snapshot && !dashboardError
+  const loadingOperations = loadingDashboard
 
   return (
     <div style={{ backgroundColor: 'var(--color-bg)', minHeight: '100dvh' }}>
@@ -106,13 +86,13 @@ export default function AdminPage() {
 
         <AdminSectionNav isSuperAdmin={Boolean(seeker?.is_super_admin)} />
 
-        {errorEntries.length > 0 && (
+        {dashboardError && (
           <div className="mb-7 flex flex-col gap-3 rounded-lg p-4 sm:flex-row sm:items-center sm:justify-between" role="alert" style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B' }}>
             <div className="flex items-start gap-2 text-sm">
               <XCircle size={17} className="mt-0.5 shrink-0" aria-hidden="true" />
               <span>
-                <strong>Some dashboard data could not be loaded.</strong>{' '}
-                {errorEntries.map(([section, message]) => `${section}: ${message}`).join(' · ')}
+                <strong>The intelligence snapshot could not be loaded.</strong>{' '}
+                {dashboardError}
               </span>
             </div>
             <button type="button" onClick={() => void loadDashboard()} className="min-h-10 shrink-0 rounded-md px-3 text-sm font-semibold" style={{ border: '1px solid #FCA5A5' }}>
@@ -166,9 +146,9 @@ export default function AdminPage() {
             <p className="mt-1.5 text-sm leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>Today’s collection health. A zero result is an investigation signal, not automatic proof that an employer stopped hiring.</p>
           </div>
 
-          {!today && sectionErrors['pipeline status'] ? (
+          {!today && dashboardError ? (
             <div className="rounded-lg p-5 text-sm" role="status" style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-ink-muted)' }}>
-              Pipeline status is unavailable. The market brief above may still be current.
+              Daily collection is unavailable because the intelligence snapshot could not be loaded.
             </div>
           ) : !today ? (
             <p className="flex items-center gap-2 text-sm" style={{ color: 'var(--color-ink-muted)' }}><Loader2 size={14} className="animate-spin" /> Loading run status…</p>
@@ -177,7 +157,11 @@ export default function AdminPage() {
               <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between" style={{ backgroundColor: today.ran_today ? '#F0FDF4' : '#FFFBEB', borderBottom: '1px solid var(--color-border)' }}>
                 <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: today.ran_today ? '#166534' : '#854D0E' }}>
                   {today.ran_today ? <CheckCircle2 size={17} /> : <AlertTriangle size={17} />}
-                  {today.ran_today ? `Pipeline recorded for ${today.date}` : `No pipeline record yet for ${today.date}`}
+                  {!today.tracking_available
+                    ? 'Daily collection history is not available'
+                    : today.ran_today
+                      ? `Pipeline recorded for ${today.date}`
+                      : `No pipeline record yet for ${today.date}`}
                 </div>
                 {today.snapshot_received_at && (
                   <div className="text-xs" style={{ color: 'var(--color-ink-muted)' }}>
@@ -192,7 +176,14 @@ export default function AdminPage() {
                   </div>
                 )}
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+              {!today.tracking_available ? (
+                <div className="px-5 py-6 text-sm" style={{ color: 'var(--color-ink-muted)' }}>
+                  The live Role catalogue is available, but no collection-history ledger was found.
+                  The figures below are withheld so missing evidence is never presented as zero activity.
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
                 {[
                   ['Listings collected', today.listings_collected_today.toLocaleString(), `Pipeline snapshot for ${today.date}`],
                   ['Companies scraped', today.companies_scraped_today.toLocaleString(), 'Recorded today'],
@@ -215,12 +206,14 @@ export default function AdminPage() {
                     <div className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>{detail}</div>
                   </div>
                 ))}
-              </div>
-              {today.zero_companies.length > 0 && (
-                <details className="border-t px-5 py-4" style={{ borderColor: 'var(--color-border)' }}>
-                  <summary className="cursor-pointer text-sm font-semibold" style={{ color: '#854D0E' }}>Review {today.zero_companies.length} highest-priority zero-result companies</summary>
-                  <p className="mt-3 max-w-5xl text-sm leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>{today.zero_companies.join(' · ')}</p>
-                </details>
+                  </div>
+                  {today.zero_companies.length > 0 && (
+                    <details className="border-t px-5 py-4" style={{ borderColor: 'var(--color-border)' }}>
+                      <summary className="cursor-pointer text-sm font-semibold" style={{ color: '#854D0E' }}>Review {today.zero_companies.length} highest-priority zero-result companies</summary>
+                      <p className="mt-3 max-w-5xl text-sm leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>{today.zero_companies.join(' · ')}</p>
+                    </details>
+                  )}
+                </>
               )}
             </div>
           )}

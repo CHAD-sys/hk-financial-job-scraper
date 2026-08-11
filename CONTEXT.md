@@ -100,3 +100,10 @@ catalogue. It preserves Railway-owned direct Roles, admin corrections, operation
 records and receipts, and produces one traceable receipt only after the whole catalogue
 is visible. See `docs/adr/0015`.
 _Avoid_: database replacement, snapshot sync, pipeline snapshot (implementation details)
+
+**Admin Intelligence Snapshot**:
+One coherent, timestamped view of the live Role catalogue, Daily Run evidence,
+publication safety, source health, AI cost, recommendation health and market movement.
+It says when an evidence ledger is unavailable instead of presenting missing facts as
+zero. See `docs/adr/0016`.
+_Avoid_: dashboard payload, analytics response, admin stats

@@ -730,6 +730,7 @@ export async function rejectSubmission(id: string, reason: string): Promise<Admi
 }
 
 export interface AdminRunToday {
+  tracking_available: boolean
   date: string
   ran_today: boolean
   snapshot_received_at: string | null
@@ -753,24 +754,11 @@ export interface AdminRunToday {
   }
 }
 
-export async function fetchAdminRunToday(): Promise<AdminRunToday> {
-  const res = await apiFetch('/api/admin/run/today')
-  if (!res.ok) throw new ApiError(res.status, `Could not load today's run (${res.status}).`)
-  return res.json()
-}
-
 export interface AdminRunHistoryPoint {
   scraped_date: string
   total_jobs: number
   companies_scraped: number
   companies_down: number
-}
-
-export async function fetchAdminRunHistory(days = 30): Promise<AdminRunHistoryPoint[]> {
-  const res = await apiFetch(`/api/admin/run/history?days=${days}`)
-  if (!res.ok) throw new ApiError(res.status, `Could not load run history (${res.status}).`)
-  const body = await res.json()
-  return body.points
 }
 
 export type AdminOperationalStatus = 'success' | 'warning' | 'failed' | 'running' | 'skipped' | 'not_recorded'
@@ -853,12 +841,6 @@ export interface AdminOperationsDashboard {
   alerts: { severity: 'critical' | 'warning'; title: string; detail: string }[]
 }
 
-export async function fetchAdminOperations(): Promise<AdminOperationsDashboard> {
-  const res = await apiFetch('/api/admin/operations')
-  if (!res.ok) throw new ApiError(res.status, `Could not load pipeline operations (${res.status}).`)
-  return res.json()
-}
-
 export interface AdminAnalyticsOverview {
   total_board_roles: number
   total_active_rows: number
@@ -915,9 +897,32 @@ export interface AdminMarketMover {
   change_pct: number | null
 }
 
-export async function fetchAdminAnalyticsOverview(): Promise<AdminAnalyticsOverview> {
-  const res = await apiFetch('/api/admin/analytics/overview')
-  if (!res.ok) throw new ApiError(res.status, `Could not load analytics (${res.status}).`)
+export interface AdminIntelligenceSnapshot {
+  schema_version: 1
+  generated_at: string
+  operating_date: string
+  availability: {
+    catalogue: boolean
+    history: boolean
+    daily_run: boolean
+    source_health: boolean
+    ai_usage: boolean
+    publication: boolean
+    recommendations: boolean
+  }
+  today: AdminRunToday
+  history: {
+    days: number
+    tracking_available: boolean
+    points: AdminRunHistoryPoint[]
+  }
+  operations: AdminOperationsDashboard
+  analytics: AdminAnalyticsOverview
+}
+
+export async function fetchAdminIntelligence(days = 30): Promise<AdminIntelligenceSnapshot> {
+  const res = await apiFetch(`/api/admin/intelligence?days=${days}`)
+  if (!res.ok) throw new ApiError(res.status, `Could not load admin intelligence (${res.status}).`)
   return res.json()
 }
 
