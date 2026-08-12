@@ -1097,6 +1097,26 @@ export async function fetchAdminAccounts(): Promise<AdminAccountsResponse> {
   return res.json()
 }
 
+// Fetched lazily per row, never bundled into fetchAdminAccounts — see
+// admin.py's get_seeker_interests_route docstring for why.
+export interface AdminSeekerInterests {
+  resume_skills: string[]
+  resume_role_families: string[]
+  resume_sectors: string[]
+  resume_seniority: string | null
+  searched_sectors: string[]
+  searched_skills: string[]
+  searched_seniority: string[]
+  recent_search_terms: string[]
+  saved_roles_count: number
+}
+
+export async function fetchSeekerInterests(seekerId: string): Promise<AdminSeekerInterests> {
+  const res = await apiFetch(`/api/admin/accounts/seekers/${encodeURIComponent(seekerId)}/interests`)
+  if (!res.ok) throw new ApiError(res.status, `Could not load this Seeker's interests (${res.status}).`)
+  return res.json()
+}
+
 // ── Ultimate Admin: direct job edit ────────────────────────────────────────────
 // Behind is_super_admin only — the other four admins never call these. The
 // wire shape mirrors webapp/backend/job_edit.py's raw dict(row) exactly: it is

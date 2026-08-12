@@ -536,6 +536,39 @@ def test_account_directory_is_ultimate_admin_only(
     assert all("password_hash" not in row for row in body["employers"])
 
 
+def test_seeker_interests_are_ultimate_admin_only_and_lazy_per_row(
+    admin_client, seeker_client, db, dist, tmp_path, _seekers_env,
+):
+    seeker_id = seeker_client.get("/api/auth/me").json()["id"]
+    seeker_client.post(
+        "/api/me/discovery",
+        json={
+            "search_query": "credit analyst",
+            "filters": {"sectors": ["Banking"]},
+            "result_count": 5,
+        },
+    )
+
+    assert admin_client.get(f"/api/admin/accounts/seekers/{seeker_id}/interests").status_code == 403
+    assert seeker_client.get(f"/api/admin/accounts/seekers/{seeker_id}/interests").status_code == 403
+
+    ultimate_client = TestClient(make_app(db, dist, tmp_path, cookie_secure=False))
+    ultimate_client.post(
+        "/api/auth/register",
+        json={"email": "ultimate2@example.com", "password": "correct-horse-battery"},
+    )
+    _promote_to_super_admin("ultimate2@example.com")
+
+    r = ultimate_client.get(f"/api/admin/accounts/seekers/{seeker_id}/interests")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["searched_sectors"] == ["Banking"]
+    assert body["recent_search_terms"] == ["credit analyst"]
+
+    missing = ultimate_client.get("/api/admin/accounts/seekers/00000000-0000-4000-8000-000000000000/interests")
+    assert missing.status_code == 404
+
+
 def test_pipeline_operations_telemetry_is_machine_authored_and_visible_to_admins(
     pipeline_sync_client, admin_client,
 ):

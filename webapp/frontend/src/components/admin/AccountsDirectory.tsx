@@ -1,6 +1,12 @@
-import { useMemo, useState } from 'react'
-import { Search, ShieldCheck, Users } from 'lucide-react'
-import type { AdminAccountsResponse, AdminEmployerAccount, AdminSeekerAccount } from '../../api/client'
+import { Fragment, useEffect, useMemo, useState } from 'react'
+import { ChevronDown, ChevronRight, Search, ShieldCheck, Users } from 'lucide-react'
+import {
+  fetchSeekerInterests,
+  type AdminAccountsResponse,
+  type AdminEmployerAccount,
+  type AdminSeekerAccount,
+  type AdminSeekerInterests,
+} from '../../api/client'
 
 function formatDate(value: string | null) {
   if (!value) return 'Never'
@@ -22,6 +28,82 @@ function Flag({ label, on }: { label: string; on: boolean }) {
   )
 }
 
+function Tag({ children }: { children: string }) {
+  return (
+    <span
+      className="inline-flex min-h-6 items-center rounded-full px-2 text-[11px] font-medium"
+      style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink)', border: '1px solid var(--color-border)' }}
+    >
+      {children}
+    </span>
+  )
+}
+
+function TagRow({ label, values }: { label: string; values: string[] }) {
+  if (values.length === 0) return null
+  return (
+    <div className="flex flex-wrap items-baseline gap-2">
+      <span className="shrink-0 text-xs font-semibold" style={{ color: 'var(--color-ink-muted)' }}>{label}</span>
+      <div className="flex flex-wrap gap-1">
+        {values.map(value => <Tag key={value}>{value}</Tag>)}
+      </div>
+    </div>
+  )
+}
+
+function hasNoInterestSignal(interests: AdminSeekerInterests) {
+  return interests.resume_skills.length === 0
+    && interests.resume_sectors.length === 0
+    && interests.resume_role_families.length === 0
+    && interests.searched_sectors.length === 0
+    && interests.searched_skills.length === 0
+    && interests.searched_seniority.length === 0
+    && interests.recent_search_terms.length === 0
+    && interests.saved_roles_count === 0
+}
+
+/**
+ * Fetched only when its row expands — never bundled into the initial
+ * account-directory load, which stays one flat, fast query regardless of how
+ * many Seekers exist (see admin.py's get_seeker_interests_route docstring).
+ */
+function SeekerInterestsPanel({ seekerId }: { seekerId: string }) {
+  const [interests, setInterests] = useState<AdminSeekerInterests | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setInterests(null)
+    setError(null)
+    fetchSeekerInterests(seekerId)
+      .then(result => { if (!cancelled) setInterests(result) })
+      .catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load interests.') })
+    return () => { cancelled = true }
+  }, [seekerId])
+
+  if (error) return <p className="text-xs" style={{ color: 'var(--color-destructive)' }}>{error}</p>
+  if (!interests) return <p className="text-xs" style={{ color: 'var(--color-ink-muted)' }}>Loading interests…</p>
+  if (hasNoInterestSignal(interests)) {
+    return <p className="text-xs" style={{ color: 'var(--color-ink-muted)' }}>No resume, search, or saved-Role activity on file yet.</p>
+  }
+
+  return (
+    <div className="space-y-2.5">
+      {interests.resume_seniority && <TagRow label="Resume seniority" values={[interests.resume_seniority]} />}
+      <TagRow label="Resume skills" values={interests.resume_skills} />
+      <TagRow label="Resume sectors" values={interests.resume_sectors} />
+      <TagRow label="Resume role families" values={interests.resume_role_families} />
+      <TagRow label="Searched sectors" values={interests.searched_sectors} />
+      <TagRow label="Searched skills" values={interests.searched_skills} />
+      <TagRow label="Searched seniority" values={interests.searched_seniority} />
+      <TagRow label="Recent searches" values={interests.recent_search_terms} />
+      <p className="text-xs" style={{ color: 'var(--color-ink-muted)' }}>
+        {interests.saved_roles_count.toLocaleString()} saved Role{interests.saved_roles_count === 1 ? '' : 's'}
+      </p>
+    </div>
+  )
+}
+
 function matches(query: string, ...fields: (string | null)[]) {
   if (!query) return true
   const needle = query.trim().toLowerCase()
@@ -36,6 +118,7 @@ function matches(query: string, ...fields: (string | null)[]) {
  */
 export default function AccountsDirectory({ data }: { data: AdminAccountsResponse }) {
   const [query, setQuery] = useState('')
+  const [expandedSeekerId, setExpandedSeekerId] = useState<string | null>(null)
 
   const seekers = useMemo(
     () => data.seekers.filter(s => matches(query, s.email, s.display_name, s.username)),
@@ -77,31 +160,57 @@ export default function AccountsDirectory({ data }: { data: AdminAccountsRespons
           <span className="text-xs" style={{ color: 'var(--color-ink-muted)' }}>{seekers.length.toLocaleString()} of {data.seekers.length.toLocaleString()}</span>
         </div>
         <div className="overflow-x-auto rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2" tabIndex={0} role="region" aria-labelledby="seekers-heading" style={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)', outlineColor: 'var(--color-gold)' }}>
-          <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+          <table className="w-full min-w-[820px] border-collapse text-left text-sm">
             <thead style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-muted)' }}>
               <tr>
-                {['Email', 'Name', 'Status', 'Signed up', 'Last login'].map(heading => (
+                {['', 'Email', 'Name', 'Status', 'Signed up', 'Last login'].map(heading => (
                   <th key={heading} scope="col" className="px-4 py-3 text-xs font-semibold">{heading}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {seekers.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-6 text-center text-sm" style={{ color: 'var(--color-ink-muted)' }}>No matching Seekers.</td></tr>
-              ) : seekers.map((seeker: AdminSeekerAccount) => (
-                <tr key={seeker.id} className="border-t" style={{ borderColor: 'var(--color-border)' }}>
-                  <th scope="row" className="px-4 py-3 font-semibold" style={{ color: 'var(--color-ink)' }}>{seeker.email}</th>
-                  <td className="px-4 py-3" style={{ color: 'var(--color-ink-muted)' }}>{seeker.display_name || seeker.username || '—'}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1.5">
-                      <Flag label="Verified" on={seeker.email_verified} />
-                      {seeker.is_super_admin ? <Flag label="Ultimate Admin" on /> : seeker.is_admin ? <Flag label="Admin" on /> : null}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--color-ink-muted)' }}>{formatDate(seeker.created_at)}</td>
-                  <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--color-ink-muted)' }}>{formatDate(seeker.last_login_at)}</td>
-                </tr>
-              ))}
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-sm" style={{ color: 'var(--color-ink-muted)' }}>No matching Seekers.</td></tr>
+              ) : seekers.map((seeker: AdminSeekerAccount) => {
+                const expanded = expandedSeekerId === seeker.id
+                return (
+                  <Fragment key={seeker.id}>
+                    <tr className="border-t" style={{ borderColor: 'var(--color-border)' }}>
+                      <td className="px-2 py-3">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedSeekerId(expanded ? null : seeker.id)}
+                          aria-expanded={expanded}
+                          aria-label={`${expanded ? 'Hide' : 'Show'} interests for ${seeker.email}`}
+                          className="flex size-6 items-center justify-center rounded"
+                          style={{ color: 'var(--color-ink-muted)' }}
+                        >
+                          {expanded ? <ChevronDown size={16} aria-hidden="true" /> : <ChevronRight size={16} aria-hidden="true" />}
+                        </button>
+                      </td>
+                      <th scope="row" className="px-4 py-3 font-semibold" style={{ color: 'var(--color-ink)' }}>{seeker.email}</th>
+                      <td className="px-4 py-3" style={{ color: 'var(--color-ink-muted)' }}>{seeker.display_name || seeker.username || '—'}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1.5">
+                          <Flag label="Verified" on={seeker.email_verified} />
+                          {seeker.is_super_admin ? <Flag label="Ultimate Admin" on /> : seeker.is_admin ? <Flag label="Admin" on /> : null}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--color-ink-muted)' }}>{formatDate(seeker.created_at)}</td>
+                      <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--color-ink-muted)' }}>{formatDate(seeker.last_login_at)}</td>
+                    </tr>
+                    {expanded && (
+                      <tr style={{ borderTop: 'none' }}>
+                        <td colSpan={6} className="px-4 pb-4" style={{ backgroundColor: 'var(--color-surface-2)' }}>
+                          <div className="rounded-md p-3">
+                            <SeekerInterestsPanel seekerId={seeker.id} />
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                )
+              })}
             </tbody>
           </table>
         </div>

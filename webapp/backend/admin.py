@@ -392,6 +392,16 @@ def build_router(
             "employers": employers_store.get_store().list_accounts(),
         }
 
+    @router.get("/accounts/seekers/{seeker_id}/interests")
+    def get_seeker_interests_route(seeker_id: str, _admin: dict = Depends(require_super_admin)):
+        """Fetched lazily, per row, when an admin expands a Seeker — never
+        bundled into list_accounts_route, which stays a flat query so it does
+        not turn into an N-seeker fan-out of resume/discovery/saved-role reads."""
+        store = seekers_store.get_store()
+        if store.get_seeker(seeker_id) is None:
+            raise HTTPException(status_code=404, detail="Seeker not found")
+        return store.interests_for_seeker(seeker_id)
+
     # ── Ultimate Admin: direct job edit ─────────────────────────────────────
     # Behind require_super_admin, not require_admin — the other four admins
     # never reach these two routes. See job_edit.py's module docstring for

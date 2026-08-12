@@ -180,6 +180,68 @@ def test_set_admin_toggles_is_admin(store):
     assert store.get_seeker(seeker_id)["is_admin"] == 0
 
 
+def test_interests_combine_resume_discovery_and_saved_roles(store):
+    seeker_id = store.create_seeker("priya@example.com")
+    store.replace_resume(
+        seeker_id,
+        filename="cv.pdf",
+        media_type="application/pdf",
+        size_bytes=1,
+        content_sha256="a" * 64,
+        file_content=b"x",
+        text_content="Credit risk analyst with SQL and Python experience.",
+        analysis={
+            "skills": ["credit risk", "sql"],
+            "role_families": ["credit", "risk"],
+            "sectors": ["Banking"],
+            "years_experience": 4,
+            "seniority": "mid",
+        },
+    )
+    store.record_discovery(
+        seeker_id,
+        search_query="credit analyst",
+        filters={"sectors": ["Banking"], "skills": ["sql"], "seniority": ["mid"]},
+        result_count=12,
+    )
+    store.record_discovery(
+        seeker_id,
+        search_query="risk manager",
+        filters={"sectors": ["Banking", "Insurance"], "seniority": ["senior"]},
+        result_count=5,
+    )
+    store.save_role(seeker_id, "jobsdb", "job-1")
+
+    interests = store.interests_for_seeker(seeker_id)
+
+    assert interests["resume_skills"] == ["credit risk", "sql"]
+    assert interests["resume_sectors"] == ["Banking"]
+    assert interests["resume_seniority"] == "mid"
+    assert interests["searched_sectors"][0] == "Banking"  # most common, searched twice
+    assert "sql" in interests["searched_skills"]
+    assert set(interests["searched_seniority"]) == {"mid", "senior"}
+    assert interests["recent_search_terms"] == ["risk manager", "credit analyst"]  # newest first
+    assert interests["saved_roles_count"] == 1
+
+
+def test_interests_for_a_seeker_with_no_activity_is_empty_not_an_error(store):
+    seeker_id = store.create_seeker("blank@example.com")
+
+    interests = store.interests_for_seeker(seeker_id)
+
+    assert interests == {
+        "resume_skills": [],
+        "resume_role_families": [],
+        "resume_sectors": [],
+        "resume_seniority": None,
+        "searched_sectors": [],
+        "searched_skills": [],
+        "searched_seniority": [],
+        "recent_search_terms": [],
+        "saved_roles_count": 0,
+    }
+
+
 def test_list_accounts_coerces_sqlite_integers_to_real_booleans(store):
     """Unlike get_seeker() (raw dict(row), 0/1 — see the test above), the
     account-directory listing owes its caller real JSON booleans."""

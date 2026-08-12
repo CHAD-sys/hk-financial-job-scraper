@@ -46,7 +46,7 @@ export default function AdminSectionNav({ isSuperAdmin }: { isSuperAdmin: boolea
   return (
     <nav className="admin-section-nav mb-10" aria-label="Admin page sections">
       <div className="admin-section-nav__scroller" tabIndex={0} role="region" aria-label="Admin dashboard sections">
-        <div className="admin-section-nav__items" style={{ gridTemplateColumns: `repeat(${sections.length}, minmax(0, 1fr))` }}>
+        <div className="admin-section-nav__items">
           {sections.map(({ href, label, detail, icon: Icon }) => {
             const active = activeSection === href
             return (

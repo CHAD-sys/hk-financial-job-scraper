@@ -45,6 +45,7 @@ import os
 import sqlite3
 import threading
 import uuid
+from collections import Counter
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -812,6 +813,63 @@ class SeekerStore:
             }
             for row in rows
         ]
+
+    def interests_for_seeker(self, seeker_id: str) -> dict[str, Any]:
+        """What this Seeker appears interested in, from first-party signals
+        already on file — never a guess, only what they actually did.
+
+        Three sources, each cheap because it is scoped to one seeker_id
+        rather than joined across the whole table (see list_accounts, which
+        deliberately stays a flat query for exactly that reason): the resume
+        analysis (skills/sectors/role families extracted by
+        resume_intelligence.analyse_resume), the sectors/skills/seniority
+        they have actually searched for (seeker_discovery_events.filters_json
+        — see main.py's DiscoveryFiltersIn), and how many Roles they have
+        saved. Deliberately does NOT resolve saved Roles against jobs.db:
+        ADR 0006 forbids attaching Seeker-owned state to the catalogue
+        connection, and a per-seeker count answers "are they engaged" without
+        needing that join.
+        """
+        conn = self._conn()
+        resume_row = conn.execute(
+            "SELECT analysis_json FROM seeker_resumes WHERE seeker_id = ?", (seeker_id,)
+        ).fetchone()
+        resume_analysis = json.loads(resume_row["analysis_json"]) if resume_row else {}
+
+        discovery_rows = conn.execute(
+            """
+            SELECT search_query, filters_json FROM seeker_discovery_events
+            WHERE seeker_id = ? ORDER BY id DESC LIMIT 50
+            """,
+            (seeker_id,),
+        ).fetchall()
+        sector_counts: Counter[str] = Counter()
+        skill_counts: Counter[str] = Counter()
+        seniority_counts: Counter[str] = Counter()
+        recent_terms: list[str] = []
+        for row in discovery_rows:
+            filters = json.loads(row["filters_json"])
+            sector_counts.update(filters.get("sectors") or [])
+            skill_counts.update(filters.get("skills") or [])
+            seniority_counts.update(filters.get("seniority") or [])
+            if row["search_query"] and row["search_query"] not in recent_terms:
+                recent_terms.append(row["search_query"])
+
+        saved_roles_count = conn.execute(
+            "SELECT COUNT(*) FROM saved_roles WHERE seeker_id = ?", (seeker_id,)
+        ).fetchone()[0]
+
+        return {
+            "resume_skills": resume_analysis.get("skills", []),
+            "resume_role_families": resume_analysis.get("role_families", []),
+            "resume_sectors": resume_analysis.get("sectors", []),
+            "resume_seniority": resume_analysis.get("seniority"),
+            "searched_sectors": [name for name, _ in sector_counts.most_common(8)],
+            "searched_skills": [name for name, _ in skill_counts.most_common(8)],
+            "searched_seniority": [name for name, _ in seniority_counts.most_common(4)],
+            "recent_search_terms": recent_terms[:8],
+            "saved_roles_count": saved_roles_count,
+        }
 
     def set_username(self, seeker_id: str, username: str | None) -> None:
         """
