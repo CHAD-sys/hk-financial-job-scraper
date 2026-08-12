@@ -785,6 +785,34 @@ class SeekerStore:
         )
         return dict(row) if row else None
 
+    def list_accounts(self, *, limit: int = 500) -> list[dict[str, Any]]:
+        """Every Seeker account, newest-first, for the Ultimate Admin directory.
+
+        `password_hash` is never selected — there is no admin use case for it,
+        hashed or not, and leaving it out of the query is a stronger guarantee
+        than trusting every caller to strip it from the row after the fact.
+        """
+        rows = self._conn().execute(
+            """
+            SELECT id, email, display_name, username, email_verified,
+                   is_admin, is_super_admin, created_at, last_login_at
+            FROM seekers ORDER BY created_at DESC LIMIT ?
+            """,
+            (max(1, min(int(limit), 2000)),),
+        )
+        # SQLite has no boolean type — these come back 0/1. A raw dict(row)
+        # would hand the API layer an int where the wire contract promises a
+        # bool; coerce here rather than trusting every caller to remember.
+        return [
+            {
+                **dict(row),
+                "email_verified": bool(row["email_verified"]),
+                "is_admin": bool(row["is_admin"]),
+                "is_super_admin": bool(row["is_super_admin"]),
+            }
+            for row in rows
+        ]
+
     def set_username(self, seeker_id: str, username: str | None) -> None:
         """
         Set or clear a Seeker's login username. Raises `sqlite3.IntegrityError`

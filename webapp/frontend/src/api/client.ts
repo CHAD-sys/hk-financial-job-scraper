@@ -1059,6 +1059,44 @@ export async function fetchAdminIntelligence(days = 30): Promise<AdminIntelligen
   return res.json()
 }
 
+// ── Ultimate Admin: account directory ──────────────────────────────────────────
+// Read-only, behind is_super_admin only (require_super_admin) — the whole route
+// is gated, not just individual fields. password_hash is never on the wire: the
+// backend query never selects it in the first place (seekers_store.list_accounts).
+
+export interface AdminSeekerAccount {
+  id: string
+  email: string
+  display_name: string | null
+  username: string | null
+  email_verified: boolean
+  is_admin: boolean
+  is_super_admin: boolean
+  created_at: string
+  last_login_at: string | null
+}
+
+export interface AdminEmployerAccount {
+  id: string
+  email: string
+  company_name: string
+  contact_name: string | null
+  email_verified: boolean
+  created_at: string
+  last_login_at: string | null
+}
+
+export interface AdminAccountsResponse {
+  seekers: AdminSeekerAccount[]
+  employers: AdminEmployerAccount[]
+}
+
+export async function fetchAdminAccounts(): Promise<AdminAccountsResponse> {
+  const res = await apiFetch('/api/admin/accounts')
+  if (!res.ok) throw new ApiError(res.status, `Could not load the account directory (${res.status}).`)
+  return res.json()
+}
+
 // ── Ultimate Admin: direct job edit ────────────────────────────────────────────
 // Behind is_super_admin only — the other four admins never call these. The
 // wire shape mirrors webapp/backend/job_edit.py's raw dict(row) exactly: it is

@@ -4,6 +4,7 @@ import {
   BarChart3,
   CalendarSync,
   ClipboardCheck,
+  IdCard,
   SquarePen,
   Users,
   type LucideProps,
@@ -23,6 +24,7 @@ const SECTIONS: SectionItem[] = [
   { href: '#market-intelligence', label: 'Market intelligence', detail: 'Roles · salaries · demand', icon: BarChart3 },
   { href: '#daily-collection', label: 'Daily collection', detail: 'Today’s pipeline totals', icon: CalendarSync },
   { href: '#verification', label: 'Verification', detail: 'Submitted Role review', icon: ClipboardCheck },
+  { href: '#accounts', label: 'Account directory', detail: 'Every Seeker and Employer', icon: IdCard, superAdminOnly: true },
   { href: '#job-editor', label: 'Job editor', detail: 'Ultimate Admin controls', icon: SquarePen, superAdminOnly: true },
 ]
 

@@ -35,9 +35,11 @@ from typing import Any, Callable
 from zoneinfo import ZoneInfo
 
 import admin_intelligence
+import employers_store
 import job_edit
 import learning_content
 import pipeline_publish
+import seekers_store
 import submissions
 from fastapi import (
     APIRouter,
@@ -376,6 +378,19 @@ def build_router(
             return admin_intelligence.build_admin_intelligence(
                 conn, history_days=days, is_super_admin=bool(admin.get("is_super_admin"))
             )
+
+    # ── Ultimate Admin: account directory ───────────────────────────────────
+    # Read-only, behind require_super_admin — same posture as Source health /
+    # Publication safety / Recommendation health above: not queried or
+    # serialised for the other four admins. Two independent stores (ADR 0001),
+    # so one response with both lists rather than forcing two round trips.
+
+    @router.get("/accounts")
+    def list_accounts_route(_admin: dict = Depends(require_super_admin)):
+        return {
+            "seekers": seekers_store.get_store().list_accounts(),
+            "employers": employers_store.get_store().list_accounts(),
+        }
 
     # ── Ultimate Admin: direct job edit ─────────────────────────────────────
     # Behind require_super_admin, not require_admin — the other four admins

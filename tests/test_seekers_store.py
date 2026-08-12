@@ -180,6 +180,31 @@ def test_set_admin_toggles_is_admin(store):
     assert store.get_seeker(seeker_id)["is_admin"] == 0
 
 
+def test_list_accounts_coerces_sqlite_integers_to_real_booleans(store):
+    """Unlike get_seeker() (raw dict(row), 0/1 — see the test above), the
+    account-directory listing owes its caller real JSON booleans."""
+    seeker_id = store.create_seeker("alice@example.com", email_verified=True)
+    store.set_admin(seeker_id, True)
+    store.set_super_admin(seeker_id, True)
+
+    row = store.list_accounts()[0]
+
+    assert row["is_admin"] is True
+    assert row["is_super_admin"] is True
+    assert row["email_verified"] is True
+    assert "password_hash" not in row
+
+
+def test_list_accounts_excludes_password_hash_and_is_newest_first(store):
+    store.create_seeker("first@example.com", password_hash="argon2-hash", now=_hk(1))
+    store.create_seeker("second@example.com", password_hash="argon2-hash", now=_hk(2))
+
+    rows = store.list_accounts()
+
+    assert [row["email"] for row in rows] == ["second@example.com", "first@example.com"]
+    assert all("password_hash" not in row for row in rows)
+
+
 def test_username_starts_unset(store):
     seeker_id = store.create_seeker("alice@example.com")
     assert store.get_seeker(seeker_id)["username"] is None
