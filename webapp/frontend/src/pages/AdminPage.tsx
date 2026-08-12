@@ -2,14 +2,18 @@ import { useCallback, useEffect, useState } from 'react'
 import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, XCircle } from 'lucide-react'
 import { Navigate } from 'react-router-dom'
 import Nav from '../components/Nav'
+import AccountsDirectory from '../components/admin/AccountsDirectory'
 import AnalyticsOverview from '../components/admin/AnalyticsOverview'
 import AdminSectionNav from '../components/admin/AdminSectionNav'
 import JobEditor from '../components/admin/JobEditor'
 import OperationsCenter from '../components/admin/OperationsCenter'
 import SubmissionsPanel from '../components/admin/SubmissionsPanel'
+import UserActivity from '../components/admin/UserActivity'
 import { useAuth } from '../auth/useAuth'
 import {
+  fetchAdminAccounts,
   fetchAdminIntelligence,
+  type AdminAccountsResponse,
   type AdminIntelligenceSnapshot,
 } from '../api/client'
 
@@ -26,12 +30,15 @@ export default function AdminPage() {
   const [snapshot, setSnapshot] = useState<AdminIntelligenceSnapshot | null>(null)
   const [dashboardError, setDashboardError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [days, setDays] = useState(30)
+  const [accounts, setAccounts] = useState<AdminAccountsResponse | null>(null)
+  const [accountsError, setAccountsError] = useState<string | null>(null)
 
-  const loadDashboard = useCallback(async () => {
+  const loadDashboard = useCallback(async (windowDays: number) => {
     setRefreshing(true)
     setDashboardError(null)
     try {
-      setSnapshot(await fetchAdminIntelligence(30))
+      setSnapshot(await fetchAdminIntelligence(windowDays))
     } catch (error) {
       setDashboardError(error instanceof Error ? error.message : 'Could not load admin intelligence.')
     } finally {
@@ -41,8 +48,18 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (loading || !seeker?.is_admin) return
-    void loadDashboard()
-  }, [loading, seeker?.is_admin, loadDashboard])
+    void loadDashboard(days)
+  }, [loading, seeker?.is_admin, days, loadDashboard])
+
+  // Its own fetch, not folded into loadDashboard: the account directory has
+  // no "window" to respond to, so it should not re-fetch every time `days`
+  // changes, and it is Ultimate-Admin-only so ordinary admins never call it.
+  useEffect(() => {
+    if (loading || !seeker?.is_super_admin) return
+    fetchAdminAccounts()
+      .then(setAccounts)
+      .catch(error => setAccountsError(error instanceof Error ? error.message : 'Could not load the account directory.'))
+  }, [loading, seeker?.is_super_admin])
 
   if (!loading && (!seeker || !seeker.is_admin)) {
     return <Navigate to="/signin" state={{ from: '/admin' }} replace />
@@ -52,6 +69,7 @@ export default function AdminPage() {
   const history = snapshot?.history.points ?? []
   const overview = snapshot?.analytics ?? null
   const operations = snapshot?.operations ?? null
+  const userActivity = snapshot?.user_activity ?? null
   const loadingDashboard = !snapshot && !dashboardError
   const loadingOperations = loadingDashboard
 
@@ -74,7 +92,7 @@ export default function AdminPage() {
           </div>
           <button
             type="button"
-            onClick={() => void loadDashboard()}
+            onClick={() => void loadDashboard(days)}
             disabled={refreshing}
             className="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-md px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:self-auto"
             style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border-strong)', color: 'var(--color-ink)' }}
@@ -95,7 +113,7 @@ export default function AdminPage() {
                 {dashboardError}
               </span>
             </div>
-            <button type="button" onClick={() => void loadDashboard()} className="min-h-10 shrink-0 rounded-md px-3 text-sm font-semibold" style={{ border: '1px solid #FCA5A5' }}>
+            <button type="button" onClick={() => void loadDashboard(days)} className="min-h-10 shrink-0 rounded-md px-3 text-sm font-semibold" style={{ border: '1px solid #FCA5A5' }}>
               Try again
             </button>
           </div>
@@ -119,6 +137,23 @@ export default function AdminPage() {
           ) : (
             <div className="rounded-lg p-5 text-sm" role="status" style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-ink-muted)' }}>
               Pipeline operations are unavailable. Use “Refresh data” to try this section again.
+            </div>
+          )}
+        </section>
+
+        <section id="user-activity" className="mt-16 scroll-mt-28 border-t pt-12" style={{ borderColor: 'var(--color-border)' }}>
+          {loadingDashboard ? (
+            <div className="flex min-h-64 items-center justify-center rounded-lg" style={{ backgroundColor: 'var(--color-masthead)' }}>
+              <div className="text-center" style={{ color: 'var(--color-ink-inverse)' }}>
+                <Loader2 size={24} className="mx-auto animate-spin" aria-hidden="true" />
+                <p className="mt-3 text-sm">Loading Seeker activity…</p>
+              </div>
+            </div>
+          ) : userActivity ? (
+            <UserActivity overview={userActivity} days={days} onDaysChange={setDays} />
+          ) : (
+            <div className="rounded-lg p-5 text-sm" role="status" style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-ink-muted)' }}>
+              Seeker activity is unavailable. Use “Refresh data” to try this section again.
             </div>
           )}
         </section>
@@ -226,6 +261,25 @@ export default function AdminPage() {
           </div>
           <SubmissionsPanel />
         </section>
+
+        {seeker?.is_super_admin && (
+          <section id="accounts" className="mt-16 scroll-mt-28 border-t pt-12" style={{ borderColor: 'var(--color-border)' }}>
+            {accounts ? (
+              <AccountsDirectory data={accounts} />
+            ) : accountsError ? (
+              <div className="rounded-lg p-5 text-sm" role="status" style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-ink-muted)' }}>
+                {accountsError}
+              </div>
+            ) : (
+              <div className="flex min-h-64 items-center justify-center rounded-lg" style={{ backgroundColor: 'var(--color-masthead)' }}>
+                <div className="text-center" style={{ color: 'var(--color-ink-inverse)' }}>
+                  <Loader2 size={24} className="mx-auto animate-spin" aria-hidden="true" />
+                  <p className="mt-3 text-sm">Loading the account directory…</p>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
 
         {seeker?.is_super_admin && (
           <section id="job-editor" className="mt-16 scroll-mt-28 border-t pt-12" style={{ borderColor: 'var(--color-border)' }}>

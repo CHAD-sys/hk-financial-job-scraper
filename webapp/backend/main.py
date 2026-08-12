@@ -1339,6 +1339,55 @@ def whoami(request: Request):
     return _seeker_out(_require_seeker(request))
 
 
+VISITOR_COOKIE = "finex_visitor"
+# ~400 days: the cap most browsers enforce on cookie lifetime (Chrome since
+# 2023), so anything longer is silently truncated anyway.
+VISITOR_COOKIE_MAX_AGE = 60 * 60 * 24 * 400
+
+
+@router.post("/api/visit", tags=["analytics"])
+def record_board_visit(request: Request, response: Response):
+    """
+    Count one anonymous board visit, fired by the frontend once per app load.
+
+    Skipped entirely for a request that already carries a valid Seeker
+    session — that activity is already counted by `sessions`
+    (seekers_store.user_activity_overview), and recording it twice would
+    double-count the same human across both populations.
+
+    The visitor cookie carries no identity: a random opaque token, hashed
+    before storage exactly like a session token (auth.hash_token), sent
+    nowhere but back to this one endpoint. Rate-limited per IP because unlike
+    a Seeker session, nothing about this endpoint requires proving you are a
+    distinct person — the limit is what stops a script with no cookie jar
+    from inflating the count indefinitely.
+    """
+    # Mutate and return THIS SAME object, never a fresh Response(...) — FastAPI
+    # only merges the injected response's headers/cookies into the final reply
+    # when the endpoint returns it directly; a newly constructed Response
+    # bypasses it and silently drops the cookie.
+    response.status_code = 204
+    if _current_seeker(request) is not None:
+        return response
+    if _auth_rate_limited(request, f"visit:ip:{_client_ip(request)}", limit=60, window_s=3600):
+        return response
+
+    raw = request.cookies.get(VISITOR_COOKIE)
+    if not raw:
+        raw = auth.generate_token()
+        response.set_cookie(
+            VISITOR_COOKIE,
+            raw,
+            max_age=VISITOR_COOKIE_MAX_AGE,
+            httponly=True,          # unreadable to JS, so XSS cannot exfiltrate it
+            secure=cfg(request).cookie_secure,
+            samesite="lax",
+            path="/",
+        )
+    seekers_store.get_store().record_visit(auth.hash_token(raw))
+    return response
+
+
 @router.get("/api/me/saved", response_model=list[JobSummary], tags=["saved"])
 def list_saved(request: Request):
     """

@@ -342,6 +342,24 @@ class EmployerStore:
         ).fetchone()
         return dict(row) if row else None
 
+    def list_accounts(self, *, limit: int = 500) -> list[dict[str, Any]]:
+        """Every Employer account, newest-first, for the Ultimate Admin directory.
+
+        `password_hash` is never selected — same reasoning as
+        SeekerStore.list_accounts: no admin use case for it, hashed or not.
+        """
+        rows = self._conn().execute(
+            """
+            SELECT id, email, company_name, contact_name, email_verified,
+                   created_at, last_login_at
+            FROM employers ORDER BY created_at DESC LIMIT ?
+            """,
+            (max(1, min(int(limit), 2000)),),
+        )
+        # SQLite has no boolean type — email_verified comes back 0/1. Coerce
+        # here, same reasoning as SeekerStore.list_accounts.
+        return [{**dict(row), "email_verified": bool(row["email_verified"])} for row in rows]
+
     def touch_last_login(self, employer_id: str, *, now: datetime | None = None) -> None:
         with self._write() as conn:
             conn.execute(

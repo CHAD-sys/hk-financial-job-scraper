@@ -35,9 +35,11 @@ from typing import Any, Callable
 from zoneinfo import ZoneInfo
 
 import admin_intelligence
+import employers_store
 import job_edit
 import learning_content
 import pipeline_publish
+import seekers_store
 import submissions
 from fastapi import (
     APIRouter,
@@ -370,10 +372,35 @@ def build_router(
     def intelligence_snapshot(
         request: Request,
         days: int = Query(30, ge=1, le=365),
-        _admin: dict = Depends(require_admin),
+        admin: dict = Depends(require_admin),
     ):
         with get_db(request) as conn:
-            return admin_intelligence.build_admin_intelligence(conn, history_days=days)
+            return admin_intelligence.build_admin_intelligence(
+                conn, history_days=days, is_super_admin=bool(admin.get("is_super_admin"))
+            )
+
+    # ── Ultimate Admin: account directory ───────────────────────────────────
+    # Read-only, behind require_super_admin — same posture as Source health /
+    # Publication safety / Recommendation health above: not queried or
+    # serialised for the other four admins. Two independent stores (ADR 0001),
+    # so one response with both lists rather than forcing two round trips.
+
+    @router.get("/accounts")
+    def list_accounts_route(_admin: dict = Depends(require_super_admin)):
+        return {
+            "seekers": seekers_store.get_store().list_accounts(),
+            "employers": employers_store.get_store().list_accounts(),
+        }
+
+    @router.get("/accounts/seekers/{seeker_id}/interests")
+    def get_seeker_interests_route(seeker_id: str, _admin: dict = Depends(require_super_admin)):
+        """Fetched lazily, per row, when an admin expands a Seeker — never
+        bundled into list_accounts_route, which stays a flat query so it does
+        not turn into an N-seeker fan-out of resume/discovery/saved-role reads."""
+        store = seekers_store.get_store()
+        if store.get_seeker(seeker_id) is None:
+            raise HTTPException(status_code=404, detail="Seeker not found")
+        return store.interests_for_seeker(seeker_id)
 
     # ── Ultimate Admin: direct job edit ─────────────────────────────────────
     # Behind require_super_admin, not require_admin — the other four admins

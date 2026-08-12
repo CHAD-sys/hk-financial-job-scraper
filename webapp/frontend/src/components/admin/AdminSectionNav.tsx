@@ -4,7 +4,9 @@ import {
   BarChart3,
   CalendarSync,
   ClipboardCheck,
+  IdCard,
   SquarePen,
+  Users,
   type LucideProps,
 } from 'lucide-react'
 
@@ -18,9 +20,11 @@ interface SectionItem {
 
 const SECTIONS: SectionItem[] = [
   { href: '#operations-center', label: 'Operations center', detail: 'Reliability · cost · alerts', icon: Activity },
+  { href: '#user-activity', label: 'Seeker accounts', detail: 'Signups · active · returning', icon: Users },
   { href: '#market-intelligence', label: 'Market intelligence', detail: 'Roles · salaries · demand', icon: BarChart3 },
   { href: '#daily-collection', label: 'Daily collection', detail: 'Today’s pipeline totals', icon: CalendarSync },
   { href: '#verification', label: 'Verification', detail: 'Submitted Role review', icon: ClipboardCheck },
+  { href: '#accounts', label: 'Account directory', detail: 'Every Seeker and Employer', icon: IdCard, superAdminOnly: true },
   { href: '#job-editor', label: 'Job editor', detail: 'Ultimate Admin controls', icon: SquarePen, superAdminOnly: true },
 ]
 
@@ -42,7 +46,7 @@ export default function AdminSectionNav({ isSuperAdmin }: { isSuperAdmin: boolea
   return (
     <nav className="admin-section-nav mb-10" aria-label="Admin page sections">
       <div className="admin-section-nav__scroller" tabIndex={0} role="region" aria-label="Admin dashboard sections">
-        <div className="admin-section-nav__items" style={{ gridTemplateColumns: `repeat(${sections.length}, minmax(0, 1fr))` }}>
+        <div className="admin-section-nav__items">
           {sections.map(({ href, label, detail, icon: Icon }) => {
             const active = activeSection === href
             return (

@@ -59,14 +59,47 @@ describe('OperationsCenter', () => {
     render(<OperationsCenter data={{
       ...DATA,
       run: { phases: [{ key: 'restore', label: 'Restore', status: 'not_recorded', duration_seconds: null }] },
-      ai_cost: { ...DATA.ai_cost, tracking_available: false, calls: 0, estimated_cost_usd: 0 },
-      source_health: DATA.source_health.map(source => ({ ...source, tracking_available: false, roles_found: null, active_roles: 120, success_rate_pct: null, status: 'not_recorded' })),
-      recommendations: { ...DATA.recommendations, tracking_available: false },
+      ai_cost: { ...DATA.ai_cost!, tracking_available: false, calls: 0, estimated_cost_usd: 0 },
+      source_health: DATA.source_health!.map(source => ({ ...source, tracking_available: false, roles_found: null, active_roles: 120, success_rate_pct: null, status: 'not_recorded' })),
+      recommendations: { ...DATA.recommendations!, tracking_available: false },
       alerts: [],
     }} />)
     expect(screen.getByText('Detailed telemetry begins with the next run')).toBeInTheDocument()
     expect(screen.getAllByText('Awaiting telemetry').length).toBeGreaterThan(0)
     expect(screen.getByText(/Insufficient telemetry to assess/)).toBeInTheDocument()
     expect(screen.queryByText('$0.0000')).not.toBeInTheDocument()
+  })
+
+  it('omits AI cost control entirely for admins the backend withheld it from', () => {
+    render(<OperationsCenter data={{ ...DATA, ai_cost: null }} />)
+
+    expect(screen.queryByRole('heading', { name: 'AI cost control' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Data-quality gates' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Source health' })).toBeInTheDocument()
+  })
+
+  it('omits Source health, Publication safety and Recommendation health for an ordinary admin', () => {
+    render(<OperationsCenter data={{
+      ...DATA,
+      ai_cost: null,
+      source_health: null,
+      publication: null,
+      recommendations: null,
+    }} />)
+
+    expect(screen.queryByRole('heading', { name: 'AI cost control' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Source health' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Publication safety' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Recommendation health' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Data-quality gates' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Actionable alerts' })).toBeInTheDocument()
+  })
+
+  it('shows Publication safety and Recommendation health for an Ultimate Admin even with a zero publication receipt', () => {
+    render(<OperationsCenter data={{ ...DATA, publication: null }} />)
+
+    expect(screen.getByRole('heading', { name: 'Publication safety' })).toBeInTheDocument()
+    expect(screen.getByText('No checksummed Railway publication receipt is available yet.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Recommendation health' })).toBeInTheDocument()
   })
 })

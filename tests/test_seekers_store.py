@@ -14,8 +14,9 @@ from __future__ import annotations
 
 import sqlite3
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -35,6 +36,15 @@ from seekers_store import (  # noqa: E402 — path must be set up first
 @pytest.fixture()
 def store(tmp_path) -> SeekerStore:
     return SeekerStore(tmp_path / "seekers.db")
+
+
+_HKT = ZoneInfo("Asia/Hong_Kong")
+
+
+def _hk(day: int, hour: int = 12) -> datetime:
+    """A Hong-Kong-local moment on August `day`, 2026 — noon avoids UTC/HKT
+    day-boundary edge cases so the calendar day is unambiguous either way."""
+    return datetime(2026, 8, day, hour, 0, tzinfo=_HKT)
 
 
 # ── Where the file lives ──────────────────────────────────────────────────────
@@ -92,6 +102,7 @@ def test_migrations_create_every_table(store):
         "recommendation_hidden_employers",
         "seeker_resumes",
         "events",
+        "anonymous_visits",
     } <= names
 
 
@@ -167,6 +178,93 @@ def test_set_admin_toggles_is_admin(store):
     assert store.get_seeker(seeker_id)["is_admin"] == 1
     store.set_admin(seeker_id, False)
     assert store.get_seeker(seeker_id)["is_admin"] == 0
+
+
+def test_interests_combine_resume_discovery_and_saved_roles(store):
+    seeker_id = store.create_seeker("priya@example.com")
+    store.replace_resume(
+        seeker_id,
+        filename="cv.pdf",
+        media_type="application/pdf",
+        size_bytes=1,
+        content_sha256="a" * 64,
+        file_content=b"x",
+        text_content="Credit risk analyst with SQL and Python experience.",
+        analysis={
+            "skills": ["credit risk", "sql"],
+            "role_families": ["credit", "risk"],
+            "sectors": ["Banking"],
+            "years_experience": 4,
+            "seniority": "mid",
+        },
+    )
+    store.record_discovery(
+        seeker_id,
+        search_query="credit analyst",
+        filters={"sectors": ["Banking"], "skills": ["sql"], "seniority": ["mid"]},
+        result_count=12,
+    )
+    store.record_discovery(
+        seeker_id,
+        search_query="risk manager",
+        filters={"sectors": ["Banking", "Insurance"], "seniority": ["senior"]},
+        result_count=5,
+    )
+    store.save_role(seeker_id, "jobsdb", "job-1")
+
+    interests = store.interests_for_seeker(seeker_id)
+
+    assert interests["resume_skills"] == ["credit risk", "sql"]
+    assert interests["resume_sectors"] == ["Banking"]
+    assert interests["resume_seniority"] == "mid"
+    assert interests["searched_sectors"][0] == "Banking"  # most common, searched twice
+    assert "sql" in interests["searched_skills"]
+    assert set(interests["searched_seniority"]) == {"mid", "senior"}
+    assert interests["recent_search_terms"] == ["risk manager", "credit analyst"]  # newest first
+    assert interests["saved_roles_count"] == 1
+
+
+def test_interests_for_a_seeker_with_no_activity_is_empty_not_an_error(store):
+    seeker_id = store.create_seeker("blank@example.com")
+
+    interests = store.interests_for_seeker(seeker_id)
+
+    assert interests == {
+        "resume_skills": [],
+        "resume_role_families": [],
+        "resume_sectors": [],
+        "resume_seniority": None,
+        "searched_sectors": [],
+        "searched_skills": [],
+        "searched_seniority": [],
+        "recent_search_terms": [],
+        "saved_roles_count": 0,
+    }
+
+
+def test_list_accounts_coerces_sqlite_integers_to_real_booleans(store):
+    """Unlike get_seeker() (raw dict(row), 0/1 — see the test above), the
+    account-directory listing owes its caller real JSON booleans."""
+    seeker_id = store.create_seeker("alice@example.com", email_verified=True)
+    store.set_admin(seeker_id, True)
+    store.set_super_admin(seeker_id, True)
+
+    row = store.list_accounts()[0]
+
+    assert row["is_admin"] is True
+    assert row["is_super_admin"] is True
+    assert row["email_verified"] is True
+    assert "password_hash" not in row
+
+
+def test_list_accounts_excludes_password_hash_and_is_newest_first(store):
+    store.create_seeker("first@example.com", password_hash="argon2-hash", now=_hk(1))
+    store.create_seeker("second@example.com", password_hash="argon2-hash", now=_hk(2))
+
+    rows = store.list_accounts()
+
+    assert [row["email"] for row in rows] == ["second@example.com", "first@example.com"]
+    assert all("password_hash" not in row for row in rows)
 
 
 def test_username_starts_unset(store):
@@ -570,6 +668,108 @@ def test_events_hold_nothing_but_name_seeker_and_time(store):
     finally:
         conn.close()
     assert columns == {"id", "name", "seeker_id", "created_at"}
+
+
+# ── User activity overview ───────────────────────────────────────────────────
+
+
+def test_user_activity_counts_signups_active_and_returning_seekers(store):
+    # Seeker A signs up day 1 and comes back day 3 — a returning Seeker.
+    seeker_a = store.create_seeker("amy@example.com", now=_hk(1))
+    store.insert_session("sess-a1", seeker_a, _hk(1) + timedelta(days=90), now=_hk(1))
+    store.insert_session("sess-a3", seeker_a, _hk(3) + timedelta(days=90), now=_hk(3))
+    # Seeker B signs up day 2 and never comes back.
+    seeker_b = store.create_seeker("bo@example.com", now=_hk(2))
+    store.insert_session("sess-b2", seeker_b, _hk(2) + timedelta(days=90), now=_hk(2))
+
+    overview = store.user_activity_overview(days=5, now=_hk(5))
+
+    assert overview["tracking_available"] is True
+    assert overview["total_seekers"] == 2
+    assert overview["new_signups"] == 2
+    assert overview["active_seekers"] == 2
+    assert overview["returning_seekers"] == 1
+    assert overview["repeat_visit_rate_pct"] == 50.0
+    assert overview["window_started_on"] == "2026-08-01"
+    assert overview["window_ended_on"] == "2026-08-05"
+
+    by_date = {point["date"]: point for point in overview["points"]}
+    assert len(overview["points"]) == 5
+    assert by_date["2026-08-01"]["new_signups"] == 1
+    assert by_date["2026-08-01"]["active_seekers"] == 1
+    assert by_date["2026-08-01"]["returning_seekers"] == 0
+    assert by_date["2026-08-02"]["new_signups"] == 1
+    assert by_date["2026-08-03"]["active_seekers"] == 1
+    assert by_date["2026-08-03"]["returning_seekers"] == 1  # Seeker A's second visit
+    assert by_date["2026-08-04"]["active_seekers"] == 0
+    assert by_date["2026-08-05"]["active_seekers"] == 0
+
+
+def test_user_activity_with_no_seekers_is_empty_not_an_error(store):
+    overview = store.user_activity_overview(days=7, now=_hk(10))
+
+    assert overview["tracking_available"] is True
+    assert overview["total_seekers"] == 0
+    assert overview["active_seekers"] == 0
+    assert overview["returning_seekers"] == 0
+    assert overview["repeat_visit_rate_pct"] == 0.0
+    assert len(overview["points"]) == 7
+
+
+def test_user_activity_ignores_sessions_and_signups_outside_the_window(store):
+    seeker_id = store.create_seeker("early@example.com", now=_hk(1))
+    store.insert_session("sess-early", seeker_id, _hk(1) + timedelta(days=90), now=_hk(1))
+
+    overview = store.user_activity_overview(days=2, now=_hk(10))
+
+    assert overview["window_started_on"] == "2026-08-09"
+    assert overview["new_signups"] == 0
+    assert overview["active_seekers"] == 0
+
+
+def test_anonymous_visits_count_unique_and_returning_visitors(store):
+    # Visitor X visits day 1 and returns day 3 — a returning visitor.
+    store.record_visit("hash-x", now=_hk(1))
+    store.record_visit("hash-x", now=_hk(3))
+    # Visitor Y visits only day 2, never returns.
+    store.record_visit("hash-y", now=_hk(2))
+
+    overview = store.user_activity_overview(days=5, now=_hk(5))
+    anonymous = overview["anonymous"]
+
+    assert anonymous["unique_visitors"] == 2
+    assert anonymous["returning_visitors"] == 1
+    assert anonymous["repeat_visit_rate_pct"] == 50.0
+
+    by_date = {point["date"]: point for point in anonymous["points"]}
+    assert by_date["2026-08-01"]["unique_visitors"] == 1
+    assert by_date["2026-08-01"]["returning_visitors"] == 0
+    assert by_date["2026-08-02"]["unique_visitors"] == 1
+    assert by_date["2026-08-03"]["unique_visitors"] == 1
+    assert by_date["2026-08-03"]["returning_visitors"] == 1  # visitor X's second visit
+
+
+def test_recording_the_same_visitor_twice_in_one_day_is_not_a_double_count(store):
+    store.record_visit("hash-z", now=_hk(1, hour=9))
+    store.record_visit("hash-z", now=_hk(1, hour=18))  # same HK calendar day
+
+    overview = store.user_activity_overview(days=1, now=_hk(1))
+
+    assert overview["anonymous"]["unique_visitors"] == 1
+
+
+def test_anonymous_visits_never_touch_seeker_activity(store):
+    """The two populations are independent — an anonymous visitor is never
+    folded into active_seekers, and a Seeker's session never inflates
+    unique_visitors."""
+    seeker_id = store.create_seeker("dana@example.com", now=_hk(1))
+    store.insert_session("sess-dana", seeker_id, _hk(1) + timedelta(days=90), now=_hk(1))
+    store.record_visit("hash-anon", now=_hk(1))
+
+    overview = store.user_activity_overview(days=1, now=_hk(1))
+
+    assert overview["active_seekers"] == 1
+    assert overview["anonymous"]["unique_visitors"] == 1
 
 
 # ── Private resume ───────────────────────────────────────────────────────────

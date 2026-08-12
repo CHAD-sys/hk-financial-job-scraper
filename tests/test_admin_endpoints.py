@@ -429,8 +429,144 @@ def test_operations_dashboard_is_admin_only_and_degrades_truthfully(
         "linkedin_promote", "publish",
     ]
     assert all(phase["status"] == "not_recorded" for phase in body["run"]["phases"])
-    assert body["ai_cost"]["tracking_available"] is False
+    assert body["ai_cost"] is None  # Ultimate-Admin-only; see the test below
     assert body["publication"] is None
+
+
+def test_ai_cost_control_is_ultimate_admin_only(super_admin_client):
+    """The other four admins never receive this field at all — not hidden
+    client-side, never serialised for them in the first place."""
+    body = super_admin_client.get("/api/admin/intelligence").json()["operations"]
+    assert body["ai_cost"] is not None
+    assert body["ai_cost"]["tracking_available"] is False
+
+
+def test_source_health_publication_and_recommendations_are_ultimate_admin_only(
+    admin_client, db, dist, tmp_path, _seekers_env,
+):
+    """Same posture as AI cost control: Source health, Publication safety and
+    Recommendation health are Ultimate-Admin-only. An ordinary admin's response
+    carries `null` for all three; only a second client promoted to
+    is_super_admin, against the SAME database, sees real content."""
+    with sqlite3.connect(db) as conn:
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS pipeline_catalog_sync (
+                   source_run_id TEXT PRIMARY KEY,
+                   snapshot_sha256 TEXT NOT NULL,
+                   source_run_url TEXT,
+                   received_at TEXT NOT NULL,
+                   active_jobs INTEGER NOT NULL
+               )"""
+        )
+        conn.execute(
+            """INSERT INTO pipeline_catalog_sync VALUES (
+                   '123', ?, 'https://github.test/actions/runs/123',
+                   '2026-08-06T18:30:00+00:00', 42
+               )""",
+            ("a" * 64,),
+        )
+
+    ordinary = admin_client.get("/api/admin/intelligence").json()["operations"]
+    assert ordinary["source_health"] is None
+    assert ordinary["publication"] is None
+    assert ordinary["recommendations"] is None
+
+    ultimate_client = TestClient(make_app(db, dist, tmp_path, cookie_secure=False))
+    ultimate_client.post("/api/auth/register", json=SEEKER)
+    _promote_to_super_admin(SEEKER["email"])
+    ultimate = ultimate_client.get("/api/admin/intelligence").json()["operations"]
+    assert ultimate["source_health"] is not None
+    assert ultimate["publication"]["source_run_id"] == "123"
+    assert ultimate["recommendations"] is not None
+
+
+def test_account_directory_is_ultimate_admin_only(
+    admin_client, seeker_client, db, dist, tmp_path, _seekers_env,
+):
+    """Read-only, same posture as the other Ultimate-Admin-only sections: an
+    ordinary admin and an ordinary Seeker are both refused outright — no field
+    is silently withheld here, the whole route is gated.
+
+    Deliberately does NOT reuse admin_client's or seeker_client's own address
+    for the Ultimate Admin: every client here shares this test's one
+    tmp_path-derived seekers.db (see _seekers_env's docstring), and
+    registering an email that already exists there hits the anti-enumeration
+    "fake success" path (main.py's register()) instead of actually signing
+    the caller in — so promoting the ADMIN or SEEKER address would silently
+    fail to authenticate a third client as that account. A brand-new address,
+    registered fresh and promoted directly, avoids the collision.
+    """
+    assert admin_client.get("/api/admin/accounts").status_code == 403
+    assert seeker_client.get("/api/admin/accounts").status_code == 403
+
+    ultimate_email = "ultimate@example.com"
+    ultimate_client = TestClient(make_app(db, dist, tmp_path, cookie_secure=False))
+    ultimate_client.post(
+        "/api/auth/register",
+        json={"email": ultimate_email, "password": "correct-horse-battery", "display_name": "Uma"},
+    )
+    _promote_to_super_admin(ultimate_email)
+    ultimate_client.post(
+        "/api/employer/register",
+        json={
+            "email": "recruiter@example.com",
+            "password": "correct-horse-battery",
+            "company_name": "Acme Capital",
+            "contact_name": "Jamie Lee",
+        },
+    )
+
+    body = ultimate_client.get("/api/admin/accounts").json()
+
+    seeker_emails = {row["email"] for row in body["seekers"]}
+    assert ultimate_email in seeker_emails
+    assert all("password_hash" not in row for row in body["seekers"])
+    ultimate_row = next(row for row in body["seekers"] if row["email"] == ultimate_email)
+    # SQLite has no boolean type — these must arrive as real JSON booleans,
+    # not the raw 0/1 a bare dict(row) would hand back.
+    assert ultimate_row["is_super_admin"] is True
+    assert ultimate_row["is_admin"] is True
+    assert isinstance(ultimate_row["email_verified"], bool)
+
+    employer_emails = {row["email"] for row in body["employers"]}
+    assert "recruiter@example.com" in employer_emails
+    employer_row = next(row for row in body["employers"] if row["email"] == "recruiter@example.com")
+    assert employer_row["company_name"] == "Acme Capital"
+    assert isinstance(employer_row["email_verified"], bool)
+    assert all("password_hash" not in row for row in body["employers"])
+
+
+def test_seeker_interests_are_ultimate_admin_only_and_lazy_per_row(
+    admin_client, seeker_client, db, dist, tmp_path, _seekers_env,
+):
+    seeker_id = seeker_client.get("/api/auth/me").json()["id"]
+    seeker_client.post(
+        "/api/me/discovery",
+        json={
+            "search_query": "credit analyst",
+            "filters": {"sectors": ["Banking"]},
+            "result_count": 5,
+        },
+    )
+
+    assert admin_client.get(f"/api/admin/accounts/seekers/{seeker_id}/interests").status_code == 403
+    assert seeker_client.get(f"/api/admin/accounts/seekers/{seeker_id}/interests").status_code == 403
+
+    ultimate_client = TestClient(make_app(db, dist, tmp_path, cookie_secure=False))
+    ultimate_client.post(
+        "/api/auth/register",
+        json={"email": "ultimate2@example.com", "password": "correct-horse-battery"},
+    )
+    _promote_to_super_admin("ultimate2@example.com")
+
+    r = ultimate_client.get(f"/api/admin/accounts/seekers/{seeker_id}/interests")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["searched_sectors"] == ["Banking"]
+    assert body["recent_search_terms"] == ["credit analyst"]
+
+    missing = ultimate_client.get("/api/admin/accounts/seekers/00000000-0000-4000-8000-000000000000/interests")
+    assert missing.status_code == 404
 
 
 def test_pipeline_operations_telemetry_is_machine_authored_and_visible_to_admins(

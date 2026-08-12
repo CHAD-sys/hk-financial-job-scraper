@@ -229,7 +229,7 @@ def _run_history(
 
 
 def _operations_dashboard(
-    conn: sqlite3.Connection, *, generated_at: str | None = None
+    conn: sqlite3.Connection, *, generated_at: str | None = None, is_super_admin: bool = False
 ) -> dict[str, Any]:
     """One evidence-backed operational view; absent ledgers stay visibly absent."""
     latest_operation = _rows(
@@ -357,107 +357,119 @@ def _operations_dashboard(
         },
     ]
 
-    source_rows = _rows(
-        conn,
-        """
-        WITH latest AS (SELECT MAX(scraped_date) AS day FROM pipeline_company_runs)
-        SELECT source, COUNT(*) companies, SUM(status='success') successful,
-               SUM(status='zero') zero_results, SUM(status='failed') failed,
-               SUM(jobs_found) roles, ROUND(SUM(runtime_seconds),1) runtime_seconds
-        FROM pipeline_company_runs, latest
-        WHERE scraped_date=latest.day GROUP BY source ORDER BY roles DESC, source
-        """,
-    )
-    source_health = []
-    for row in source_rows:
-        companies = int(row["companies"])
-        success_rate = _pct(int(row["successful"]), companies)
-        source_health.append(
-            {
-                **dict(row),
-                "tracking_available": True,
-                "roles_found": int(row["roles"]),
-                "active_roles": None,
-                "success_rate_pct": success_rate,
-                "status": "healthy"
-                if success_rate >= 90
-                else "warning"
-                if success_rate >= 70
-                else "failed",
-            }
-        )
-    if not source_health:
-        source_health = [
-            {
-                "source": row["source"],
-                "companies": None,
-                "successful": None,
-                "zero_results": None,
-                "failed": None,
-                "roles": row["roles"],
-                "tracking_available": False,
-                "roles_found": None,
-                "active_roles": int(row["roles"]),
-                "runtime_seconds": None,
-                "success_rate_pct": None,
-                "status": "not_recorded",
-            }
-            for row in _rows(
-                conn,
-                "SELECT source, COUNT(*) roles FROM jobs WHERE is_active=1 "
-                "GROUP BY source ORDER BY roles DESC",
-            )
-        ]
-
-    usage_rows = _rows(
-        conn,
-        """SELECT phase, model, calls, roles_processed, prompt_cache_hit_tokens,
-                  prompt_cache_miss_tokens, completion_tokens, estimated_cost_usd, recorded_at
-           FROM ai_usage
-           WHERE run_id=(SELECT run_id FROM ai_usage ORDER BY recorded_at DESC LIMIT 1)
-           ORDER BY phase""",
-    )
-    usage = [dict(row) for row in usage_rows]
-    prompt_version = _scalar(
-        conn,
-        "SELECT prompt_version FROM job_enrichments WHERE prompt_version IS NOT NULL "
-        "GROUP BY prompt_version ORDER BY COUNT(*) DESC LIMIT 1",
-        default=None,
-    )
-    backlog = int(
-        _scalar(
+    # Source health, Publication safety and Recommendation health are all
+    # Ultimate-Admin-only, same posture as ai_cost above: not queried at all
+    # for the other four admins, not just hidden client-side.
+    source_health: list[dict[str, Any]] | None = None
+    if is_super_admin:
+        source_rows = _rows(
             conn,
-            """SELECT COUNT(*) FROM jobs j LEFT JOIN job_enrichments e
-               ON j.source=e.source AND j.source_id=e.source_id
-               WHERE j.is_active=1
-                 AND (e.source_id IS NULL OR e.prompt_version IS NULL
-                      OR e.prompt_version<>?)""",
-            prompt_version,
+            """
+            WITH latest AS (SELECT MAX(scraped_date) AS day FROM pipeline_company_runs)
+            SELECT source, COUNT(*) companies, SUM(status='success') successful,
+                   SUM(status='zero') zero_results, SUM(status='failed') failed,
+                   SUM(jobs_found) roles, ROUND(SUM(runtime_seconds),1) runtime_seconds
+            FROM pipeline_company_runs, latest
+            WHERE scraped_date=latest.day GROUP BY source ORDER BY roles DESC, source
+            """,
         )
-        if prompt_version
-        else active
-    )
-    ai = {
-        "calls": sum(int(row["calls"]) for row in usage),
-        "roles_processed": sum(int(row["roles_processed"]) for row in usage),
-        "estimated_cost_usd": round(sum(float(row["estimated_cost_usd"]) for row in usage), 4),
-        "cache_hit_tokens": sum(int(row["prompt_cache_hit_tokens"]) for row in usage),
-        "cache_miss_tokens": sum(int(row["prompt_cache_miss_tokens"]) for row in usage),
-        "completion_tokens": sum(int(row["completion_tokens"]) for row in usage),
-        "backlog": backlog,
-        "daily_limit": 300,
-        "phases": usage,
-        "tracking_available": bool(usage),
-    }
+        source_health = []
+        for row in source_rows:
+            companies = int(row["companies"])
+            success_rate = _pct(int(row["successful"]), companies)
+            source_health.append(
+                {
+                    **dict(row),
+                    "tracking_available": True,
+                    "roles_found": int(row["roles"]),
+                    "active_roles": None,
+                    "success_rate_pct": success_rate,
+                    "status": "healthy"
+                    if success_rate >= 90
+                    else "warning"
+                    if success_rate >= 70
+                    else "failed",
+                }
+            )
+        if not source_health:
+            source_health = [
+                {
+                    "source": row["source"],
+                    "companies": None,
+                    "successful": None,
+                    "zero_results": None,
+                    "failed": None,
+                    "roles": row["roles"],
+                    "tracking_available": False,
+                    "roles_found": None,
+                    "active_roles": int(row["roles"]),
+                    "runtime_seconds": None,
+                    "success_rate_pct": None,
+                    "status": "not_recorded",
+                }
+                for row in _rows(
+                    conn,
+                    "SELECT source, COUNT(*) roles FROM jobs WHERE is_active=1 "
+                    "GROUP BY source ORDER BY roles DESC",
+                )
+            ]
 
-    publication_rows = _rows(
-        conn,
-        "SELECT * FROM pipeline_catalog_sync ORDER BY received_at DESC LIMIT 1",
-    )
-    publication = dict(publication_rows[0]) if publication_rows else None
-    if publication:
-        publication["restore_source"] = operation.get("restore_source") if operation else None
-        publication["restore_sha256"] = operation.get("restore_sha256") if operation else None
+    # AI spend is Ultimate-Admin-only (main.py's require_super_admin). The other
+    # four admins never receive this section — not hidden client-side, never
+    # queried or serialised for them in the first place.
+    ai: dict[str, Any] | None = None
+    if is_super_admin:
+        usage_rows = _rows(
+            conn,
+            """SELECT phase, model, calls, roles_processed, prompt_cache_hit_tokens,
+                      prompt_cache_miss_tokens, completion_tokens, estimated_cost_usd, recorded_at
+               FROM ai_usage
+               WHERE run_id=(SELECT run_id FROM ai_usage ORDER BY recorded_at DESC LIMIT 1)
+               ORDER BY phase""",
+        )
+        usage = [dict(row) for row in usage_rows]
+        prompt_version = _scalar(
+            conn,
+            "SELECT prompt_version FROM job_enrichments WHERE prompt_version IS NOT NULL "
+            "GROUP BY prompt_version ORDER BY COUNT(*) DESC LIMIT 1",
+            default=None,
+        )
+        backlog = int(
+            _scalar(
+                conn,
+                """SELECT COUNT(*) FROM jobs j LEFT JOIN job_enrichments e
+                   ON j.source=e.source AND j.source_id=e.source_id
+                   WHERE j.is_active=1
+                     AND (e.source_id IS NULL OR e.prompt_version IS NULL
+                          OR e.prompt_version<>?)""",
+                prompt_version,
+            )
+            if prompt_version
+            else active
+        )
+        ai = {
+            "calls": sum(int(row["calls"]) for row in usage),
+            "roles_processed": sum(int(row["roles_processed"]) for row in usage),
+            "estimated_cost_usd": round(sum(float(row["estimated_cost_usd"]) for row in usage), 4),
+            "cache_hit_tokens": sum(int(row["prompt_cache_hit_tokens"]) for row in usage),
+            "cache_miss_tokens": sum(int(row["prompt_cache_miss_tokens"]) for row in usage),
+            "completion_tokens": sum(int(row["completion_tokens"]) for row in usage),
+            "backlog": backlog,
+            "daily_limit": 300,
+            "phases": usage,
+            "tracking_available": bool(usage),
+        }
+
+    publication: dict[str, Any] | None = None
+    if is_super_admin:
+        publication_rows = _rows(
+            conn,
+            "SELECT * FROM pipeline_catalog_sync ORDER BY received_at DESC LIMIT 1",
+        )
+        publication = dict(publication_rows[0]) if publication_rows else None
+        if publication:
+            publication["restore_source"] = operation.get("restore_source") if operation else None
+            publication["restore_sha256"] = operation.get("restore_sha256") if operation else None
 
     alerts = []
     for phase in phases:
@@ -478,7 +490,10 @@ def _operations_dashboard(
                     "detail": gate["detail"],
                 }
             )
-    for source in source_health:
+    # source_health-derived alerts are Ultimate-Admin-only too, since the
+    # underlying data is: an ordinary admin sees pipeline-phase and
+    # quality-gate alerts above, just not a per-source breakdown.
+    for source in source_health or []:
         if source["status"] in {"warning", "failed"}:
             alerts.append(
                 {
@@ -488,24 +503,26 @@ def _operations_dashboard(
                 }
             )
 
-    try:
-        recommendations = seekers_store.get_store().recommendation_health()
-    except (sqlite3.Error, OSError, ValueError):
-        recommendations = {
-            "impressions": 0,
-            "clicks": 0,
-            "click_through_pct": 0.0,
-            "saves": 0,
-            "more_like": 0,
-            "dismissals": 0,
-            "wrong_reason": 0,
-            "seekers_reached": 0,
-            "eligible_seekers": 0,
-            "coverage_pct": 0.0,
-            "tracking_available": False,
-            "window_started_at": None,
-            "window_ended_at": None,
-        }
+    recommendations: dict[str, Any] | None = None
+    if is_super_admin:
+        try:
+            recommendations = seekers_store.get_store().recommendation_health()
+        except (sqlite3.Error, OSError, ValueError):
+            recommendations = {
+                "impressions": 0,
+                "clicks": 0,
+                "click_through_pct": 0.0,
+                "saves": 0,
+                "more_like": 0,
+                "dismissals": 0,
+                "wrong_reason": 0,
+                "seekers_reached": 0,
+                "eligible_seekers": 0,
+                "coverage_pct": 0.0,
+                "tracking_available": False,
+                "window_started_at": None,
+                "window_ended_at": None,
+            }
 
     return {
         "generated_at": generated_at or datetime.now(_HONG_KONG).isoformat(),
@@ -910,12 +927,14 @@ def build_admin_intelligence(
     *,
     history_days: int = 30,
     operating_day: date | None = None,
+    is_super_admin: bool = False,
 ) -> dict[str, Any]:
     """Return one point-in-time intelligence snapshot for every admin section.
 
-    jobs.db is read in one SQLite transaction. Seeker recommendation health is
-    intentionally sampled through its own store inside _operations_dashboard;
-    ADR 0006 forbids attaching Seeker-owned state to the catalogue.
+    jobs.db is read in one SQLite transaction. Seeker recommendation health and
+    Seeker activity are intentionally sampled through their own store inside
+    _operations_dashboard / here; ADR 0006 forbids attaching Seeker-owned state
+    to the catalogue.
     """
     days = max(1, min(int(history_days), 365))
     generated = datetime.now(_HONG_KONG)
@@ -934,10 +953,33 @@ def build_admin_intelligence(
         }
         today = _run_today(conn, operating_day=day)
         today["tracking_available"] = availability["history"]
-        operations = _operations_dashboard(conn, generated_at=generated.isoformat())
-        availability["recommendations"] = bool(
-            operations["recommendations"].get("tracking_available")
+        operations = _operations_dashboard(
+            conn, generated_at=generated.isoformat(), is_super_admin=is_super_admin
         )
+        availability["recommendations"] = bool(
+            (operations["recommendations"] or {}).get("tracking_available")
+        )
+        try:
+            user_activity = seekers_store.get_store().user_activity_overview(days=days)
+        except (sqlite3.Error, OSError, ValueError):
+            user_activity = {
+                "days": days,
+                "window_started_on": None,
+                "window_ended_on": None,
+                "total_seekers": 0,
+                "new_signups": 0,
+                "active_seekers": 0,
+                "returning_seekers": 0,
+                "repeat_visit_rate_pct": 0.0,
+                "points": [],
+                "tracking_available": False,
+                "anonymous": {
+                    "unique_visitors": 0,
+                    "returning_visitors": 0,
+                    "repeat_visit_rate_pct": 0.0,
+                    "points": [],
+                },
+            }
         return {
             "schema_version": 1,
             "generated_at": generated.isoformat(),
@@ -951,6 +993,7 @@ def build_admin_intelligence(
             },
             "operations": operations,
             "analytics": _analytics_overview(conn),
+            "user_activity": user_activity,
         }
     finally:
         if started_transaction:

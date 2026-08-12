@@ -14,13 +14,15 @@ describe('AdminSectionNav', () => {
     expect(screen.getByRole('link', { name: /Daily collection/ })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Verification/ })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /Job editor/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Account directory/ })).not.toBeInTheDocument()
   })
 
-  it('shows the privileged editor only to the Ultimate Admin and marks a selected section', () => {
+  it('shows the privileged editor and account directory only to the Ultimate Admin and marks a selected section', () => {
     render(<AdminSectionNav isSuperAdmin />)
     const market = screen.getByRole('link', { name: /Market intelligence/ })
 
     expect(screen.getByRole('link', { name: /Job editor/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Account directory/ })).toBeInTheDocument()
     fireEvent.click(market)
     expect(market).toHaveAttribute('aria-current', 'location')
   })
