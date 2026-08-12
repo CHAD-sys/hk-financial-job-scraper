@@ -632,3 +632,43 @@ def test_linkedin_callback_not_configured_when_reached_directly(client, monkeypa
     r = client.get(f"/api/auth/linkedin/callback?code=abc&state={state}", follow_redirects=False)
     assert r.status_code in (302, 307)
     assert "/signin?error=linkedin_unavailable" in r.headers["location"]
+
+
+# ── Anonymous visit beacon ───────────────────────────────────────────────────
+
+def test_visit_sets_an_httponly_lax_cookie_and_is_counted(client):
+    import seekers_store
+
+    r = client.post("/api/visit")
+
+    assert r.status_code == 204
+    raw = r.headers["set-cookie"].lower()
+    assert "httponly" in raw
+    assert "samesite=lax" in raw
+    assert client.cookies.get("finex_visitor")
+    overview = seekers_store.get_store().user_activity_overview(days=1)
+    assert overview["anonymous"]["unique_visitors"] == 1
+
+
+def test_repeated_visits_from_the_same_browser_do_not_inflate_the_count(client):
+    import seekers_store
+
+    client.post("/api/visit")
+    client.post("/api/visit")
+    client.post("/api/visit")
+
+    overview = seekers_store.get_store().user_activity_overview(days=1)
+    assert overview["anonymous"]["unique_visitors"] == 1
+
+
+def test_signed_in_seekers_are_not_double_counted_as_anonymous_visitors(client):
+    import seekers_store
+
+    _register(client)  # leaves the client holding a live finex_session cookie
+    r = client.post("/api/visit")
+
+    assert r.status_code == 204
+    assert r.headers.get("set-cookie") is None
+    overview = seekers_store.get_store().user_activity_overview(days=1)
+    assert overview["anonymous"]["unique_visitors"] == 0
+    assert overview["active_seekers"] == 1

@@ -5,6 +5,7 @@ import {
   CalendarSync,
   ClipboardCheck,
   SquarePen,
+  Users,
   type LucideProps,
 } from 'lucide-react'
 
@@ -18,6 +19,7 @@ interface SectionItem {
 
 const SECTIONS: SectionItem[] = [
   { href: '#operations-center', label: 'Operations center', detail: 'Reliability · cost · alerts', icon: Activity },
+  { href: '#user-activity', label: 'Seeker accounts', detail: 'Signups · active · returning', icon: Users },
   { href: '#market-intelligence', label: 'Market intelligence', detail: 'Roles · salaries · demand', icon: BarChart3 },
   { href: '#daily-collection', label: 'Daily collection', detail: 'Today’s pipeline totals', icon: CalendarSync },
   { href: '#verification', label: 'Verification', detail: 'Submitted Role review', icon: ClipboardCheck },

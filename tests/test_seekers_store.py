@@ -14,8 +14,9 @@ from __future__ import annotations
 
 import sqlite3
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -35,6 +36,15 @@ from seekers_store import (  # noqa: E402 — path must be set up first
 @pytest.fixture()
 def store(tmp_path) -> SeekerStore:
     return SeekerStore(tmp_path / "seekers.db")
+
+
+_HKT = ZoneInfo("Asia/Hong_Kong")
+
+
+def _hk(day: int, hour: int = 12) -> datetime:
+    """A Hong-Kong-local moment on August `day`, 2026 — noon avoids UTC/HKT
+    day-boundary edge cases so the calendar day is unambiguous either way."""
+    return datetime(2026, 8, day, hour, 0, tzinfo=_HKT)
 
 
 # ── Where the file lives ──────────────────────────────────────────────────────
@@ -92,6 +102,7 @@ def test_migrations_create_every_table(store):
         "recommendation_hidden_employers",
         "seeker_resumes",
         "events",
+        "anonymous_visits",
     } <= names
 
 
@@ -570,6 +581,108 @@ def test_events_hold_nothing_but_name_seeker_and_time(store):
     finally:
         conn.close()
     assert columns == {"id", "name", "seeker_id", "created_at"}
+
+
+# ── User activity overview ───────────────────────────────────────────────────
+
+
+def test_user_activity_counts_signups_active_and_returning_seekers(store):
+    # Seeker A signs up day 1 and comes back day 3 — a returning Seeker.
+    seeker_a = store.create_seeker("amy@example.com", now=_hk(1))
+    store.insert_session("sess-a1", seeker_a, _hk(1) + timedelta(days=90), now=_hk(1))
+    store.insert_session("sess-a3", seeker_a, _hk(3) + timedelta(days=90), now=_hk(3))
+    # Seeker B signs up day 2 and never comes back.
+    seeker_b = store.create_seeker("bo@example.com", now=_hk(2))
+    store.insert_session("sess-b2", seeker_b, _hk(2) + timedelta(days=90), now=_hk(2))
+
+    overview = store.user_activity_overview(days=5, now=_hk(5))
+
+    assert overview["tracking_available"] is True
+    assert overview["total_seekers"] == 2
+    assert overview["new_signups"] == 2
+    assert overview["active_seekers"] == 2
+    assert overview["returning_seekers"] == 1
+    assert overview["repeat_visit_rate_pct"] == 50.0
+    assert overview["window_started_on"] == "2026-08-01"
+    assert overview["window_ended_on"] == "2026-08-05"
+
+    by_date = {point["date"]: point for point in overview["points"]}
+    assert len(overview["points"]) == 5
+    assert by_date["2026-08-01"]["new_signups"] == 1
+    assert by_date["2026-08-01"]["active_seekers"] == 1
+    assert by_date["2026-08-01"]["returning_seekers"] == 0
+    assert by_date["2026-08-02"]["new_signups"] == 1
+    assert by_date["2026-08-03"]["active_seekers"] == 1
+    assert by_date["2026-08-03"]["returning_seekers"] == 1  # Seeker A's second visit
+    assert by_date["2026-08-04"]["active_seekers"] == 0
+    assert by_date["2026-08-05"]["active_seekers"] == 0
+
+
+def test_user_activity_with_no_seekers_is_empty_not_an_error(store):
+    overview = store.user_activity_overview(days=7, now=_hk(10))
+
+    assert overview["tracking_available"] is True
+    assert overview["total_seekers"] == 0
+    assert overview["active_seekers"] == 0
+    assert overview["returning_seekers"] == 0
+    assert overview["repeat_visit_rate_pct"] == 0.0
+    assert len(overview["points"]) == 7
+
+
+def test_user_activity_ignores_sessions_and_signups_outside_the_window(store):
+    seeker_id = store.create_seeker("early@example.com", now=_hk(1))
+    store.insert_session("sess-early", seeker_id, _hk(1) + timedelta(days=90), now=_hk(1))
+
+    overview = store.user_activity_overview(days=2, now=_hk(10))
+
+    assert overview["window_started_on"] == "2026-08-09"
+    assert overview["new_signups"] == 0
+    assert overview["active_seekers"] == 0
+
+
+def test_anonymous_visits_count_unique_and_returning_visitors(store):
+    # Visitor X visits day 1 and returns day 3 — a returning visitor.
+    store.record_visit("hash-x", now=_hk(1))
+    store.record_visit("hash-x", now=_hk(3))
+    # Visitor Y visits only day 2, never returns.
+    store.record_visit("hash-y", now=_hk(2))
+
+    overview = store.user_activity_overview(days=5, now=_hk(5))
+    anonymous = overview["anonymous"]
+
+    assert anonymous["unique_visitors"] == 2
+    assert anonymous["returning_visitors"] == 1
+    assert anonymous["repeat_visit_rate_pct"] == 50.0
+
+    by_date = {point["date"]: point for point in anonymous["points"]}
+    assert by_date["2026-08-01"]["unique_visitors"] == 1
+    assert by_date["2026-08-01"]["returning_visitors"] == 0
+    assert by_date["2026-08-02"]["unique_visitors"] == 1
+    assert by_date["2026-08-03"]["unique_visitors"] == 1
+    assert by_date["2026-08-03"]["returning_visitors"] == 1  # visitor X's second visit
+
+
+def test_recording_the_same_visitor_twice_in_one_day_is_not_a_double_count(store):
+    store.record_visit("hash-z", now=_hk(1, hour=9))
+    store.record_visit("hash-z", now=_hk(1, hour=18))  # same HK calendar day
+
+    overview = store.user_activity_overview(days=1, now=_hk(1))
+
+    assert overview["anonymous"]["unique_visitors"] == 1
+
+
+def test_anonymous_visits_never_touch_seeker_activity(store):
+    """The two populations are independent — an anonymous visitor is never
+    folded into active_seekers, and a Seeker's session never inflates
+    unique_visitors."""
+    seeker_id = store.create_seeker("dana@example.com", now=_hk(1))
+    store.insert_session("sess-dana", seeker_id, _hk(1) + timedelta(days=90), now=_hk(1))
+    store.record_visit("hash-anon", now=_hk(1))
+
+    overview = store.user_activity_overview(days=1, now=_hk(1))
+
+    assert overview["active_seekers"] == 1
+    assert overview["anonymous"]["unique_visitors"] == 1
 
 
 # ── Private resume ───────────────────────────────────────────────────────────

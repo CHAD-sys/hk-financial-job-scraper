@@ -127,6 +127,49 @@ def test_analysis_surfaces_reviewable_skills_role_sector_and_experience():
     assert analysis.seniority == "senior"
 
 
+def test_current_students_club_titles_do_not_read_as_senior():
+    # HKUST-style undergrad CV: student-society titles ("Vice President", "Head of
+    # ...") read exactly like corporate seniority to a naive keyword scan, and with
+    # no explicit years of experience the classifier had nothing to weigh against them.
+    parsed = parse_resume(
+        "resume.docx",
+        DOCX_MEDIA_TYPE,
+        make_docx(
+            "Second Year Computer Science Student, HKUST. Expected Graduation: 2028. "
+            "Vice President, HKUST Data Science Society. Head of Data Analytics, "
+            "Case Competition Club. Skilled in Python, SQL and Data Analysis."
+        ),
+    )
+
+    analysis = analyse_resume(parsed)
+
+    assert analysis.seniority == "junior"
+
+
+def test_leadership_titles_outside_experience_section_do_not_inflate_seniority():
+    # A genuinely junior professional (2 stated years) who also sits on a
+    # volunteer board with a "Vice President"/"Head of" title. The bug isn't
+    # student-specific: any title-keyword scan over the whole flattened resume
+    # will misread a non-professional section as corporate seniority.
+    parsed = parse_resume(
+        "resume.docx",
+        DOCX_MEDIA_TYPE,
+        make_docx(
+            "EXPERIENCE\n"
+            "Data Analyst, ABC Bank, 2023-2025 (2 years of experience). "
+            "Built dashboards with Python and SQL.\n"
+            "VOLUNTEERING\n"
+            "Vice President, Hong Kong Youth Alumni Association. "
+            "Head of Fundraising, Local Charity Drive."
+        ),
+    )
+
+    analysis = analyse_resume(parsed)
+
+    assert analysis.years_experience == 2
+    assert analysis.seniority == "junior"
+
+
 def test_strong_matches_prioritise_observable_evidence_and_diversify_employers():
     parsed = parse_resume(
         "resume.docx",

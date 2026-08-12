@@ -46,9 +46,10 @@ import sqlite3
 import threading
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable, Iterator
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,9 @@ _BUSY_TIMEOUT_SECONDS = 5.0
 
 VALID_TOKEN_PURPOSES = ("verify", "reset")
 RECOMMENDATION_FEEDBACK_ACTIONS = ("more_like", "not_interested", "wrong_reason")
+#: Admin-facing day buckets read in the timezone the admin desk itself uses
+#: (see admin_intelligence._hong_kong_today) so "today" agrees across sections.
+_HONG_KONG = ZoneInfo("Asia/Hong_Kong")
 
 
 class EmailAlreadyRegistered(Exception):
@@ -494,6 +498,35 @@ def migrate_to_phase_7(conn: sqlite3.Connection) -> None:
     )
 
 
+def migrate_to_phase_8(conn: sqlite3.Connection) -> None:
+    """Count anonymous board traffic without identifying anyone.
+
+    `visitor_hash` is SHA-256 of an opaque cookie value (auth.hash_token — same
+    treatment as a session token), never the raw cookie and never an IP or user
+    agent. One row per visitor per Hong-Kong calendar day: the UNIQUE constraint
+    IS the "did we already count this visitor today" check, so recording a visit
+    twice in one day is a no-op, not a double-count. There is deliberately no
+    link to a seeker_id — a signed-in Seeker's activity is already counted by
+    `sessions`, and this table's whole purpose is to cover everyone who is NOT
+    in that table.
+    """
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS anonymous_visits (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            visitor_hash  TEXT NOT NULL,
+            visit_date    TEXT NOT NULL,
+            created_at    TEXT NOT NULL,
+            UNIQUE (visitor_hash, visit_date)
+        )
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_anonymous_visits_date "
+        "ON anonymous_visits (visit_date)"
+    )
+
+
 # Every phase, in order. A future phase appends here; it never edits an applied
 # phase because seekers.db is irreplaceable first-party account data.
 _MIGRATIONS = (
@@ -504,6 +537,7 @@ _MIGRATIONS = (
     migrate_to_phase_5,
     migrate_to_phase_6,
     migrate_to_phase_7,
+    migrate_to_phase_8,
 )
 
 
@@ -533,6 +567,27 @@ def from_iso(text: str) -> datetime:
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=timezone.utc)
     return parsed.astimezone(timezone.utc)
+
+
+def _bucket_returning(
+    active_days_by_id: dict[str, set[date]],
+) -> tuple[dict[date, int], dict[date, int], set[str]]:
+    """Shared by Seeker and anonymous-visitor activity: given each id's set of
+    active days within an observed window, return (count active per day, count
+    returning per day, ids that returned at least once). An id is "returning"
+    on any active day that is not its earliest active day in the window."""
+    by_day: dict[date, int] = {}
+    returning_by_day: dict[date, int] = {}
+    returning_ids: set[str] = set()
+    for key, active_days in active_days_by_id.items():
+        ordered = sorted(active_days)
+        first_active_day = ordered[0]
+        for d in ordered:
+            by_day[d] = by_day.get(d, 0) + 1
+            if d != first_active_day:
+                returning_by_day[d] = returning_by_day.get(d, 0) + 1
+                returning_ids.add(key)
+    return by_day, returning_by_day, returning_ids
 
 
 def normalise_email(email: str) -> str:
@@ -1399,6 +1454,138 @@ class SeekerStore:
             "tracking_available": True,
             "window_started_at": window[0],
             "window_ended_at": window[1],
+        }
+
+    def record_visit(self, visitor_hash: str, *, now: datetime | None = None) -> None:
+        """Count one anonymous board visit. A no-op if this visitor was already
+        counted today — UNIQUE(visitor_hash, visit_date) does the dedup, so the
+        caller (main.py's /api/visit) can fire this on every page load without
+        inflating the count."""
+        moment = now or utcnow()
+        visit_date = moment.astimezone(_HONG_KONG).date().isoformat()
+        with self._write() as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO anonymous_visits (visitor_hash, visit_date, created_at) "
+                "VALUES (?, ?, ?)",
+                (visitor_hash, visit_date, to_iso(moment)),
+            )
+
+    def user_activity_overview(
+        self, *, days: int = 30, now: datetime | None = None
+    ) -> dict[str, Any]:
+        """Seeker AND anonymous board activity, bucketed by Hong Kong calendar day.
+
+        Two independent, non-overlapping populations, reported side by side
+        rather than summed into one "visitors" number:
+
+        - Seeker activity comes from `sessions` — a row is issued on every
+          sign-in path (register, login, a post-reset re-login, Google/LinkedIn).
+        - Anonymous activity comes from `anonymous_visits` — one row per visitor
+          per day, keyed by a hashed opaque cookie (main.py's /api/visit skips
+          this entirely for a request that already carries a valid Seeker
+          session, so the two tables cannot double-count the same visit).
+
+        A member of either population is "returning" on the first day, within
+        the window, that is NOT their earliest active day in that same window —
+        i.e. they showed up again after already being counted once.
+        """
+        days = max(1, min(int(days), 365))
+        today = (now or datetime.now(timezone.utc)).astimezone(_HONG_KONG).date()
+        start_day = today - timedelta(days=days - 1)
+        window_start_iso = to_iso(
+            datetime(start_day.year, start_day.month, start_day.day, tzinfo=_HONG_KONG)
+        )
+
+        conn = self._conn()
+        total_seekers = conn.execute("SELECT COUNT(*) FROM seekers").fetchone()[0]
+        signup_rows = conn.execute(
+            "SELECT created_at FROM seekers WHERE created_at >= ?", (window_start_iso,)
+        ).fetchall()
+        session_rows = conn.execute(
+            "SELECT seeker_id, created_at FROM sessions "
+            "WHERE created_at >= ? AND seeker_id IS NOT NULL",
+            (window_start_iso,),
+        ).fetchall()
+        visit_rows = conn.execute(
+            "SELECT visitor_hash, visit_date FROM anonymous_visits WHERE visit_date >= ?",
+            (start_day.isoformat(),),
+        ).fetchall()
+
+        def hk_date(iso_value: str) -> date:
+            return from_iso(iso_value).astimezone(_HONG_KONG).date()
+
+        signups_by_day: dict[date, int] = {}
+        for row in signup_rows:
+            d = hk_date(row["created_at"])
+            signups_by_day[d] = signups_by_day.get(d, 0) + 1
+
+        active_days_by_seeker: dict[str, set[date]] = {}
+        for row in session_rows:
+            active_days_by_seeker.setdefault(row["seeker_id"], set()).add(
+                hk_date(row["created_at"])
+            )
+        active_by_day, returning_by_day, returning_seeker_ids = _bucket_returning(
+            active_days_by_seeker
+        )
+
+        visit_days_by_visitor: dict[str, set[date]] = {}
+        for row in visit_rows:
+            visit_days_by_visitor.setdefault(row["visitor_hash"], set()).add(
+                date.fromisoformat(row["visit_date"])
+            )
+        visits_by_day, returning_visits_by_day, returning_visitor_hashes = _bucket_returning(
+            visit_days_by_visitor
+        )
+
+        active_seekers = len(active_days_by_seeker)
+        returning_seekers = len(returning_seeker_ids)
+        unique_visitors = len(visit_days_by_visitor)
+        returning_visitors = len(returning_visitor_hashes)
+
+        points = []
+        anonymous_points = []
+        cursor = start_day
+        while cursor <= today:
+            points.append(
+                {
+                    "date": cursor.isoformat(),
+                    "new_signups": signups_by_day.get(cursor, 0),
+                    "active_seekers": active_by_day.get(cursor, 0),
+                    "returning_seekers": returning_by_day.get(cursor, 0),
+                }
+            )
+            anonymous_points.append(
+                {
+                    "date": cursor.isoformat(),
+                    "unique_visitors": visits_by_day.get(cursor, 0),
+                    "returning_visitors": returning_visits_by_day.get(cursor, 0),
+                }
+            )
+            cursor += timedelta(days=1)
+
+        return {
+            "days": days,
+            "window_started_on": start_day.isoformat(),
+            "window_ended_on": today.isoformat(),
+            "total_seekers": total_seekers,
+            "new_signups": len(signup_rows),
+            "active_seekers": active_seekers,
+            "returning_seekers": returning_seekers,
+            "repeat_visit_rate_pct": (
+                round(100.0 * returning_seekers / active_seekers, 1) if active_seekers else 0.0
+            ),
+            "points": points,
+            "tracking_available": True,
+            "anonymous": {
+                "unique_visitors": unique_visitors,
+                "returning_visitors": returning_visitors,
+                "repeat_visit_rate_pct": (
+                    round(100.0 * returning_visitors / unique_visitors, 1)
+                    if unique_visitors
+                    else 0.0
+                ),
+                "points": anonymous_points,
+            },
         }
 
     def hide_recommendation_employer(

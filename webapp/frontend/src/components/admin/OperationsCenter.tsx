@@ -82,10 +82,17 @@ export default function OperationsCenter({ data }: { data: AdminOperationsDashbo
   const runStatus = data.run.status ?? 'not_recorded'
   const runDate = data.run.scraped_date ?? 'No dated run recorded'
   const hash = data.publication?.snapshot_sha256
+  // source_health and recommendations always resolve to *something* once
+  // is_super_admin is true (a real list/dict, or a zeroed fallback) — never
+  // null for privilege reasons — so either one reliably signals "this admin
+  // can see the Ultimate-Admin-only sections". publication is excluded: it
+  // can be null even for an Ultimate Admin, whenever no catalogue snapshot
+  // has been received yet, so it cannot disambiguate the two null reasons.
+  const isUltimateAdmin = data.source_health !== null
   const telemetryComplete = runStatus !== 'not_recorded'
-    && data.ai_cost.tracking_available
-    && data.recommendations.tracking_available
-    && data.source_health.every(source => source.tracking_available)
+    && (data.ai_cost == null || data.ai_cost.tracking_available)
+    && (data.recommendations == null || data.recommendations.tracking_available)
+    && (data.source_health == null || data.source_health.every(source => source.tracking_available))
   const criticalAlerts = data.alerts.filter(alert => alert.severity === 'critical').length
   const runHeading = runStatus === 'success'
     ? 'Latest pipeline phases completed'
@@ -158,7 +165,7 @@ export default function OperationsCenter({ data }: { data: AdminOperationsDashbo
         </ol>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[1.35fr_0.65fr]">
+      <div className={`grid gap-8 ${data.ai_cost ? 'lg:grid-cols-[1.35fr_0.65fr]' : ''}`}>
         <section aria-labelledby="quality-heading">
           <div className="mb-4 flex items-center gap-2">
             <ShieldCheck size={18} style={{ color: 'var(--color-gold)' }} aria-hidden="true" />
@@ -178,59 +185,64 @@ export default function OperationsCenter({ data }: { data: AdminOperationsDashbo
           </div>
         </section>
 
-        <section aria-labelledby="ai-heading" className="rounded-lg p-5" style={{ backgroundColor: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Bot size={18} style={{ color: 'var(--color-gold)' }} aria-hidden="true" />
-              <h3 id="ai-heading" className="text-lg font-semibold" style={{ color: 'var(--color-ink)' }}>AI cost control</h3>
+        {data.ai_cost && (
+          <section aria-labelledby="ai-heading" className="rounded-lg p-5" style={{ backgroundColor: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Bot size={18} style={{ color: 'var(--color-gold)' }} aria-hidden="true" />
+                <h3 id="ai-heading" className="text-lg font-semibold" style={{ color: 'var(--color-ink)' }}>AI cost control</h3>
+              </div>
+              {!data.ai_cost.tracking_available && <StatusPill status="not_recorded" />}
             </div>
-            {!data.ai_cost.tracking_available && <StatusPill status="not_recorded" />}
-          </div>
-          <div className="mt-6 grid grid-cols-2 gap-x-5 gap-y-6">
-            <Metric value={data.ai_cost.tracking_available ? data.ai_cost.calls.toLocaleString() : '—'} label="DeepSeek calls" />
-            <Metric value={data.ai_cost.tracking_available ? `$${data.ai_cost.estimated_cost_usd.toFixed(4)}` : '—'} label="Estimated spend" note={data.ai_cost.tracking_available ? 'From returned tokens' : 'Available after the next AI run'} />
-            <Metric value={data.ai_cost.tracking_available ? data.ai_cost.roles_processed.toLocaleString() : '—'} label="Roles processed" />
-            <Metric value={data.ai_cost.backlog.toLocaleString()} label="Remaining backlog" note={`${data.ai_cost.daily_limit} role safety ceiling`} />
-          </div>
-          <p className="mt-6 border-t pt-4 text-xs leading-relaxed" style={{ borderColor: 'var(--color-border)', color: 'var(--color-ink-muted)' }}>
-            Cost uses DeepSeek’s returned cache-hit, cache-miss and output-token totals. Historical calls made before this ledger are not reconstructed.
-          </p>
-        </section>
+            <div className="mt-6 grid grid-cols-2 gap-x-5 gap-y-6">
+              <Metric value={data.ai_cost.tracking_available ? data.ai_cost.calls.toLocaleString() : '—'} label="DeepSeek calls" />
+              <Metric value={data.ai_cost.tracking_available ? `$${data.ai_cost.estimated_cost_usd.toFixed(4)}` : '—'} label="Estimated spend" note={data.ai_cost.tracking_available ? 'From returned tokens' : 'Available after the next AI run'} />
+              <Metric value={data.ai_cost.tracking_available ? data.ai_cost.roles_processed.toLocaleString() : '—'} label="Roles processed" />
+              <Metric value={data.ai_cost.backlog.toLocaleString()} label="Remaining backlog" note={`${data.ai_cost.daily_limit} role safety ceiling`} />
+            </div>
+            <p className="mt-6 border-t pt-4 text-xs leading-relaxed" style={{ borderColor: 'var(--color-border)', color: 'var(--color-ink-muted)' }}>
+              Cost uses DeepSeek’s returned cache-hit, cache-miss and output-token totals. Historical calls made before this ledger are not reconstructed.
+            </p>
+          </section>
+        )}
       </div>
 
-      <section aria-labelledby="source-health-heading">
-        <div className="mb-4 flex items-end justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <Gauge size={18} style={{ color: 'var(--color-gold)' }} aria-hidden="true" />
-              <h3 id="source-health-heading" className="text-lg font-semibold" style={{ color: 'var(--color-ink)' }}>Source health</h3>
+      {data.source_health && (
+        <section aria-labelledby="source-health-heading">
+          <div className="mb-4 flex items-end justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <Gauge size={18} style={{ color: 'var(--color-gold)' }} aria-hidden="true" />
+                <h3 id="source-health-heading" className="text-lg font-semibold" style={{ color: 'var(--color-ink)' }}>Source health</h3>
+              </div>
+              <p id="source-health-description" className="mt-1 text-xs" style={{ color: 'var(--color-ink-muted)' }}>Success means the configured company completed with at least one listing in the latest scrape. Scroll horizontally for all columns on smaller screens.</p>
             </div>
-            <p id="source-health-description" className="mt-1 text-xs" style={{ color: 'var(--color-ink-muted)' }}>Success means the configured company completed with at least one listing in the latest scrape. Scroll horizontally for all columns on smaller screens.</p>
           </div>
-        </div>
-        <div className="overflow-x-auto rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2" tabIndex={0} role="region" aria-labelledby="source-health-heading" aria-describedby="source-health-description" style={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)', outlineColor: 'var(--color-gold)' }}>
-          <table className="w-full min-w-[720px] border-collapse text-left text-sm">
-            <thead style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-muted)' }}>
-              <tr>
-                {['Source', 'Success rate', 'Companies', 'Roles', 'Runtime', 'State'].map((heading) => <th key={heading} scope="col" className="px-4 py-3 text-xs font-semibold">{heading}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {data.source_health.map((source) => (
-                <tr key={source.source} className="border-t" style={{ borderColor: 'var(--color-border)' }}>
-                  <th scope="row" className="px-4 py-3 font-semibold" style={{ color: 'var(--color-ink)' }}>{sourceLabel(source.source)}</th>
-                  <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--color-ink)' }}>{source.success_rate_pct == null ? 'Next run' : `${source.success_rate_pct}%`}</td>
-                  <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--color-ink-muted)' }}>{source.companies?.toLocaleString() ?? '—'}</td>
-                  <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--color-ink-muted)' }}>{source.tracking_available ? `${source.roles_found?.toLocaleString() ?? '—'} found` : `${source.active_roles?.toLocaleString() ?? '—'} active`}</td>
-                  <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--color-ink-muted)' }}>{durationLabel(source.runtime_seconds)}</td>
-                  <td className="px-4 py-3"><StatusPill status={source.status === 'healthy' ? 'healthy' : source.status === 'failed' ? 'failed' : source.status === 'warning' ? 'warning' : 'not_recorded'} /></td>
+          <div className="overflow-x-auto rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2" tabIndex={0} role="region" aria-labelledby="source-health-heading" aria-describedby="source-health-description" style={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)', outlineColor: 'var(--color-gold)' }}>
+            <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+              <thead style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-muted)' }}>
+                <tr>
+                  {['Source', 'Success rate', 'Companies', 'Roles', 'Runtime', 'State'].map((heading) => <th key={heading} scope="col" className="px-4 py-3 text-xs font-semibold">{heading}</th>)}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+              </thead>
+              <tbody>
+                {data.source_health.map((source) => (
+                  <tr key={source.source} className="border-t" style={{ borderColor: 'var(--color-border)' }}>
+                    <th scope="row" className="px-4 py-3 font-semibold" style={{ color: 'var(--color-ink)' }}>{sourceLabel(source.source)}</th>
+                    <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--color-ink)' }}>{source.success_rate_pct == null ? 'Next run' : `${source.success_rate_pct}%`}</td>
+                    <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--color-ink-muted)' }}>{source.companies?.toLocaleString() ?? '—'}</td>
+                    <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--color-ink-muted)' }}>{source.tracking_available ? `${source.roles_found?.toLocaleString() ?? '—'} found` : `${source.active_roles?.toLocaleString() ?? '—'} active`}</td>
+                    <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--color-ink-muted)' }}>{durationLabel(source.runtime_seconds)}</td>
+                    <td className="px-4 py-3"><StatusPill status={source.status === 'healthy' ? 'healthy' : source.status === 'failed' ? 'failed' : source.status === 'warning' ? 'warning' : 'not_recorded'} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
+      {isUltimateAdmin && (
       <div className="grid gap-8 lg:grid-cols-2">
         <section aria-labelledby="publication-heading" className="rounded-lg p-5" style={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
           <div className="flex items-center gap-2">
@@ -250,6 +262,7 @@ export default function OperationsCenter({ data }: { data: AdminOperationsDashbo
           )}
         </section>
 
+        {data.recommendations && (
         <section aria-labelledby="recommendation-heading" className="rounded-lg p-5" style={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
           <div className="flex items-center gap-2">
             <Gauge size={18} style={{ color: 'var(--color-gold)' }} aria-hidden="true" />
@@ -265,7 +278,9 @@ export default function OperationsCenter({ data }: { data: AdminOperationsDashbo
             <Metric value={data.recommendations.tracking_available ? `${data.recommendations.coverage_pct}%` : '—'} label="Seeker coverage" note={`${data.recommendations.eligible_seekers.toLocaleString()} eligible seekers`} />
           </div>
         </section>
+        )}
       </div>
+      )}
 
       <section aria-labelledby="alerts-heading">
         <div className="mb-4 flex items-center gap-2">

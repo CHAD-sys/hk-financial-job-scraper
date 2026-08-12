@@ -411,6 +411,20 @@ export async function fetchRecommendations(
  * Callers debounce before invoking this; the server also coalesces an exact
  * refresh inside five minutes, so reloads do not masquerade as repeated intent.
  */
+/**
+ * Fire once per app load. Anonymous board-visit beacon (main.py's /api/visit) —
+ * silently no-ops on failure since a missed beacon must never surface as a UI
+ * error; it is a best-effort count, not something the Seeker is waiting on.
+ * No-op server-side for a request that already carries a Seeker session.
+ */
+export async function recordVisit(): Promise<void> {
+  try {
+    await apiFetch('/api/visit', { method: 'POST' })
+  } catch {
+    // best-effort — see docstring
+  }
+}
+
 export async function recordDiscovery(filters: JobFilters, resultCount: number): Promise<void> {
   const { search, ...structuredFilters } = filters
   const res = await apiFetch('/api/me/discovery', {
@@ -865,6 +879,11 @@ export interface AdminOperationsDashboard {
     status: 'pass' | 'warning'
     detail: string
   }[]
+  // source_health, ai_cost, publication and recommendations are all
+  // Ultimate-Admin-only (require_super_admin). null for the other four admins
+  // — the backend never serialises these fields for them, so absence here is
+  // an authorization outcome, not a "not tracked yet" state (see
+  // tracking_available inside each object for that).
   source_health: {
     source: string
     companies: number | null
@@ -878,7 +897,7 @@ export interface AdminOperationsDashboard {
     tracking_available: boolean
     roles_found: number | null
     active_roles: number | null
-  }[]
+  }[] | null
   ai_cost: {
     calls: number
     roles_processed: number
@@ -889,7 +908,7 @@ export interface AdminOperationsDashboard {
     backlog: number
     daily_limit: number
     tracking_available: boolean
-  }
+  } | null
   publication: {
     source_run_id: string
     snapshot_sha256: string
@@ -913,7 +932,7 @@ export interface AdminOperationsDashboard {
     tracking_available: boolean
     window_started_at: string | null
     window_ended_at: string | null
-  }
+  } | null
   alerts: { severity: 'critical' | 'warning'; title: string; detail: string }[]
 }
 
@@ -973,6 +992,43 @@ export interface AdminMarketMover {
   change_pct: number | null
 }
 
+export interface AdminUserActivityPoint {
+  date: string
+  new_signups: number
+  active_seekers: number
+  returning_seekers: number
+}
+
+export interface AdminAnonymousVisitPoint {
+  date: string
+  unique_visitors: number
+  returning_visitors: number
+}
+
+// Two independent, non-overlapping populations — never sum them into one
+// "visitors" figure. `anonymous` covers requests with no Seeker session (a
+// hashed, non-identifying visitor cookie set by /api/visit); the top-level
+// fields cover Seeker accounts via `sessions`, issued on every sign-in path
+// (register, login, password-reset re-login, Google/LinkedIn).
+export interface AdminUserActivity {
+  days: number
+  window_started_on: string | null
+  window_ended_on: string | null
+  total_seekers: number
+  new_signups: number
+  active_seekers: number
+  returning_seekers: number
+  repeat_visit_rate_pct: number
+  points: AdminUserActivityPoint[]
+  tracking_available: boolean
+  anonymous: {
+    unique_visitors: number
+    returning_visitors: number
+    repeat_visit_rate_pct: number
+    points: AdminAnonymousVisitPoint[]
+  }
+}
+
 export interface AdminIntelligenceSnapshot {
   schema_version: 1
   generated_at: string
@@ -994,6 +1050,7 @@ export interface AdminIntelligenceSnapshot {
   }
   operations: AdminOperationsDashboard
   analytics: AdminAnalyticsOverview
+  user_activity: AdminUserActivity
 }
 
 export async function fetchAdminIntelligence(days = 30): Promise<AdminIntelligenceSnapshot> {

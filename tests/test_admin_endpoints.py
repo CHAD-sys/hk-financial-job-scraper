@@ -429,8 +429,55 @@ def test_operations_dashboard_is_admin_only_and_degrades_truthfully(
         "linkedin_promote", "publish",
     ]
     assert all(phase["status"] == "not_recorded" for phase in body["run"]["phases"])
-    assert body["ai_cost"]["tracking_available"] is False
+    assert body["ai_cost"] is None  # Ultimate-Admin-only; see the test below
     assert body["publication"] is None
+
+
+def test_ai_cost_control_is_ultimate_admin_only(super_admin_client):
+    """The other four admins never receive this field at all — not hidden
+    client-side, never serialised for them in the first place."""
+    body = super_admin_client.get("/api/admin/intelligence").json()["operations"]
+    assert body["ai_cost"] is not None
+    assert body["ai_cost"]["tracking_available"] is False
+
+
+def test_source_health_publication_and_recommendations_are_ultimate_admin_only(
+    admin_client, db, dist, tmp_path, _seekers_env,
+):
+    """Same posture as AI cost control: Source health, Publication safety and
+    Recommendation health are Ultimate-Admin-only. An ordinary admin's response
+    carries `null` for all three; only a second client promoted to
+    is_super_admin, against the SAME database, sees real content."""
+    with sqlite3.connect(db) as conn:
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS pipeline_catalog_sync (
+                   source_run_id TEXT PRIMARY KEY,
+                   snapshot_sha256 TEXT NOT NULL,
+                   source_run_url TEXT,
+                   received_at TEXT NOT NULL,
+                   active_jobs INTEGER NOT NULL
+               )"""
+        )
+        conn.execute(
+            """INSERT INTO pipeline_catalog_sync VALUES (
+                   '123', ?, 'https://github.test/actions/runs/123',
+                   '2026-08-06T18:30:00+00:00', 42
+               )""",
+            ("a" * 64,),
+        )
+
+    ordinary = admin_client.get("/api/admin/intelligence").json()["operations"]
+    assert ordinary["source_health"] is None
+    assert ordinary["publication"] is None
+    assert ordinary["recommendations"] is None
+
+    ultimate_client = TestClient(make_app(db, dist, tmp_path, cookie_secure=False))
+    ultimate_client.post("/api/auth/register", json=SEEKER)
+    _promote_to_super_admin(SEEKER["email"])
+    ultimate = ultimate_client.get("/api/admin/intelligence").json()["operations"]
+    assert ultimate["source_health"] is not None
+    assert ultimate["publication"]["source_run_id"] == "123"
+    assert ultimate["recommendations"] is not None
 
 
 def test_pipeline_operations_telemetry_is_machine_authored_and_visible_to_admins(

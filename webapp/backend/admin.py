@@ -370,10 +370,12 @@ def build_router(
     def intelligence_snapshot(
         request: Request,
         days: int = Query(30, ge=1, le=365),
-        _admin: dict = Depends(require_admin),
+        admin: dict = Depends(require_admin),
     ):
         with get_db(request) as conn:
-            return admin_intelligence.build_admin_intelligence(conn, history_days=days)
+            return admin_intelligence.build_admin_intelligence(
+                conn, history_days=days, is_super_admin=bool(admin.get("is_super_admin"))
+            )
 
     # ── Ultimate Admin: direct job edit ─────────────────────────────────────
     # Behind require_super_admin, not require_admin — the other four admins

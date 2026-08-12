@@ -115,6 +115,69 @@ _TITLE_STOPWORDS = {
     "associate", "manager", "officer", "vice", "president", "lead", "head",
     "hong", "kong",
 }
+#: A degree still in progress. Student-society titles ("Vice President", "Head of
+#: ...") read exactly like corporate seniority to the keyword scan below, so a
+#: current student is capped to "junior" regardless of what titles their CV lists
+#: unless they also state real years of experience (see `analyse_resume`).
+_CURRENTLY_STUDYING_RE = re.compile(
+    r"\bexpected\s+(?:graduation|to\s+graduate)\b"
+    r"|\banticipated\s+graduation\b"
+    r"|\bcurrently\s+pursuing\b"
+    r"|\bundergraduate\s+student\b"
+    r"|\bfreshman\b"
+    r"|\bsophomore\b"
+    r"|\b(?:1st|2nd|3rd|4th|first|second|third|fourth)\s+year\s+student\b"
+    r"|\byear\s*[1-4]\s+student\b"
+)
+
+#: Section headings that hold paid/professional work — years-of-experience and
+#: seniority-title signals are only trustworthy inside these. A "Vice President"
+#: or "Head of ..." under Leadership/Volunteering/Education is a club or
+#: non-profit title, not a job title, and must not read as corporate seniority.
+_EXPERIENCE_SECTION_HEADINGS = frozenset({
+    "experience", "work experience", "professional experience",
+    "relevant experience", "employment history", "work history",
+    "internship", "internships", "internship experience",
+})
+#: Headings that end an experience section without starting a new one. Plain
+#: text extraction keeps line breaks but drops all other formatting (no bold,
+#: no font size), so a heading line is the only structural signal available.
+_OTHER_SECTION_HEADINGS = frozenset({
+    "education", "leadership", "leadership experience", "activities",
+    "leadership & activities", "leadership and activities",
+    "extracurricular activities", "extracurriculars", "volunteering",
+    "volunteer experience", "certifications", "awards", "honors", "honours",
+    "skills", "technical skills", "core competencies", "projects",
+    "summary", "objective", "profile", "publications", "interests",
+    "references", "languages",
+})
+_HEADING_TRAILER_RE = re.compile(r"[:\-–—]+$")
+
+
+def _experience_section_text(text: str) -> str:
+    """Restrict `text` to Experience-type sections, if any are recognisable.
+
+    The preamble before the first heading (often a "results-driven analyst
+    with N years..." summary line) counts as experience-relevant by default.
+    A resume with no recognisable headings at all falls back to the full
+    text unchanged — single-block resumes get today's behaviour, not a
+    silent loss of signal.
+    """
+    lines = text.split("\n")
+    include = True
+    saw_heading = False
+    collected: list[str] = []
+    for line in lines:
+        heading = _HEADING_TRAILER_RE.sub("", line.strip())
+        if heading in _EXPERIENCE_SECTION_HEADINGS:
+            include, saw_heading = True, True
+            continue
+        if heading in _OTHER_SECTION_HEADINGS:
+            include, saw_heading = False, True
+            continue
+        if include:
+            collected.append(line)
+    return "\n".join(collected) if saw_heading else text
 
 
 class ResumeValidationError(ValueError):
@@ -312,27 +375,34 @@ def analyse_resume(parsed: ParsedResume) -> ResumeAnalysis:
         if any(_contains_phrase(text, alias) for alias in aliases)
     )[:8]
 
+    experience_text = _experience_section_text(text)
     experience_values = [
         int(match.group(1))
         for pattern in _EXPERIENCE_PATTERNS
-        for match in pattern.finditer(text)
+        for match in pattern.finditer(experience_text)
         if 0 <= int(match.group(1)) <= 40
     ]
     years = max(experience_values, default=None)
-    if any(term in text for term in ("managing director", "chief ", "c-suite", "partner")):
+    if any(
+        term in experience_text
+        for term in ("managing director", "chief ", "c-suite", "partner")
+    ):
         seniority = "executive"
     elif (years is not None and years >= 7) or any(
-        term in text for term in ("senior manager", "director", "vice president", "head of")
+        term in experience_text
+        for term in ("senior manager", "director", "vice president", "head of")
     ):
         seniority = "senior"
     elif (years is not None and years <= 2) or any(
-        term in text for term in ("graduate", "intern", "junior analyst")
+        term in experience_text for term in ("graduate", "intern", "junior analyst")
     ):
         seniority = "junior"
     elif years is not None or families:
         seniority = "mid"
     else:
         seniority = None
+    if (years is None or years < 5) and _CURRENTLY_STUDYING_RE.search(text):
+        seniority = "junior"
     return ResumeAnalysis(skills, families, sectors, years, seniority)
 
 

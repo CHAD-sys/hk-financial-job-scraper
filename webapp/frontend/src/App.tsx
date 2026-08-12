@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { recordVisit } from './api/client'
 import AuthProvider from './auth/AuthProvider'
 import EmployerAuthProvider from './auth/EmployerAuthProvider'
 import SavedRolesProvider from './savedRoles/SavedRolesProvider'
@@ -43,6 +45,12 @@ import EmployerVerifyEmailPage from './pages/EmployerVerifyEmailPage'
  * forms now that there are two account kinds to choose between.
  */
 export default function App() {
+  // Fired once per app load, not per route change — a "visit", not a
+  // pageview. Best-effort and silent: see client.ts's recordVisit().
+  useEffect(() => {
+    void recordVisit()
+  }, [])
+
   return (
     <BrowserRouter>
       <AuthProvider>
