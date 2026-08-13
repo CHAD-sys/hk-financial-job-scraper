@@ -15,10 +15,24 @@ permissions:
   contents: read
   actions: read
 
+# One run at a time. A manual workflow_dispatch overlapping the scheduled run
+# (as happened 2026-08-13) doubles the request volume against every source in
+# the same window, which is exactly the kind of burst that gets an IP rate
+# limited or Cloudflare-challenged. Queue rather than cancel — a cancelled
+# scrape is a lost day of data for no benefit.
+concurrency:
+  group: daily-hk-jobs-scrape
+  cancel-in-progress: false
+
 jobs:
   daily-run:
     name: Daily Run
     runs-on: ubuntu-latest
+    # Recent runs take 27-54 minutes. 120 is headroom, not the expected time —
+    # it exists so a hung Playwright call (network_idle=True is the known way
+    # to trigger this; see the adapters' own docstrings) fails the run instead
+    # of silently burning CI minutes for up to GitHub's own 360-minute default.
+    timeout-minutes: 120
     env:
       GH_TOKEN: ${{ github.token }}
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
@@ -44,6 +58,34 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      - name: Cache Playwright/Scrapling browser binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('requirements.txt') }}
+
+      # 2026-08-12's run is the reason this step exists: `pip install` above
+      # gets the playwright/patchright/scrapling PYTHON PACKAGES, but the
+      # jobsdb and indeed adapters both launch a real headless browser
+      # (scrapling.fetchers.StealthyFetcher, which uses patchright — see
+      # hk_jobs/adapters/jobsdb.py and indeed.py's own docstrings) and that
+      # needs its browser BINARY downloaded separately. Without this step
+      # every fresh runner had zero cached browsers, so chromium.launch()
+      # raised Playwright's own generic `Error` immediately, on every attempt,
+      # for every jobsdb/indeed company — 100% failure, silently: the adapters
+      # catch it and return partial/zero results rather than crashing the run
+      # (by design, so one broken source can't take down the other 247), so
+      # the workflow itself reported success while two whole sources returned
+      # nothing every single day.
+      #
+      # `scrapling install` (not a raw `playwright install chromium`) is
+      # Scrapling's own documented setup command — it installs exactly the
+      # browser + OS-level dependencies (`playwright install-deps`) its
+      # fetchers need, which is the one authority on the actual requirement
+      # rather than us guessing at it from outside.
+      - name: Install Scrapling browser dependencies
+        run: scrapling install
 
       - name: Execute canonical Daily Run
         id: daily_run
