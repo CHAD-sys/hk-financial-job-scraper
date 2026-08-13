@@ -334,6 +334,9 @@ def list_jobs(
         result = job_read.list_jobs(
             conn, filters, sort=sort, page=page, page_size=page_size,
             visibility=Visibility.BOARD, audience=audience,
+            # Recruiter Posts get quick, steady visibility on the board itself,
+            # whatever sort or filters are active — see job_read's boost docstring.
+            boost_recruiter_posts=True,
         )
     _grant_role_access(request, result.jobs)
     return result

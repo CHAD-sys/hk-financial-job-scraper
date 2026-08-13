@@ -25,6 +25,7 @@ from .support import BACKEND, enrichment, job, make_jobs_db, signals
 sys.path.insert(0, str(BACKEND))
 
 from job_read import (  # noqa: E402
+    CatalogueAudience,
     JobFilters,
     Sort,
     Visibility,
@@ -280,3 +281,86 @@ def test_sort_is_an_enum_so_a_typo_cannot_silently_mean_newest(conn):
 def test_salary_sort_sinks_rows_with_no_salary(conn):
     ids = _ids(list_jobs(conn, JobFilters(), sort=Sort.SALARY_HIGH, page_size=100).jobs)
     assert ids == ["LIVE", "XPOST"]
+
+
+# ── Recruiter Posts boost ─────────────────────────────────────────────────────
+
+
+@pytest.fixture()
+def boost_conn(tmp_path) -> sqlite3.Connection:
+    """9 mainstream rows newer than 3 Recruiter Posts — plain NEWEST would sink
+    every Recruiter Post to the bottom of the list."""
+    db = tmp_path / "boost.db"
+    mainstream = [
+        job(source="jobsdb", source_id=f"M{i}", company="HSBC",
+            title=f"Role M{i}", posted_at=f"2026-07-{10 - i:02d}")
+        for i in range(1, 10)
+    ]
+    social = [
+        job(source="linkedin_posts", source_id=f"S{i}", company="Recruiter",
+            title=f"Role S{i}", source_tier="social", posted_at=f"2026-06-{4 - i:02d}")
+        for i in range(1, 4)
+    ]
+    make_jobs_db(db, jobs=mainstream + social)
+    c = prepare(sqlite3.connect(db))
+    yield c
+    c.close()
+
+
+def test_boost_off_by_default_is_plain_newest(boost_conn):
+    """No caller asked for the boost, so a Recruiter Post ranks purely on its
+    own posted_at, same as before this feature existed."""
+    ids = _ids(list_jobs(
+        boost_conn, JobFilters(), sort=Sort.NEWEST, page_size=100,
+        audience=CatalogueAudience.MEMBER,
+    ).jobs)
+    assert ids == ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9", "S1", "S2", "S3"]
+
+
+def test_boost_interleaves_recruiter_posts_at_a_fixed_cadence(boost_conn):
+    """One slot in every 4 goes to the next Recruiter Post (by the caller's own
+    sort); the other slots keep the mainstream rows in their own newest-first
+    order. Not pinned to the very top, not randomly mixed."""
+    ids = _ids(list_jobs(
+        boost_conn, JobFilters(), sort=Sort.NEWEST, page_size=100,
+        audience=CatalogueAudience.MEMBER, boost_recruiter_posts=True,
+    ).jobs)
+    assert ids == [
+        "M1", "M2", "S1", "M3", "M4", "M5", "S2", "M6", "M7", "M8", "S3", "M9",
+    ]
+
+
+def test_boost_does_not_change_the_total(boost_conn):
+    plain = list_jobs(boost_conn, JobFilters(), page_size=100, audience=CatalogueAudience.MEMBER)
+    boosted = list_jobs(
+        boost_conn, JobFilters(), page_size=100,
+        audience=CatalogueAudience.MEMBER, boost_recruiter_posts=True,
+    )
+    assert boosted.total == plain.total == 12
+    assert {j.source_id for j in boosted.jobs} == {j.source_id for j in plain.jobs}
+
+
+def test_boost_is_a_noop_when_only_one_tier_is_present(boost_conn):
+    """Filtering down to a single tier (a tier tab, or a PUBLIC audience that
+    excludes 'social' entirely) leaves nothing to interleave, so the boosted
+    order must equal the plain order exactly."""
+    filters = JobFilters(tier="mainstream")
+    plain = _ids(list_jobs(boost_conn, filters, page_size=100,
+                            audience=CatalogueAudience.MEMBER).jobs)
+    boosted = _ids(list_jobs(boost_conn, filters, page_size=100,
+                              audience=CatalogueAudience.MEMBER,
+                              boost_recruiter_posts=True).jobs)
+    assert boosted == plain == ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9"]
+
+
+def test_boost_paginates_without_gaps_or_duplicates(boost_conn):
+    """The boosted order is a real total order over every matching row, so
+    paging through it must behave exactly like paging any other order."""
+    page1 = list_jobs(boost_conn, JobFilters(), page=1, page_size=5,
+                       audience=CatalogueAudience.MEMBER, boost_recruiter_posts=True)
+    page2 = list_jobs(boost_conn, JobFilters(), page=2, page_size=5,
+                       audience=CatalogueAudience.MEMBER, boost_recruiter_posts=True)
+    page3 = list_jobs(boost_conn, JobFilters(), page=3, page_size=5,
+                       audience=CatalogueAudience.MEMBER, boost_recruiter_posts=True)
+    seen = _ids(page1.jobs) + _ids(page2.jobs) + _ids(page3.jobs)
+    assert len(seen) == len(set(seen)) == 12

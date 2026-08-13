@@ -243,8 +243,10 @@ _FROM = """
     ON j.source = e.source AND j.source_id = e.source_id
 """
 
-BASE_SELECT = f"""
-  SELECT
+#: The row shape both the plain query and the boosted-order query (below) select
+#: — split out so `_boosted_rows_sql` can add a window-function column to the
+#: same SELECT list rather than duplicating it.
+_SELECT_COLUMNS = f"""
     j.source,
     j.source_id,
     j.company,
@@ -275,8 +277,9 @@ BASE_SELECT = f"""
     e.title_en,
     ({SECTOR_SQL}) AS sector,
     ({INTERNSHIP_SQL}) AS is_internship
-  {_FROM}
 """.strip()
+
+BASE_SELECT = f"SELECT\n{_SELECT_COLUMNS}\n{_FROM}".strip()
 
 _COUNT_SELECT = f"SELECT COUNT(*) {_FROM}"
 
@@ -572,6 +575,68 @@ def _relevance_order_sql(search_rowids: list[int]) -> str:
     return f"CASE j.rowid {when_clauses} ELSE {len(search_rowids)} END ASC"
 
 
+# ── Recruiter Posts boost ─────────────────────────────────────────────────────
+# A Recruiter Post (source_tier='social') competes for a "newest" or "salary"
+# ranking against a far larger, longer-lived pool of aggregator rows, so under a
+# single sort it can fall past page 3 — even though the point of Secret Market
+# ingestion is that these vacancies are not posted anywhere a Seeker would
+# otherwise see them. Product wants them quickly visible, but not the whole
+# board: a fixed cadence merge, not a resort and not a random shuffle. One slot
+# in every BOOST_STRIDE is reserved for the next Recruiter Post in the caller's
+# own sort order; every other slot is filled by the next non-Recruiter-Post row
+# in that same order. Ranking WITHIN a tier never changes — only which tier
+# occupies which slot does.
+#
+# Opt-in via `boost_recruiter_posts` on `list_jobs`: role_feed's candidate
+# window re-ranks by its own recommendation score and would just discard this
+# ordering, so it has no reason to pay for the extra window-function pass.
+BOOST_STRIDE = 4
+BOOST_OFFSET = 3
+#: Every slot in a stride except the reserved one, in fill order — [1, 2, 4] at
+#: the defaults above.
+_BOOST_FILL_OFFSETS = [n for n in range(1, BOOST_STRIDE + 1) if n != BOOST_OFFSET]
+
+
+def _boosted_rows_sql(where_sql: str, order_sql: str) -> str:
+    """
+    A query equivalent to `{BASE_SELECT} {where_sql}`, plus one extra column,
+    `boost_slot`, that a caller `ORDER BY`s instead of `order_sql` directly.
+
+    Two SQLite window-function passes. `tier_rank` is each row's 1-based rank
+    inside its own tier (Recruiter Post vs. everything else), by `order_sql` —
+    the caller's actual sort is untouched, just computed once per tier instead
+    of once overall. `boost_slot` then places tier rank N of the Recruiter Post
+    tier at `BOOST_STRIDE*(N-1) + BOOST_OFFSET`, and tier rank N of everything
+    else at the next free slot in stride order (a stable merge of the two
+    already-sorted tiers). If one tier is empty — a single-tier filter, or a
+    catalogue audience that excludes Recruiter Posts entirely — every row lands
+    in the other tier's branch, whose slot function is monotonic in `tier_rank`,
+    so the result is `order_sql`'s own order with no special-casing needed.
+    """
+    block = len(_BOOST_FILL_OFFSETS)
+    fill_case = " ".join(
+        f"WHEN {i} THEN {offset}" for i, offset in enumerate(_BOOST_FILL_OFFSETS)
+    )
+    ranked = f"""
+      SELECT
+        {_SELECT_COLUMNS},
+        ROW_NUMBER() OVER (
+          PARTITION BY (j.source_tier = 'social') ORDER BY {order_sql}
+        ) AS tier_rank
+      {_FROM}
+      {where_sql}
+    """
+    return f"""
+      SELECT *,
+        CASE WHEN source_tier = 'social'
+          THEN {BOOST_STRIDE} * (tier_rank - 1) + {BOOST_OFFSET}
+          ELSE {BOOST_STRIDE} * ((tier_rank - 1) / {block})
+               + CASE (tier_rank - 1) % {block} {fill_case} END
+        END AS boost_slot
+      FROM ({ranked})
+    """
+
+
 # ── Row mapping ───────────────────────────────────────────────────────────────
 
 
@@ -722,8 +787,17 @@ def list_jobs(
     page_size: int = 24,
     visibility: Visibility = Visibility.BOARD,
     audience: CatalogueAudience = CatalogueAudience.PUBLIC,
+    boost_recruiter_posts: bool = False,
 ) -> JobListResponse:
-    """One page of the board."""
+    """
+    One page of the board.
+
+    `boost_recruiter_posts` interleaves `source_tier='social'` rows into a
+    fixed cadence near the top of EVERY page instead of leaving them to rank
+    purely on `sort` — see `_boosted_rows_sql`. It changes row order only:
+    `total`/`total_pages` and the WHERE clause (filters, visibility, audience)
+    are identical with it on or off.
+    """
     # One search_index lookup, used twice: to filter (in _where, via the IN
     # clause) and, if the caller asked for RELEVANCE, to order. Computed once
     # here rather than inside _where so _where can stay a pure string/param
@@ -742,8 +816,17 @@ def list_jobs(
     )
 
     total = conn.execute(f"{_COUNT_SELECT} {where_sql}", params).fetchone()[0]
+
+    if boost_recruiter_posts:
+        rows_sql = (
+            f"SELECT * FROM ({_boosted_rows_sql(where_sql, order_sql)}) "
+            "ORDER BY boost_slot ASC, tier_rank ASC"
+        )
+    else:
+        rows_sql = f"{BASE_SELECT} {where_sql} ORDER BY {order_sql}"
+
     rows = conn.execute(
-        f"{BASE_SELECT} {where_sql} ORDER BY {order_sql} LIMIT ? OFFSET ?",
+        f"{rows_sql} LIMIT ? OFFSET ?",
         params + [page_size, offset],
     ).fetchall()
 

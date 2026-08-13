@@ -215,10 +215,15 @@ function CardHeader({
               <span
                 className="inline-flex flex-shrink-0 items-center gap-0.5 whitespace-nowrap rounded-sm px-1.5 py-0.5 font-semibold"
                 style={{
-                  // Same rule as the Exclusive chip above: the fact survives
-                  // the Role closing, the colour does not.
-                  backgroundColor: job.closed ? 'var(--color-surface-2)' : 'rgba(107,78,255,0.12)',
-                  color: job.closed ? 'var(--color-ink-muted)' : '#6B4EFF',
+                  // A solid fill, not a tint — this chip has to outrank the
+                  // Exclusive chip's gold tint and the plain sector text next
+                  // to it, not just differ in hue from them. White-on-#6B4EFF
+                  // measures ~5:1 contrast, clearing AA at this size. Same rule
+                  // as the Exclusive chip for closed: the fact survives the
+                  // Role closing, the colour (and the pop) does not.
+                  backgroundColor: job.closed ? 'var(--color-surface-2)' : '#6B4EFF',
+                  color: job.closed ? 'var(--color-ink-muted)' : '#FFFFFF',
+                  boxShadow: job.closed ? 'none' : '0 1px 3px rgba(107,78,255,0.4)',
                   fontSize: '12px',
                   letterSpacing: '0.04em',
                 }}
