@@ -95,3 +95,58 @@ class NullSender:
     def send(self, message: Message) -> bool:
         logger.info("No sender configured — dropping %r", message.subject)
         return False
+
+
+# ── Sending the Role-submission moderation email ───────────────────────────────
+#
+# WHY THIS EXISTS
+# ----------------
+# The Seeker-mail seam above exists because tests calling POST /api/auth/register
+# used to open a live SMTP connection with the developer's real config/api_keys.env
+# credentials. /api/post-role's notification email (mailer.send_mail) had the
+# identical bug and was never given the same fix: main.py called the bare
+# mailer.send_mail() function directly, so any test hitting /api/post-role
+# without individually remembering to monkeypatch it — tests/test_app_factory.py
+# did not — sent a real email to the real SUBMISSION_RECIPIENT every run.
+#
+# No `to` parameter on purpose. SUBMISSION_RECIPIENT must never be
+# request-derived (see mailer.py) or the endpoint becomes an open relay; keeping
+# it out of this interface makes that invariant structural, not a convention a
+# future caller has to remember.
+
+
+@dataclass(frozen=True)
+class SubmissionMessage:
+    subject: str
+    body: str
+    reply_to: str | None = None
+
+
+class SubmissionNotifier(Protocol):
+    """Somewhere to send the Role-submission moderation email."""
+
+    def notify(self, subject: str, body: str, reply_to: str | None = None) -> bool:
+        """Deliver one message to SUBMISSION_RECIPIENT. False means it did not go."""
+        ...
+
+
+class SmtpSubmissionNotifier:
+    """The real thing. Delegates to mailer, which owns the SMTP details."""
+
+    def notify(self, subject: str, body: str, reply_to: str | None = None) -> bool:
+        import mailer  # local, so importing this module needs no SMTP config
+
+        return mailer.send_mail(subject, body, reply_to=reply_to)
+
+
+@dataclass
+class RecordingSubmissionNotifier:
+    """Keeps messages instead of sending them. The default in tests."""
+
+    sent: list[SubmissionMessage] = field(default_factory=list)
+    #: What `notify` returns. Set False to exercise a caller's failure path.
+    delivers: bool = True
+
+    def notify(self, subject: str, body: str, reply_to: str | None = None) -> bool:
+        self.sent.append(SubmissionMessage(subject=subject, body=body, reply_to=reply_to))
+        return self.delivers

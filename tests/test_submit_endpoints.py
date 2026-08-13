@@ -24,11 +24,12 @@ def client(tmp_path, monkeypatch):
 
     sent: list[dict] = []
 
-    def fake_send(subject, body, reply_to=None):
-        sent.append({"subject": subject, "body": body, "reply_to": reply_to})
-        return True
+    class FakeNotifier:
+        def notify(self, subject, body, reply_to=None):
+            sent.append({"subject": subject, "body": body, "reply_to": reply_to})
+            return True
 
-    monkeypatch.setattr(main, "send_mail", fake_send)
+    monkeypatch.setattr(main.app.state, "notifier", FakeNotifier())
     result = TestClient(main.app)
     result.sent = sent  # type: ignore[attr-defined]
     result.queue_dir = tmp_path  # type: ignore[attr-defined]
@@ -39,13 +40,13 @@ def role(**over):
     body = {
         "contact_name": "Rec Ruiter",
         "contact_email": "rec@agency.com",
-        "company": "Example Capital",
+        "company": "Acme Capital",
         "title": "VP, Credit Risk",
         "location": "Hong Kong",
         "employment_type": "Full-time",
         "salary_range": "HKD 80,000 - 110,000 / month",
         "description": "Own the credit risk book for APAC.",
-        "apply_url": "https://example.com/apply",
+        "apply_url": "https://acmecapital-careers.com/apply",
         "website": "",
     }
     body.update(over)
@@ -95,6 +96,36 @@ def test_non_http_apply_url_rejected(client, bad):
     assert client.post("/api/post-role", json=role(apply_url=bad)).status_code == 422
 
 
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "https://example.com/apply",
+        "https://www.example.com/apply",
+        "http://sub.example.org/careers",
+        "https://example.net",
+    ],
+)
+def test_reserved_placeholder_apply_url_rejected(client, bad):
+    # example.com/.org/.net/.edu (RFC 2606) are never a real employer's site —
+    # every automated form-scanner that has hit this endpoint used one, and it
+    # slipped past the honeypot because it only fills visible inputs.
+    response = client.post("/api/post-role", json=role(apply_url=bad))
+    assert response.status_code == 422
+    assert read_queue(client) == []
+    assert client.sent == []
+
+
+@pytest.mark.parametrize(
+    "bad",
+    ["a@example.com", "recruiter@sub.example.org", "test@example.net"],
+)
+def test_reserved_placeholder_contact_email_rejected(client, bad):
+    response = client.post("/api/post-role", json=role(contact_email=bad))
+    assert response.status_code == 422
+    assert read_queue(client) == []
+    assert client.sent == []
+
+
 def test_newlines_in_title_never_reach_a_header(tmp_path, monkeypatch):
     monkeypatch.setenv("SUBMISSIONS_DIR", str(tmp_path))
     monkeypatch.setenv("SMTP_USER", "sender@example.com")
@@ -140,14 +171,18 @@ def test_header_sanitiser_strips_crlf():
 
 def test_submission_survives_smtp_failure(client, monkeypatch):
     import main
-    monkeypatch.setattr(main, "send_mail", lambda *args, **kwargs: False)
+    from sender import RecordingSubmissionNotifier
+
+    monkeypatch.setattr(main.app.state, "notifier", RecordingSubmissionNotifier(delivers=False))
     assert client.post("/api/post-role", json=role()).status_code == 200
     assert len(read_queue(client)) == 1
 
 
 def test_500_only_when_both_persistence_and_mail_fail(client, monkeypatch):
     import main
-    monkeypatch.setattr(main, "send_mail", lambda *args, **kwargs: False)
+    from sender import RecordingSubmissionNotifier
+
+    monkeypatch.setattr(main.app.state, "notifier", RecordingSubmissionNotifier(delivers=False))
     monkeypatch.setattr(main, "_persist", lambda *args, **kwargs: False)
     assert client.post("/api/post-role", json=role()).status_code == 500
 

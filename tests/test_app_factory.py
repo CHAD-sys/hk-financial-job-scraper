@@ -33,14 +33,14 @@ def _db(tmp_path, name: str, company: str):
 def _role_payload(**over):
     return {
         "contact_name": "A",
-        "contact_email": "a@example.com",
-        "company": "Example Capital",
+        "contact_email": "a@acmecapital-careers.com",
+        "company": "Acme Capital",
         "title": "Risk Manager",
         "location": "Hong Kong",
         "employment_type": "Full-time",
         "salary_range": "",
         "description": "A sufficiently detailed role description.",
-        "apply_url": "https://example.com/apply",
+        "apply_url": "https://acmecapital-careers.com/apply",
         "website": "",
         **over,
     }
