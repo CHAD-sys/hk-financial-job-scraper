@@ -443,3 +443,11 @@
   category: "RegTech"
   careers_url: "https://wizpresso.com/Careers"
   adapter: longtail
+
+- name: "BCT (Bank Consortium Trust Company Limited)"
+  slug: bcthk
+  category: "MPF Trustee"
+  careers_url: "https://bcthk.com/en/career/job-openings"
+  adapter: longtail
+  # JS-rendered (AEM/React) — httpx sees 0 visible chars, longtail adapter's
+  # _needs_browser() correctly triggers the Scrapling headless fallback.

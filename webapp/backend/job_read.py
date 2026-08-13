@@ -58,6 +58,7 @@ from typing import Iterable, Literal, Optional, Sequence
 from pydantic import BaseModel
 
 import search_index
+from hk_jobs.sector_classify import sector_case_sql, sector_condition_sql
 
 # ── Connection requirements ───────────────────────────────────────────────────
 
@@ -142,78 +143,19 @@ class Sort(str, Enum):
 
 
 # ── Sector taxonomy ───────────────────────────────────────────────────────────
-# Derived from the employer name at read time; jobs.db has no sector column.
-# Lives here rather than in main.py because BASE_SELECT embeds it, and importing
-# it back out of main.py would be a cycle. /api/filters and /api/stats import it
-# from here.
+# Derived from the posting's own title first, falling back to the employer's
+# name, at read time; jobs.db has no sector column. Rules live in
+# hk_jobs/sector_classify.py — the SAME rule list drives both this SQL and the
+# plain-Python classify_sector(), so they cannot drift the way the old
+# hand-written negation could. Lives here rather than in main.py because
+# BASE_SELECT embeds it, and importing it back out of main.py would be a
+# cycle. /api/filters and /api/stats import it from here.
 
-_IB_TERMS = [
-    "goldman", "morgan stanley", "deutsche bank", "barclays",
-    "jpmorgan chase", "bank of america", "ubs",
-    "hong kong exchanges",          # HKEX — market operator
-    "futu", "cicc", "china international capital",
-    "citic futures",                # CITIC Futures (brokerage); China CITIC Bank stays Banking
-]
-_INS_TERMS = [
-    "manulife", "axa", "aia", "prudential", "fwd", "sun life",
-    "zurich", "generali", "china life", "china pacific", "ping an",
-    "chubb", "swiss re", "samsung life", "allianz", "nippon", "metlife",
-]
-_AM_TERMS = [
-    "blackrock", "value partners", "macquarie", "fidelity",
-    "state street", "invesco", "bnp paribas am", "man group",
-    "schroders", "northern trust", "jpm am", "pimco", "kkr",
-    "franklin", "amundi",
-]
-# Professional services (Big 4). EY's advertiser is literally "EY", matched
-# EXACTLY (in _PS_EXACT) — a "%ey%" LIKE would wrongly match money/survey/key.
-_PS_TERMS = ["kpmg", "pwc", "pricewaterhouse", "deloitte", "ernst & young", "ernst and young"]
-_PS_EXACT = ["ey"]
-# Digital assets / crypto.
-_DA_TERMS = ["hashkey"]
-
-
-def _sector_clause(like_terms, exact_terms=()) -> str:
-    """Build a parenthesised OR clause of LIKE-substring + exact-equality matches."""
-    parts = [f"LOWER(j.company) LIKE '%{t}%'" for t in like_terms]
-    parts += [f"LOWER(j.company) = '{t}'" for t in exact_terms]
-    return "(" + " OR ".join(parts) + ")"
-
-
-_DA_COND = _sector_clause(_DA_TERMS)
-_PS_COND = _sector_clause(_PS_TERMS, _PS_EXACT)
-_IB_COND = _sector_clause(_IB_TERMS)
-_INS_COND = _sector_clause(_INS_TERMS)
-_AM_COND = _sector_clause(_AM_TERMS)
-
-#: Named sector → the condition that selects it. Banking is absent on purpose:
-#: it is defined as "none of the others", built in `_sector_condition`.
-_SECTOR_CONDS: dict[str, str] = {
-    "Digital Assets": _DA_COND,
-    "Professional Services": _PS_COND,
-    "Investment Banking": _IB_COND,
-    "Insurance": _INS_COND,
-    "Asset Management": _AM_COND,
-}
-
-SECTOR_SQL = "CASE " + " ".join(
-    f"WHEN {cond} THEN '{name}'" for name, cond in _SECTOR_CONDS.items()
-) + " ELSE 'Banking' END"
+SECTOR_SQL = sector_case_sql("j.title", "j.company")
 
 
 def _sector_condition(name: str) -> str:
-    """
-    The WHERE fragment selecting one sector.
-
-    Banking is the fallthrough bucket, so filtering for it means negating every
-    other sector. Deriving that from the same table the CASE is built from is
-    what stops the two drifting — the old hand-written negation had to be
-    updated by hand whenever a sector was added, and forgetting it made Banking
-    silently double-count.
-    """
-    if name in _SECTOR_CONDS:
-        return _SECTOR_CONDS[name]
-    return "(" + " AND ".join(f"NOT {c}" for c in _SECTOR_CONDS.values()) + ")"
+    return sector_condition_sql(name, "j.title", "j.company")
 
 
 # ── Internship detection ──────────────────────────────────────────────────────

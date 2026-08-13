@@ -77,6 +77,12 @@ export const SECTOR_COLOR: Record<string, { bg: string; text: string; border: st
     border: '#BFDBFE',
     accent: '#1E3A8A',
   },
+  'Private Banking': {
+    bg: '#FDF2F8',
+    text: '#9D174D',
+    border: '#FBCFE8',
+    accent: '#9D174D',
+  },
   Insurance: {
     bg: '#FBF0D3',
     text: '#9A6F00',

@@ -13,8 +13,8 @@ stores them in SQLite; a React web app serves them to Seekers.
 Two things this file used to say that are no longer true, kept here because the
 old shape still shows in places:
 
-- **It is not 30 companies.** As of 2026-08-04: **265 configured entries, 248
-  enabled** — 179 in `companies.yaml`, 69 in `companies_longtail.yaml`. Read the
+- **It is not 30 companies.** As of 2026-08-13: **266 configured entries, 249
+  enabled** — 179 in `companies.yaml`, 70 in `companies_longtail.yaml`. Read the
   count from the config, never from prose.
 - **The web app is built and in scope.** `webapp/` is a React 19 + Vite SPA
   served by a FastAPI backend (ADR 0005), with Seeker accounts, Saved Roles and
