@@ -142,6 +142,36 @@ def test_cold_start_is_explicitly_market_based_and_still_diverse():
     assert result.personalized is False
     assert len({item.job.company for item in result.items}) == 2
     assert all(item.reasons == ("Recently listed",) for item in result.items)
+    assert all(item.matched is False for item in result.items)
+
+
+def test_matched_is_per_role_not_just_per_seeker():
+    """A Seeker with real signals can still see roles that only matched on
+    freshness — `personalized` is seeker-level, `matched` must be per-role, or
+    Alerts (which only wants genuinely matched roles) cannot tell them apart."""
+    saved = _role("saved", title="Credit Risk Analyst", required_skills=["credit risk"])
+    candidates = [
+        _role("risk", title="Credit Risk Manager", required_skills=["credit risk"]),
+        # No shared sector/company/skill AND no shared title word with "Credit
+        # Risk Analyst" — _add_saved_signals also emits a weak per-word title
+        # signal, so this has to avoid "credit", "risk" and "analyst" too.
+        _role("unrelated", company="AIA", sector="Insurance", title="Actuarial Manager"),
+    ]
+    result = rank_roles(
+        candidates,
+        saved_roles=[saved],
+        discovery_events=[],
+        saved_refs={(saved.source, saved.source_id)},
+        page=1,
+        page_size=6,
+        now=NOW,
+    )
+
+    assert result.personalized is True
+    by_id = {item.job.source_id: item for item in result.items}
+    assert by_id["risk"].matched is True
+    assert by_id["unrelated"].matched is False
+    assert by_id["unrelated"].reasons == ("Recently listed",)
 
 
 def _resume_evidence(text: str):

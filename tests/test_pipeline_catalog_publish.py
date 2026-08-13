@@ -345,3 +345,124 @@ def test_catalogue_interface_clears_an_unproduced_pipeline_owned_dataset(tmp_pat
     with sqlite3.connect(live) as conn:
         assert conn.execute("SELECT COUNT(*) FROM ai_usage").fetchone()[0] == 0
         assert conn.execute("SELECT source_id FROM jobs").fetchone()[0] == "W2"
+
+
+# ── Weekly Alerts, triggered by publish (main.py's _trigger_weekly_alerts) ────
+#
+# alerts_enabled defaults to False (settings.py) — the feature is fully wired
+# but dormant until that flag is turned on. Every job here shares one company
+# ("HSBC", per _migrated's hardcoded value) on purpose: a Seeker who saved one
+# HSBC Role automatically gets a genuine `matched=True` company-signal on any
+# other HSBC Role, which is enough to prove the wiring without hand-building a
+# skills-matching fixture only to exercise plumbing, not recommendations.py.
+
+
+def _alerts_client(tmp_path, monkeypatch, jobs, **settings_over):
+    import seekers_store
+
+    live = _migrated(tmp_path / "live.db", jobs)
+    monkeypatch.setenv("SEEKERS_DB_PATH", str(tmp_path / "seekers.db"))
+    monkeypatch.setenv("EMPLOYERS_DB_PATH", str(tmp_path / "employers.db"))
+    seekers_store.reset_store()
+    dist = tmp_path / "dist"
+    make_bundle(dist)
+    client = TestClient(
+        make_app(
+            live, dist, tmp_path, cookie_secure=False, pipeline_sync_token=TOKEN,
+            **settings_over,
+        )
+    )
+    return client, live
+
+
+def _opted_in_seeker_with_a_saved_role(source: str, source_id: str):
+    import seekers_store
+
+    store = seekers_store.get_store()
+    seeker_id = store.create_seeker("seeker@example.com", email_verified=True)
+    store.set_alert_opt_in(seeker_id, True)
+    store.save_role(seeker_id, source, source_id)
+    return seeker_id
+
+
+def test_publish_does_not_send_alerts_by_default(tmp_path, monkeypatch):
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://finexcareers.test")
+    client, _live = _alerts_client(
+        tmp_path, monkeypatch, [("workday", "W1", "Old title", 1)]
+    )
+    _opted_in_seeker_with_a_saved_role("workday", "W1")
+    incoming = _migrated(
+        tmp_path / "incoming.db",
+        [("workday", "W1", "Old title", 1), ("workday", "W3", "New HSBC Role", 1)],
+    )
+
+    response = _post(client, incoming)
+
+    assert response.status_code == 200
+    assert client.app.state.sender.sent == []
+
+
+def test_publish_sends_alerts_once_enabled(tmp_path, monkeypatch):
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://finexcareers.test")
+    client, _live = _alerts_client(
+        tmp_path, monkeypatch, [("workday", "W1", "Old title", 1)],
+        alerts_enabled=True, alert_unsubscribe_secret="test-secret",
+    )
+    _opted_in_seeker_with_a_saved_role("workday", "W1")
+    incoming = _migrated(
+        tmp_path / "incoming.db",
+        [("workday", "W1", "Old title", 1), ("workday", "W3", "New HSBC Role", 1)],
+    )
+
+    response = _post(client, incoming)
+
+    assert response.status_code == 200
+    assert len(client.app.state.sender.sent) == 1
+    assert client.app.state.sender.sent[0].to == "seeker@example.com"
+    assert "New HSBC Role" in client.app.state.sender.sent[0].body
+
+
+def test_publish_skips_alerts_without_public_base_url(tmp_path, monkeypatch):
+    """ALERTS_ENABLED with no PUBLIC_BASE_URL must not mail a link that 404s —
+    and must not fail the publish response either."""
+    monkeypatch.delenv("PUBLIC_BASE_URL", raising=False)
+    client, _live = _alerts_client(
+        tmp_path, monkeypatch, [("workday", "W1", "Old title", 1)],
+        alerts_enabled=True, alert_unsubscribe_secret="test-secret",
+    )
+    _opted_in_seeker_with_a_saved_role("workday", "W1")
+    incoming = _migrated(
+        tmp_path / "incoming.db",
+        [("workday", "W1", "Old title", 1), ("workday", "W3", "New HSBC Role", 1)],
+    )
+
+    response = _post(client, incoming)
+
+    assert response.status_code == 200
+    assert client.app.state.sender.sent == []
+
+
+def test_alerts_failure_never_breaks_the_publish_response(tmp_path, monkeypatch):
+    """A background task's exception must stay a background task's problem —
+    the publish already succeeded and its response was already decided."""
+    import alerts
+
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://finexcareers.test")
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("simulated Alerts failure")
+
+    monkeypatch.setattr(alerts, "run_weekly_alerts", _boom)
+    client, _live = _alerts_client(
+        tmp_path, monkeypatch, [("workday", "W1", "Old title", 1)],
+        alerts_enabled=True, alert_unsubscribe_secret="test-secret",
+    )
+    _opted_in_seeker_with_a_saved_role("workday", "W1")
+    incoming = _migrated(
+        tmp_path / "incoming.db",
+        [("workday", "W1", "Old title", 1), ("workday", "W3", "New HSBC Role", 1)],
+    )
+
+    response = _post(client, incoming)
+
+    assert response.status_code == 200, response.text

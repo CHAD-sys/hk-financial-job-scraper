@@ -100,6 +100,22 @@ class Settings:
     #: set ROLE_ACCESS_SECRET so grants survive restarts and multiple replicas.
     role_access_secret: str = ""
 
+    #: Signs non-expiring Alert-unsubscribe tokens (alert_unsubscribe.py) — a
+    #: SEPARATE secret from role_access_secret on purpose, so a token minted
+    #: for one purpose can never be replayed as the other. When empty, the app
+    #: generates a process-local secret at startup; production should set
+    #: ALERT_UNSUBSCRIBE_SECRET so a restart or a second replica does not
+    #: invalidate every unsubscribe link already sitting in a Seeker's inbox.
+    alert_unsubscribe_secret: str = ""
+
+    #: Master kill switch for the weekly Alerts email (alerts.py). OFF by
+    #: design: the feature is fully built and wired (main.py triggers it as a
+    #: background task after every pipeline publish, admin.py), but nothing
+    #: sends a single email until ALERTS_ENABLED=1 is set in the environment.
+    #: Deliberately separate from any individual Seeker's opt-in — this flag
+    #: gates whether the feature runs AT ALL, not whether one Seeker wants it.
+    alerts_enabled: bool = False
+
     def __post_init__(self) -> None:
         # Submissions default to sitting beside the database, which is the
         # Railway volume in production. Computed here rather than as a default
@@ -139,6 +155,8 @@ class Settings:
             redis_url=os.environ.get("REDIS_URL", "").strip(),
             pipeline_sync_token=os.environ.get("PIPELINE_SYNC_TOKEN", "").strip(),
             role_access_secret=os.environ.get("ROLE_ACCESS_SECRET", "").strip(),
+            alert_unsubscribe_secret=os.environ.get("ALERT_UNSUBSCRIBE_SECRET", "").strip(),
+            alerts_enabled=_flag("ALERTS_ENABLED", default=False),
         )
 
     # ── Derived ───────────────────────────────────────────────────────────────

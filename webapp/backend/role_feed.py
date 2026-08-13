@@ -13,6 +13,7 @@ The databases are never attached or joined.
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import job_read
@@ -79,6 +80,87 @@ def _refs(rows: list[dict]) -> list[tuple[str, str]]:
     return [(str(row["source"]), str(row["source_id"])) for row in rows]
 
 
+@dataclass(frozen=True)
+class SeekerRanking:
+    """The shared core result behind every ranked-Role surface.
+
+    `ranked` is None when the Seeker has no first-party relevance evidence at
+    all yet (no saved Roles, no settled search, no "More like this", no clicks,
+    no resume) — every caller (the in-app feed, Alerts) must treat that as
+    "nothing to show", never fall back to a market-wide default.
+    """
+
+    ranked: recommendations.RecommendationResult | None
+    saved_role_count: int
+    activity_count: int
+
+
+def rank_for_seeker(
+    conn: sqlite3.Connection,
+    *,
+    seeker_id: str,
+    page: int,
+    page_size: int,
+    now: datetime,
+) -> SeekerRanking:
+    """Assemble one Seeker's first-party signals, fetch the candidate pool, and rank.
+
+    Pulled out of `roles_for_seeker` so a second surface (Alerts, alerts.py)
+    can get the identical ranking — same signals, same candidate policy, same
+    `RankedRole.matched` semantics — without a second, drifting copy of this
+    assembly. What each surface does with the result (paginate and attribute
+    impressions for the in-app feed; threshold and email for Alerts) stays in
+    that surface, not here.
+    """
+    store = seekers_store.get_store()
+    saved_rows = store.list_saved_roles(seeker_id)
+    saved_order = _refs(saved_rows)
+    saved_refs = set(saved_order)
+    activity = store.list_discovery_events(seeker_id)
+    feedback_rows = store.list_recommendation_feedback(seeker_id)
+    more_like_order = _refs([row for row in feedback_rows if row["action"] == "more_like"])
+    dismissed_refs = set(_refs([row for row in feedback_rows if row["action"] == "not_interested"]))
+    clicked_order = _refs(store.list_clicked_recommendation_refs(seeker_id))
+    resume_row = store.get_resume(seeker_id, include_document=True)
+    resume_evidence = (
+        resume_intelligence.evidence_from_storage(
+            resume_row["text_content"], resume_row["analysis"]
+        )
+        if resume_row
+        else None
+    )
+
+    has_relevance_evidence = bool(
+        saved_rows or activity or more_like_order or clicked_order or resume_evidence
+    )
+    if not has_relevance_evidence:
+        return SeekerRanking(ranked=None, saved_role_count=0, activity_count=0)
+
+    candidates = _candidates(conn)
+    saved_roles = job_read.jobs_by_refs(conn, saved_order, visibility=Visibility.ADDRESSABLE)
+    more_like_roles = job_read.jobs_by_refs(
+        conn, more_like_order, visibility=Visibility.ADDRESSABLE
+    )
+    clicked_roles = job_read.jobs_by_refs(conn, clicked_order, visibility=Visibility.ADDRESSABLE)
+    ranked = recommendations.rank_roles(
+        candidates,
+        saved_roles=saved_roles,
+        discovery_events=activity,
+        more_like_roles=more_like_roles,
+        clicked_roles=clicked_roles,
+        saved_refs=saved_refs,
+        dismissed_refs=dismissed_refs,
+        hidden_employer_keys=set(),
+        resume_evidence=resume_evidence,
+        page=page,
+        page_size=page_size,
+        now=now,
+    )
+    return SeekerRanking(
+        ranked=ranked, saved_role_count=len(saved_roles), activity_count=len(activity)
+    )
+
+
 def roles_for_seeker(
     conn: sqlite3.Connection,
     *,
@@ -98,38 +180,10 @@ def roles_for_seeker(
     safe_page_size = max(1, min(int(page_size), 24))
     store = seekers_store.get_store() if seeker_id else None
 
-    saved_rows = store.list_saved_roles(seeker_id) if store and seeker_id else []
-    saved_order = _refs(saved_rows)
-    saved_refs = set(saved_order)
-    activity = store.list_discovery_events(seeker_id) if store and seeker_id else []
-    feedback_rows = store.list_recommendation_feedback(seeker_id) if store and seeker_id else []
-    feedback_by_ref: dict[tuple[str, str], list[str]] = {}
-    for row in feedback_rows:
-        feedback_by_ref.setdefault((str(row["source"]), str(row["source_id"])), []).append(
-            str(row["action"])
-        )
-
-    more_like_order = _refs([row for row in feedback_rows if row["action"] == "more_like"])
-    dismissed_refs = set(_refs([row for row in feedback_rows if row["action"] == "not_interested"]))
-    clicked_order = _refs(
-        store.list_clicked_recommendation_refs(seeker_id) if store and seeker_id else []
-    )
-    resume_row = store.get_resume(seeker_id, include_document=True) if store and seeker_id else None
-    resume_evidence = (
-        resume_intelligence.evidence_from_storage(
-            resume_row["text_content"], resume_row["analysis"]
-        )
-        if resume_row
-        else None
-    )
-
-    has_relevance_evidence = bool(
-        saved_rows or activity or more_like_order or clicked_order or resume_evidence
-    )
-    if not seeker_id or not has_relevance_evidence:
+    if not seeker_id:
         return RoleFeed(
             personalized=False,
-            personalization_enabled=bool(seeker_id),
+            personalization_enabled=False,
             model_version=recommendations.MODEL_VERSION,
             signal_count=0,
             saved_role_count=0,
@@ -142,26 +196,33 @@ def roles_for_seeker(
             batch_id=None,
         )
 
-    candidates = _candidates(conn)
-    saved_roles = job_read.jobs_by_refs(conn, saved_order, visibility=Visibility.ADDRESSABLE)
-    more_like_roles = job_read.jobs_by_refs(
-        conn, more_like_order, visibility=Visibility.ADDRESSABLE
+    result = rank_for_seeker(
+        conn, seeker_id=seeker_id, page=safe_page, page_size=safe_page_size, now=generated_at
     )
-    clicked_roles = job_read.jobs_by_refs(conn, clicked_order, visibility=Visibility.ADDRESSABLE)
-    ranked = recommendations.rank_roles(
-        candidates,
-        saved_roles=saved_roles,
-        discovery_events=activity,
-        more_like_roles=more_like_roles,
-        clicked_roles=clicked_roles,
-        saved_refs=saved_refs,
-        dismissed_refs=dismissed_refs,
-        hidden_employer_keys=set(),
-        resume_evidence=resume_evidence,
-        page=safe_page,
-        page_size=safe_page_size,
-        now=generated_at,
-    )
+    if result.ranked is None:
+        return RoleFeed(
+            personalized=False,
+            personalization_enabled=True,
+            model_version=recommendations.MODEL_VERSION,
+            signal_count=0,
+            saved_role_count=0,
+            activity_count=0,
+            eligible_count=0,
+            page=safe_page,
+            page_size=safe_page_size,
+            total_pages=0,
+            generated_at=generated_at.isoformat(),
+            batch_id=None,
+        )
+    ranked = result.ranked
+
+    feedback_rows = store.list_recommendation_feedback(seeker_id) if store else []
+    feedback_by_ref: dict[tuple[str, str], list[str]] = {}
+    for row in feedback_rows:
+        feedback_by_ref.setdefault((str(row["source"]), str(row["source_id"])), []).append(
+            str(row["action"])
+        )
+
     items = tuple(
         RoleFeedItem(
             job=item.job,
@@ -195,8 +256,8 @@ def roles_for_seeker(
         personalization_enabled=bool(seeker_id),
         model_version=recommendations.MODEL_VERSION,
         signal_count=ranked.signal_count,
-        saved_role_count=len(saved_roles),
-        activity_count=len(activity),
+        saved_role_count=result.saved_role_count,
+        activity_count=result.activity_count,
         eligible_count=ranked.eligible_count,
         page=safe_page,
         page_size=safe_page_size,

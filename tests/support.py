@@ -213,17 +213,24 @@ def make_app(db: Path, dist: Path | None = None, submissions: Path | None = None
     global, so two apps with two different databases can exist at once and a
     test never touches `os.environ` at all.
 
-    Outbound Seeker mail goes to a RecordingSender unless a test says otherwise,
-    so nothing in the suite can reach a real SMTP server. Reach it through
-    `client.app.state.sender` to assert on what was sent.
+    Outbound Seeker mail goes to a RecordingSender, and the Role-submission
+    moderation email goes to a RecordingSubmissionNotifier, unless a test says
+    otherwise — so nothing in the suite can reach a real SMTP server. Reach
+    them through `client.app.state.sender` / `client.app.state.notifier` to
+    assert on what was sent. This is what closed the gap where
+    `/api/post-role` sent a real "Role submission" email, with the developer's
+    real config/api_keys.env credentials, on every run of a test that forgot
+    to mock it by hand.
     """
     from main import create_app  # imported here so a collection-time import cannot fail
-    from sender import RecordingSender
+    from sender import RecordingSender, RecordingSubmissionNotifier
     from settings import Settings
 
     sender = over.pop("sender", None) or RecordingSender()
+    notifier = over.pop("notifier", None) or RecordingSubmissionNotifier()
     external_identity = over.pop("external_identity", None)
     role_access_control = over.pop("role_access_control", None)
+    alert_unsubscribe_tokens = over.pop("alert_unsubscribe_tokens", None)
     return create_app(
         Settings(
             jobs_db=db,
@@ -232,6 +239,8 @@ def make_app(db: Path, dist: Path | None = None, submissions: Path | None = None
             **over,
         ),
         sender=sender,
+        notifier=notifier,
         external_identity=external_identity,
         role_access_control=role_access_control,
+        alert_unsubscribe_tokens=alert_unsubscribe_tokens,
     )

@@ -528,6 +528,51 @@ def migrate_to_phase_8(conn: sqlite3.Connection) -> None:
     )
 
 
+def migrate_to_phase_9(conn: sqlite3.Connection) -> None:
+    """Add Alerts: an opt-in weekly email of newly-recommended Roles.
+
+    `alert_settings` holds one row per Seeker who has ever touched the toggle.
+    `opted_in` gates whether the weekly job considers them at all — default OFF,
+    since Alerts is opt-in only, never on by default (it reads as direct
+    marketing under PDPO Part 6A, and PrivacyNotice.tsx clause 5 already
+    promises nobody is added to a mailing list without being asked first).
+    `last_sent_at` is what the weekly job compares against to run a rolling
+    per-Seeker cadence (at least 7 days since last send) rather than a fixed
+    calendar day for everyone.
+
+    `alerted_roles` is the permanent per-Seeker "already sent" list — same
+    shape as `saved_roles` (a bare (source, source_id) reference, never a copy
+    of the Role, joined against jobs.db at read time) so a Role stays correctly
+    represented even after it closes. A Role is eligible for at most one Alert
+    email per Seeker, ever; this table is what makes that a database invariant
+    instead of something the weekly job has to remember on its own.
+    """
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS alert_settings (
+            seeker_id     TEXT PRIMARY KEY REFERENCES seekers (id) ON DELETE CASCADE,
+            opted_in      INTEGER NOT NULL DEFAULT 0,
+            last_sent_at  TEXT,
+            updated_at    TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS alerted_roles (
+            seeker_id  TEXT NOT NULL REFERENCES seekers (id) ON DELETE CASCADE,
+            source     TEXT NOT NULL,
+            source_id  TEXT NOT NULL,
+            sent_at    TEXT NOT NULL,
+            PRIMARY KEY (seeker_id, source, source_id)
+        )
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_alerted_roles_seeker ON alerted_roles (seeker_id)"
+    )
+
+
 # Every phase, in order. A future phase appends here; it never edits an applied
 # phase because seekers.db is irreplaceable first-party account data.
 _MIGRATIONS = (
@@ -539,6 +584,7 @@ _MIGRATIONS = (
     migrate_to_phase_6,
     migrate_to_phase_7,
     migrate_to_phase_8,
+    migrate_to_phase_9,
 )
 
 
@@ -1866,6 +1912,88 @@ class SeekerStore:
             )
         return cursor.rowcount == 1
 
+    # -- alerts (opt-in weekly email of newly-recommended Roles) ------------
+
+    def get_alert_opt_in(self, seeker_id: str) -> bool:
+        """Whether this Seeker has turned Alerts on. No row means never asked — False."""
+        row = self._conn().execute(
+            "SELECT opted_in FROM alert_settings WHERE seeker_id = ?", (seeker_id,)
+        ).fetchone()
+        return bool(row["opted_in"]) if row is not None else False
+
+    def set_alert_opt_in(
+        self, seeker_id: str, opted_in: bool, *, now: datetime | None = None
+    ) -> bool:
+        """Turn Alerts on or off. Returns the resolved state."""
+        stamp = to_iso(now or utcnow())
+        with self._write() as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO alert_settings (seeker_id, opted_in, updated_at) "
+                "VALUES (?, 0, ?)",
+                (seeker_id, stamp),
+            )
+            conn.execute(
+                "UPDATE alert_settings SET opted_in = ?, updated_at = ? WHERE seeker_id = ?",
+                (int(bool(opted_in)), stamp, seeker_id),
+            )
+        return bool(opted_in)
+
+    def seekers_due_for_alert(self, *, cutoff: datetime) -> list[str]:
+        """
+        Seeker ids opted into Alerts and due to be considered this run: never
+        sent an Alert before, or last sent on or before `cutoff`.
+
+        The weekly Alerts job owns the actual cadence policy (currently: at
+        least 7 days since the last send) and passes in the cutoff it computed
+        — that interval is a decision made where the job runs, not a constant
+        buried in storage.
+        """
+        rows = self._conn().execute(
+            "SELECT seeker_id FROM alert_settings "
+            "WHERE opted_in = 1 AND (last_sent_at IS NULL OR last_sent_at <= ?)",
+            (to_iso(cutoff),),
+        ).fetchall()
+        return [row["seeker_id"] for row in rows]
+
+    def mark_alert_sent(self, seeker_id: str, *, now: datetime | None = None) -> None:
+        """Record that this Seeker's weekly Alert email went out just now."""
+        stamp = to_iso(now or utcnow())
+        with self._write() as conn:
+            conn.execute(
+                "UPDATE alert_settings SET last_sent_at = ?, updated_at = ? WHERE seeker_id = ?",
+                (stamp, stamp, seeker_id),
+            )
+
+    def list_alerted_role_ids(self, seeker_id: str) -> set[tuple[str, str]]:
+        """Every (source, source_id) already sent to this Seeker in an Alert, ever.
+
+        This is the "new-to-you" filter from the feature's own spec: a Role is
+        excluded from consideration once it has been sent, regardless of how
+        long it has been on the board or whether the Seeker acted on it.
+        """
+        rows = self._conn().execute(
+            "SELECT source, source_id FROM alerted_roles WHERE seeker_id = ?", (seeker_id,)
+        ).fetchall()
+        return {(row["source"], row["source_id"]) for row in rows}
+
+    def record_alerted_roles(
+        self,
+        seeker_id: str,
+        references: Iterable[tuple[str, str]],
+        *,
+        now: datetime | None = None,
+    ) -> None:
+        """Mark a batch of Roles as sent to this Seeker in an Alert. Idempotent."""
+        stamp = to_iso(now or utcnow())
+        with self._write() as conn:
+            conn.executemany(
+                """
+                INSERT OR IGNORE INTO alerted_roles (seeker_id, source, source_id, sent_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                [(seeker_id, source, source_id, stamp) for source, source_id in references],
+            )
+
     # -- events (first-party analytics, decision 19) -------------------------
 
     def log_event(
@@ -1952,6 +2080,8 @@ class SeekerStore:
                 "DELETE FROM recommendation_settings WHERE seeker_id = ?", (seeker_id,)
             )
             conn.execute("DELETE FROM seeker_resumes WHERE seeker_id = ?", (seeker_id,))
+            conn.execute("DELETE FROM alerted_roles WHERE seeker_id = ?", (seeker_id,))
+            conn.execute("DELETE FROM alert_settings WHERE seeker_id = ?", (seeker_id,))
             conn.execute("DELETE FROM seeker_identities WHERE seeker_id = ?", (seeker_id,))
             conn.execute("DELETE FROM seekers WHERE id = ?", (seeker_id,))
             conn.execute(

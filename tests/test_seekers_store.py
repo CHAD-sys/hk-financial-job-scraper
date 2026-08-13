@@ -103,6 +103,8 @@ def test_migrations_create_every_table(store):
         "seeker_resumes",
         "events",
         "anonymous_visits",
+        "alert_settings",
+        "alerted_roles",
     } <= names
 
 
@@ -871,6 +873,8 @@ def test_deletion_really_deletes(store):
         text_content="Private extracted resume text that must be deleted with the account.",
     )
     store.log_event("login.succeeded", seeker_id)
+    store.set_alert_opt_in(seeker_id, True)
+    store.record_alerted_roles(seeker_id, [("jobsdb", "job-1")])
 
     assert store.delete_seeker(seeker_id) is True
 
@@ -887,6 +891,8 @@ def test_deletion_really_deletes(store):
     assert store.get_resume(seeker_id) is None
     assert store.get_identity("google", "sub-jane") is None
     assert store.list_identities(seeker_id) == []
+    assert store.get_alert_opt_in(seeker_id) is False
+    assert store.list_alerted_role_ids(seeker_id) == set()
 
 
 def test_deletion_logs_an_event_that_survives(store):
@@ -922,3 +928,106 @@ def test_deletion_leaves_other_seekers_alone(store):
     assert store.get_seeker(bystander) is not None
     assert store.get_session("sess-kim") is not None
     assert len(store.list_saved_roles(bystander)) == 1
+
+
+# ── Alerts ────────────────────────────────────────────────────────────────────
+
+
+def test_alerts_default_to_opted_out(store):
+    """A Seeker who has never touched the toggle must never be emailed — opt-in only."""
+    seeker_id = store.create_seeker("alice@example.com")
+    assert store.get_alert_opt_in(seeker_id) is False
+
+
+def test_opt_in_and_opt_out_round_trip(store):
+    seeker_id = store.create_seeker("alice@example.com")
+
+    assert store.set_alert_opt_in(seeker_id, True) is True
+    assert store.get_alert_opt_in(seeker_id) is True
+
+    assert store.set_alert_opt_in(seeker_id, False) is False
+    assert store.get_alert_opt_in(seeker_id) is False
+
+
+def test_opting_in_twice_is_not_an_error(store):
+    """The INSERT OR IGNORE + UPDATE two-step must survive a Seeker flipping the
+    toggle before any row exists yet, and flipping it again afterwards."""
+    seeker_id = store.create_seeker("alice@example.com")
+    store.set_alert_opt_in(seeker_id, True)
+    store.set_alert_opt_in(seeker_id, True)
+    assert store.get_alert_opt_in(seeker_id) is True
+
+
+def test_seekers_due_for_alert_excludes_opted_out(store):
+    opted_in = store.create_seeker("in@example.com")
+    opted_out = store.create_seeker("out@example.com")
+    store.set_alert_opt_in(opted_in, True)
+    store.set_alert_opt_in(opted_out, False)
+
+    due = store.seekers_due_for_alert(cutoff=_hk(13))
+
+    assert due == [opted_in]
+
+
+def test_seekers_due_for_alert_includes_never_sent(store):
+    """Opted in, no last_sent_at yet — due immediately, not after a first wait."""
+    seeker_id = store.create_seeker("alice@example.com")
+    store.set_alert_opt_in(seeker_id, True)
+
+    assert store.seekers_due_for_alert(cutoff=_hk(1)) == [seeker_id]
+
+
+def test_seekers_due_for_alert_respects_the_cutoff(store):
+    seeker_id = store.create_seeker("alice@example.com")
+    store.set_alert_opt_in(seeker_id, True)
+    store.mark_alert_sent(seeker_id, now=_hk(10))
+
+    # A cutoff before the last send: not due yet (still inside the interval).
+    assert store.seekers_due_for_alert(cutoff=_hk(8)) == []
+    # A cutoff on/after the last send: due again — the caller computed the
+    # cutoff as "now minus the interval", so last_sent_at <= cutoff means the
+    # full interval has elapsed.
+    assert store.seekers_due_for_alert(cutoff=_hk(10)) == [seeker_id]
+    assert store.seekers_due_for_alert(cutoff=_hk(17)) == [seeker_id]
+
+
+def test_mark_alert_sent_updates_only_the_named_seeker(store):
+    sent_to = store.create_seeker("sent@example.com")
+    other = store.create_seeker("other@example.com")
+    store.set_alert_opt_in(sent_to, True)
+    store.set_alert_opt_in(other, True)
+
+    store.mark_alert_sent(sent_to, now=_hk(13))
+
+    # Cutoff before sent_to's last send: sent_to isn't due yet, other still is.
+    assert store.seekers_due_for_alert(cutoff=_hk(12)) == [other]
+
+
+def test_alerted_roles_dedup_is_permanent_per_seeker(store):
+    """Once sent, a Role is never eligible again for that Seeker — regardless
+    of how many times the weekly job reconsiders it."""
+    seeker_id = store.create_seeker("alice@example.com")
+
+    assert store.list_alerted_role_ids(seeker_id) == set()
+
+    store.record_alerted_roles(seeker_id, [("jobsdb", "job-1"), ("linkedin", "job-2")])
+    assert store.list_alerted_role_ids(seeker_id) == {
+        ("jobsdb", "job-1"),
+        ("linkedin", "job-2"),
+    }
+
+    # Recording the same reference again is a no-op, not a duplicate or an error.
+    store.record_alerted_roles(seeker_id, [("jobsdb", "job-1")])
+    assert store.list_alerted_role_ids(seeker_id) == {
+        ("jobsdb", "job-1"),
+        ("linkedin", "job-2"),
+    }
+
+
+def test_alerted_roles_are_scoped_per_seeker(store):
+    a = store.create_seeker("a@example.com")
+    b = store.create_seeker("b@example.com")
+    store.record_alerted_roles(a, [("jobsdb", "job-1")])
+
+    assert store.list_alerted_role_ids(a) == {("jobsdb", "job-1")}
+    assert store.list_alerted_role_ids(b) == set()

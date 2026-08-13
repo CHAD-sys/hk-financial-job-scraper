@@ -17,6 +17,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal, Optional
+from urllib.parse import urlparse
 
 from fastapi import (
     APIRouter,
@@ -56,18 +57,26 @@ from env_file import load_env_file  # noqa: E402 — must import after logging s
 load_env_file()
 
 import mailer  # noqa: E402 — see above
-from mailer import SUBMISSION_RECIPIENT, SMTP_USER, send_mail  # noqa: E402
+from mailer import SUBMISSION_RECIPIENT, SMTP_USER  # noqa: E402
 
 # The jobs read path. Everything about which Roles are visible, how they are
 # filtered, sorted, counted and shaped for the wire lives in this module — see
 # its docstring for why "browsing is filtered, addressing is not".
+import alert_unsubscribe  # noqa: E402
+import alerts  # noqa: E402
 import job_read  # noqa: E402
 import learning_content  # noqa: E402
 import resume_intelligence  # noqa: E402
 import role_access  # noqa: E402
 import role_feed  # noqa: E402
 from rate_limit import RateLimiter, RedisRateLimiter  # noqa: E402
-from sender import Message, Sender, SmtpSender  # noqa: E402
+from sender import (  # noqa: E402
+    Message,
+    Sender,
+    SmtpSender,
+    SmtpSubmissionNotifier,
+    SubmissionNotifier,
+)
 from settings import Settings  # noqa: E402
 from hk_jobs.migrations import migrate  # noqa: E402
 from job_read import (  # noqa: E402
@@ -571,6 +580,41 @@ def delete_resume(request: Request):
     return Response(status_code=204)
 
 
+class AlertSettingsOut(BaseModel):
+    opted_in: bool
+
+
+class AlertSettingsIn(BaseModel):
+    opted_in: bool
+
+
+@router.get("/api/me/alerts", response_model=AlertSettingsOut, tags=["alerts"])
+def get_alert_settings(request: Request):
+    """Whether the signed-in Seeker has opted into the weekly Alert email."""
+    seeker = _require_seeker(request)
+    opted_in = seekers_store.get_store().get_alert_opt_in(seeker["id"])
+    return AlertSettingsOut(opted_in=opted_in)
+
+
+@router.put("/api/me/alerts", response_model=AlertSettingsOut, tags=["alerts"])
+def set_alert_settings(payload: AlertSettingsIn, request: Request):
+    """
+    Turn the weekly Alert email on or off.
+
+    Opt-in only (alerts.py's module docstring): nobody is enrolled by default,
+    so this endpoint is the ONLY way `alert_settings.opted_in` becomes true.
+    The unsubscribe link inside an Alert email (POST /api/alerts/unsubscribe,
+    below) can only turn it back off, never on — matching PrivacyNotice.tsx
+    clause 5's promise that consent for anything mailing-list-shaped is asked
+    for, never assumed.
+    """
+    seeker = _require_seeker(request)
+    store = seekers_store.get_store()
+    opted_in = store.set_alert_opt_in(seeker["id"], payload.opted_in)
+    store.log_event("alerts.opted_in" if opted_in else "alerts.opted_out", seeker["id"])
+    return AlertSettingsOut(opted_in=opted_in)
+
+
 @router.get(
     "/api/me/resume-matches",
     response_model=role_feed.ResumeMatches,
@@ -825,6 +869,23 @@ def _persist(request: Request, kind: str, payload: dict) -> bool:
 
 EMPLOYMENT_TYPES = {"Full-time", "Contract", "Part-time", "Internship"}
 
+# RFC 2606 reserved domains. Real recruiters never post from these — seeing one
+# here is a reliable signature of an automated form-tester/scanner that fills
+# every visible field with generic placeholder values (the honeypot field below
+# only catches bots that blindly fill hidden inputs too, which this class of
+# bot does not).
+_RESERVED_PLACEHOLDER_DOMAINS = frozenset({
+    "example.com", "example.net", "example.org", "example.edu",
+})
+
+
+def _is_placeholder_domain(host_or_email: str) -> bool:
+    host = host_or_email.rsplit("@", 1)[-1].strip().lower().rstrip(".")
+    return any(
+        host == domain or host.endswith(f".{domain}")
+        for domain in _RESERVED_PLACEHOLDER_DOMAINS
+    )
+
 
 class RoleIn(BaseModel):
     contact_name: str = Field(min_length=1, max_length=100)
@@ -852,6 +913,15 @@ class RoleIn(BaseModel):
         # on the board once approved.
         if not v.startswith(("http://", "https://")):
             raise ValueError("apply_url must start with http:// or https://")
+        if _is_placeholder_domain(urlparse(v).hostname or ""):
+            raise ValueError("apply_url must be a real, reachable URL")
+        return v
+
+    @field_validator("contact_email")
+    @classmethod
+    def _real_contact_domain(cls, v: str) -> str:
+        if _is_placeholder_domain(v):
+            raise ValueError("contact_email must be a real address")
         return v
 
 
@@ -890,7 +960,7 @@ def submit_role(payload: RoleIn, request: Request):
         f"Submitted by {data['contact_name']} <{data['contact_email']}>\n\n"
         f"--- Description ---\n{data['description']}\n"
     )
-    sent = send_mail(
+    sent = request.app.state.notifier.notify(
         f"Role submission — {data['title']} @ {data['company']}",
         body,
         reply_to=str(data["contact_email"]),
@@ -1224,6 +1294,36 @@ def verify_email(payload: VerifyEmailIn, request: Request):
     store.set_email_verified(seeker_id, True)
     store.log_event("seeker.email_verified", seeker_id=seeker_id)
     return _seeker_out(store.get_seeker(seeker_id))
+
+
+class UnsubscribeAlertsIn(BaseModel):
+    token: str = Field(min_length=1, max_length=512)
+
+
+@router.post("/api/alerts/unsubscribe", status_code=204, tags=["alerts"])
+def unsubscribe_from_alerts(payload: UnsubscribeAlertsIn, request: Request):
+    """
+    Turn off weekly Alerts from the link in an Alert email. No session required
+    — the token itself is the credential, same posture as verify/reset.
+
+    Deliberately a POST the frontend's /unsubscribe page fires from JS, not a
+    GET the email link itself resolves to, for the same reason verify-email is
+    a POST above: a mail client that pre-fetches links to scan them for
+    malware must not be able to silently unsubscribe someone who never opened
+    the email, let alone clicked anything in it.
+
+    One response for every outcome — unknown Seeker, tampered token, already
+    unsubscribed — because every one of those leaves the Seeker un-subscribed,
+    which is the only state a broken or reused token could sensibly want.
+    Unlike email_tokens, this token is not single-use and does not expire
+    (alert_unsubscribe.py): resolving it twice is not an error.
+    """
+    store = seekers_store.get_store()
+    seeker_id = request.app.state.alert_unsubscribe_tokens.resolve(payload.token)
+    if seeker_id is not None and store.get_seeker(seeker_id) is not None:
+        store.set_alert_opt_in(seeker_id, False)
+        store.log_event("alerts.opted_out", seeker_id)
+    return Response(status_code=204)
 
 
 @router.post("/api/auth/login", response_model=SeekerOut, tags=["auth"])
@@ -2193,6 +2293,53 @@ def employer_google_callback(
     return resp
 
 
+def _trigger_weekly_alerts(request: Request) -> None:
+    """
+    Run the weekly Alerts job (alerts.py), as a BackgroundTask fired by
+    admin.py right after a pipeline snapshot is ingested.
+
+    This is the ONLY place run_weekly_alerts is called. It is not a cron
+    phase in hk_jobs/daily_run/ because that orchestration runs on a GitHub
+    Actions runner (the `hosted` profile), which never touches seekers.db —
+    only this Railway process does, on the same volume as the jobs.db that
+    `/api/admin/pipeline/database` just finished swapping in. Piggybacking on
+    that publish is what gives Alerts its "once per pipeline run" cadence
+    without a second scheduler.
+
+    Gated on settings.alerts_enabled, OFF by default: the feature is fully
+    built and wired end to end, but sends nothing until that flag is turned on
+    — an environment change (ALERTS_ENABLED=1), not a deploy.
+
+    Never raises. A background task's exception has nowhere to go but the log
+    — and Alerts failing must never be mistaken for the publish itself having
+    failed, since by the time this runs the publish has already succeeded and
+    returned its response.
+    """
+    settings = cfg(request)
+    if not settings.alerts_enabled:
+        return
+    public_base_url = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
+    if not public_base_url:
+        logger.warning(
+            "ALERTS_ENABLED is set but PUBLIC_BASE_URL is not configured — "
+            "skipping this week's Alerts run entirely rather than mail links that 404"
+        )
+        return
+    try:
+        with sqlite3.connect(settings.jobs_db) as conn:
+            job_read.prepare(conn)
+            outcomes = alerts.run_weekly_alerts(
+                conn,
+                request.app.state.sender,
+                request.app.state.alert_unsubscribe_tokens,
+                public_base_url=public_base_url,
+            )
+        sent = sum(1 for outcome in outcomes if outcome.sent)
+        logger.info("Weekly Alerts run: %d sent of %d attempted", sent, len(outcomes))
+    except Exception:  # noqa: BLE001 — must never surface past a background task
+        logger.exception("Weekly Alerts run failed")
+
+
 # ── The factory ───────────────────────────────────────────────────────────────
 
 
@@ -2254,8 +2401,10 @@ def create_app(
     settings: Settings | None = None,
     *,
     sender: Sender | None = None,
+    notifier: SubmissionNotifier | None = None,
     external_identity: identity_protocol.IdentityProtocol | None = None,
     role_access_control: role_access.RoleAccess | None = None,
+    alert_unsubscribe_tokens: alert_unsubscribe.AlertUnsubscribeToken | None = None,
 ) -> FastAPI:
     """
     Build an app from an explicit configuration.
@@ -2269,9 +2418,17 @@ def create_app(
     settings = settings or Settings.from_env()
     # SmtpSender by default; a test passes a RecordingSender and asserts on it.
     sender = sender if sender is not None else SmtpSender()
+    # Same shape, for the Role-submission moderation email — see sender.py's
+    # "Sending the Role-submission moderation email" section for why this seam
+    # exists: SmtpSubmissionNotifier by default, RecordingSubmissionNotifier in
+    # tests via support.make_app().
+    notifier = notifier if notifier is not None else SmtpSubmissionNotifier()
     external_identity = external_identity or identity_protocol.IdentityProtocol()
     role_access_control = role_access_control or role_access.RoleAccess(
         settings.role_access_secret
+    )
+    alert_unsubscribe_tokens = alert_unsubscribe_tokens or alert_unsubscribe.AlertUnsubscribeToken(
+        settings.alert_unsubscribe_secret
     )
 
     app = FastAPI(
@@ -2282,8 +2439,10 @@ def create_app(
     )
     app.state.settings = settings
     app.state.sender = sender
+    app.state.notifier = notifier
     app.state.identity_protocol = external_identity
     app.state.role_access = role_access_control
+    app.state.alert_unsubscribe_tokens = alert_unsubscribe_tokens
     # Per-app, so two apps in one process (which is what the tests build) cannot
     # share a rate-limit budget. Redis-backed once settings.redis_url is set —
     # see Settings.redis_url and rate_limit.py for why that matters once this
@@ -2310,6 +2469,7 @@ def create_app(
         admin.build_router(
             cfg=cfg, get_db=get_db, get_write_db=get_write_db,
             require_admin=_require_admin, require_super_admin=_require_super_admin,
+            on_pipeline_published=_trigger_weekly_alerts,
         )
     )
     _mount_frontend(app, settings)

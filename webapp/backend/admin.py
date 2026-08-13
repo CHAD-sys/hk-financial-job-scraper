@@ -43,6 +43,7 @@ import seekers_store
 import submissions
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     Body,
     Depends,
     File,
@@ -99,6 +100,7 @@ def build_router(
     get_write_db: Callable[[Request], sqlite3.Connection],
     require_admin: Callable[[Request], dict],
     require_super_admin: Callable[[Request], dict],
+    on_pipeline_published: Callable[[Request], None] | None = None,
 ) -> APIRouter:
     """
     Assemble the admin router against main.py's own dependencies.
@@ -106,6 +108,14 @@ def build_router(
     Taking them as arguments (rather than importing main.py) is what keeps this
     module free of the one import that would make it circular: main.py imports
     THIS module to mount the router, so this module cannot import main.py back.
+
+    `on_pipeline_published`, if given, runs as a FastAPI BackgroundTask after
+    `POST /pipeline/database` successfully swaps in a new catalogue — the one
+    moment this Railway process is guaranteed to hold a freshly-enriched
+    jobs.db beside the live seekers.db (see alerts.py / main.py's
+    `_trigger_weekly_alerts`). A BackgroundTask, not an inline call: whatever
+    it does must never add latency to, or fail, the publication response
+    GitHub Actions is waiting on.
     """
     router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -143,6 +153,7 @@ def build_router(
     @router.post("/pipeline/database")
     def ingest_pipeline_database(
         request: Request,
+        background_tasks: BackgroundTasks,
         snapshot: UploadFile = File(...),
         sync_token: str | None = Header(default=None, alias="X-Pipeline-Sync-Token"),
         source_run_id: str | None = Header(default=None, alias="X-Pipeline-Run-Id"),
@@ -152,7 +163,7 @@ def build_router(
         """Publish a completed, checksummed pipeline jobs.db into Railway."""
         _require_pipeline_token(request, sync_token)
         try:
-            return pipeline_publish.publish_catalogue(
+            result = pipeline_publish.publish_catalogue(
                 Path(cfg(request).jobs_db),
                 snapshot.file,
                 identity=pipeline_publish.PublicationIdentity(
@@ -169,6 +180,9 @@ def build_router(
             raise HTTPException(
                 status_code=503, detail="Catalogue publication is temporarily busy"
             ) from exc
+        if on_pipeline_published is not None:
+            background_tasks.add_task(on_pipeline_published, request)
+        return result
 
     @router.post("/pipeline/operations")
     def ingest_pipeline_operations(

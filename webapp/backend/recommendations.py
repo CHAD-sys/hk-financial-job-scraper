@@ -52,6 +52,14 @@ class RankedRole:
     job: JobSummary
     score: float
     reasons: tuple[str, ...]
+    #: True only if at least one real signal (a saved Role, a settled search, a
+    #: click, "More like this", resume fit, ...) matched this specific Role.
+    #: False means the score is freshness alone and `reasons` is the
+    #: "Recently listed" filler — the in-app feed shows these anyway to stay
+    #: full and diverse (see test_cold_start_is_explicitly_market_based), but
+    #: Alerts (alerts.py) must not: an email promising "roles that match your
+    #: profile" cannot contain a role that matched nothing about the Seeker.
+    matched: bool
 
 
 @dataclass(frozen=True)
@@ -494,12 +502,13 @@ def _score(
                 reason = f"Resume alignment: {fit.reasons[0]}"
                 reasons[reason] = reasons.get(reason, 0.0) + bonus
 
+    matched = bool(reasons)
     ordered_reasons = tuple(
         reason for reason, _ in sorted(reasons.items(), key=lambda item: (-item[1], item[0]))[:2]
     )
     if not ordered_reasons:
         ordered_reasons = ("Recently listed",)
-    return RankedRole(role, round(score, 3), ordered_reasons)
+    return RankedRole(role, round(score, 3), ordered_reasons, matched)
 
 
 def _page_with_employer_diversity(

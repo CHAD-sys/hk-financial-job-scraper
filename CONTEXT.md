@@ -76,10 +76,18 @@ fortnight without the Role itself going anywhere. See `docs/adr/0010` and `0011`
 _Avoid_: expired, inactive, dead, archived, deleted (a Role is never deleted)
 
 **Alert**:
-A standing request to be told when new Roles match a Seeker's criteria. An Alert *is* a
-saved search — the same criteria the board already filters on, kept and re-run — not a
-separate notion of what a Seeker wants. Decided but not yet built.
-_Avoid_: job alert, notification, subscription, watch
+A standing, opt-in weekly email of Roles the Role Feed newly recommends to a Seeker.
+This entry used to say an Alert *is* a saved search, the board's own filters kept and
+re-run — that shape was superseded by a later decision: an Alert is scored by the same
+first-party signals that drive "Roles for you" (Saved Roles, settled searches, opened
+Roles, feedback, resume evidence), not a filter a Seeker states directly. At most one
+email per Seeker per week, and only when the Role Feed surfaces a Role that genuinely
+matched a signal — freshness alone never qualifies — that the Seeker has never been
+alerted about before. Off by default; a Seeker must opt in, and only a verified address
+is ever mailed. Built (`webapp/backend/alerts.py`, triggered after each pipeline
+publish) but held behind a kill switch (`ALERTS_ENABLED`) and has no UI yet — built and
+wired, not yet turned on.
+_Avoid_: job alert, saved search, notification, subscription, watch
 
 **Role Feed**:
 The ordered, explainable set of open Roles shown as “Roles for you”. For a Seeker it
