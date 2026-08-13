@@ -92,7 +92,7 @@ export default function SearchHero({ boardTotal, employerCount, onSearch }: Prop
         </h1>
 
         <p
-          className="text-sm sm:text-base mb-8 sm:mb-10 mx-auto"
+          className="text-sm sm:text-base mb-2 mx-auto"
           style={{ color: 'var(--color-ink-muted)', maxWidth: '34rem', lineHeight: 1.6 }}
         >
           {boardTotal != null ? (
@@ -122,6 +122,18 @@ export default function SearchHero({ boardTotal, employerCount, onSearch }: Prop
           ) : (
             'Search live roles across Hong Kong finance, refreshed every morning.'
           )}
+        </p>
+
+        {/* Secondary line: the board's reach beyond a plain aggregator — Secret
+            Market recruiter posts and boutique/longtail roles that never appear
+            on the major portals. Kept smaller and more muted than the stat line
+            above it so it reads as supporting context, not a second headline. */}
+        <p
+          className="text-xs sm:text-sm mb-8 sm:mb-10 mx-auto"
+          style={{ color: 'var(--color-ink-faint)', maxWidth: '34rem', lineHeight: 1.6 }}
+        >
+          Our search results will also lead you to jobs that are actively reviewing candidates by
+          recruiters and jobs not available on major job portals.
         </p>
 
         {/* ── The search field ───────────────────────────────────────────────
