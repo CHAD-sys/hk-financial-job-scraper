@@ -34,6 +34,21 @@ def store(tmp_path: Path):
     s.close()
 
 
+@pytest.fixture
+def migrated_store(tmp_path: Path):
+    # grp_new/grp_urgent/grp_applicants are Phase-22 columns — JobStore's own
+    # ensure_schema() only creates the base table, so refresh_signal_flags()
+    # tests need the real migration ledger applied first (same pattern as
+    # tests/test_job_edit.py).
+    from hk_jobs.migrations import migrate
+
+    db = str(tmp_path / "migrated.db")
+    migrate(db)
+    s = JobStore(db)
+    yield s
+    s.close()
+
+
 # ── schema creation ───────────────────────────────────────────────────────────
 
 def test_store_creates_table(tmp_path):
@@ -253,3 +268,73 @@ def test_context_manager(tmp_path):
     # Connection should be closed; further queries should raise
     with pytest.raises(Exception):
         store._conn.execute("SELECT 1")
+
+
+# ── refresh_signal_flags: the "New" badge's 14-day cap ────────────────────────
+# A source's own new_job badge is a one-time snapshot (set by the adapter at
+# scrape time) that never expires on its own — a job that ages off a source's
+# listing pages before the badge does stops being re-scraped, so board_signals
+# is never refreshed again and new_job stays true forever. These prove
+# refresh_signal_flags() caps it by posted_at instead, for both the grp_new
+# filter column AND the raw board_signals a job card reads directly.
+
+def _board_signals(store, source_id="J-001"):
+    import json
+    row = store._conn.execute(
+        "SELECT board_signals FROM jobs WHERE source_id=?", (source_id,)
+    ).fetchone()
+    return json.loads(row["board_signals"])
+
+
+def _grp(store, column, source_id="J-001"):
+    row = store._conn.execute(
+        f"SELECT {column} FROM jobs WHERE source_id=?", (source_id,)
+    ).fetchone()
+    return row[column]
+
+
+def test_refresh_signal_flags_keeps_a_recent_new_job(migrated_store):
+    posted = datetime.now(UTC) - timedelta(days=3)
+    job = _job("J-001", posted_at=posted, board_signals={"new_job": True})
+    migrated_store.upsert_many([job])
+    migrated_store.refresh_signal_flags()
+    assert _grp(migrated_store, "grp_new") == 1
+    assert _board_signals(migrated_store)["new_job"] is True
+
+
+def test_refresh_signal_flags_expires_new_job_past_the_cap(migrated_store):
+    # Posted well beyond _NEW_BADGE_MAX_AGE_DAYS (14) — the exact bug reported:
+    # a job the source itself stopped calling "new" months ago, frozen at
+    # new_job=True because it was never re-scraped after its first listing.
+    posted = datetime.now(UTC) - timedelta(days=60)
+    job = _job("J-001", posted_at=posted, board_signals={"new_job": True})
+    migrated_store.upsert_many([job])
+    migrated_store.refresh_signal_flags()
+    assert _grp(migrated_store, "grp_new") == 0
+    # Not just the filter column — the per-card badge reads board_signals
+    # directly, so the stale key must be gone, not merely falsy.
+    assert "new_job" not in _board_signals(migrated_store)
+
+
+def test_refresh_signal_flags_expires_new_job_with_no_posted_at(migrated_store):
+    # Fails closed: no posted_at means the age can't be verified, so it must
+    # not be trusted as new either.
+    job = _job("J-001", posted_at=None, board_signals={"new_job": True})
+    migrated_store.upsert_many([job])
+    migrated_store.refresh_signal_flags()
+    assert _grp(migrated_store, "grp_new") == 0
+    assert "new_job" not in _board_signals(migrated_store)
+
+
+def test_refresh_signal_flags_leaves_other_signals_untouched_by_the_cap(migrated_store):
+    # The age cap is specific to new_job — urgently_hiring has no such source-side
+    # expiry problem and must not be collaterally stripped or zeroed.
+    posted = datetime.now(UTC) - timedelta(days=60)
+    job = _job(
+        "J-001", posted_at=posted,
+        board_signals={"new_job": True, "urgently_hiring": True},
+    )
+    migrated_store.upsert_many([job])
+    migrated_store.refresh_signal_flags()
+    assert _grp(migrated_store, "grp_urgent") == 1
+    assert _board_signals(migrated_store)["urgently_hiring"] is True

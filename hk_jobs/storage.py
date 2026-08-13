@@ -36,6 +36,11 @@ logger = logging.getLogger(__name__)
 #: clauses are chunked. Same limit and same reason as webapp/backend/job_read.py.
 _REF_CHUNK = 200
 
+#: A source's own "new" badge (board_signals.new_job) is a one-time snapshot from
+#: whichever scrape first saw it — see refresh_signal_flags(). It never expires on
+#: its own, so this is the cap we enforce instead.
+_NEW_BADGE_MAX_AGE_DAYS = 14
+
 # ── DDL ───────────────────────────────────────────────────────────────────────
 
 _CREATE_TABLE = """
@@ -680,6 +685,17 @@ class JobStore:
         board copy carries the signal; grp_applicants is the highest known count
         across boards (NULL when no board reports one). Guards missing columns so it
         is a no-op on a pre-Phase-22 DB.
+
+        board_signals.new_job is capped to _NEW_BADGE_MAX_AGE_DAYS before the grp_new
+        aggregation below reads it. Without this, a job that ages off a source's own
+        listing pages stops being re-scraped, so board_signals is never refreshed
+        again and new_job stays true forever — the source's "new" badge outliving the
+        window it was ever meant to describe. Capping by posted_at (not fetched_at)
+        answers "how long has this vacancy existed", which is the actual question;
+        a NULL posted_at fails closed (stripped, not kept) since we cannot vouch for
+        a listing's age without one. Stripping the key here — not just zeroing
+        grp_new — also fixes the per-card "New" badge, which reads board_signals
+        directly (webapp/backend/job_read.py's _own_signals) rather than grp_new.
         """
         cols = {r[1] for r in self._conn.execute("PRAGMA table_info(jobs)")}
         if not {"grp_new", "grp_urgent", "grp_applicants"} <= cols:
@@ -688,6 +704,12 @@ class JobStore:
         # the apply_url group key. The IN-subqueries below are materialised once and
         # hit the apply_url index, so the whole refresh is a handful of set updates.
         with self._conn:
+            self._conn.execute(
+                "UPDATE jobs SET board_signals = json_remove(board_signals, '$.new_job') "
+                "WHERE is_active = 1 AND json_extract(board_signals, '$.new_job') = 1 "
+                "AND (posted_at IS NULL OR posted_at < datetime('now', ?))",
+                (f"-{_NEW_BADGE_MAX_AGE_DAYS} days",),
+            )
             self._conn.execute(
                 "UPDATE jobs SET grp_new = 0, grp_urgent = 0, grp_applicants = NULL "
                 "WHERE is_active = 1"
