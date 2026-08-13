@@ -114,7 +114,9 @@ function PortalHero() {
         >
           <em className="not-italic" style={{ color: 'var(--color-gold)' }}>
             Asia&rsquo;s{' '}
-            <span style={{ fontSize: '1.4em', fontWeight: 800 }}>1st</span>
+            <span style={{ fontSize: '1.4em', fontWeight: 800 }}>
+              1<span style={{ fontSize: '0.55em', verticalAlign: '0.75em' }}>st</span>
+            </span>
           </em>{' '}
           Premier Career Centre
         </h1>
