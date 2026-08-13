@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams, useLocation } from 'react-router-dom'
-import { ChevronDown, ArrowLeft } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import type {
   Job,
   FiltersResponse,
@@ -290,43 +290,22 @@ export default function JobBoardPage() {
         aria-label="Job board header"
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-            <div>
-              <p
-                className="text-xs font-semibold uppercase tracking-widest mb-0.5 sm:mb-1"
-                style={{ color: 'var(--color-gold)', letterSpacing: '0.12em' }}
-              >
-                Hong Kong · Live Market Data
-              </p>
-              <h1
-                className="text-2xl sm:text-3xl font-bold leading-tight"
-                style={{
-                  fontFamily: 'var(--font-display)',
-                  color: 'var(--color-ink-inverse)',
-                  letterSpacing: '-0.02em',
-                }}
-              >
-                Financial Careers Index
-              </h1>
-            </div>
-
-            {/* The way back to the search home. A results page that cannot
-                return to its own search box is a dead end. */}
-            <button
-              type="button"
-              onClick={backToSearch}
-              className="hero-chip self-start sm:self-auto inline-flex items-center gap-2 rounded-lg px-3.5 text-sm font-semibold cursor-pointer outline-none"
-              style={{
-                minHeight: '2.75rem',
-                backgroundColor: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(255,255,255,0.18)',
-                color: 'rgba(248,250,252,0.9)',
-              }}
-            >
-              <ArrowLeft size={15} strokeWidth={2.5} aria-hidden="true" />
-              New search
-            </button>
-          </div>
+          <p
+            className="text-xs font-semibold uppercase tracking-widest mb-0.5 sm:mb-1"
+            style={{ color: 'var(--color-gold)', letterSpacing: '0.12em' }}
+          >
+            Hong Kong · Live Market Data
+          </p>
+          <h1
+            className="text-2xl sm:text-3xl font-bold leading-tight"
+            style={{
+              fontFamily: 'var(--font-display)',
+              color: 'var(--color-ink-inverse)',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            Financial Careers Index
+          </h1>
         </div>
       </section>
 
@@ -337,6 +316,7 @@ export default function JobBoardPage() {
         activeCount={filterCount}
         onUpdate={updateFilters}
         onClear={clearFilters}
+        onNewSearch={backToSearch}
       />
 
       {/* ── Main content ────────────────────────────────────── */}

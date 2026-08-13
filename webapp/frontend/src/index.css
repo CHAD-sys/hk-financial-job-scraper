@@ -487,21 +487,6 @@ select.finex-input {
   transition: box-shadow 200ms var(--ease-out-expo), border-color 200ms;
 }
 
-/* Compact chips elsewhere in the board. */
-.hero-chip {
-  transition: background-color 150ms, border-color 150ms, color 150ms, transform 120ms;
-}
-.hero-chip:hover {
-  background-color: rgb(255 255 255 / 0.16) !important;
-  border-color: rgb(255 255 255 / 0.34) !important;
-  color: #F8FAFC !important;
-}
-.hero-chip:focus-visible {
-  outline: 2px solid var(--color-gold-star);
-  outline-offset: 2px;
-}
-.hero-chip:active { transform: scale(0.97); }
-
 /* The Careers landing categories are navigation, not tags. Their own grid
    gives long finance discipline names room to breathe and keeps the thirteenth
    item centred instead of leaving a visibly broken final row. */

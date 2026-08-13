@@ -4,8 +4,6 @@ import type { JobFilters, FiltersResponse } from '../api/client'
 import { PillButton, FilterRow, SalaryFields, ExpFields, ApplicantsFields } from './FilterPrimitives'
 import MultiSelect from './MultiSelect'
 
-const SECTORS = ['Banking', 'Insurance', 'Asset Management', 'Investment Banking', 'Professional Services', 'Digital Assets']
-
 interface Props {
   filters: JobFilters
   filterData: FiltersResponse | null
@@ -51,7 +49,6 @@ export default function MobileFilterSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const sectorSet = new Set(filters.sectors)
   const senSet = new Set(filters.seniority)
   const remoteSet = new Set(filters.remote_type)
   const seniority_levels = filterData?.seniority_levels ?? []
@@ -59,10 +56,6 @@ export default function MobileFilterSheet({
   const companyOptions = filterData?.companies ?? []
   const skillOptions = filterData?.skills ?? []
 
-  const toggleSector = (s: string) => {
-    const next = sectorSet.has(s) ? filters.sectors.filter(x => x !== s) : [...filters.sectors, s]
-    onUpdate({ sectors: next })
-  }
   const togglePill = (key: 'seniority' | 'remote_type', val: string) => {
     const cur = filters[key] as string[]
     const next = cur.includes(val) ? cur.filter(x => x !== val) : [...cur, val]
@@ -101,14 +94,6 @@ export default function MobileFilterSheet({
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-6">
-        <FilterRow label="Sector">
-          {SECTORS.map(s => (
-            <PillButton key={s} active={sectorSet.has(s)} onClick={() => toggleSector(s)} palette="ink">
-              {s}
-            </PillButton>
-          ))}
-        </FilterRow>
-
         {seniority_levels.length > 0 && (
           <FilterRow label="Level">
             {seniority_levels.map(s => (

@@ -112,7 +112,10 @@ function PortalHero() {
             letterSpacing: '-0.025em',
           }}
         >
-          <em className="not-italic" style={{ color: 'var(--color-gold)' }}>Asia&rsquo;s 1st</em>{' '}
+          <em className="not-italic" style={{ color: 'var(--color-gold)' }}>
+            Asia&rsquo;s{' '}
+            <span style={{ fontSize: '1.4em', fontWeight: 800 }}>1st</span>
+          </em>{' '}
           Premier Career Centre
         </h1>
 

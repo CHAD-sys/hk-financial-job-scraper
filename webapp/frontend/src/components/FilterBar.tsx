@@ -1,4 +1,4 @@
-import { Search, X, SlidersHorizontal, ChevronDown, Flame, Sparkles, Users, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Search, X, SlidersHorizontal, ChevronDown, Flame, Sparkles, Users, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import type { JobFilters, FiltersResponse } from '../api/client'
 import MultiSelect from './MultiSelect'
@@ -11,28 +11,25 @@ interface Props {
   activeCount: number
   onUpdate: (patch: Partial<JobFilters>) => void
   onClear: () => void
+  /** Back to the SearchHero "discover" screen — kept in this always-visible
+   * bar rather than the scrolling hero above it, so the way back to search
+   * never leaves the viewport. */
+  onNewSearch: () => void
 }
 
-const SECTORS = ['Banking', 'Insurance', 'Asset Management', 'Investment Banking', 'Professional Services', 'Digital Assets']
-
-export default function FilterBar({ filters, filterData, activeCount, onUpdate, onClear }: Props) {
+export default function FilterBar({ filters, filterData, activeCount, onUpdate, onClear, onNewSearch }: Props) {
   const [showAllFilters, setShowAllFilters] = useState(false)
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
 
-  const sectorSet = new Set(filters.sectors)
-
-  const toggleSector = (s: string) => {
-    const next = sectorSet.has(s)
-      ? filters.sectors.filter(x => x !== s)
-      : [...filters.sectors, s]
-    onUpdate({ sectors: next })
-  }
-
   return (
     <div
-      className="sticky z-30 w-full"
+      // Nav.tsx renders two different header heights: a single 64px row below
+      // `lg`, and a two-tier 90px header (utility strip + primary nav) at
+      // `lg` and up. This bar's sticky offset has to match whichever one is
+      // actually on screen, or its top edge scrolls under the (higher
+      // z-index) header and looks clipped instead of merely covered.
+      className="sticky top-16 z-30 w-full lg:top-[90px]"
       style={{
-        top: '64px',
         backgroundColor: 'var(--color-surface)',
         borderBottom: '1px solid var(--color-border)',
         boxShadow: '0 2px 8px -2px rgb(0 0 0 / 0.06)',
@@ -40,8 +37,28 @@ export default function FilterBar({ filters, filterData, activeCount, onUpdate, 
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 
-        {/* Row 1: Search + More-filters toggle + clear */}
+        {/* Row 1: New search + Search + More-filters toggle + clear */}
         <div className="flex items-center gap-3 py-3.5">
+          {/* The way back to the search home. A results page that cannot
+              return to its own search box is a dead end — this bar is sticky,
+              so unlike the slim hero above it, this button never scrolls
+              out of reach. */}
+          <button
+            type="button"
+            onClick={onNewSearch}
+            aria-label="New search"
+            className="flex flex-shrink-0 items-center gap-1.5 rounded-md px-2.5 sm:px-3.5 py-2 text-xs font-semibold cursor-pointer outline-none whitespace-nowrap"
+            style={{
+              minHeight: '2.25rem',
+              border: '1px solid var(--color-border-strong)',
+              backgroundColor: 'var(--color-surface-2)',
+              color: 'var(--color-ink-muted)',
+            }}
+          >
+            <ArrowLeft size={14} strokeWidth={2.25} aria-hidden="true" />
+            <span className="hidden sm:inline">New search</span>
+          </button>
+
           <SearchInput value={filters.search} onChange={v => onUpdate({ search: v })} />
 
           {/* Mobile trigger: opens the full-screen Filters sheet (below md:).
@@ -116,23 +133,6 @@ export default function FilterBar({ filters, filterData, activeCount, onUpdate, 
               Clear filters ({activeCount})
             </button>
           )}
-        </div>
-
-        {/* Row 2: Primary sector filter — desktop only; on mobile it lives
-            inside the Filters sheet instead of the always-visible sticky bar. */}
-        <div className="hidden md:block pb-3.5">
-          <FilterRow label="Sector">
-            {SECTORS.map(s => (
-              <PillButton
-                key={s}
-                active={sectorSet.has(s)}
-                onClick={() => toggleSector(s)}
-                palette="ink"
-              >
-                {s}
-              </PillButton>
-            ))}
-          </FilterRow>
         </div>
 
         {/* Advanced filters — desktop only, collapsed by default */}
