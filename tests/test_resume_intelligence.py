@@ -219,3 +219,66 @@ def test_strong_matches_prioritise_observable_evidence_and_diversify_employers()
     assert any(reason.startswith("Skills aligned") for reason in fit.reasons)
     assert [item.job.source_id for item in matches] == ["risk", "model"]
     assert unrelated.source_id not in [item.job.source_id for item in matches]
+
+
+def test_lead_seniority_roles_are_included_in_level_comparison():
+    # "lead" is ~6% of live board seniority values (hk_jobs/schema.py's Literal
+    # includes it) but was absent from the old junior/mid/senior/executive-only
+    # levels map, so role.seniority == "lead" resolved to None and every match
+    # against it silently skipped the level check entirely, in both directions.
+    parsed = parse_resume(
+        "resume.docx",
+        DOCX_MEDIA_TYPE,
+        make_docx(
+            "Senior Risk Manager with 9 years of experience in banking. "
+            "Skilled in credit risk and Python."
+        ),
+    )
+    analysis = analyse_resume(parsed)
+    assert analysis.seniority == "senior"
+    evidence = evidence_from_storage(parsed.text, analysis.as_dict())
+    # Title and sector deliberately avoid the family/sector bonuses so the
+    # level-comparison reason isn't crowded out of the top-3 by other signals.
+    lead_role = role(
+        "lead-risk",
+        sector="Insurance",
+        title="Lead Data Platform Owner",
+        seniority="lead",
+        required_skills=["credit risk", "python"],
+    )
+
+    fit = score_resume_fit(lead_role, evidence)
+
+    assert "Career level is close" in fit.reasons
+
+
+def test_severe_seniority_mismatch_is_penalised_and_excluded_from_matches():
+    # A junior candidate's resume can still rack up skill-keyword points against
+    # a role several levels above them. Before this fix, seniority distance
+    # beyond one level contributed a flat 0 — never a penalty — so a keyword
+    # match alone was enough to rank a graduate resume against a C-suite role.
+    parsed = parse_resume(
+        "resume.docx",
+        DOCX_MEDIA_TYPE,
+        make_docx(
+            "EXPERIENCE\n"
+            "Graduate Analyst, ABC Bank. Skilled in Python and SQL."
+        ),
+    )
+    analysis = analyse_resume(parsed)
+    assert analysis.seniority == "junior"
+    evidence = evidence_from_storage(parsed.text, analysis.as_dict())
+    executive_role = role(
+        "cto",
+        sector="Insurance",
+        title="Chief Technology Officer",
+        seniority="executive",
+        required_skills=["python", "sql"],
+    )
+
+    fit = score_resume_fit(executive_role, evidence)
+    matches = rank_resume_matches([executive_role], evidence)
+
+    assert "Career level looks like a mismatch" in fit.reasons
+    assert fit.score < 25
+    assert matches == ()

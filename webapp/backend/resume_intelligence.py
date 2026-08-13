@@ -115,6 +115,19 @@ _TITLE_STOPWORDS = {
     "associate", "manager", "officer", "vice", "president", "lead", "head",
     "hong", "kong",
 }
+#: Mirrors hk_jobs/schema.py's `seniority` Literal so every level a role can
+#: carry ("lead" included — ~6% of the live board) resolves to a rung here.
+#: A candidate's own `analyse_resume()` label never produces "intern", but the
+#: rung is kept so a role tagged "intern" still measures distance correctly
+#: instead of silently dropping out of the comparison like "lead" used to.
+_SENIORITY_LEVELS = {
+    "intern": 0,
+    "junior": 1,
+    "mid": 2,
+    "senior": 3,
+    "lead": 4,
+    "executive": 5,
+}
 #: A degree still in progress. Student-society titles ("Vice President", "Head of
 #: ...") read exactly like corporate seniority to the keyword scan below, so a
 #: current student is capped to "junior" regardless of what titles their CV lists
@@ -487,22 +500,35 @@ def score_resume_fit(role: JobSummary, evidence: ResumeEvidence) -> ResumeFit:
         if role.years_experience_required <= years + 1:
             score += 10
             reasons.append((10, "Experience level aligns"))
-    elif evidence.analysis.seniority and role.seniority:
-        levels = {"junior": 0, "mid": 1, "senior": 2, "executive": 3}
-        candidate_level = levels.get(evidence.analysis.seniority)
-        role_level = levels.get(_normalise(role.seniority))
-        if candidate_level is not None and role_level is not None:
-            level_score = 10 if candidate_level == role_level else (
-                5 if abs(candidate_level - role_level) == 1 else 0
-            )
-            if level_score:
-                score += level_score
-                reasons.append((level_score, "Career level is close"))
+
+    # Independent of the years check above: two-thirds of live roles carry no
+    # years_experience_required (LLM enrichment leaves it null far more often
+    # than it leaves `seniority` null), so this is the signal that actually
+    # runs for most roles. Distance is symmetric — it must catch a junior
+    # candidate reading as a fit for a Director role via skill keywords alone
+    # just as much as the reverse, which the old 0/5/10-only scale never did.
+    candidate_level = _SENIORITY_LEVELS.get(evidence.analysis.seniority or "")
+    role_level = _SENIORITY_LEVELS.get(_normalise(role.seniority))
+    if candidate_level is not None and role_level is not None:
+        distance = abs(candidate_level - role_level)
+        if distance == 0:
+            score += 10
+            reasons.append((10, "Career level matches"))
+        elif distance == 1:
+            score += 4
+            reasons.append((4, "Career level is close"))
+        elif distance == 2:
+            score -= 10
+            reasons.append((-10, "Career level differs"))
+        else:
+            score -= 25
+            reasons.append((-25, "Career level looks like a mismatch"))
 
     ordered = tuple(
-        reason for _, reason in sorted(reasons, key=lambda item: (-item[0], item[1]))[:3]
+        reason
+        for _, reason in sorted(reasons, key=lambda item: (-abs(item[0]), item[1]))[:3]
     )
-    return ResumeFit(min(100, score), ordered, matched_skills)
+    return ResumeFit(max(0, min(100, score)), ordered, matched_skills)
 
 
 def _posted_timestamp(value: str | None) -> float:
