@@ -116,6 +116,16 @@ class Settings:
     #: gates whether the feature runs AT ALL, not whether one Seeker wants it.
     alerts_enabled: bool = False
 
+    #: Master kill switch for the daily disk-capacity email (disk_alerts.py).
+    #: OFF by design, mirroring alerts_enabled — wired and checked once a day
+    #: inside this process, but sends nothing until DISK_ALERTS_ENABLED=1.
+    disk_alerts_enabled: bool = False
+
+    #: Percent-used on the Railway volume (jobs_db.parent) that triggers the
+    #: daily disk-capacity email. The email repeats once a day for as long as
+    #: usage stays at or above this line.
+    disk_alert_threshold_pct: int = 80
+
     def __post_init__(self) -> None:
         # Submissions default to sitting beside the database, which is the
         # Railway volume in production. Computed here rather than as a default
@@ -157,6 +167,8 @@ class Settings:
             role_access_secret=os.environ.get("ROLE_ACCESS_SECRET", "").strip(),
             alert_unsubscribe_secret=os.environ.get("ALERT_UNSUBSCRIBE_SECRET", "").strip(),
             alerts_enabled=_flag("ALERTS_ENABLED", default=False),
+            disk_alerts_enabled=_flag("DISK_ALERTS_ENABLED", default=False),
+            disk_alert_threshold_pct=int(os.environ.get("DISK_ALERT_THRESHOLD_PCT", "80")),
         )
 
     # ── Derived ───────────────────────────────────────────────────────────────

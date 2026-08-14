@@ -64,6 +64,7 @@ from mailer import SUBMISSION_RECIPIENT, SMTP_USER  # noqa: E402
 # its docstring for why "browsing is filtered, addressing is not".
 import alert_unsubscribe  # noqa: E402
 import alerts  # noqa: E402
+import disk_alerts  # noqa: E402
 import job_read  # noqa: E402
 import learning_content  # noqa: E402
 import resume_intelligence  # noqa: E402
@@ -221,6 +222,45 @@ async def _purge_expired_sessions_periodically() -> None:
             logger.exception("Periodic session purge failed")
 
 
+_DISK_ALERT_INTERVAL_S = 24 * 60 * 60  # once a day — see disk_alerts.py
+
+
+def _check_disk_capacity(settings: Settings) -> None:
+    """
+    Email SUBMISSION_RECIPIENT if the Railway volume is at or above
+    settings.disk_alert_threshold_pct. Checked against settings.jobs_db.parent,
+    the mounted volume every Railway-resident file (jobs.db, seekers.db,
+    employers.db, pipeline backups) shares — so this one reading stands in for
+    all of them. Gated on settings.disk_alerts_enabled, OFF by default.
+    """
+    if not settings.disk_alerts_enabled:
+        return
+    usage = disk_alerts.maybe_send_capacity_alert(
+        settings.jobs_db.parent,
+        threshold_pct=settings.disk_alert_threshold_pct,
+        send=mailer.send_mail,
+    )
+    logger.info(
+        "Disk capacity check: %.1f%% used at %s", usage.percent_used, settings.jobs_db.parent
+    )
+
+
+async def _check_disk_capacity_periodically(settings: Settings) -> None:
+    """
+    Check once at startup, then every 24h — deliberately the opposite order
+    from _purge_expired_sessions_periodically (which sleeps first, since the
+    startup purge already ran separately). There is no separate startup call
+    for the disk check, so checking first means a volume already over
+    threshold at boot is reported the same day, not a day later.
+    """
+    while True:
+        try:
+            _check_disk_capacity(settings)
+        except Exception:
+            logger.exception("Periodic disk capacity check failed")
+        await asyncio.sleep(_DISK_ALERT_INTERVAL_S)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -241,6 +281,7 @@ async def lifespan(app: FastAPI):
         migrate(str(settings.jobs_db))
     _purge_expired_sessions()
     purge_task = asyncio.create_task(_purge_expired_sessions_periodically())
+    disk_alert_task = asyncio.create_task(_check_disk_capacity_periodically(settings))
 
     if SMTP_USER:
         logger.info("Email configured — Role submissions will be sent to %s", SUBMISSION_RECIPIENT)
@@ -267,8 +308,13 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         purge_task.cancel()
+        disk_alert_task.cancel()
         try:
             await purge_task
+        except asyncio.CancelledError:
+            pass
+        try:
+            await disk_alert_task
         except asyncio.CancelledError:
             pass
 
