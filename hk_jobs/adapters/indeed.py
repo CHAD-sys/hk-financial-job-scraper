@@ -72,6 +72,22 @@ _PAGE_SIZE = 20
 _MAX_PAGE_RETRIES = 3
 _RETRY_BACKOFF_BASE = 5.0  # seconds; multiplied by attempt number, plus jitter
 
+# Wall-clock budget for ONE company, checked between pages.
+#
+# This is damage control, not a cure. A single StealthyFetcher.fetch() call is
+# itself unbounded — Scrapling's _cloudflare_solver ends in `return
+# self._cloudflare_solver(page)` with no attempt counter (still true in 0.4.14),
+# so when a "managed" Turnstile never clears the call simply does not return,
+# and the `timeout` argument only bounds individual Playwright operations. We
+# cannot cap that from out here; what we CAN do is refuse to start further pages
+# once a company has already burned this much, so a blocked employer costs one
+# bad page instead of max_pages of them.
+#
+# 300 s sits under the pipeline's COMPANY_TIMEOUT_SECS (1200) with room for the
+# in-flight page to finish, and comfortably above a healthy company (the four
+# measured live take 34-163 s for their full pagination).
+_COMPANY_BUDGET_SECS = 300.0
+
 # Signals that mean we're still hitting a bot-protection challenge page.
 _CHALLENGE_SIGNALS = ("just a moment", "checking your browser", "cf-challenge")
 
@@ -180,7 +196,21 @@ class IndeedAdapter(BaseAdapter):
     def _fetch_all(self) -> list[Job]:
         jobs: list[Job] = []
         seen_keys: set[str] = set()  # dedup across pages — Indeed repeats sponsored cards
+        deadline = time.monotonic() + _COMPANY_BUDGET_SECS
         for page_num in range(1, self.max_pages + 1):
+            # Stop before starting a page we can't afford. Scrapling's Cloudflare
+            # solver can spend 5-20 minutes on a single page when the challenge
+            # never clears (measured 2026-08-15: 333 s, 492 s, 671 s, 1170 s), and
+            # nothing inside it is bounded — see _fetch_url. Without this, one
+            # blocked employer eats its whole 1200 s pipeline slot and starves
+            # every other company of a worker.
+            if page_num > 1 and time.monotonic() >= deadline:
+                logger.warning(
+                    "%s: hit the %d s per-company budget after %d page(s) — "
+                    "stopping with %d jobs. Source is likely Cloudflare-blocked.",
+                    self.company, _COMPANY_BUDGET_SECS, page_num - 1, len(jobs),
+                )
+                break
             try:
                 new_cards = self._fetch_listing_page(page_num)
             except Exception as exc:

@@ -115,6 +115,7 @@ class WorkdayAdapter(BaseAdapter):
         site: str,
         wd: str = "wd3",
         location_filter: str = "Hong Kong",
+        applied_facets: dict[str, list[str]] | None = None,
         fetch_details: bool = True,
         **kwargs,
     ) -> None:
@@ -123,6 +124,21 @@ class WorkdayAdapter(BaseAdapter):
         self.site = site
         self.wd = wd
         self.location_filter = location_filter
+        # Workday offers two ways to narrow a search, and they are NOT equivalent:
+        #
+        #   searchText     — a free-text keyword match over the posting.
+        #   appliedFacets  — the structured filters the careers UI's own
+        #                    checkboxes set (locationCountry, jobFamily, …).
+        #
+        # For DBS, searchText="Hong Kong" returns 40 postings (only those that
+        # happen to say "Hong Kong" in their text) while the locationCountry
+        # facet returns the real answer: 294. Prefer a facet whenever the tenant
+        # exposes one — find its opaque id by POSTing an unfiltered request and
+        # reading `facets` out of the response.
+        #
+        # When a facet is set we drop searchText, because the two AND together
+        # and the keyword half would silently re-truncate the facet's results.
+        self.applied_facets = applied_facets or {}
         self.fetch_details = fetch_details
 
         self._base_url = f"https://{tenant}.{wd}.myworkdayjobs.com"
@@ -142,9 +158,16 @@ class WorkdayAdapter(BaseAdapter):
         with self._client() as client:
             client.headers["Referer"] = self._referer
             offset = 0
+            total: int | None = None
             for _ in range(_PAGE_CAP):
                 data = self._fetch_page(client, offset)
-                total = data.get("total", 0)
+                # `total` is only populated on the FIRST response. Later pages
+                # come back with total=0 even while still returning postings,
+                # so re-reading it every page made `offset >= total` true
+                # immediately and truncated every Workday tenant to 40 jobs
+                # (DBS: 40 of 294). Remember the first answer and trust it.
+                if total is None:
+                    total = data.get("total") or 0
                 postings = data.get("jobPostings") or []
                 if not postings:
                     break
@@ -154,16 +177,18 @@ class WorkdayAdapter(BaseAdapter):
                         job = self._fetch_detail(client, job, posting)
                     jobs.append(job)
                 offset += _PAGE_SIZE
-                if offset >= total:
+                if total and offset >= total:
                     break
         return jobs
 
     def _fetch_page(self, client: httpx.Client, offset: int) -> dict:
         body = {
-            "appliedFacets": {},
+            "appliedFacets": self.applied_facets,
             "limit": _PAGE_SIZE,
             "offset": offset,
-            "searchText": self.location_filter,
+            # A facet is the precise filter; keeping searchText alongside it
+            # would AND a keyword match on top and lose most of the results.
+            "searchText": "" if self.applied_facets else self.location_filter,
         }
         resp = with_retry(lambda: client.post(f"{self._api_base}/jobs", json=body))
         resp.raise_for_status()

@@ -305,3 +305,68 @@ def test_indeed_registered():
 
     assert "indeed" in ADAPTERS
     assert ADAPTERS["indeed"] is IndeedAdapter
+
+
+# ── per-company wall-clock budget ─────────────────────────────────────────────
+
+def test_company_budget_stops_pagination_when_pages_are_slow(monkeypatch, page1_html):
+    """
+    A Cloudflare-blocked employer must not spend its whole pipeline slot.
+
+    Scrapling's solver can burn 5-20 minutes on ONE page (measured in CI:
+    333 s, 492 s, 671 s, 1170 s) and nothing inside it is bounded. The adapter
+    can at least refuse to start further pages once the budget is spent.
+    """
+    monkeypatch.setattr("hk_jobs.adapters.indeed.time.sleep", lambda *a, **k: None)
+    monkeypatch.setattr("hk_jobs.adapters.indeed._COMPANY_BUDGET_SECS", 100.0)
+
+    clock = {"t": 0.0}
+    monkeypatch.setattr("hk_jobs.adapters.indeed.time.monotonic", lambda: clock["t"])
+
+    pages_served = {"n": 0}
+
+    def _slow(self, url):
+        pages_served["n"] += 1
+        clock["t"] += 60.0          # each page costs 60 s of the 100 s budget
+        # Fresh jobkeys every page: without this the dedup guard ends pagination
+        # on its own and the test would pass even with the budget removed.
+        return 200, page1_html.replace('jobkey": "', f'jobkey": "s{pages_served["n"]}_')
+
+    monkeypatch.setattr(IndeedAdapter, "_fetch_url", _slow)
+    adapter = IndeedAdapter(
+        company="Goldman Sachs", company_slug="goldman-sachs",
+        indeed_slug="Goldman-Sachs", max_pages=10,
+    )
+
+    adapter.fetch_jobs()
+
+    # page 1 (t=60) then page 2 (t=120) — by page 3 the budget is spent.
+    assert pages_served["n"] == 2, pages_served["n"]
+
+
+def test_company_budget_does_not_stop_a_healthy_company(monkeypatch, page1_html):
+    """A fast employer must still paginate normally — the budget is a backstop."""
+    monkeypatch.setattr("hk_jobs.adapters.indeed.time.sleep", lambda *a, **k: None)
+    monkeypatch.setattr("hk_jobs.adapters.indeed._COMPANY_BUDGET_SECS", 300.0)
+
+    clock = {"t": 0.0}
+    monkeypatch.setattr("hk_jobs.adapters.indeed.time.monotonic", lambda: clock["t"])
+
+    served = {"n": 0}
+
+    def _fast(self, url):
+        served["n"] += 1
+        clock["t"] += 2.0
+        # Serve fresh jobkeys each page so dedup doesn't end pagination early
+        # — this test is about the budget, not about dedup.
+        return 200, page1_html.replace('jobkey": "', f'jobkey": "p{served["n"]}_')
+
+    monkeypatch.setattr(IndeedAdapter, "_fetch_url", _fast)
+    adapter = IndeedAdapter(
+        company="Goldman Sachs", company_slug="goldman-sachs",
+        indeed_slug="Goldman-Sachs", max_pages=4,
+    )
+
+    adapter.fetch_jobs()
+
+    assert served["n"] == 4, "budget must not cut a healthy company short"

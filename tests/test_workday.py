@@ -238,3 +238,106 @@ def test_workday_registered_in_adapters():
 
     assert "workday" in ADAPTERS
     assert ADAPTERS["workday"] is WorkdayAdapter
+
+
+# ── pagination: `total` only arrives on the first page ────────────────────────
+
+class _PagingTransport(httpx.BaseTransport):
+    """
+    Mimics Workday's real paging contract.
+
+    Workday reports `total` ONLY on the first response; every later page comes
+    back with total=0 while still carrying postings. An adapter that re-reads
+    `total` each page therefore sees `offset >= 0` immediately and stops after
+    two pages — which is exactly how every Workday tenant here got truncated to
+    40 jobs (DBS returned 40 of 294, AIA 40 of 160, FWD 40 of 193).
+    """
+
+    def __init__(self, total: int, page_size: int = 20) -> None:
+        self.total = total
+        self.page_size = page_size
+        self.offsets: list[int] = []
+        self.bodies: list[dict] = []
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        self.bodies.append(body)
+        offset = body["offset"]
+        self.offsets.append(offset)
+        remaining = max(0, self.total - offset)
+        n = min(self.page_size, remaining)
+        postings = [
+            {"title": f"Job {offset + i}", "externalPath": f"/job/x_{offset + i}",
+             "jobReqId": f"JR-{offset + i}", "locationsText": "Hong Kong"}
+            for i in range(n)
+        ]
+        return httpx.Response(
+            200,
+            json={"total": self.total if offset == 0 else 0, "jobPostings": postings},
+        )
+
+
+def _paging_adapter(monkeypatch, transport, **kwargs):
+    monkeypatch.setattr("hk_jobs.adapters.workday._DETAIL_SLEEP", 0)
+    monkeypatch.setattr(
+        WorkdayAdapter, "_client",
+        lambda self, timeout=20.0: httpx.Client(transport=transport, follow_redirects=True),
+    )
+    return WorkdayAdapter(
+        company="DBS", company_slug="dbs-hk", tenant="dbs", site="DBS_Careers",
+        fetch_details=False, **kwargs,
+    )
+
+
+def test_pagination_survives_total_being_zero_on_later_pages(monkeypatch):
+    """The bug: 294 available, only 40 collected."""
+    transport = _PagingTransport(total=294)
+    adapter = _paging_adapter(monkeypatch, transport)
+
+    jobs = adapter.fetch_jobs()
+
+    assert len(jobs) == 294
+
+
+def test_pagination_stops_at_the_end_rather_than_looping(monkeypatch):
+    """Must not keep requesting pages once the last posting has been read."""
+    transport = _PagingTransport(total=45)
+    adapter = _paging_adapter(monkeypatch, transport)
+
+    jobs = adapter.fetch_jobs()
+
+    assert len(jobs) == 45
+    assert transport.offsets == [0, 20, 40], transport.offsets
+
+
+# ── appliedFacets ─────────────────────────────────────────────────────────────
+
+def test_applied_facets_are_sent_and_replace_search_text(monkeypatch):
+    """
+    A facet is the precise filter; searchText is a keyword match.
+
+    Sending both ANDs them and re-truncates the facet's results (DBS: the
+    locationCountry facet finds 294, the "Hong Kong" keyword only 40), so a
+    configured facet must clear searchText.
+    """
+    transport = _PagingTransport(total=20)
+    facets = {"locationCountry": ["d4afdeb461d446e4babd204bd102dba8"]}
+    adapter = _paging_adapter(monkeypatch, transport, applied_facets=facets)
+
+    adapter.fetch_jobs()
+
+    sent = transport.bodies[0]
+    assert sent["appliedFacets"] == facets
+    assert sent["searchText"] == ""
+
+
+def test_without_facets_search_text_is_still_used(monkeypatch):
+    """Tenants with no facet configured keep the original keyword behaviour."""
+    transport = _PagingTransport(total=20)
+    adapter = _paging_adapter(monkeypatch, transport, location_filter="Hong Kong")
+
+    adapter.fetch_jobs()
+
+    sent = transport.bodies[0]
+    assert sent["appliedFacets"] == {}
+    assert sent["searchText"] == "Hong Kong"

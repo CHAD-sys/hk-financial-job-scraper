@@ -101,13 +101,28 @@ companies:
       tenant: hsbc
       domain: hangseng.com
 
+  # DBS runs its own Workday tenant, so we read that instead of Indeed.
+  # Indeed was only ever the fallback for firms with no clean JobsDB presence,
+  # and it stopped working from CI entirely (2026-08-14/15: Cloudflare serves
+  # GitHub Actions' datacenter IP a "managed" Turnstile that Scrapling solved
+  # 6 times out of 7,692, each failure hanging 5-20 min). First-party Workday
+  # is faster, complete, and does not depend on beating a bot check:
+  #   Indeed  →  98 jobs, when it worked at all
+  #   Workday → 294 jobs in ~7 s
+  # `applied_facets` (not searchText) is what makes that 294 — see the comment
+  # on WorkdayAdapter.__init__. Find the opaque facet id by POSTing an
+  # unfiltered request to the tenant's /jobs endpoint and reading `facets`.
   - name: DBS Bank (Hong Kong)
     slug: dbs-hk
-    adapter: indeed              # Phase-2: near-zero clean JobsDB data → employer-scoped Indeed page
+    adapter: workday
     enabled: true
     config:
-      indeed_slug: Dbs-Bank        # hk.indeed.com/cmp/Dbs-Bank/jobs (~300 jobs)
-      max_pages: 16
+      tenant: dbs
+      site: DBS_Careers
+      wd: wd3
+      applied_facets:
+        locationCountry:
+          - d4afdeb461d446e4babd204bd102dba8   # "Hong Kong" (294 postings)
 
   - name: Bank of East Asia
     slug: bank-of-east-asia
