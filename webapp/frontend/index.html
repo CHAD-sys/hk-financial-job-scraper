@@ -4,8 +4,11 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Hong Kong finance careers in one place: a daily, AI-enriched index of open roles across 230+ employers, executive career consultation, and professional learning from the Financial Executive Club." />
-    <title>FinEx Careers — HK Finance Roles, Consultation &amp; Learning</title>
+    <!-- No static <title>/<meta description> here on purpose: every route sets
+         its own via React 19's head-tag hoisting (see each page component), and
+         a static tag here would sit in the DOM alongside a page's own and leave
+         search engines to guess which one wins. LandingPage.tsx carries "/"'s
+         copy, which used to live in this file. -->
   </head>
   <body>
     <div id="root"></div>

@@ -9,9 +9,11 @@ submitted through it is published without human review.
 from __future__ import annotations
 
 import asyncio
+import html
 import json
 import logging
 import os
+import re
 import sqlite3
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -31,7 +33,7 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
@@ -80,6 +82,7 @@ from sender import (  # noqa: E402
 )
 from settings import Settings  # noqa: E402
 from hk_jobs.migrations import migrate  # noqa: E402
+from hk_jobs.sources import SOURCE_NAMES  # noqa: E402
 from job_read import (  # noqa: E402
     BOARD_WHERE,
     INTERNSHIP_COND,
@@ -718,6 +721,270 @@ def get_job(
         # members-only Role after signing out.
         raise HTTPException(status_code=404, detail="Job not found")
     return detail
+
+
+# ── Public SEO surface (robots.txt, sitemap.xml, job teaser pages) ────────────
+#
+# Everything above answers only with a session or a short-lived Role-access
+# grant (ADR 0018). This block is the one deliberate exception: a permanent,
+# ungated, crawlable URL per Role so search engines can index FinEx Careers
+# job-by-job. It hands out title, company, location, salary and a short AI
+# summary — never `description_clean`, never an apply link. Full detail still
+# requires signing in; these pages exist to fill that wall with search
+# traffic, not to remove it. Declared on `router`, which is included before
+# `_mount_frontend`'s catch-all (see that function's docstring) so these win
+# over the SPA fallback.
+
+_SLUG_RE = re.compile(r"[^a-z0-9]+")
+
+
+def _slugify(text: str) -> str:
+    return _SLUG_RE.sub("-", (text or "").lower()).strip("-")
+
+
+def _job_slug(title: str, company: str) -> str:
+    return _slugify(f"{title} {company}")[:80].strip("-") or "role"
+
+
+def _job_teaser_path(source: str, source_id: str, title: str, company: str) -> str:
+    return f"/jobs/{source}/{source_id}/{_job_slug(title, company)}"
+
+
+def _job_posting_jsonld(detail: JobDetail, canonical_url: str) -> dict:
+    location = detail.locations[0] if detail.locations else "Hong Kong"
+    summary = detail.description_summary or f"{detail.title} at {detail.company}."
+    posting: dict = {
+        "@context": "https://schema.org/",
+        "@type": "JobPosting",
+        "title": detail.title,
+        "description": f"<p>{html.escape(summary)}</p>",
+        "hiringOrganization": {"@type": "Organization", "name": detail.company},
+        "jobLocation": {
+            "@type": "Place",
+            "address": {
+                "@type": "PostalAddress",
+                "addressLocality": location,
+                "addressCountry": "HK",
+            },
+        },
+        "url": canonical_url,
+    }
+    if detail.posted_at:
+        posting["datePosted"] = detail.posted_at[:10]
+    # Only the DISCLOSED figure goes into structured data — Google's guidelines
+    # treat baseSalary as a claim about the actual posting, so the AI *estimate*
+    # (shown to a human reader below, clearly labelled) has no place here.
+    if detail.salary_hkd_min or detail.salary_hkd_max:
+        value: dict = {"@type": "QuantitativeValue"}
+        if detail.salary_hkd_min:
+            value["minValue"] = detail.salary_hkd_min
+        if detail.salary_hkd_max:
+            value["maxValue"] = detail.salary_hkd_max
+        value["unitText"] = "MONTH" if detail.salary_period == "month" else "YEAR"
+        posting["baseSalary"] = {"@type": "MonetaryAmount", "currency": "HKD", "value": value}
+    return posting
+
+
+def _salary_line(detail: JobDetail) -> str:
+    lo, hi = detail.salary_hkd_min, detail.salary_hkd_max
+    estimated = False
+    if not (lo or hi):
+        lo, hi = detail.salary_estimated_min, detail.salary_estimated_max
+        estimated = True
+    if not (lo or hi):
+        return ""
+    period = "mo" if (detail.salary_period or "month") == "month" else "yr"
+    amount = f"HK${lo:,}–{hi:,}/{period}" if lo and hi else f"HK${lo or hi:,}/{period}"
+    return f"{amount} (AI-estimated)" if estimated else amount
+
+
+def _job_teaser_html(detail: JobDetail, canonical_url: str) -> str:
+    location = ", ".join(detail.locations) or "Hong Kong"
+    title = html.escape(detail.title)
+    company = html.escape(detail.company)
+    meta_desc = html.escape(
+        (detail.description_summary or f"{detail.title} at {detail.company}, Hong Kong.")[:300]
+    )
+    salary = html.escape(_salary_line(detail))
+    skills = "".join(
+        f'<span class="pill">{html.escape(s)}</span>' for s in detail.required_skills[:8]
+    )
+    robots_directive = "noindex,follow" if detail.closed else "index,follow"
+    jsonld_block = ""
+    if not detail.closed:
+        jsonld_block = (
+            '<script type="application/ld+json">'
+            + json.dumps(_job_posting_jsonld(detail, canonical_url))
+            + "</script>"
+        )
+    status_banner = (
+        '<p class="closed-banner">This role has closed. '
+        '<a href="/jobs">Search current openings</a>.</p>'
+        if detail.closed
+        else ""
+    )
+    facts = " &middot; ".join(
+        html.escape(p) for p in [detail.seniority, location, detail.job_category] if p
+    )
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>{title} at {company} — FinEx Careers</title>
+<meta name="description" content="{meta_desc}" />
+<meta name="robots" content="{robots_directive}" />
+<link rel="canonical" href="{canonical_url}" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="FinEx Careers" />
+<meta property="og:title" content="{title} at {company}" />
+<meta property="og:description" content="{meta_desc}" />
+<meta property="og:url" content="{canonical_url}" />
+<meta name="twitter:card" content="summary" />
+{jsonld_block}
+<style>
+  :root {{ color-scheme: light; }}
+  body {{
+    margin: 0; background: #FFFDF9; color: #0B1628;
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  }}
+  header {{ background: #0B1628; padding: 20px 24px; }}
+  header a {{ color: #FBF0D3; text-decoration: none; font-weight: 600; letter-spacing: .02em; }}
+  main {{ max-width: 640px; margin: 0 auto; padding: 40px 24px 64px; }}
+  h1 {{ font: 700 28px/1.3 Georgia, "Playfair Display", serif; margin: 0 0 6px; }}
+  .company {{ font-size: 18px; color: #475569; margin: 0 0 14px; }}
+  .facts {{ color: #475569; margin: 0 0 18px; }}
+  .salary {{
+    display: inline-block; background: #FBF0D3; color: #9A6F00; font-weight: 600;
+    padding: 6px 14px; border-radius: 999px; margin: 0 0 22px;
+  }}
+  .pill {{
+    display: inline-block; border: 1px solid #E2E8F0; border-radius: 999px;
+    padding: 4px 12px; margin: 0 8px 8px 0; font-size: 13px; color: #475569;
+  }}
+  .summary {{ margin: 22px 0; }}
+  .closed-banner {{ background: #F1EFEA; color: #334155; padding: 12px 16px; border-radius: 8px; }}
+  .cta {{
+    display: inline-block; background: #1E3A8A; color: #F8FAFC; text-decoration: none;
+    font-weight: 600; padding: 12px 24px; border-radius: 8px; margin-top: 12px;
+  }}
+  .secondary {{ margin-top: 16px; }}
+  .secondary a {{ color: #1E3A8A; }}
+</style>
+</head>
+<body>
+<header><a href="/">FinEx Careers</a></header>
+<main>
+  <h1>{title}</h1>
+  <p class="company">{company}</p>
+  {f'<p class="facts">{facts}</p>' if facts else ""}
+  {f'<p class="salary">{salary}</p>' if salary else ""}
+  {status_banner}
+  {f'<p class="summary">{html.escape(detail.description_summary)}</p>' if detail.description_summary else ""}
+  <div>{skills}</div>
+  <div>
+    <a class="cta" href="/get-started">Sign in to see the full description &amp; apply</a>
+  </div>
+  <p class="secondary"><a href="/jobs">Search more roles on FinEx Careers</a></p>
+</main>
+</body>
+</html>"""
+
+
+def _spa_shell(request: Request) -> Response:
+    """
+    The same response `_mount_frontend`'s catch-all gives an unrecognised
+    client-side route. `/jobs/{source}/...` is shared ground: React Router
+    owns it for anything that is not a real source name (a future client
+    route, a stray link), the two routes below own it for anything that is.
+    Without this, a path like `/jobs/some/deep/path` — which used to be pure
+    client-side routing per test_single_origin.py — would 404 at this server
+    instead of reaching React Router.
+    """
+    settings = cfg(request)
+    if not settings.frontend_present():
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(settings.index_html, headers={"Cache-Control": "no-cache"})
+
+
+@router.get("/jobs/{source}/{source_id}", include_in_schema=False)
+def job_teaser_redirect(source: str, source_id: str, request: Request):
+    """Bare reference → canonical slug URL, so a hand-built link still resolves."""
+    if source not in SOURCE_NAMES:
+        return _spa_shell(request)
+    with get_db(request) as conn:
+        detail = job_read.get_job(conn, source, source_id, visibility=Visibility.ADDRESSABLE)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return RedirectResponse(
+        _job_teaser_path(source, source_id, detail.title, detail.company), status_code=301
+    )
+
+
+@router.get("/jobs/{source}/{source_id}/{slug}", include_in_schema=False)
+def job_teaser(source: str, source_id: str, slug: str, request: Request):
+    """
+    Public, ungated teaser for one Role — title, company, salary, a short AI
+    summary, JobPosting structured data. Every tier, no session required (see
+    the module-level comment above this section). Never returns
+    `description_clean`, and never issues a Role-access grant.
+    """
+    if source not in SOURCE_NAMES:
+        return _spa_shell(request)
+    with get_db(request) as conn:
+        detail = job_read.get_job(conn, source, source_id, visibility=Visibility.ADDRESSABLE)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    canonical_slug = _job_slug(detail.title, detail.company)
+    if slug != canonical_slug:
+        return RedirectResponse(f"/jobs/{source}/{source_id}/{canonical_slug}", status_code=301)
+    canonical_url = f"{_public_base(request)}/jobs/{source}/{source_id}/{canonical_slug}"
+    return HTMLResponse(_job_teaser_html(detail, canonical_url))
+
+
+@router.get("/sitemap.xml", include_in_schema=False)
+def sitemap(request: Request):
+    """
+    Every static page plus one <url> per addressable Role, any tier.
+
+    This is the one place in the codebase that hands out the full (source,
+    source_id) catalogue with no query, no session and no grant — a
+    deliberate, scoped exception to ADR 0018 made for search engines. See the
+    section comment above.
+    """
+    base = _public_base(request)
+    static_paths = ["/", "/about", "/jobs", "/learning", "/get-started"]
+    urls = [f"<url><loc>{base}{p}</loc></url>" for p in static_paths]
+    with get_db(request) as conn:
+        for row in job_read.list_sitemap_refs(conn):
+            path = _job_teaser_path(row["source"], row["source_id"], row["title"], row["company"])
+            entry = f"<url><loc>{base}{path}</loc>"
+            if row["posted_at"]:
+                entry += f"<lastmod>{row['posted_at'][:10]}</lastmod>"
+            entry += "</url>"
+            urls.append(entry)
+    body = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+        + "".join(urls)
+        + "</urlset>"
+    )
+    return Response(content=body, media_type="application/xml")
+
+
+@router.get("/robots.txt", include_in_schema=False)
+def robots(request: Request):
+    base = _public_base(request)
+    body = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /api/\n"
+        "Disallow: /account\n"
+        "Disallow: /admin\n"
+        f"Sitemap: {base}/sitemap.xml\n"
+    )
+    return PlainTextResponse(body)
 
 
 # ── /api/filters ──────────────────────────────────────────────────────────────
