@@ -32,6 +32,14 @@ export default function LandingPage() {
 
   return (
     <div style={{ backgroundColor: 'var(--color-bg)', minHeight: '100dvh' }}>
+      {/* index.html carries no static title/description (see its own comment) —
+          every route, including this one, sets its own via hoisting. */}
+      <title>FinEx Careers — HK Finance Roles, Consultation &amp; Learning</title>
+      <meta
+        name="description"
+        content="Hong Kong finance careers in one place: a daily, AI-enriched index of open roles across 230+ employers, executive career consultation, and professional learning from the Financial Executive Club."
+      />
+      <script type="application/ld+json">{JSON.stringify(ORG_JSONLD)}</script>
       <Nav />
       <main id="main-content">
         <PortalHero />
@@ -41,6 +49,15 @@ export default function LandingPage() {
       <LandingFooter />
     </div>
   )
+}
+
+const ORG_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'FinEx Careers',
+  url: 'https://finexcareers.com',
+  description:
+    'A daily, AI-enriched index of open finance roles across Hong Kong employers.',
 }
 
 // ── Hero + the three doors ────────────────────────────────────────────────────
@@ -136,6 +153,32 @@ function PortalHero() {
           &mdash; under one roof.
         </p>
 
+        {/* What the portal is worth to each of the two audiences, stated once
+            each. A list rather than more prose: the two claims are addressed to
+            different readers, and running them together as a paragraph makes
+            each one read as qualifying the other. */}
+        <ul className="mt-6 flex max-w-3xl flex-col gap-3">
+          {[
+            <>
+              <Pillar>For job seekers</Pillar>, we improve your job hunting success rate by 30%.
+            </>,
+            <>
+              <Pillar>For recruiters</Pillar>, we direct your jobs to an exclusive network of
+              senior executives and finance professionals directly from the FinEx Club community,
+              and significantly save your acquisition cost.
+            </>,
+          ].map((line, i) => (
+            <li key={i} className="flex gap-3 leading-relaxed" style={{ fontSize: '1rem', color: 'var(--color-ink-muted)' }}>
+              <span
+                aria-hidden="true"
+                className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{ backgroundColor: 'var(--color-gold)' }}
+              />
+              <span>{line}</span>
+            </li>
+          ))}
+        </ul>
+
         {/* The doors are the call to action — there is no separate CTA button. */}
         <div className="mt-14 grid gap-5 lg:grid-cols-3">
           <ProductDoor
@@ -150,6 +193,12 @@ function PortalHero() {
             index="02"
             eyebrow="Consultation"
             title="Executive career consultation"
+            note={
+              <>
+                FinEx Club is Career Coaching Partner of Top-tier universities, such as{' '}
+                <strong style={{ fontWeight: 700 }}>HKU Business School</strong>.
+              </>
+            }
             description="Confidential one-to-one guidance for senior finance professionals weighing a move, a change of function, or the step up to the next seat."
             figure="By enquiry"
             href={CONSULTATION_URL}

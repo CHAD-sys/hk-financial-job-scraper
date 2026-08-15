@@ -20,7 +20,7 @@ const CONSULTATION_URL = 'https://www.finexclub.org/mentor-program'
 const ENRICHMENTS = [
   { icon: Puzzle, title: 'Skills', body: '7–10 concrete skills per role — from AML and IFRS to Bloomberg, Murex and CFA.' },
   { icon: Layers, title: 'Seniority & category', body: 'Analyst → MD mapped to a consistent ladder, plus a functional category.' },
-  { icon: Coins, title: 'Salary estimate', body: 'A Hong Kong monthly band, calibrated to the 2026 Hays Asia Salary Guide.' },
+  { icon: Coins, title: 'Salary estimate', body: 'A Hong Kong monthly band, calibrated to current market salary benchmarks.' },
   { icon: Languages, title: 'English translation', body: 'Cantonese / Mandarin titles and descriptions rendered faithfully in English.' },
   { icon: Gauge, title: 'Work type & experience', body: 'On-site / hybrid / remote and required years, normalised across sources.' },
   { icon: Sparkles, title: 'Plain-language summary', body: 'A short, neutral précis of each role for fast scanning.' },
@@ -85,6 +85,13 @@ export default function AboutPage() {
 
   return (
     <div style={{ backgroundColor: 'var(--color-bg)', minHeight: '100dvh' }}>
+      {/* React 19 hoists title/meta rendered anywhere in the tree into <head>,
+          overriding index.html's defaults for this route only. */}
+      <title>About FinEx Careers — How We Source Hong Kong Finance Roles</title>
+      <meta
+        name="description"
+        content="How FinEx Careers builds its daily Hong Kong finance job index: direct ATS feeds, major boards, boutique careers pages, recruiter LinkedIn posts, and a single AI enrichment pass per role."
+      />
       <Nav />
       <main id="main-content">
 
@@ -100,13 +107,16 @@ export default function AboutPage() {
               </p>
               <h1 id="about-heading" className="font-bold leading-[1.1] tracking-tight mb-5"
                   style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(2.1rem, 4.2vw, 3.25rem)', color: 'var(--color-ink-inverse)', letterSpacing: '-0.02em' }}>
-                A finance career needs more than{' '}
-                <em className="not-italic" style={{ color: 'var(--color-gold)' }}>a job list</em>.
+                A{' '}
+                <em className="not-italic" style={{ color: 'var(--color-gold)' }}>Transformative</em>{' '}
+                Career Portal
               </h1>
               <p className="max-w-xl text-lg leading-relaxed" style={{ color: 'rgba(248,250,252,0.72)' }}>
-                It needs to know what is open, what the move is worth, and who has done it before
-                you. The Financial Executive Club has been answering the last two for years. FinEx
-                Careers adds the first &mdash; and puts all three in one place.
+                The pain of job hunting comes from your CV never getting noticed and having no one
+                to offer guidance and support along the way. Our AI job portal transforms the
+                job-seeking experience. Most importantly, we provide job seekers with top-tier
+                executive career coaching and professional upskilling&mdash;all on a single
+                platform.
               </p>
             </div>
             <div className="hidden lg:block">
@@ -121,18 +131,12 @@ export default function AboutPage() {
           style={{ borderBottom: '1px solid var(--color-border)' }}
         >
           <div className="mx-auto max-w-7xl px-6 lg:px-8 py-16">
-            <p className="text-xs font-semibold uppercase tracking-widest mb-2"
+            {/* The heading and lead that used to sit here were dropped; the
+                eyebrow now carries the section's accessible name, so
+                aria-labelledby still resolves. */}
+            <p id="products-heading" className="text-xs font-semibold uppercase tracking-widest mb-8"
                style={{ color: 'var(--color-gold)', letterSpacing: '0.12em' }}>
               What we offer
-            </p>
-            <h2 id="products-heading" className="text-2xl lg:text-3xl font-bold tracking-tight mb-3"
-                style={{ fontFamily: 'var(--font-display)', color: 'var(--color-ink)', letterSpacing: '-0.02em' }}>
-              Three ways we work on a finance career
-            </h2>
-            <p className="max-w-2xl text-base leading-relaxed mb-8" style={{ color: 'var(--color-ink-muted)' }}>
-              The index is the part you can see from the outside. It sits alongside the
-              guidance and the learning that the Financial Executive Club has been doing
-              for years.
             </p>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {PRODUCTS.map(({ icon: Icon, title, body, to, cta }) => (
@@ -208,13 +212,15 @@ export default function AboutPage() {
               <Sparkles size={16} style={{ color: 'var(--color-gold)' }} />
               <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--color-gold)', letterSpacing: '0.12em' }}>Under the hood</p>
             </div>
-            <h2 id="hood-heading" className="text-2xl lg:text-3xl font-bold tracking-tight mb-3"
+            <h2 id="hood-heading" className="max-w-4xl text-2xl lg:text-3xl font-bold tracking-tight mb-3"
                 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-ink)', letterSpacing: '-0.02em' }}>
-              One AI pass reads every posting
+              We&rsquo;re the smart job search engine that uncovers every opportunity&mdash;from
+              major job portals to hidden listings on company websites and exclusive recruiter
+              posts.
             </h2>
             <p className="max-w-2xl text-base leading-relaxed mb-8" style={{ color: 'var(--color-ink-muted)' }}>
-              Raw postings are messy. A single language-model pass turns each one into clean,
-              comparable fields &mdash; no extra calls, no manual tagging.
+              We break down critical details for every role&mdash;giving you instant access to
+              salary estimates, key requirements, and insider role insights.
             </p>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {ENRICHMENTS.map(({ icon: Icon, title, body }) => (

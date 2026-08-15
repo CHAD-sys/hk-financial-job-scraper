@@ -19,6 +19,12 @@ interface Props {
   eyebrow: string
   title: string
   description: string
+  /**
+   * A short credential line sitting between the title and the description —
+   * a standing fact about the door (e.g. who the Club partners with), not the
+   * live figure below. Optional; only the consultation door carries one today.
+   */
+  note?: ReactNode
   /** Live figure (e.g. "3,612 live roles"). Rendered in mono. Optional. */
   figure?: ReactNode
   /** Internal route ("/jobs"), same-page anchor ("#consultation"), or an external URL ("https://..."). */
@@ -36,7 +42,7 @@ interface Props {
  * current route, so a full https:// URL passed to it would be treated as an
  * (nonexistent) internal path rather than actually leaving the site.
  */
-export default function ProductDoor({ index, eyebrow, title, description, figure, href }: Props) {
+export default function ProductDoor({ index, eyebrow, title, description, note, figure, href }: Props) {
   const isExternal = href.startsWith('http')
   const isAnchor = href.startsWith('#')
 
@@ -70,6 +76,12 @@ export default function ProductDoor({ index, eyebrow, title, description, figure
       >
         {title}
       </h3>
+
+      {note && (
+        <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--color-ink)' }}>
+          {note}
+        </p>
+      )}
 
       <p className="mt-3 text-sm leading-relaxed grow" style={{ color: 'var(--color-ink-muted)' }}>
         {description}

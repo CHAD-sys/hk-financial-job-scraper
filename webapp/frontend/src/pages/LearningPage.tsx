@@ -91,6 +91,11 @@ export default function LearningPage() {
 
   return (
     <div style={{ backgroundColor: 'var(--color-surface-2)', minHeight: '100dvh' }}>
+      <title>Learning &amp; Events for HK Finance Professionals — FinEx Careers</title>
+      <meta
+        name="description"
+        content="Professional learning from the Financial Executive Club: training strands, a video library and upcoming events for Hong Kong finance professionals."
+      />
       <Nav />
       <main>
         <LearningHero eventCount={events.length} />
@@ -243,10 +248,15 @@ function StrandsSection() {
       style={{ backgroundColor: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}
     >
       <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-20">
-        <SectionHead id="strands-heading" eyebrow="The programme" title="Three ways the Club teaches">
-          One ecosystem, three formats — a standing interview series, seminars hosted at the
-          institutions the topics concern, and hands-on technical workshops.
-        </SectionHead>
+        {/* No SectionHead here: this section's heading and lead were dropped, so
+            the eyebrow alone carries the section's accessible name. */}
+        <p
+          id="strands-heading"
+          className="text-xs font-semibold uppercase"
+          style={{ color: 'var(--color-gold)', letterSpacing: '0.14em' }}
+        >
+          The programme
+        </p>
 
         <div className="mt-10 grid gap-6 lg:grid-cols-3">
           {STRANDS.map(s => (
