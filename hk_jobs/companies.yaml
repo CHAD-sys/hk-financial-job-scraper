@@ -609,7 +609,17 @@ companies:
   - name: Goldman Sachs
     slug: goldman-sachs
     adapter: indeed              # Phase-2: near-zero clean JobsDB data → employer-scoped Indeed page
-    enabled: true
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Goldman-Sachs   # hk.indeed.com/cmp/Goldman-Sachs/jobs (~86 jobs)
       max_pages: 6
@@ -617,7 +627,17 @@ companies:
   - name: JPMorgan
     slug: jpmorgan
     adapter: indeed             # Phase-2: near-zero clean JobsDB data → Indeed employer page
-    enabled: true
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Jpmorganchase-2   # the -2 entity holds the HK roles (~114 jobs)
       max_pages: 7
@@ -1008,7 +1028,17 @@ companies:
   - name: HSBC Hong Kong
     slug: hsbc-hk
     adapter: indeed
-    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Hsbc-Hong-Kong/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Hsbc-Hong-Kong
       max_pages: 8
@@ -1016,7 +1046,17 @@ companies:
   - name: Bank of China (Hong Kong)
     slug: bochk
     adapter: indeed
-    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Bank-Of-China/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Bank-Of-China
       max_pages: 8
@@ -1024,7 +1064,17 @@ companies:
   - name: Standard Chartered Bank (HK)
     slug: standard-chartered-hk
     adapter: indeed
-    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Standard-Chartered-Bank/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Standard-Chartered-Bank
       max_pages: 8
@@ -1032,7 +1082,17 @@ companies:
   - name: Bank of East Asia
     slug: bank-of-east-asia
     adapter: indeed
-    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Bank-Of-East-Asia/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Bank-Of-East-Asia
       max_pages: 8
@@ -1040,7 +1100,17 @@ companies:
   - name: Citibank Hong Kong
     slug: citibank-hk
     adapter: indeed
-    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Citibank-Hong-Kong/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Citibank-Hong-Kong
       max_pages: 8
@@ -1048,7 +1118,17 @@ companies:
   - name: OCBC Wing Hang Bank
     slug: ocbc-wing-hang
     adapter: indeed
-    enabled: true   # resolved 1 HK jobs on page 1 (hk.indeed.com/cmp/Ocbc/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Ocbc
       max_pages: 8
@@ -1056,7 +1136,17 @@ companies:
   - name: AIA Hong Kong
     slug: aia-hk
     adapter: indeed
-    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Aia-Hong-Kong/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Aia-Hong-Kong
       max_pages: 8
@@ -1064,7 +1154,17 @@ companies:
   - name: Manulife Hong Kong
     slug: manulife-hk
     adapter: indeed
-    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Manulife-Hong-Kong/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Manulife-Hong-Kong
       max_pages: 8
@@ -1072,7 +1172,17 @@ companies:
   - name: AXA Hong Kong
     slug: axa-hk
     adapter: indeed
-    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Axa-Hong-Kong/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Axa-Hong-Kong
       max_pages: 8
@@ -1080,7 +1190,17 @@ companies:
   - name: Zurich Hong Kong
     slug: zurich-hk
     adapter: indeed
-    enabled: true   # resolved 19 HK jobs on page 1 (hk.indeed.com/cmp/Zurich/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Zurich
       max_pages: 8
@@ -1088,7 +1208,17 @@ companies:
   - name: FWD Insurance
     slug: fwd-insurance
     adapter: indeed
-    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Fwd-Insurance/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Fwd-Insurance
       max_pages: 8
@@ -1100,7 +1230,17 @@ companies:
   - name: Schroders Hong Kong
     slug: schroders-hk
     adapter: indeed
-    enabled: true   # resolved 3 HK jobs on page 1 (hk.indeed.com/cmp/Schroders/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Schroders
       max_pages: 8
@@ -1108,7 +1248,17 @@ companies:
   - name: PIMCO Hong Kong
     slug: pimco-hk
     adapter: indeed
-    enabled: true   # resolved 1 HK jobs on page 1 (hk.indeed.com/cmp/Pimco/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Pimco
       max_pages: 8
@@ -1116,7 +1266,17 @@ companies:
   - name: UBS Asset Management HK
     slug: ubs-am-hk
     adapter: indeed
-    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Ubs-Asset-Management/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Ubs-Asset-Management
       max_pages: 8
@@ -1124,7 +1284,17 @@ companies:
   - name: BNP Paribas Asset Management HK
     slug: bnp-paribas-am-hk
     adapter: indeed
-    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Bnp-Paribas-Asset-Management/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Bnp-Paribas-Asset-Management
       max_pages: 8
@@ -1132,7 +1302,17 @@ companies:
   - name: Hong Kong Monetary Authority (HKMA)
     slug: hkma
     adapter: indeed
-    enabled: true   # resolved 10 HK jobs on page 1 (hk.indeed.com/cmp/Hong-Kong-Monetary-Authority/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Hong-Kong-Monetary-Authority
       max_pages: 8
@@ -1140,7 +1320,17 @@ companies:
   - name: KPMG
     slug: kpmg
     adapter: indeed
-    enabled: true   # resolved 2 HK jobs on page 1 (hk.indeed.com/cmp/Kpmg/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Kpmg
       max_pages: 8
@@ -1148,7 +1338,17 @@ companies:
   - name: Deloitte
     slug: deloitte
     adapter: indeed
-    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Deloitte/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Deloitte
       max_pages: 8
@@ -1156,7 +1356,17 @@ companies:
   - name: WeLab Bank
     slug: welab-bank
     adapter: indeed
-    enabled: true   # resolved 4 HK jobs on page 1 (hk.indeed.com/cmp/Welab/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Welab
       max_pages: 8
@@ -1164,7 +1374,17 @@ companies:
   - name: Futu Securities
     slug: futu-securities
     adapter: indeed
-    enabled: true   # resolved 1 HK jobs on page 1 (hk.indeed.com/cmp/Futu-Securities/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Futu-Securities
       max_pages: 8
@@ -1172,7 +1392,17 @@ companies:
   - name: EY
     slug: ey
     adapter: indeed
-    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Ey/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Ey
       max_pages: 8
@@ -1180,7 +1410,17 @@ companies:
   - name: Mox Bank
     slug: mox-bank
     adapter: indeed
-    enabled: true   # resolved 5 HK jobs on page 1 (hk.indeed.com/cmp/Mox-Bank/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Mox-Bank
       max_pages: 8
@@ -1188,7 +1428,17 @@ companies:
   - name: Agricultural Bank of China
     slug: agricultural-bank-china
     adapter: indeed
-    enabled: true   # resolved 3 HK jobs on page 1 (hk.indeed.com/cmp/Agricultural-Bank-Of-China/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Agricultural-Bank-Of-China
       max_pages: 8
@@ -1196,7 +1446,17 @@ companies:
   - name: Mitsubishi UFJ (MUFG)
     slug: mufg
     adapter: indeed
-    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Mitsubishi-Ufj/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Mitsubishi-Ufj
       max_pages: 8
@@ -1204,7 +1464,17 @@ companies:
   - name: ANZ Group
     slug: anz
     adapter: indeed
-    enabled: true   # resolved 2 HK jobs on page 1 (hk.indeed.com/cmp/Anz/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Anz
       max_pages: 8
@@ -1212,7 +1482,17 @@ companies:
   - name: Bank of America
     slug: bank-of-america
     adapter: indeed
-    enabled: true   # resolved 12 HK jobs on page 1 (hk.indeed.com/cmp/Bank-Of-America/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Bank-Of-America
       max_pages: 8
@@ -1220,7 +1500,17 @@ companies:
   - name: Deutsche Bank
     slug: deutsche-bank
     adapter: indeed
-    enabled: true   # resolved 17 HK jobs on page 1 (hk.indeed.com/cmp/Deutsche-Bank/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Deutsche-Bank
       max_pages: 8
@@ -1228,7 +1518,17 @@ companies:
   - name: Morgan Stanley
     slug: morgan-stanley
     adapter: indeed
-    enabled: true   # resolved 20 HK jobs on page 1 (hk.indeed.com/cmp/Morgan-Stanley/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Morgan-Stanley
       max_pages: 8
@@ -1236,7 +1536,17 @@ companies:
   - name: Barclays
     slug: barclays
     adapter: indeed
-    enabled: true   # resolved 15 HK jobs on page 1 (hk.indeed.com/cmp/Barclays/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Barclays
       max_pages: 8
@@ -1244,7 +1554,17 @@ companies:
   - name: Allianz
     slug: allianz
     adapter: indeed
-    enabled: true   # resolved 14 HK jobs on page 1 (hk.indeed.com/cmp/Allianz/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Allianz
       max_pages: 8
@@ -1252,7 +1572,17 @@ companies:
   - name: Swiss Re
     slug: swiss-re
     adapter: indeed
-    enabled: true   # resolved 1 HK jobs on page 1 (hk.indeed.com/cmp/Swiss-Re/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Swiss-Re
       max_pages: 8
@@ -1260,7 +1590,17 @@ companies:
   - name: Macquarie Group
     slug: macquarie
     adapter: indeed
-    enabled: true   # resolved 14 HK jobs on page 1 (hk.indeed.com/cmp/Macquarie-Group/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Macquarie-Group
       max_pages: 8
@@ -1268,7 +1608,17 @@ companies:
   - name: Invesco
     slug: invesco
     adapter: indeed
-    enabled: true   # resolved 6 HK jobs on page 1 (hk.indeed.com/cmp/Invesco/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Invesco
       max_pages: 8
@@ -1276,7 +1626,17 @@ companies:
   - name: Northern Trust
     slug: northern-trust
     adapter: indeed
-    enabled: true   # resolved 3 HK jobs on page 1 (hk.indeed.com/cmp/Northern-Trust/jobs)
+    # DISABLED 2026-08-15: Indeed cannot be scraped from GitHub Actions.
+    # Cloudflare serves the runner's datacenter IP a "managed" Turnstile that
+    # Scrapling solves ~0.6% of the time (this run: 2,858 managed challenges,
+    # 0 interactive, 14 solved vs 2,336 "still present"), and each failure hangs
+    # 5-20 min because its solver recurses with no attempt counter — so every
+    # Indeed company burned the full 1200 s COMPANY_TIMEOUT_SECS for zero jobs.
+    # The adapter itself is fine; it still works from a residential IP.
+    # Nothing is lost: no company is Indeed-only — every one of these is also
+    # covered by jobsdb/workday/linkedin/efinancialcareers. Re-enable behind a
+    # residential proxy (the adapter already takes a `proxy` key) if wanted.
+    enabled: false
     config:
       indeed_slug: Northern-Trust
       max_pages: 8
