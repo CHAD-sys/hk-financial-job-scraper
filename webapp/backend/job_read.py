@@ -924,6 +924,25 @@ def get_job(
     )
 
 
+def list_sitemap_refs(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    """
+    Every (source, source_id) the public sitemap should list.
+
+    Same BOARD_WHERE rule as browsing — one row per live vacancy, no duplicate
+    cross-posted copies — but deliberately with NO tier restriction. The public
+    teaser pages this feeds (see main.py) are open to every tier, unlike the
+    board itself: a search engine is not a discovery path ADR 0018 gates.
+    """
+    return conn.execute(
+        f"""
+        SELECT j.source, j.source_id, j.title, j.company, j.posted_at
+        {_FROM}
+        WHERE {BOARD_WHERE}
+        ORDER BY j.posted_at DESC
+        """
+    ).fetchall()
+
+
 def _group_sources(conn: sqlite3.Connection, source: str, source_id: str) -> list[str]:
     """
     Which job boards this vacancy is on.

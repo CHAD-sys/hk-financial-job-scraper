@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { recordVisit } from './api/client'
 import AuthProvider from './auth/AuthProvider'
 import EmployerAuthProvider from './auth/EmployerAuthProvider'
@@ -44,6 +44,25 @@ import EmployerVerifyEmailPage from './pages/EmployerVerifyEmailPage'
  * SignInChooserPage.tsx for why a chooser sits in front of both sign-in
  * forms now that there are two account kinds to choose between.
  */
+
+/**
+ * A shared fallback <title> for every route that has no reason to set its
+ * own — account, sign-in, admin, employer flows — none meant to be indexed
+ * (see robots.txt). A layout route rather than an always-mounted App-level
+ * tag: React has no documented tie-break for two simultaneously-mounted
+ * <title>s, so the only way to guarantee exactly one in the document is to
+ * never mount two at once. LandingPage, AboutPage, JobBoardPage and
+ * LearningPage sit outside this layout and set their own instead.
+ */
+function DefaultTitleLayout() {
+  return (
+    <>
+      <title>FinEx Careers</title>
+      <Outlet />
+    </>
+  )
+}
+
 export default function App() {
   // Fired once per app load, not per route change — a "visit", not a
   // pageview. Best-effort and silent: see client.ts's recordVisit().
@@ -61,22 +80,24 @@ export default function App() {
               <Route path="/about" element={<AboutPage />} />
               <Route path="/jobs" element={<JobBoardPage />} />
               <Route path="/learning" element={<LearningPage />} />
-              <Route path="/saved" element={<SavedJobsPage />} />
-              <Route path="/post-a-role" element={<PostRolePage />} />
-              <Route path="/get-started" element={<SignInChooserPage />} />
-              <Route path="/signin" element={<SignInPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
-              <Route path="/verify" element={<VerifyEmailPage />} />
-              <Route path="/account" element={<AccountPage />} />
-              <Route path="/admin" element={<AdminPage />} />
+              <Route element={<DefaultTitleLayout />}>
+                <Route path="/saved" element={<SavedJobsPage />} />
+                <Route path="/post-a-role" element={<PostRolePage />} />
+                <Route path="/get-started" element={<SignInChooserPage />} />
+                <Route path="/signin" element={<SignInPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
+                <Route path="/verify" element={<VerifyEmailPage />} />
+                <Route path="/account" element={<AccountPage />} />
+                <Route path="/admin" element={<AdminPage />} />
+                <Route path="/employer/register" element={<EmployerRegisterPage />} />
+                <Route path="/employer/signin" element={<EmployerSignInPage />} />
+                <Route path="/employer/forgot-password" element={<EmployerForgotPasswordPage />} />
+                <Route path="/employer/reset-password" element={<EmployerResetPasswordPage />} />
+                <Route path="/employer/verify" element={<EmployerVerifyEmailPage />} />
+              </Route>
               <Route path="/choose-view" element={<Navigate to="/admin" replace />} />
-              <Route path="/employer/register" element={<EmployerRegisterPage />} />
-              <Route path="/employer/signin" element={<EmployerSignInPage />} />
-              <Route path="/employer/forgot-password" element={<EmployerForgotPasswordPage />} />
-              <Route path="/employer/reset-password" element={<EmployerResetPasswordPage />} />
-              <Route path="/employer/verify" element={<EmployerVerifyEmailPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </SavedRolesProvider>
