@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-import { ArrowRight, BadgeCheck, FileSearch, FileText, LoaderCircle, RefreshCw, ShieldCheck } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { ArrowRight, BadgeCheck, FileSearch, FileText, LoaderCircle, RefreshCw, ShieldCheck, X } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
 import { fetchResumeMatches, type ResumeMatchesResponse } from '../api/client'
 import { useAuth } from '../auth/useAuth'
 
@@ -90,6 +90,140 @@ export default function ResumeFeatureSpotlight() {
   )
 }
 
+/**
+ * The signed-out panel: what resume matching does, and the three steps it
+ * takes. Every step needs an account, so the whole panel is a way in rather
+ * than a static illustration — clicking anywhere on it opens the prompt below.
+ *
+ * The click target is a transparent button stretched over the panel, not the
+ * panel itself: a <button> may only contain phrasing content, and this panel
+ * holds an <ol>. Wrapping it would be invalid HTML, and <div role="button">
+ * would mean re-implementing Enter/Space by hand. The overlay keeps a real
+ * button — free keyboard activation — over content that stays plain markup for
+ * a screen reader to walk. It carries an aria-label because it has no text of
+ * its own; the visible affordance is the footer line inside the panel.
+ */
+function ResumeHowItWorks() {
+  const [promptOpen, setPromptOpen] = useState(false)
+
+  return (
+    <div className="resume-feature-spotlight__proof resume-feature-spotlight__proof--interactive">
+      <button
+        type="button"
+        className="resume-feature-spotlight__proof-trigger"
+        aria-label="Sign in or create an account to upload your resume"
+        aria-haspopup="dialog"
+        onClick={() => setPromptOpen(true)}
+      />
+      <div className="resume-feature-spotlight__file">
+        <span><FileSearch size={21} strokeWidth={1.9} aria-hidden="true" /></span>
+        <div><strong>Evidence-led discovery</strong><small>Optional · private · based on live Roles</small></div>
+      </div>
+      <ol className="resume-feature-spotlight__steps" aria-label="How resume matching works">
+        <li><span>1</span><div><strong>Upload</strong><small>PDF or DOCX.</small></div></li>
+        <li><span>2</span><div><strong>Review strengths</strong><small>Skills, experience and sectors.</small></div></li>
+        <li><span>3</span><div><strong>Explore matches</strong><small>Live Roles with a clear reason.</small></div></li>
+      </ol>
+      <p className="resume-feature-spotlight__proof-hint" aria-hidden="true">
+        Sign in to start <ArrowRight size={14} strokeWidth={2} />
+      </p>
+
+      {promptOpen && <SignInPrompt onClose={() => setPromptOpen(false)} />}
+    </div>
+  )
+}
+
+/**
+ * Asks a signed-out visitor to sign in or register before they can upload a
+ * resume. A native <dialog> opened with showModal(), so focus trapping, the
+ * inert background and Escape-to-close come from the platform rather than from
+ * us — the same reasoning as JobDetailModal.tsx, without its enter/exit state
+ * machine, because this one is small enough to fade in and close instantly.
+ *
+ * Deliberately NOT wired to useModalHistoryGuard, unlike JobDetailModal. That
+ * hook pushes a history entry on open and pops it on unmount, which is right
+ * for a modal you only ever dismiss — but every useful exit from THIS one is a
+ * router navigation. Clicking "Create a Seeker account" pushes /register and
+ * then unmounts the dialog, at which point the hook's cleanup fires
+ * history.back() and fights the navigation it just triggered; in the browser
+ * that wedges the tab outright. Escape, the close button and a backdrop click
+ * all still work, so the only thing given up is the phone back gesture as a
+ * dismiss — a fair trade for a prompt whose whole purpose is to send you
+ * somewhere else.
+ *
+ * Both links carry the current path as `from`, which useReturnTo reads on the
+ * other side, so signing in returns the visitor to the page they were reading
+ * instead of dropping them on the board.
+ */
+function SignInPrompt({ onClose }: { onClose: () => void }) {
+  const dialogRef = useRef<HTMLDialogElement>(null)
+  const { pathname } = useLocation()
+
+  // Ref so the effect below can stay mount-once while still calling the latest
+  // onClose. The parent passes a fresh arrow every render, so depending on it
+  // directly would tear down and re-run the effect on every re-render — and
+  // that effect calls showModal(), which throws InvalidStateError on a dialog
+  // that is already open. Same reasoning as useModalHistoryGuard's onCloseRef.
+  const onCloseRef = useRef(onClose)
+  useLayoutEffect(() => { onCloseRef.current = onClose }, [onClose])
+
+  useEffect(() => {
+    const dlg = dialogRef.current
+    if (!dlg) return
+    dlg.showModal()
+    // Clicks on the ::backdrop are delivered with the dialog as their target,
+    // so backdrop-click-to-close is wired here rather than in the markup.
+    const onBackdropClick = (e: MouseEvent) => { if (e.target === dlg) onCloseRef.current() }
+    const onCancel = (e: Event) => { e.preventDefault(); onCloseRef.current() }
+    dlg.addEventListener('click', onBackdropClick)
+    dlg.addEventListener('cancel', onCancel)
+    return () => {
+      dlg.removeEventListener('click', onBackdropClick)
+      dlg.removeEventListener('cancel', onCancel)
+      // Leave the top layer explicitly before React detaches the element.
+      // showModal() puts the dialog in the top layer and makes the rest of the
+      // document inert; unmounting alone does not reliably undo that in Chrome,
+      // and the leftover inert state makes the whole page stop responding to
+      // clicks. It bites hardest on the path this dialog exists for — clicking
+      // a Link inside it navigates, which unmounts it mid-navigation and wedged
+      // the tab outright.
+      if (dlg.open) dlg.close()
+    }
+  }, [])
+
+  return (
+    <dialog ref={dialogRef} className="signin-prompt-dialog" aria-labelledby="signin-prompt-heading">
+      <button
+        type="button"
+        className="signin-prompt-dialog__close"
+        onClick={onClose}
+        aria-label="Close"
+      >
+        <X size={18} strokeWidth={2} aria-hidden="true" />
+      </button>
+
+      <span className="signin-prompt-dialog__icon" aria-hidden="true">
+        <FileSearch size={22} strokeWidth={1.9} />
+      </span>
+      <h2 id="signin-prompt-heading">Create an account to upload your resume</h2>
+      <p>
+        Resume matching needs somewhere private to keep your file, so it is for
+        signed-in Seekers only. Browsing and searching Roles stays open to
+        everyone — no account required.
+      </p>
+
+      <div className="signin-prompt-dialog__actions">
+        <Link to="/register" state={{ from: pathname }} className="signin-prompt-dialog__primary">
+          Create a Seeker account <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+        </Link>
+        <Link to="/signin" state={{ from: pathname }} className="signin-prompt-dialog__secondary">
+          Already have an account? Sign in
+        </Link>
+      </div>
+    </dialog>
+  )
+}
+
 function ResumeProof({ signedIn, loading, error, matches, onRetry }: {
   signedIn: boolean
   loading: boolean
@@ -97,21 +231,7 @@ function ResumeProof({ signedIn, loading, error, matches, onRetry }: {
   matches: ResumeMatchesResponse | null
   onRetry: () => void
 }) {
-  if (!signedIn) {
-    return (
-      <div className="resume-feature-spotlight__proof" aria-label="How resume matching works">
-        <div className="resume-feature-spotlight__file">
-          <span><FileSearch size={21} strokeWidth={1.9} aria-hidden="true" /></span>
-          <div><strong>Evidence-led discovery</strong><small>Optional · private · based on live Roles</small></div>
-        </div>
-        <ol className="resume-feature-spotlight__steps" aria-label="How resume matching works">
-          <li><span>1</span><div><strong>Upload</strong><small>PDF or DOCX.</small></div></li>
-          <li><span>2</span><div><strong>Review strengths</strong><small>Skills, experience and sectors.</small></div></li>
-          <li><span>3</span><div><strong>Explore matches</strong><small>Live Roles with a clear reason.</small></div></li>
-        </ol>
-      </div>
-    )
-  }
+  if (!signedIn) return <ResumeHowItWorks />
 
   if (loading) {
     return (

@@ -46,6 +46,47 @@ function installLocalStorage(): void {
 installLocalStorage()
 
 /**
+ * WHY THIS FILE ALSO INSTALLS showModal/close
+ * -------------------------------------------
+ * jsdom parses <dialog> and exposes HTMLDialogElement, but as of jsdom 30 it
+ * still does not implement the methods that open one — `showModal` is simply
+ * undefined, so any component that calls it throws on mount rather than
+ * failing an assertion. Both modals in this app (JobDetailModal and the
+ * sign-in prompt in ResumeFeatureSpotlight) open that way, deliberately: the
+ * native dialog is what gives them focus trapping, an inert background and
+ * Escape-to-close without us writing any of it.
+ *
+ * The shim is the smallest thing that makes those components testable: the
+ * `open` attribute is what actually matters, because that is what decides
+ * whether the element is exposed as role="dialog". It does NOT reproduce the
+ * top layer, ::backdrop, focus trapping or Escape — none of which jsdom has
+ * either. A test that needs to prove *those* belongs in a real browser.
+ */
+function installDialogMethods(): void {
+  if (typeof HTMLDialogElement === 'undefined') return
+  const proto = HTMLDialogElement.prototype
+  if (typeof proto.showModal !== 'function') {
+    proto.showModal = function showModal(this: HTMLDialogElement) {
+      this.setAttribute('open', '')
+    }
+  }
+  if (typeof proto.show !== 'function') {
+    proto.show = function show(this: HTMLDialogElement) {
+      this.setAttribute('open', '')
+    }
+  }
+  if (typeof proto.close !== 'function') {
+    proto.close = function close(this: HTMLDialogElement, returnValue?: string) {
+      this.removeAttribute('open')
+      if (returnValue !== undefined) this.returnValue = returnValue
+      this.dispatchEvent(new Event('close'))
+    }
+  }
+}
+
+installDialogMethods()
+
+/**
  * Two kinds of state outlive a test unless something clears them, and both were
  * involved in the bug this suite was started for: the DOM, and localStorage. A
  * Saved Roles test that inherits the previous test's localStorage passes or

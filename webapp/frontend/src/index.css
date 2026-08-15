@@ -294,6 +294,50 @@ button, a, input, select, [role="button"], [role="tab"] {
 .resume-feature-spotlight__result > div { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 1.25rem; }
 .resume-feature-spotlight__result > div span { border: 1px solid rgb(255 255 255 / 0.16); border-radius: 999px; padding: 0.35rem 0.65rem; color: rgb(248 250 252 / 0.82); font-size: 0.68rem; font-weight: 650; }
 .resume-feature-spotlight__result small { display: block; max-width: 58ch; margin-top: 1.25rem; color: rgb(248 250 252 / 0.58); font-size: 0.68rem; line-height: 1.55; }
+/* The signed-out "how it works" panel is one big click target into the sign-in
+   prompt. The trigger is a transparent button stretched over the panel (see
+   ResumeFeatureSpotlight.tsx for why it is an overlay and not a wrapper), so
+   the hover and focus affordances have to be drawn on the panel around it. */
+.resume-feature-spotlight__proof--interactive {
+  cursor: pointer;
+  transition: border-color 150ms ease-out, box-shadow 150ms ease-out, transform 150ms ease-out;
+}
+.resume-feature-spotlight__proof--interactive:hover {
+  border-color: rgb(255 255 255 / 0.3);
+  transform: translateY(-2px);
+}
+/* :focus-within, not :focus — the focus ring belongs on the panel, but the
+   thing that actually receives focus is the overlay button inside it. */
+.resume-feature-spotlight__proof--interactive:focus-within {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
+.resume-feature-spotlight__proof-trigger {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.resume-feature-spotlight__proof-trigger:focus-visible { outline: none; }
+.resume-feature-spotlight__proof-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1.5rem;
+  color: var(--color-gold-light);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.resume-feature-spotlight__proof-hint svg { transition: transform 220ms var(--ease-out-expo); }
+.resume-feature-spotlight__proof--interactive:hover .resume-feature-spotlight__proof-hint svg {
+  transform: translateX(4px);
+}
+
 .resume-feature-spotlight__steps { display: grid; gap: 1rem; margin-top: 1.5rem; }
 .resume-feature-spotlight__steps li { display: grid; grid-template-columns: 2rem 1fr; gap: 0.8rem; align-items: start; }
 .resume-feature-spotlight__steps li > span { display: flex; width: 2rem; height: 2rem; align-items: center; justify-content: center; border: 1px solid rgb(255 255 255 / 0.16); border-radius: 999px; color: var(--color-gold-light); font-family: var(--font-mono); font-size: 0.7rem; font-weight: 700; }
@@ -631,6 +675,106 @@ select.finex-input {
 .job-detail-dialog[data-state="closing"]::backdrop {
   transition-duration: 200ms;
 }
+
+/* ── Sign-in prompt ────────────────────────────────────────────────────
+   A small centred dialog, opened when a signed-out visitor clicks something
+   that needs an account. Unlike .job-detail-dialog it has no exit animation:
+   it enters with the shared 150ms fade and closes instantly, which is the
+   right weight for a prompt the visitor may well be dismissing. */
+.signin-prompt-dialog {
+  margin: auto;
+  max-width: min(30rem, calc(100vw - 2rem));
+  padding: clamp(1.5rem, 4vw, 2.25rem);
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-float);
+  cursor: auto;
+  animation: signin-prompt-in 150ms ease-out;
+}
+.signin-prompt-dialog::backdrop {
+  background-color: rgba(11, 22, 40, 0.55);
+  backdrop-filter: blur(2px);
+}
+@keyframes signin-prompt-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .signin-prompt-dialog { animation: none; }
+}
+.signin-prompt-dialog__close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--color-ink-faint);
+  cursor: pointer;
+  transition: color 150ms ease-out, background-color 150ms ease-out;
+}
+.signin-prompt-dialog__close:hover {
+  background-color: var(--color-surface-2);
+  color: var(--color-ink);
+}
+.signin-prompt-dialog__icon {
+  display: flex;
+  width: 2.75rem;
+  height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background-color: var(--color-gold-light);
+  color: var(--color-gold);
+}
+.signin-prompt-dialog h2 {
+  margin-top: 1.25rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 3vw, 1.5rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+.signin-prompt-dialog p {
+  margin-top: 0.75rem;
+  color: var(--color-ink-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.signin-prompt-dialog__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+.signin-prompt-dialog__primary,
+.signin-prompt-dialog__secondary {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 150ms ease-out;
+}
+.signin-prompt-dialog__primary {
+  padding: 0 1.25rem;
+  background-color: var(--color-ink);
+  color: var(--color-ink-inverse);
+}
+.signin-prompt-dialog__primary:hover { background-color: var(--color-blue); }
+.signin-prompt-dialog__secondary { color: var(--color-blue); }
+.signin-prompt-dialog__secondary:hover { text-decoration: underline; text-underline-offset: 3px; }
 
 /* ── Recommendations v2 ───────────────────────────────────────────── */
 .recommendation-heading {
