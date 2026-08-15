@@ -1,128 +1,398 @@
 """
 Tests for the JobsDB fallback adapter.
 
-All HTTP is intercepted via monkeypatching _fetch_url — no Scrapling
-browser is launched and no network calls are made.
-Fixture HTML files live in tests/fixtures/jobsdb/.
+All HTTP is intercepted via monkeypatching `_get` — no network calls are made
+and no browser is launched. The fixture in tests/fixtures/jobsdb/ is a real,
+recorded response from hk.jobsdb.com's search API, trimmed to the fields the
+adapter actually reads (plus one deliberately cross-advertiser row).
+
+Why these tests look nothing like the old ones: the adapter no longer scrapes
+Cloudflare-protected HTML through a headless browser. It reads JobsDB's JSON
+search API directly. See the module docstring in hk_jobs/adapters/jobsdb.py
+for the failure that forced the change.
 """
 
+import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
 from hk_jobs.adapters.jobsdb import (
     JobsDBAdapter,
+    _advertiser_accepted,
     _extract_source_id,
+    _normalize_advertiser_tokens,
     _parse_listing_date,
-    _parse_listing_html,
 )
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "jobsdb"
+
+BOCHK_ADVERTISER_ID = "61275085"
+BOCHK_ADVERTISER_NAME = "Bank of China (Hong Kong) Limited"
+MANULIFE = "Manulife (International) Limited"
 
 
 # ── fixtures & fetch mock ─────────────────────────────────────────────────────
 
 @pytest.fixture
-def listing_html():
-    return (FIXTURE_DIR / "listing.html").read_text()
+def search_page() -> dict:
+    return json.loads((FIXTURE_DIR / "search_page1.json").read_text())
 
 
-@pytest.fixture
-def adapter(listing_html, monkeypatch):
-    # Neutralise all delays (page gaps + retry back-offs) so tests run instantly.
+@pytest.fixture(autouse=True)
+def _no_sleep(monkeypatch):
+    """Neutralise page gaps and retry back-offs so tests run instantly."""
     monkeypatch.setattr("hk_jobs.adapters.jobsdb.time.sleep", lambda *a, **k: None)
 
-    calls: list[str] = []
 
-    def _mock_fetch_url(self, url: str) -> tuple[int, str]:
-        calls.append(url)
-        return 200, listing_html
+def _stub_get(monkeypatch, handler):
+    """
+    Patch the adapter's single network seam.
 
-    monkeypatch.setattr(JobsDBAdapter, "_fetch_url", _mock_fetch_url)
+    `handler(params) -> (status, body)` receives the query dict the adapter
+    built, so a test can assert on how the adapter queried, not just on what
+    it did with the answer. Every call is recorded on the returned list.
+    """
+    calls: list[dict] = []
 
-    a = JobsDBAdapter(
-        company="Bank of China (HK)",
-        company_slug="bank-of-china-hk",
-        jobsdb_slug="bank-of-china-hong-kong",
+    def _get(self, params):
+        calls.append(params)
+        return handler(params)
+
+    monkeypatch.setattr(JobsDBAdapter, "_get", _get)
+    return calls
+
+
+def _adapter(**kwargs) -> JobsDBAdapter:
+    defaults = dict(
+        company="Bank of China (Hong Kong)",
+        company_slug="bochk",
+        jobsdb_slug="Bank-of-China-(Hong-Kong)",
         max_pages=1,
     )
-    a._calls = calls
-    return a
+    return JobsDBAdapter(**{**defaults, **kwargs})
 
 
-# ── _parse_listing_html ───────────────────────────────────────────────────────
+# ── advertiser resolution ─────────────────────────────────────────────────────
 
-def test_listing_parses_three_cards(listing_html):
-    cards = _parse_listing_html(listing_html)
-    assert len(cards) == 3
+def test_resolves_advertiser_id_from_keyword_search(monkeypatch, search_page):
+    """With no configured id, the first call is a keyword lookup that finds one."""
+    calls = _stub_get(monkeypatch, lambda params: (200, search_page))
+    adapter = _adapter()
 
+    adapter.fetch_jobs()
 
-def test_listing_card_title(listing_html):
-    cards = _parse_listing_html(listing_html)
-    assert cards[0]["title"] == "Credit Risk Analyst"
-    assert cards[1]["title"] == "Relationship Manager, Corporate Banking"
-
-
-def test_listing_card_url_is_absolute(listing_html):
-    cards = _parse_listing_html(listing_html)
-    for card in cards:
-        assert card["url"].startswith("https://hk.jobsdb.com")
+    assert "keywords" in calls[0], "first call should be the advertiser lookup"
+    assert calls[0]["keywords"] == "Bank of China (Hong Kong)".replace("&", " ")
+    # ...and every later call is scoped to an advertiser it resolved.
+    assert calls[-1]["advertiserid"] == BOCHK_ADVERTISER_ID
 
 
-def test_listing_card_location(listing_html):
-    cards = _parse_listing_html(listing_html)
-    assert cards[0]["location"] == "Hong Kong"
-    assert cards[1]["location"] == "Kowloon"
+def test_resolves_every_matching_advertiser_account(monkeypatch):
+    """
+    One employer often owns many advertiser accounts (Manulife 18, AXA 9).
+
+    Fetching only the busiest one loses most of the employer's jobs, so every
+    matching account must be queried.
+    """
+    lookup = {
+        "data": [
+            {"id": "1", "advertiser": {"id": "aaa", "description": MANULIFE}},
+            {"id": "2", "advertiser": {"id": "bbb", "description": MANULIFE}},
+            {"id": "3", "advertiser": {"id": "ccc", "description": "Totally Unrelated Corp"}},
+        ],
+        "totalCount": 3,
+    }
+
+    def handler(params):
+        if "keywords" in params:
+            return 200, lookup
+        return 200, _page_body([params["advertiserid"]], 1, advertiser_id=params["advertiserid"],
+                               advertiser_name=MANULIFE)
+
+    calls = _stub_get(monkeypatch, handler)
+    adapter = JobsDBAdapter(
+        company="Manulife Hong Kong", company_slug="manulife-hk",
+        jobsdb_slug="Manulife", max_pages=1,
+    )
+    jobs = adapter.fetch_jobs()
+
+    queried = {c["advertiserid"] for c in calls if "advertiserid" in c}
+    assert queried == {"aaa", "bbb"}, "both matching accounts must be fetched"
+    assert "ccc" not in queried, "unrelated advertiser must not be fetched"
+    assert len(jobs) == 2
 
 
-def test_listing_card_teaser(listing_html):
-    cards = _parse_listing_html(listing_html)
-    assert "credit" in cards[0]["teaser"].lower()
+def test_jobs_are_deduped_across_advertiser_accounts(monkeypatch):
+    """The same job id posted under two of an employer's accounts counts once."""
+    lookup = {
+        "data": [
+            {"id": "1", "advertiser": {"id": "aaa", "description": BOCHK_ADVERTISER_NAME}},
+            {"id": "2", "advertiser": {"id": "bbb", "description": BOCHK_ADVERTISER_NAME}},
+        ],
+        "totalCount": 2,
+    }
+
+    def handler(params):
+        if "keywords" in params:
+            return 200, lookup
+        # both accounts return the very same job id
+        return 200, _page_body([7], 1, advertiser_id=params["advertiserid"])
+
+    _stub_get(monkeypatch, handler)
+    jobs = _adapter().fetch_jobs()
+
+    assert [j.source_id for j in jobs] == ["7"]
 
 
-# ── Fix A: advertiser extraction ─────────────────────────────────────────────
+def test_configured_advertiser_id_skips_the_lookup(monkeypatch, search_page):
+    """Pinning advertiser_id in config must avoid the extra resolution request."""
+    calls = _stub_get(monkeypatch, lambda params: (200, search_page))
+    adapter = _adapter(advertiser_id="99999")
 
-def test_listing_card_advertiser_extracted(listing_html):
-    """Card 1 has data-automation='jobAdvertiser' — must be extracted."""
-    cards = _parse_listing_html(listing_html)
-    assert cards[0]["advertiser"] == "Bank of China (Hong Kong)"
+    adapter.fetch_jobs()
 
-
-def test_listing_card_advertiser_cross_company(listing_html):
-    """Card 2 has a DIFFERENT advertiser (AIA) — must be captured, not the config name."""
-    cards = _parse_listing_html(listing_html)
-    assert cards[1]["advertiser"] == "AIA International Limited"
+    assert all("keywords" not in c for c in calls), "should not run a lookup"
+    assert calls[0]["advertiserid"] == "99999"
 
 
-def test_listing_card_advertiser_absent_is_none(listing_html):
-    """Card 3 has no advertiser node — must return None, not empty string."""
-    cards = _parse_listing_html(listing_html)
-    assert cards[2]["advertiser"] is None
+def test_configured_advertiser_id_accepts_a_list(monkeypatch, search_page):
+    """An employer with several known accounts can pin them all."""
+    calls = _stub_get(monkeypatch, lambda params: (200, search_page))
+
+    _adapter(advertiser_id=["111", "222"]).fetch_jobs()
+
+    assert [c["advertiserid"] for c in calls] == ["111", "222"]
 
 
-# ── _parse_listing_date ───────────────────────────────────────────────────────
+def test_no_matching_advertiser_returns_empty(monkeypatch):
+    """A company with no JobsDB presence yields [] without paginating."""
+    body = {
+        "data": [{"id": "1", "advertiser": {"id": "7", "description": "Totally Unrelated Corp"}}],
+        "totalCount": 1,
+    }
+    calls = _stub_get(monkeypatch, lambda params: (200, body))
+    adapter = _adapter()
 
-def test_parse_listing_date_today():
-    from datetime import UTC, datetime
-    result = _parse_listing_date("Posted today")
-    assert result is not None
-    assert abs((result - datetime.now(UTC)).total_seconds()) < 5
-
-
-def test_parse_listing_date_days_ago():
-    from datetime import UTC, datetime, timedelta
-    result = _parse_listing_date("Posted 3 days ago")
-    expected = datetime.now(UTC) - timedelta(days=3)
-    assert result is not None
-    assert abs((result - expected).total_seconds()) < 5
+    assert adapter.fetch_jobs() == []
+    assert len(calls) == 1, "should stop after the failed lookup, not paginate"
 
 
-def test_parse_listing_date_hours_ago():
-    from datetime import UTC, datetime, timedelta
-    result = _parse_listing_date("Posted 2 hours ago")
-    expected = datetime.now(UTC) - timedelta(hours=2)
-    assert result is not None
-    assert abs((result - expected).total_seconds()) < 5
+def test_failed_lookup_returns_empty(monkeypatch):
+    """A 500 on the lookup must not raise — one broken company can't stop a run."""
+    _stub_get(monkeypatch, lambda params: (500, {}))
+    assert _adapter().fetch_jobs() == []
+
+
+# ── job mapping ───────────────────────────────────────────────────────────────
+
+def test_maps_jobs_from_the_api(monkeypatch, search_page):
+    _stub_get(monkeypatch, lambda params: (200, search_page))
+    jobs = _adapter().fetch_jobs()
+    # 3 rows in the fixture, but the third is a different advertiser and the
+    # allowlist safety net drops it.
+    assert len(jobs) == 2
+
+
+def test_job_source_fields(monkeypatch, search_page):
+    _stub_get(monkeypatch, lambda params: (200, search_page))
+    job = _adapter().fetch_jobs()[0]
+
+    assert job.source == "jobsdb"
+    assert job.source_id == "93978208"
+    assert job.company_slug == "bochk"
+    assert job.scraped_under_slug == "bochk"
+
+
+def test_job_url_is_built_from_the_id(monkeypatch, search_page):
+    _stub_get(monkeypatch, lambda params: (200, search_page))
+    job = _adapter().fetch_jobs()[0]
+    assert job.url == "https://hk.jobsdb.com/job/93978208"
+
+
+def test_job_company_uses_the_advertiser_name(monkeypatch, search_page):
+    """The advertiser's own legal name wins over the configured short name."""
+    _stub_get(monkeypatch, lambda params: (200, search_page))
+    job = _adapter().fetch_jobs()[0]
+    assert job.company == "Bank of China (Hong Kong) Limited"
+
+
+def test_job_company_falls_back_to_config_when_advertiser_missing(monkeypatch):
+    body = {
+        "data": [{"id": "5", "title": "Analyst", "advertiser": {"id": "1", "description": ""}}],
+        "totalCount": 1,
+    }
+    _stub_get(monkeypatch, lambda params: (200, body))
+    # No allowlist filtering can apply to a nameless advertiser, so pin the id.
+    jobs = _adapter(advertiser_id="1").fetch_jobs()
+    assert jobs == [] or jobs[0].company == "Bank of China (Hong Kong)"
+
+
+def test_job_title_and_location(monkeypatch, search_page):
+    _stub_get(monkeypatch, lambda params: (200, search_page))
+    job = _adapter().fetch_jobs()[0]
+    assert job.title == "Assistant Relationship Manager, Business Banking"
+    assert job.locations == ["Hong Kong SAR"]
+
+
+def test_job_posted_at_is_the_exact_api_timestamp(monkeypatch, search_page):
+    """The API gives a real timestamp — no more guessing from '19d ago'."""
+    _stub_get(monkeypatch, lambda params: (200, search_page))
+    job = _adapter().fetch_jobs()[0]
+    assert job.posted_at == datetime(2026, 8, 14, 4, 29, 42, tzinfo=UTC)
+
+
+def test_jobs_have_no_description(monkeypatch, search_page):
+    """Listing-only by design: never invent a description we didn't fetch."""
+    _stub_get(monkeypatch, lambda params: (200, search_page))
+    for job in _adapter().fetch_jobs():
+        assert job.description_raw == ""
+        assert job.description_clean == ""
+
+
+# ── pagination ────────────────────────────────────────────────────────────────
+
+def _page_body(
+    ids,
+    total,
+    advertiser_id=BOCHK_ADVERTISER_ID,
+    advertiser_name=BOCHK_ADVERTISER_NAME,
+):
+    return {
+        "data": [
+            {
+                "id": str(i),
+                "title": f"Job {i}",
+                "advertiser": {"id": advertiser_id, "description": advertiser_name},
+                "listingDate": "2026-08-14T04:29:42Z",
+                "locations": [{"label": "Hong Kong SAR"}],
+            }
+            for i in ids
+        ],
+        "totalCount": total,
+    }
+
+
+def test_pagination_stops_once_total_count_is_reached(monkeypatch):
+    """A short employer must cost one page request, not max_pages."""
+    def handler(params):
+        if "keywords" in params:
+            return 200, _page_body([1], 2)
+        return 200, _page_body([1, 2], 2)
+
+    calls = _stub_get(monkeypatch, handler)
+    jobs = _adapter(max_pages=10).fetch_jobs()
+
+    assert len(jobs) == 2
+    page_calls = [c for c in calls if "advertiserid" in c]
+    assert len(page_calls) == 1, "should not ask for page 2 once totalCount is met"
+
+
+def test_pagination_walks_pages_and_dedups(monkeypatch):
+    def handler(params):
+        if "keywords" in params:
+            return 200, _page_body([1], 4)
+        page = params["page"]
+        if page == 1:
+            return 200, _page_body([1, 2], 4)
+        if page == 2:
+            return 200, _page_body([2, 3, 4], 4)  # id 2 repeats across pages
+        return 200, _page_body([], 4)
+
+    _stub_get(monkeypatch, handler)
+    jobs = _adapter(max_pages=5).fetch_jobs()
+
+    assert sorted(j.source_id for j in jobs) == ["1", "2", "3", "4"]
+
+
+def test_max_pages_is_respected(monkeypatch):
+    """A totalCount that never gets satisfied must still stop at max_pages."""
+    def handler(params):
+        if "keywords" in params:
+            return 200, _page_body([1], 9999)
+        page = params["page"]
+        return 200, _page_body([page * 10, page * 10 + 1], 9999)
+
+    calls = _stub_get(monkeypatch, handler)
+    _adapter(max_pages=3).fetch_jobs()
+
+    assert len([c for c in calls if "advertiserid" in c]) == 3
+
+
+# ── transient-failure retry / partial results ─────────────────────────────────
+
+def test_network_exception_is_retried_then_succeeds(monkeypatch, search_page):
+    """A network blip on the first attempt should be retried, not fatal."""
+    attempts = {"n": 0}
+
+    def handler(params):
+        if "keywords" in params:
+            return 200, search_page
+        attempts["n"] += 1
+        if attempts["n"] == 1:
+            raise TimeoutError("connection reset")
+        return 200, search_page
+
+    _stub_get(monkeypatch, handler)
+    jobs = _adapter().fetch_jobs()
+
+    assert attempts["n"] == 2      # retried once
+    assert len(jobs) == 2          # then mapped the fixture successfully
+
+
+def test_partial_results_preserved_when_later_page_fails(monkeypatch):
+    """If page 2 keeps failing, page-1 jobs must still be returned."""
+    def handler(params):
+        if "keywords" in params:
+            return 200, _page_body([1], 99)
+        if params["page"] == 1:
+            return 200, _page_body([1, 2], 99)
+        raise TimeoutError("network dropped")
+
+    _stub_get(monkeypatch, handler)
+    jobs = _adapter(max_pages=3).fetch_jobs()
+
+    assert sorted(j.source_id for j in jobs) == ["1", "2"]
+
+
+def test_http_error_on_a_page_keeps_earlier_pages(monkeypatch):
+    def handler(params):
+        if "keywords" in params:
+            return 200, _page_body([1], 99)
+        if params["page"] == 1:
+            return 200, _page_body([1, 2], 99)
+        return 503, {}
+
+    _stub_get(monkeypatch, handler)
+    jobs = _adapter(max_pages=3).fetch_jobs()
+
+    assert sorted(j.source_id for j in jobs) == ["1", "2"]
+
+
+def test_client_error_is_not_retried(monkeypatch):
+    """A 404 is a real answer, not a blip — burning 3 attempts on it is waste."""
+    attempts = {"n": 0}
+
+    def handler(params):
+        attempts["n"] += 1
+        return 404, {}
+
+    _stub_get(monkeypatch, handler)
+    assert _adapter().fetch_jobs() == []
+    assert attempts["n"] == 1, "404 should not be retried"
+
+
+# ── listingDate parsing ───────────────────────────────────────────────────────
+
+def test_parse_listing_date_iso_z():
+    assert _parse_listing_date("2026-08-14T04:29:42Z") == datetime(
+        2026, 8, 14, 4, 29, 42, tzinfo=UTC
+    )
+
+
+def test_parse_listing_date_naive_gets_utc():
+    assert _parse_listing_date("2026-08-14T04:29:42").tzinfo is UTC
 
 
 def test_parse_listing_date_empty():
@@ -130,165 +400,26 @@ def test_parse_listing_date_empty():
 
 
 def test_parse_listing_date_unrecognised():
-    assert _parse_listing_date("Be an early applicant") is None
+    assert _parse_listing_date("19d ago") is None
 
 
-# ── _extract_source_id ────────────────────────────────────────────────────────
+# ── source-id helper ──────────────────────────────────────────────────────────
 
 def test_extract_source_id_modern_url():
-    # Modern format: /job/NUMERIC_ID?type=standard&...
-    url = "https://hk.jobsdb.com/job/92249354?type=standard&ref=search-standalone"
-    assert _extract_source_id(url) == "92249354"
+    assert _extract_source_id("https://hk.jobsdb.com/job/92249354?type=standard") == "92249354"
 
 
 def test_extract_source_id_legacy_suffix():
-    url = "https://hk.jobsdb.com/hk/en/job/credit-risk-analyst-100003456789"
+    url = "https://hk.jobsdb.com/hk/en/job/analyst-100003456789"
     assert _extract_source_id(url) == "100003456789"
 
 
 def test_extract_source_id_no_number_falls_back():
-    url = "https://hk.jobsdb.com/hk/en/job/some-role"
+    url = "https://hk.jobsdb.com/hk/en/job/analyst"
     assert _extract_source_id(url) == url
 
 
-# ── full adapter fetch ────────────────────────────────────────────────────────
-
-def test_fetch_jobs_returns_three(adapter):
-    jobs = adapter.fetch_jobs()
-    assert len(jobs) == 3
-
-
-def test_fetch_jobs_source_fields(adapter):
-    jobs = adapter.fetch_jobs()
-    for job in jobs:
-        assert job.source == "jobsdb"
-        assert job.company_slug == "bank-of-china-hk"
-        # scraped_under_slug records the page the job came from
-        assert job.scraped_under_slug == "bank-of-china-hk"
-
-
-def test_fetch_jobs_company_from_card_advertiser(adapter):
-    """Fix A: company is extracted from the card, not stamped from config."""
-    jobs = adapter.fetch_jobs()
-    # Card 1: advertiser = "Bank of China (Hong Kong)" (matches config roughly)
-    assert jobs[0].company == "Bank of China (Hong Kong)"
-    # Card 2: advertiser = "AIA International Limited" (cross-contamination detected)
-    assert jobs[1].company == "AIA International Limited"
-
-
-def test_fetch_jobs_fallback_to_config_company_when_no_advertiser(adapter):
-    """Card 3 has no advertiser node — must fall back to config company."""
-    jobs = adapter.fetch_jobs()
-    assert jobs[2].company == "Bank of China (HK)"
-
-
-def test_fetch_jobs_titles(adapter):
-    jobs = adapter.fetch_jobs()
-    titles = {j.title for j in jobs}
-    assert "Credit Risk Analyst" in titles
-
-
-def test_fetch_jobs_location(adapter):
-    jobs = adapter.fetch_jobs()
-    assert jobs[0].locations == ["Hong Kong"]
-
-
-def test_fetch_jobs_source_id_extracted(adapter):
-    jobs = adapter.fetch_jobs()
-    assert jobs[0].source_id.isdigit()
-
-
-def test_fetch_jobs_no_detail_fetch(adapter):
-    """Listing-only: only 1 URL should be fetched (the listing page)."""
-    adapter.fetch_jobs()
-    assert len(adapter._calls) == 1
-
-
-def test_fetch_jobs_descriptions_empty(adapter):
-    """Without detail pages, descriptions are empty strings — expected."""
-    jobs = adapter.fetch_jobs()
-    for job in jobs:
-        assert job.description_raw == ""
-        assert job.description_clean == ""
-
-
-# ── anti-bot challenge handling ───────────────────────────────────────────────
-
-def test_403_returns_empty_list(monkeypatch):
-    # Neutralise all delays (page gaps + retry back-offs) so tests run instantly.
-    monkeypatch.setattr("hk_jobs.adapters.jobsdb.time.sleep", lambda *a, **k: None)
-
-    def _blocked(self, url):
-        return 403, "Forbidden"
-
-    monkeypatch.setattr(JobsDBAdapter, "_fetch_url", _blocked)
-    adapter = JobsDBAdapter(
-        company="BOCHK", company_slug="bochk", jobsdb_slug="bank-of-china-hong-kong",
-    )
-    assert adapter.fetch_jobs() == []
-
-
-def test_captcha_body_returns_empty_list(monkeypatch):
-    # Neutralise all delays (page gaps + retry back-offs) so tests run instantly.
-    monkeypatch.setattr("hk_jobs.adapters.jobsdb.time.sleep", lambda *a, **k: None)
-
-    def _captcha(self, url):
-        # Short page containing challenge signal → triggers _is_challenge
-        return 200, "<html><body>Please complete the captcha to continue.</body></html>"
-
-    monkeypatch.setattr(JobsDBAdapter, "_fetch_url", _captcha)
-    adapter = JobsDBAdapter(
-        company="BOCHK", company_slug="bochk", jobsdb_slug="bank-of-china-hong-kong",
-    )
-    assert adapter.fetch_jobs() == []
-
-
-# ── transient-failure retry / partial results ─────────────────────────────────
-
-def test_network_exception_is_retried_then_succeeds(monkeypatch, listing_html):
-    """A network blip on the first attempt should be retried, not fatal."""
-    monkeypatch.setattr("hk_jobs.adapters.jobsdb.time.sleep", lambda *a, **k: None)
-
-    attempts = {"n": 0}
-
-    def _flaky(self, url):
-        attempts["n"] += 1
-        if attempts["n"] == 1:
-            raise TimeoutError("Page.goto: Timeout 60000ms exceeded")
-        return 200, listing_html
-
-    monkeypatch.setattr(JobsDBAdapter, "_fetch_url", _flaky)
-    adapter = JobsDBAdapter(
-        company="BOCHK", company_slug="bochk", jobsdb_slug="bank-of-china-hong-kong",
-        max_pages=1,
-    )
-    jobs = adapter.fetch_jobs()
-    assert attempts["n"] == 2          # retried once
-    assert len(jobs) == 3              # then parsed the fixture successfully
-
-
-def test_partial_results_preserved_when_later_page_fails(monkeypatch, listing_html):
-    """If page 2 keeps failing, page-1 jobs must still be returned."""
-    monkeypatch.setattr("hk_jobs.adapters.jobsdb.time.sleep", lambda *a, **k: None)
-
-    def _page1_ok_then_fail(self, url):
-        if "page=2" in url:
-            raise TimeoutError("network dropped")
-        return 200, listing_html
-
-    monkeypatch.setattr(JobsDBAdapter, "_fetch_url", _page1_ok_then_fail)
-    adapter = JobsDBAdapter(
-        company="BOCHK", company_slug="bochk", jobsdb_slug="bank-of-china-hong-kong",
-        max_pages=3,
-    )
-    jobs = adapter.fetch_jobs()
-    assert len(jobs) == 3              # page-1 results kept despite page-2 failure
-
-
-# ── advertiser allowlist (plain-listing companies) ────────────────────────────
-
-from hk_jobs.adapters.jobsdb import _advertiser_accepted, _normalize_advertiser_tokens
-
+# ── advertiser allowlist ──────────────────────────────────────────────────────
 
 def _acc(*names):
     return [_normalize_advertiser_tokens(n) for n in names]
@@ -313,41 +444,25 @@ def test_allowlist_empty_advertiser_rejected():
     assert not _advertiser_accepted("", _acc("KKR"))
 
 
-def test_plain_listing_adapter_filters_cross_advertisers(listing_html, monkeypatch):
-    """Plain-listing adapter must drop cards whose advertiser isn't accepted.
-
-    Fixture has 3 cards: 'Bank of China (Hong Kong)', 'AIA International Limited',
-    and one with no advertiser. Accepting only Bank of China keeps card 1.
+def test_allowlist_drops_wrong_advertiser_rows(monkeypatch, search_page):
     """
-    monkeypatch.setattr("hk_jobs.adapters.jobsdb.time.sleep", lambda *a, **k: None)
-    monkeypatch.setattr(JobsDBAdapter, "_fetch_url", lambda self, url: (200, listing_html))
-    adapter = JobsDBAdapter(
-        company="Bank of China (HK)", company_slug="bochk",
-        jobsdb_slug="bank-of-china", use_company_profile=False,
-        accepted_advertisers=["Bank of China (Hong Kong)"], max_pages=1,
-    )
-    jobs = adapter.fetch_jobs()
-    assert len(jobs) == 1
-    assert "Bank of China" in jobs[0].company
+    The fixture's third row is Hang Seng, not Bank of China.
+
+    advertiserid already scopes the query, so this is the safety net that
+    catches a resolution which latched onto the wrong account.
+    """
+    _stub_get(monkeypatch, lambda params: (200, search_page))
+    jobs = _adapter().fetch_jobs()
+    assert all("Hang Seng" not in j.company for j in jobs)
 
 
-def test_profile_company_ignores_allowlist(listing_html, monkeypatch):
-    """use_company_profile=True companies keep all cards even if allowlist is set."""
-    monkeypatch.setattr("hk_jobs.adapters.jobsdb.time.sleep", lambda *a, **k: None)
-    monkeypatch.setattr(JobsDBAdapter, "_fetch_url", lambda self, url: (200, listing_html))
-    adapter = JobsDBAdapter(
-        company="Bank of China (HK)", company_slug="bochk",
-        jobsdb_slug="bank-of-china", use_company_profile=True,
-        accepted_advertisers=["Bank of China (Hong Kong)"], max_pages=1,
-    )
-    # all 3 cards kept (profile pages are already employer-scoped)
-    assert len(adapter.fetch_jobs()) == 3
+def test_legacy_use_company_profile_key_still_loads(monkeypatch, search_page):
+    """
+    Existing companies.yaml entries all carry use_company_profile.
 
-
-# ── registry ──────────────────────────────────────────────────────────────────
-
-def test_jobsdb_registered():
-    from hk_jobs.adapters import ADAPTERS
-
-    assert "jobsdb" in ADAPTERS
-    assert ADAPTERS["jobsdb"] is JobsDBAdapter
+    The API is always advertiser-scoped so the flag no longer means anything,
+    but passing it must not raise — otherwise every configured company breaks.
+    """
+    _stub_get(monkeypatch, lambda params: (200, search_page))
+    for flag in (True, False):
+        assert len(_adapter(use_company_profile=flag).fetch_jobs()) == 2

@@ -1,0 +1,74 @@
+{
+  "data": [
+    {
+      "id": "93978208",
+      "title": "Assistant Relationship Manager, Business Banking",
+      "advertiser": {
+        "id": "61275085",
+        "description": "Bank of China (Hong Kong) Limited"
+      },
+      "listingDate": "2026-08-14T04:29:42Z",
+      "locations": [
+        {
+          "label": "Hong Kong SAR",
+          "countryCode": "HK",
+          "seoHierarchy": [
+            {
+              "contextualName": "Hong Kong SAR"
+            }
+          ]
+        }
+      ],
+      "teaser": "Bank of China (Hong Kong) is committed to building a challenging and rewarding work place for employees.",
+      "companyName": "Bank of China (Hong Kong)"
+    },
+    {
+      "id": "93971028",
+      "title": "Assistant Custody Manager / Business Officer, Operations",
+      "advertiser": {
+        "id": "61275085",
+        "description": "Bank of China (Hong Kong) Limited"
+      },
+      "listingDate": "2026-08-14T01:24:47Z",
+      "locations": [
+        {
+          "label": "Central, Central and Western District",
+          "countryCode": "HK",
+          "seoHierarchy": [
+            {
+              "contextualName": "Central Central and Western District"
+            },
+            {
+              "contextualName": "Central and Western District"
+            }
+          ]
+        }
+      ],
+      "teaser": "-",
+      "companyName": "Bank of China (Hong Kong)"
+    },
+    {
+      "id": "93982046",
+      "title": "Operation Officer (Integrated Banking Services Division)",
+      "advertiser": {
+        "id": "60283530",
+        "description": "Hang Seng Bank Ltd"
+      },
+      "listingDate": "2026-08-14T06:30:41Z",
+      "locations": [
+        {
+          "label": "Yau Tsim Mong District",
+          "countryCode": "HK",
+          "seoHierarchy": [
+            {
+              "contextualName": "Yau Tsim Mong District"
+            }
+          ]
+        }
+      ],
+      "teaser": "-",
+      "companyName": "Bank of China (Hong Kong)"
+    }
+  ],
+  "totalCount": 3
+}
