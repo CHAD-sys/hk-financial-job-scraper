@@ -28,11 +28,17 @@ jobs:
   daily-run:
     name: Daily Run
     runs-on: ubuntu-latest
-    # Recent runs take 27-54 minutes. 120 is headroom, not the expected time —
+    # Recent runs take 27-67 minutes. 300 is headroom, not the expected time —
     # it exists so a hung Playwright call (network_idle=True is the known way
     # to trigger this; see the adapters' own docstrings) fails the run instead
     # of silently burning CI minutes for up to GitHub's own 360-minute default.
-    timeout-minutes: 120
+    # 2026-08-14's run is the reason this is 300 and not 120: JobsDB threw
+    # Cloudflare Turnstile challenges at ~29 of its 65 companies that day,
+    # each retry/solve cycle costing minutes instead of seconds, and the old
+    # 120-minute cap killed the job mid-scrape — before descriptions, DeepSeek
+    # enrichment, or the Railway publish ever ran, so the whole day's run
+    # contributed nothing (silently safe, but a lost day of data).
+    timeout-minutes: 300
     env:
       GH_TOKEN: ${{ github.token }}
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
