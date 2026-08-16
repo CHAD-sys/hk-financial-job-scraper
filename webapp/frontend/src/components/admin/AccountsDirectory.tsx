@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight, Search, ShieldCheck, Users } from 'lucide-react'
+import { ChevronDown, ChevronRight, Download, LoaderCircle, Search, ShieldCheck, Users } from 'lucide-react'
 import {
+  downloadSeekerResume,
   fetchSeekerInterests,
   type AdminAccountsResponse,
   type AdminEmployerAccount,
@@ -104,6 +105,60 @@ function SeekerInterestsPanel({ seekerId }: { seekerId: string }) {
   )
 }
 
+/**
+ * Downloads one Seeker's resume file, for troubleshooting a match that looks
+ * wrong. Ultimate Admin only — the backend enforces that, this button merely
+ * stops existing for rows with no resume.
+ *
+ * Every click writes an audit row naming the admin, the Seeker and the moment
+ * (see admin.py's download_seeker_resume_route), so the label says so rather
+ * than leaving that a surprise. The failure lands next to the button instead
+ * of in a toast: it is almost always 403 or "no resume on file", both of which
+ * are about this specific row.
+ */
+function ResumeDownloadButton({ seeker }: { seeker: AdminSeekerAccount }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  if (!seeker.has_resume) {
+    return <span className="text-xs" style={{ color: 'var(--color-ink-faint)' }}>—</span>
+  }
+
+  const run = async () => {
+    setBusy(true)
+    setError('')
+    try {
+      await downloadSeekerResume(seeker.id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Download failed.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <button
+        type="button"
+        onClick={run}
+        disabled={busy}
+        title="Downloading is recorded against your account"
+        aria-label={`Download the resume on file for ${seeker.email}`}
+        className="inline-flex min-h-9 items-center gap-1.5 rounded px-2.5 text-xs font-semibold disabled:opacity-60"
+        style={{ border: '1px solid var(--color-border-strong)', color: 'var(--color-blue)' }}
+      >
+        {busy
+          ? <LoaderCircle size={14} className="animate-spin" aria-hidden="true" />
+          : <Download size={14} aria-hidden="true" />}
+        {busy ? 'Preparing…' : 'CV'}
+      </button>
+      {error && (
+        <span role="alert" className="text-[11px]" style={{ color: 'var(--color-destructive)' }}>{error}</span>
+      )}
+    </div>
+  )
+}
+
 function matches(query: string, ...fields: (string | null)[]) {
   if (!query) return true
   const needle = query.trim().toLowerCase()
@@ -163,14 +218,14 @@ export default function AccountsDirectory({ data }: { data: AdminAccountsRespons
           <table className="w-full min-w-[820px] border-collapse text-left text-sm">
             <thead style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-muted)' }}>
               <tr>
-                {['', 'Email', 'Name', 'Status', 'Signed up', 'Last login'].map(heading => (
+                {['', 'Email', 'Name', 'Status', 'Signed up', 'Last login', 'Resume'].map(heading => (
                   <th key={heading} scope="col" className="px-4 py-3 text-xs font-semibold">{heading}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {seekers.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-6 text-center text-sm" style={{ color: 'var(--color-ink-muted)' }}>No matching Seekers.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-6 text-center text-sm" style={{ color: 'var(--color-ink-muted)' }}>No matching Seekers.</td></tr>
               ) : seekers.map((seeker: AdminSeekerAccount) => {
                 const expanded = expandedSeekerId === seeker.id
                 return (
@@ -198,10 +253,11 @@ export default function AccountsDirectory({ data }: { data: AdminAccountsRespons
                       </td>
                       <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--color-ink-muted)' }}>{formatDate(seeker.created_at)}</td>
                       <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--color-ink-muted)' }}>{formatDate(seeker.last_login_at)}</td>
+                      <td className="px-4 py-3"><ResumeDownloadButton seeker={seeker} /></td>
                     </tr>
                     {expanded && (
                       <tr style={{ borderTop: 'none' }}>
-                        <td colSpan={6} className="px-4 pb-4" style={{ backgroundColor: 'var(--color-surface-2)' }}>
+                        <td colSpan={7} className="px-4 pb-4" style={{ backgroundColor: 'var(--color-surface-2)' }}>
                           <div className="rounded-md p-3">
                             <SeekerInterestsPanel seekerId={seeker.id} />
                           </div>

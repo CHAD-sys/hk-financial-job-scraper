@@ -3,10 +3,12 @@ import { describe, expect, it, vi } from 'vitest'
 import type { AdminAccountsResponse, AdminSeekerInterests } from '../../api/client'
 
 const fetchSeekerInterests = vi.fn<(seekerId: string) => Promise<AdminSeekerInterests>>()
+const downloadSeekerResume = vi.fn<(seekerId: string, reason?: string) => Promise<void>>()
 
 vi.mock('../../api/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../api/client')>()),
   fetchSeekerInterests: (seekerId: string) => fetchSeekerInterests(seekerId),
+  downloadSeekerResume: (seekerId: string, reason?: string) => downloadSeekerResume(seekerId, reason),
 }))
 
 const { default: AccountsDirectory } = await import('./AccountsDirectory')
@@ -17,11 +19,13 @@ const DATA: AdminAccountsResponse = {
       id: 's1', email: 'amy@example.com', display_name: 'Amy Chan', username: null,
       email_verified: true, is_admin: false, is_super_admin: false,
       created_at: '2026-08-01T00:00:00+00:00', last_login_at: '2026-08-10T00:00:00+00:00',
+      has_resume: true,
     },
     {
       id: 's2', email: 'root@example.com', display_name: null, username: 'root',
       email_verified: true, is_admin: true, is_super_admin: true,
       created_at: '2026-07-01T00:00:00+00:00', last_login_at: null,
+      has_resume: false,
     },
   ],
   employers: [
@@ -111,5 +115,33 @@ describe('AccountsDirectory', () => {
     fireEvent.click(screen.getByLabelText('Hide interests for amy@example.com'))
 
     expect(screen.queryByText(/No resume, search, or saved-Role activity/)).not.toBeInTheDocument()
+  })
+})
+
+describe('AccountsDirectory resume download', () => {
+  it('offers a download only for Seekers who actually have a resume', () => {
+    render(<AccountsDirectory data={DATA} />)
+
+    // Amy has one; root does not, so root's cell is a dash rather than a button.
+    expect(screen.getByRole('button', { name: /Download the resume on file for amy@example.com/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Download the resume on file for root@example.com/ })).not.toBeInTheDocument()
+  })
+
+  it('downloads the resume for the Seeker whose row was clicked', async () => {
+    downloadSeekerResume.mockResolvedValue()
+    render(<AccountsDirectory data={DATA} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Download the resume on file for amy@example.com/ }))
+
+    await waitFor(() => expect(downloadSeekerResume).toHaveBeenCalledWith('s1', undefined))
+  })
+
+  it('shows the reason a download was refused instead of failing silently', async () => {
+    downloadSeekerResume.mockRejectedValue(new Error('Ultimate Admin access required'))
+    render(<AccountsDirectory data={DATA} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Download the resume on file for amy@example.com/ }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Ultimate Admin access required')
   })
 })

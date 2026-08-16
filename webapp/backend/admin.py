@@ -32,6 +32,7 @@ import sqlite3
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Callable
+from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 import admin_intelligence
@@ -54,7 +55,7 @@ from fastapi import (
     UploadFile,
 )
 from starlette.background import BackgroundTask
-from starlette.responses import FileResponse
+from starlette.responses import FileResponse, Response
 
 from hk_jobs.daily_run.model import DailyRunRecord
 
@@ -415,6 +416,78 @@ def build_router(
         if store.get_seeker(seeker_id) is None:
             raise HTTPException(status_code=404, detail="Seeker not found")
         return store.interests_for_seeker(seeker_id)
+
+    @router.get("/accounts/seekers/{seeker_id}/resume")
+    def download_seeker_resume_route(
+        seeker_id: str,
+        reason: str = Query("", max_length=200, description="Why this file is being read"),
+        admin: dict = Depends(require_super_admin),
+    ):
+        """Serve a Seeker's resume file to an Ultimate Admin, and log that it happened.
+
+        This exists for troubleshooting — a match that looks wrong is usually a
+        gap in `resume_intelligence`'s vocabulary rather than a bad CV, and
+        confirming which needs the file. Before this route the only way to read
+        the bytes was `railway ssh` onto the volume, which is both fiddlier and
+        completely untraced; the point of the route is not that the data became
+        more available but that reading it now leaves a record.
+
+        Three things keep it narrow:
+
+        - `require_super_admin`, not `require_admin`. The other four admins see
+          the account directory but never this, the same split as job_edit.
+        - The audit row is written FIRST. If the log write raises, the download
+          fails and no unlogged copy leaves the server.
+        - `Content-Disposition: attachment` with an ASCII-safe filename, so a
+          PDF cannot render inline in the admin's tab and a crafted filename
+          cannot break the header.
+
+        Note this is the only route in the API that returns `file_content`. The
+        Seeker's own `/api/me/resume` deliberately still does not — see
+        main.py's `_resume_out`.
+        """
+        store = seekers_store.get_store()
+        seeker = store.get_seeker(seeker_id)
+        if seeker is None:
+            raise HTTPException(status_code=404, detail="Seeker not found")
+
+        resume = store.get_resume(seeker_id, include_document=True)
+        if resume is None:
+            raise HTTPException(status_code=404, detail="This Seeker has no resume on file")
+
+        store.record_resume_download(
+            seeker_id=seeker_id,
+            seeker_email=seeker["email"],
+            admin_id=admin["id"],
+            admin_email=admin["email"],
+            filename=resume["filename"],
+            size_bytes=resume["size_bytes"],
+            reason=(reason or "").strip() or None,
+        )
+
+        # RFC 6266: `filename` must stay ASCII, `filename*` carries the real
+        # name. Quotes and backslashes are stripped rather than escaped — a
+        # resume filename has no business containing either, and dropping them
+        # is the one option that cannot terminate the header early.
+        safe = "".join(
+            ch for ch in resume["filename"] if 32 <= ord(ch) < 127 and ch not in '"\\'
+        ) or "resume.pdf"
+        quoted = quote(resume["filename"], safe="")
+        return Response(
+            content=resume["file_content"],
+            media_type=resume["media_type"],
+            headers={
+                "Content-Disposition": f'attachment; filename="{safe}"; filename*=UTF-8\'\'{quoted}',
+                # Never let a proxy or the browser keep a copy of this one.
+                "Cache-Control": "no-store, private",
+            },
+        )
+
+    @router.get("/accounts/resume-downloads")
+    def list_resume_downloads_route(_admin: dict = Depends(require_super_admin)):
+        """Who read whose resume, and when. The other half of the route above —
+        an audit trail nobody can read is not an audit trail."""
+        return {"downloads": seekers_store.get_store().list_resume_downloads()}
 
     # ── Ultimate Admin: direct job edit ─────────────────────────────────────
     # Behind require_super_admin, not require_admin — the other four admins

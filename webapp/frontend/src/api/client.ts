@@ -1074,6 +1074,8 @@ export interface AdminSeekerAccount {
   is_super_admin: boolean
   created_at: string
   last_login_at: string | null
+  /** Whether this Seeker has a resume on file — decides if a row offers a download. */
+  has_resume: boolean
 }
 
 export interface AdminEmployerAccount {
@@ -1089,6 +1091,42 @@ export interface AdminEmployerAccount {
 export interface AdminAccountsResponse {
   seekers: AdminSeekerAccount[]
   employers: AdminEmployerAccount[]
+}
+
+/**
+ * Fetch a Seeker's resume file and hand it to the browser as a download.
+ *
+ * A fetch + object URL rather than a plain `<a href download>`: the link would
+ * be simpler, but this endpoint can answer 403 (not Ultimate Admin) or 404 (no
+ * resume), and a bare anchor navigates the tab to the error JSON instead of
+ * surfacing it. Going through apiFetch keeps `credentials: 'include'` and lets
+ * the caller show the failure in place.
+ *
+ * `reason` is optional and free text; it is stored on the audit row the backend
+ * writes before it serves a single byte (see admin.py).
+ */
+export async function downloadSeekerResume(seekerId: string, reason = ''): Promise<void> {
+  const query = reason.trim() ? `?reason=${encodeURIComponent(reason.trim())}` : ''
+  const res = await apiFetch(`/api/admin/accounts/seekers/${encodeURIComponent(seekerId)}/resume${query}`)
+  if (!res.ok) throw new ApiError(res.status, await readDetail(res) || `Could not download the resume (${res.status}).`)
+
+  // Filename comes from the server's Content-Disposition so the saved file
+  // matches what the Seeker actually uploaded, not a name invented here.
+  const disposition = res.headers.get('content-disposition') ?? ''
+  const utf8 = /filename\*=UTF-8''([^;]+)/i.exec(disposition)
+  const plain = /filename="([^"]*)"/i.exec(disposition)
+  const filename = utf8 ? decodeURIComponent(utf8[1]) : (plain?.[1] || 'resume.pdf')
+
+  const url = URL.createObjectURL(await res.blob())
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  // Revoked on the next tick, not immediately: Safari cancels an in-flight
+  // download if the object URL disappears in the same frame as the click.
+  setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
 export async function fetchAdminAccounts(): Promise<AdminAccountsResponse> {
