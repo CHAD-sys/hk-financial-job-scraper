@@ -824,3 +824,114 @@ def test_edit_is_recorded_in_admin_edits_with_the_actors_seeker_id(
     assert row[1] == "job.title"
     assert row[2] == "Credit Analyst"
     assert row[3] == "New Title"
+
+
+# ── Ultimate Admin: resume download ───────────────────────────────────────────
+#
+# The one route in this API that returns resume bytes. Its whole justification
+# is that it is narrower and more accountable than the `railway ssh` it
+# replaces, so the tests below are about the gate and the audit trail, not just
+# about the file arriving.
+
+PDF_BYTES = b"%PDF-1.4 fake resume bytes"
+
+
+def _seed_resume(email: str, *, filename: str = "Ada CV.pdf") -> str:
+    """Give the named Seeker a resume; return their id."""
+    import seekers_store
+
+    store = seekers_store.get_store()
+    seeker_id = store.get_seeker_by_email(email)["id"]
+    store.replace_resume(
+        seeker_id,
+        filename=filename,
+        media_type="application/pdf",
+        size_bytes=len(PDF_BYTES),
+        content_sha256="c" * 64,
+        file_content=PDF_BYTES,
+        text_content="Group Treasurer with 20 years of experience",
+        analysis={"skills": [], "role_families": [], "sectors": []},
+    )
+    return seeker_id
+
+
+def test_ultimate_admin_downloads_the_exact_bytes_on_file(super_admin_client):
+    seeker_id = _seed_resume(ADMIN["email"])
+
+    res = super_admin_client.get(f"/api/admin/accounts/seekers/{seeker_id}/resume")
+
+    assert res.status_code == 200
+    assert res.content == PDF_BYTES
+    assert res.headers["content-type"] == "application/pdf"
+    # attachment, never inline — a PDF must not render in the admin's own tab.
+    assert res.headers["content-disposition"].startswith("attachment;")
+    assert "Ada CV.pdf" in res.headers["content-disposition"]
+    assert "no-store" in res.headers["cache-control"]
+
+
+def test_the_download_is_recorded_before_the_bytes_are_served(super_admin_client):
+    import seekers_store
+
+    seeker_id = _seed_resume(ADMIN["email"])
+    super_admin_client.get(
+        f"/api/admin/accounts/seekers/{seeker_id}/resume?reason=treasury+match+bug"
+    )
+
+    log = seekers_store.get_store().list_resume_downloads()
+    assert len(log) == 1
+    assert log[0]["seeker_id"] == seeker_id
+    assert log[0]["admin_email"] == ADMIN["email"]
+    assert log[0]["filename"] == "Ada CV.pdf"
+    assert log[0]["reason"] == "treasury match bug"
+    assert log[0]["downloaded_at"]
+
+
+def test_an_ordinary_admin_cannot_download_a_resume(admin_client_migrated_db):
+    """The gate is is_super_admin, not is_admin — the other four admins see the
+    directory but never the file. Uses a seeker id that need not exist: the
+    guard must refuse before the route ever looks one up."""
+    res = admin_client_migrated_db.get("/api/admin/accounts/seekers/whoever/resume")
+    assert res.status_code == 403
+
+
+def test_an_anonymous_visitor_cannot_download_a_resume(client):
+    res = client.get("/api/admin/accounts/seekers/whoever/resume")
+    assert res.status_code == 401
+
+
+def test_a_seeker_with_no_resume_is_404_and_writes_no_audit_row(super_admin_client):
+    import seekers_store
+
+    store = seekers_store.get_store()
+    seeker_id = store.get_seeker_by_email(ADMIN["email"])["id"]
+
+    res = super_admin_client.get(f"/api/admin/accounts/seekers/{seeker_id}/resume")
+
+    assert res.status_code == 404
+    # A refused read is not a read — it must not appear in the trail.
+    assert store.list_resume_downloads() == []
+
+
+def test_the_audit_trail_outlives_the_seeker_it_describes(super_admin_client):
+    """A Seeker deleting their account (docs/adr/0007) must not erase the record
+    of who looked at their resume — otherwise deleting the subject deletes the
+    evidence. This is the one table here without ON DELETE CASCADE."""
+    import seekers_store
+
+    store = seekers_store.get_store()
+    seeker_id = _seed_resume(ADMIN["email"])
+    super_admin_client.get(f"/api/admin/accounts/seekers/{seeker_id}/resume")
+
+    store.delete_seeker(seeker_id)
+
+    log = store.list_resume_downloads()
+    assert len(log) == 1
+    assert log[0]["seeker_id"] == seeker_id
+    assert log[0]["seeker_email"] == ADMIN["email"]
+
+
+def test_the_directory_says_which_seekers_have_a_resume(super_admin_client):
+    _seed_resume(ADMIN["email"])
+    rows = super_admin_client.get("/api/admin/accounts").json()["seekers"]
+    by_email = {row["email"]: row for row in rows}
+    assert by_email[ADMIN["email"]]["has_resume"] is True

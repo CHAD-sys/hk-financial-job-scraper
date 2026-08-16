@@ -573,6 +573,49 @@ def migrate_to_phase_9(conn: sqlite3.Connection) -> None:
     )
 
 
+def migrate_to_phase_10(conn: sqlite3.Connection) -> None:
+    """Record every time an Ultimate Admin downloads a Seeker's resume file.
+
+    The resume is the most sensitive thing this database holds, and until now
+    the only way to read the bytes was `railway ssh` into the volume — access
+    that leaves no trace anywhere. Putting the download behind an admin route
+    is a net privacy improvement only if the route is *more* accountable than
+    the shell was, so the log is written in the same request that serves the
+    file and a failure to write it fails the download.
+
+    Deliberately NOT `ON DELETE CASCADE` on seeker_id, unlike every other table
+    here: this is the one row that must outlive the account. A Seeker deleting
+    themselves (docs/adr/0007) must not also erase the record of who looked at
+    their resume — that would let an admin delete the evidence by deleting the
+    subject. seeker_id is kept as a plain TEXT column, not a foreign key, so
+    the row survives; `seeker_email` is denormalised for the same reason, since
+    after deletion there is nothing left to join against.
+    """
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS seeker_resume_downloads (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            seeker_id      TEXT NOT NULL,
+            seeker_email   TEXT NOT NULL,
+            admin_id       TEXT NOT NULL,
+            admin_email    TEXT NOT NULL,
+            filename       TEXT NOT NULL,
+            size_bytes     INTEGER NOT NULL,
+            reason         TEXT,
+            downloaded_at  TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_resume_downloads_seeker "
+        "ON seeker_resume_downloads (seeker_id)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_resume_downloads_at "
+        "ON seeker_resume_downloads (downloaded_at DESC)"
+    )
+
+
 # Every phase, in order. A future phase appends here; it never edits an applied
 # phase because seekers.db is irreplaceable first-party account data.
 _MIGRATIONS = (
@@ -585,6 +628,7 @@ _MIGRATIONS = (
     migrate_to_phase_7,
     migrate_to_phase_8,
     migrate_to_phase_9,
+    migrate_to_phase_10,
 )
 
 
@@ -838,12 +882,21 @@ class SeekerStore:
         `password_hash` is never selected — there is no admin use case for it,
         hashed or not, and leaving it out of the query is a stronger guarantee
         than trusting every caller to strip it from the row after the fact.
+
+        `has_resume` is a LEFT JOIN, not a per-row lookup: the directory needs
+        it for every row at once to decide which rows offer a download, and one
+        join stays a single query. That is a different shape from
+        `interests_for_seeker`, which is lazy precisely because it would
+        otherwise fan out into several reads per Seeker.
         """
         rows = self._conn().execute(
             """
-            SELECT id, email, display_name, username, email_verified,
-                   is_admin, is_super_admin, created_at, last_login_at
-            FROM seekers ORDER BY created_at DESC LIMIT ?
+            SELECT s.id, s.email, s.display_name, s.username, s.email_verified,
+                   s.is_admin, s.is_super_admin, s.created_at, s.last_login_at,
+                   (r.seeker_id IS NOT NULL) AS has_resume
+            FROM seekers s
+            LEFT JOIN seeker_resumes r ON r.seeker_id = s.id
+            ORDER BY s.created_at DESC LIMIT ?
             """,
             (max(1, min(int(limit), 2000)),),
         )
@@ -856,6 +909,7 @@ class SeekerStore:
                 "email_verified": bool(row["email_verified"]),
                 "is_admin": bool(row["is_admin"]),
                 "is_super_admin": bool(row["is_super_admin"]),
+                "has_resume": bool(row["has_resume"]),
             }
             for row in rows
         ]
@@ -1904,6 +1958,52 @@ class SeekerStore:
             result.pop("analysis_json", None)
             result["analysis"] = {}
         return result
+
+    def record_resume_download(
+        self,
+        *,
+        seeker_id: str,
+        seeker_email: str,
+        admin_id: str,
+        admin_email: str,
+        filename: str,
+        size_bytes: int,
+        reason: str | None = None,
+        now: datetime | None = None,
+    ) -> None:
+        """Write one audit row for an Ultimate Admin reading a resume file.
+
+        The caller writes this BEFORE handing over the bytes, so a failure here
+        aborts the download rather than serving an unlogged copy — see
+        migrate_to_phase_10 for why the trail has to outlive the account.
+        """
+        with self._write() as conn:
+            conn.execute(
+                """
+                INSERT INTO seeker_resume_downloads
+                    (seeker_id, seeker_email, admin_id, admin_email,
+                     filename, size_bytes, reason, downloaded_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    seeker_id, seeker_email, admin_id, admin_email,
+                    filename, int(size_bytes), reason or None,
+                    (now or utcnow()).isoformat(),
+                ),
+            )
+
+    def list_resume_downloads(self, *, limit: int = 200) -> list[dict[str, Any]]:
+        """The download log, newest first — what makes the route accountable."""
+        rows = self._conn().execute(
+            """
+            SELECT seeker_id, seeker_email, admin_id, admin_email,
+                   filename, size_bytes, reason, downloaded_at
+            FROM seeker_resume_downloads
+            ORDER BY downloaded_at DESC LIMIT ?
+            """,
+            (max(1, min(int(limit), 1000)),),
+        )
+        return [dict(row) for row in rows]
 
     def delete_resume(self, seeker_id: str) -> bool:
         with self._write() as conn:
