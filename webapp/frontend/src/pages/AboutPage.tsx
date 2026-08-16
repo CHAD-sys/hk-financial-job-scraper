@@ -7,7 +7,7 @@ import {
   FileText,
 } from 'lucide-react'
 import Nav from '../components/Nav'
-import { DataFlow, CoverageRadar, GrowthBars } from '../components/Illustrations'
+import { DataFlow, GrowthBars } from '../components/Illustrations'
 import PrivacyNotice from '../components/PrivacyNotice'
 import useHashScroll from '../hooks/useHashScroll'
 import { fetchStats } from '../api/client'
@@ -174,33 +174,6 @@ export default function AboutPage() {
                 </div>
               ))}
             </div>
-          </div>
-        </section>
-
-        {/* ── The problem we solve ─────────────────────────── */}
-        <section className="mx-auto max-w-7xl px-6 lg:px-8 py-16 grid lg:grid-cols-[1.4fr_1fr] gap-12 items-center">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--color-gold)', letterSpacing: '0.12em' }}>Why we built it</p>
-            <h2 className="text-2xl lg:text-3xl font-bold tracking-tight mb-4"
-                style={{ fontFamily: 'var(--font-display)', color: 'var(--color-ink)', letterSpacing: '-0.02em' }}>
-              Good roles hide in plain sight
-            </h2>
-            <ul className="flex flex-col gap-3">
-              {[
-                'Every firm posts on its own system — Workday here, Eightfold there, a bespoke page elsewhere.',
-                'A large share of postings are in Cantonese or Mandarin, invisible to English-only search.',
-                'Boutiques and specialist funds rarely appear on the big aggregators at all.',
-                'And no one keeps the history — so the market’s direction is impossible to see.',
-              ].map(t => (
-                <li key={t} className="flex gap-3 text-base leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
-                  <span className="flex-shrink-0 mt-2 h-1.5 w-1.5 rounded-full" style={{ backgroundColor: 'var(--color-gold)' }} />
-                  {t}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="flex justify-center">
-            <CoverageRadar className="w-full h-auto" style={{ maxWidth: 300 }} />
           </div>
         </section>
 
