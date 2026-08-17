@@ -450,3 +450,110 @@ def test_recruiter_posts_stay_reachable_outside_the_employer_dimension(employer_
     social = list_jobs(employer_conn, JobFilters(tier="social"), page_size=100,
                        audience=CatalogueAudience.MEMBER)
     assert set(_ids(social.jobs)) == {"CONF", "FRAGMENT", "COLLIDES"}
+
+
+# ── The employer's own words are not ours to republish ────────────────────────
+# `description_clean` is the employer's job description, stored verbatim. It is
+# kept so features can be re-extracted without re-scraping (see storage.py), and
+# reading it server-side — salary-period evidence, search indexing, admin editing
+# — is exactly what it is for.
+#
+# Publishing it is not. main.py's SEO block already states the rule for its own
+# surface: "a short AI summary — never `description_clean`". The Seeker-facing
+# routes never followed it. `description_excerpt` was the first 200 characters of
+# the employer's text on every row of every list response, anonymous included,
+# and `JobDetail.description_clean` shipped the whole thing; the detail panel then
+# rendered it whenever the AI summary was missing, which on the live board was 539
+# Roles averaging ~3,600 characters each.
+#
+# So the AI summary is now the ONLY description that leaves the API.
+
+@pytest.fixture()
+def description_conn(tmp_path) -> sqlite3.Connection:
+    """Two Roles with a full employer description: one summarised, one not."""
+    db = tmp_path / "descriptions.db"
+    make_jobs_db(
+        db,
+        jobs=[
+            job(source="workday", source_id="SUMMARISED", company="HKEX",
+                title="IAM Analyst finexscope", posted_at="2026-07-02",
+                description_clean="Company Introduction: We're home to Asia's most "
+                                  "dynamic and vibrant capital markets. Connecting "
+                                  "capital, ideas, inspiration and innovation."),
+            job(source="workday", source_id="BARE", company="FWD Insurance",
+                title="MI Planning Manager finexscope", posted_at="2026-07-01",
+                description_clean="KEY ACCOUNTABILITIES Develop and execute "
+                                  "Management Information, Planning & Analysis "
+                                  "strategy and policies for FWD Malaysia."),
+        ],
+        enrichments=[
+            enrichment(source="workday", source_id="SUMMARISED",
+                       description_summary="An identity and access management role "
+                                           "at a Hong Kong market operator."),
+        ],
+    )
+    c = prepare(sqlite3.connect(db))
+    yield c
+    c.close()
+
+
+def _by_id(page, source_id):
+    return next(j for j in page.jobs if j.source_id == source_id)
+
+
+def test_the_list_excerpt_is_never_the_employers_own_text(description_conn):
+    """The widest exposure: this excerpt was on every row of every list response,
+    including for anonymous visitors."""
+    page = list_jobs(description_conn, JobFilters(), page_size=100)
+    for j in page.jobs:
+        assert "Company Introduction" not in j.description_excerpt
+        assert "KEY ACCOUNTABILITIES" not in j.description_excerpt
+
+
+def test_the_list_excerpt_comes_from_the_ai_summary(description_conn):
+    page = list_jobs(description_conn, JobFilters(), page_size=100)
+    assert _by_id(page, "SUMMARISED").description_excerpt.startswith(
+        "An identity and access management role")
+
+
+def test_a_role_with_no_summary_gets_an_empty_excerpt_not_the_source(description_conn):
+    """Nothing to say is said by saying nothing. The Role still lists."""
+    page = list_jobs(description_conn, JobFilters(), page_size=100)
+    assert _by_id(page, "BARE").description_excerpt == ""
+    assert {j.source_id for j in page.jobs} == {"SUMMARISED", "BARE"}
+
+
+def test_the_detail_payload_does_not_carry_the_employers_full_text(description_conn):
+    """Removing it from the render is not enough — it was in the JSON, so it was
+    published whether or not anything drew it on screen."""
+    detail = get_job(description_conn, "workday", "BARE")
+    assert detail is not None
+    assert not hasattr(detail, "description_clean")
+    assert "KEY ACCOUNTABILITIES" not in detail.model_dump_json()
+
+
+def test_the_detail_payload_still_carries_the_summary(description_conn):
+    detail = get_job(description_conn, "workday", "SUMMARISED")
+    assert detail is not None
+    assert detail.description_summary.startswith("An identity and access management")
+
+
+def test_reading_the_employers_text_server_side_still_works(tmp_path):
+    """The point is that it stops being PUBLISHED, not that it stops being used.
+    salary_period infers month-vs-year from the employer's own wording."""
+    db = tmp_path / "salary.db"
+    make_jobs_db(
+        db,
+        jobs=[job(source="workday", source_id="PAID",
+                  description_clean="Salary HKD720000 per annum.")],
+        enrichments=[enrichment(source="workday", source_id="PAID",
+                                salary_hkd_max=720_000)],
+    )
+    conn = prepare(sqlite3.connect(db))
+    try:
+        detail = get_job(conn, "workday", "PAID")
+        assert detail is not None
+        assert detail.salary_period == "year"      # read from description_clean
+        assert "per annum" not in detail.model_dump_json()   # but not published
+    finally:
+        conn.close()

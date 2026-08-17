@@ -156,6 +156,32 @@ PUBLIC_AUDIENCE_WHERE = (
 #: `tier=social` tab, the hidden/verified filters, Roles for you and Saved Roles.
 EMPLOYER_DIMENSION_WHERE = "COALESCE(j.source_tier, 'mainstream') <> 'social'"
 
+#: The AI summary is the only description this API publishes. `description_clean`
+#: is the employer's own text, stored verbatim, and reproducing it is theirs to
+#: license, not ours to serve.
+#:
+#: Reading it server-side is what it is FOR and stays unrestricted: salary-period
+#: evidence below, the search index, sector classification, admin editing,
+#: re-extracting features without re-scraping. The rule is only about what leaves
+#: the process.
+#:
+#: main.py's public SEO block already stated this for its own surface — "a short
+#: AI summary — never `description_clean`" — but the Seeker-facing routes never
+#: followed it. Two ways it got out:
+#:
+#:   - `description_excerpt` was `description_clean[:200]` on EVERY row of EVERY
+#:     list response, anonymous included. Now built from the summary.
+#:   - `JobDetail` carried the full text, so it was published in the JSON whether
+#:     or not the UI drew it. The field is now absent from the model, which is why
+#:     this is a comment on a constant rather than a `= ""` default: a blank field
+#:     invites a one-line "fix" that repopulates it.
+#:
+#: The consequence is visible and intended: a Role whose summary is missing shows
+#: no description at all rather than the employer's. 539 live Roles were in that
+#: state when this landed (474 never enriched, 65 enriched to an empty summary),
+#: and the answer to those is to enrich them, not to fall back to the source.
+PUBLISHABLE_DESCRIPTION = "description_summary"
+
 
 class Sort(str, Enum):
     NEWEST = "newest"
@@ -292,7 +318,10 @@ class JobSummary(BaseModel):
 
 
 class JobDetail(JobSummary):
-    description_clean: str = ""
+    #: The AI summary is the ONLY description that leaves this API — see
+    #: PUBLISHABLE_DESCRIPTION. `description_clean` is deliberately absent rather
+    #: than blanked: absent cannot be repopulated by a well-meaning one-line
+    #: change, and mypy/pydantic reject the attempt instead of shipping it.
     description_summary: str = ""
     sources: list[str] = []
 
@@ -671,8 +700,11 @@ def _own_signals(row: sqlite3.Row) -> dict[str, dict]:
 
 
 def _to_summary(row: sqlite3.Row) -> JobSummary:
-    desc = row["description_clean"] or ""
-    excerpt = desc[:200].rstrip() + ("…" if len(desc) > 200 else "")
+    # From the AI summary, never `description_clean` — see PUBLISHABLE_DESCRIPTION.
+    # This used to be the first 200 characters of the employer's own description,
+    # on every row of every list response including anonymous ones.
+    summary = row["description_summary"] or ""
+    excerpt = summary[:200].rstrip() + ("…" if len(summary) > 200 else "")
     return JobSummary(
         source=row["source"],
         source_id=row["source_id"],
@@ -948,7 +980,6 @@ def get_job(
 
     return JobDetail(
         **summary.model_dump(),
-        description_clean=row["description_clean"] or "",
         description_summary=row["description_summary"] or "",
         sources=_group_sources(conn, source, source_id),
     )
