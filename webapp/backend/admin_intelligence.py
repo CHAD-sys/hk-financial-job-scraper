@@ -17,7 +17,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import seekers_store
-from job_read import BOARD_WHERE, SECTOR_SQL
+from job_read import BOARD_WHERE, EMPLOYER_DIMENSION_WHERE, SECTOR_SQL
 
 from hk_jobs.daily_run.model import DailyRunRecord
 from hk_jobs.daily_run.registry import profile_for
@@ -716,12 +716,17 @@ def _analytics_overview(conn: sqlite3.Connection) -> dict[str, Any]:
     # contain variants ("HSBC" / "HSBC Hong Kong") that split one employer and
     # materially understate HHI. Production has company_slug; the reduced test
     # stand-in intentionally does not, so retain a display-name fallback there.
+    # Recruiter Posts are excluded for the same reason the employer facet excludes
+    # them (job_read.EMPLOYER_DIMENSION_WHERE): a "Confidential via {recruiter}"
+    # row is a headhunter, not an employer, and counting one as an employer both
+    # invents an employer and distorts the concentration index it feeds.
     job_columns = {row[1] for row in _rows(conn, "PRAGMA table_info(jobs)")}
     if "company_slug" in job_columns:
         raw_company_rows = _rows(
             conn,
             f"SELECT j.company_slug, j.company, COUNT(*) AS cnt FROM jobs j "
-            f"WHERE {BOARD_WHERE} GROUP BY j.company_slug, j.company",
+            f"WHERE {BOARD_WHERE} AND {EMPLOYER_DIMENSION_WHERE} "
+            f"GROUP BY j.company_slug, j.company",
         )
         canonical: dict[str, dict[str, Any]] = {}
         for row in raw_company_rows:
@@ -739,7 +744,8 @@ def _analytics_overview(conn: sqlite3.Connection) -> dict[str, Any]:
             for row in _rows(
                 conn,
                 f"SELECT j.company, COUNT(*) AS cnt FROM jobs j "
-                f"WHERE {BOARD_WHERE} GROUP BY j.company",
+                f"WHERE {BOARD_WHERE} AND {EMPLOYER_DIMENSION_WHERE} "
+                f"GROUP BY j.company",
             )
         ]
     company_shares = [100.0 * r["cnt"] / total_board for r in company_rows] if total_board else []

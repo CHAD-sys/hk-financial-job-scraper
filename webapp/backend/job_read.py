@@ -130,6 +130,32 @@ PUBLIC_AUDIENCE_WHERE = (
     "COALESCE(j.source_tier, 'mainstream') NOT IN ('boutique', 'social')"
 )
 
+#: A recruiter is not an employer, so a Recruiter Post is not in the employer
+#: dimension — not offered as a filter choice, and never returned by one.
+#:
+#: `company` on a social-tier row never holds an employer a Seeker could filter a
+#: board by. It holds one of two things, and neither is an employer:
+#:
+#:   - "Confidential via {recruiter}" — the RECRUITER's own name, which is what
+#:     `posts/promote.py` writes whenever a mandate is confidential (the common
+#:     case: 512 of 616 promoted posts). It listed headhunters as employers, one
+#:     of them with 30 "openings".
+#:   - a name the LLM extracted from the post's prose, which is a guess. On the
+#:     live board those guesses have included outright sentence fragments —
+#:     "business leaders to", lifted from "Partner with business leaders to
+#:     forecast talent needs" — and, worse, names that COLLIDE with a real
+#:     employer, which made a recruiter's post answer a filter for that employer's
+#:     own vacancies and inflated its count.
+#:
+#: This is deliberately a rule about the dimension, not a data-quality filter:
+#: tightening the extractor would shrink the second case but can never make the
+#: first one an employer. Lives beside the audience policy above for the same
+#: reason — the facet, the filter and the counts must not drift apart.
+#:
+#: Recruiter Posts stay fully reachable everywhere else: free-text search, the
+#: `tier=social` tab, the hidden/verified filters, Roles for you and Saved Roles.
+EMPLOYER_DIMENSION_WHERE = "COALESCE(j.source_tier, 'mainstream') <> 'social'"
+
 
 class Sort(str, Enum):
     NEWEST = "newest"
@@ -422,8 +448,11 @@ def _where(
         conditions.append("(" + " OR ".join(parts) + ")")
 
     if filters.companies:
+        # A recruiter's post is not an employer's vacancy — see
+        # EMPLOYER_DIMENSION_WHERE. Without this the "HSBC" filter also answered
+        # with any Recruiter Post whose employer name the model guessed as "HSBC".
         ph = ",".join("?" * len(filters.companies))
-        conditions.append(f"j.company IN ({ph})")
+        conditions.append(f"j.company IN ({ph}) AND {EMPLOYER_DIMENSION_WHERE}")
         params += list(filters.companies)
 
     if filters.seniority:
@@ -808,7 +837,8 @@ def research_facets(
         NameCount(name=row["company"], count=row["cnt"])
         for row in conn.execute(
             "SELECT j.company, COUNT(*) AS cnt FROM jobs j"
-            f" WHERE {research} GROUP BY j.company ORDER BY cnt DESC, j.company",
+            f" WHERE {research} AND {EMPLOYER_DIMENSION_WHERE}"
+            " GROUP BY j.company ORDER BY cnt DESC, j.company",
         ).fetchall()
     ]
     sectors = [

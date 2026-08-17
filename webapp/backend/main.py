@@ -1021,8 +1021,13 @@ def get_stats(request: Request):
         total = conn.execute(
             f"SELECT COUNT(*) FROM jobs j WHERE {audience_where}"
         ).fetchone()[0]
+        # "Employers", so Recruiter Posts are out: their `company` is a recruiter's
+        # name or an LLM guess, never an employer. See EMPLOYER_DIMENSION_WHERE.
+        # An anonymous audience never saw them anyway (social is a member tier);
+        # without this a signed-in Seeker was told 242 employers when 189 were real.
         employer_count = conn.execute(
-            f"SELECT COUNT(DISTINCT j.company) FROM jobs j WHERE {audience_where}"
+            f"SELECT COUNT(DISTINCT j.company) FROM jobs j"
+            f" WHERE {audience_where} AND {job_read.EMPLOYER_DIMENSION_WHERE}"
         ).fetchone()[0]
 
         # By sector
@@ -1083,7 +1088,8 @@ def get_stats(request: Request):
         # Top 15 companies
         comp_raw = conn.execute(
             "SELECT j.company, COUNT(*) AS cnt FROM jobs j"
-            f" WHERE {audience_where} GROUP BY j.company ORDER BY cnt DESC LIMIT 15"
+            f" WHERE {audience_where} AND {job_read.EMPLOYER_DIMENSION_WHERE}"
+            " GROUP BY j.company ORDER BY cnt DESC LIMIT 15"
         ).fetchall()
         top_companies = [NameCount(name=r["company"], count=r["cnt"]) for r in comp_raw]
 
