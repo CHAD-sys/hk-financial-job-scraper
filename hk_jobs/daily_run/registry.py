@@ -67,6 +67,25 @@ PROFILES: dict[str, ExecutionProfile] = {
         "linkedin_promote",
         "publish",
     ),
+    # Enrichment on its own, for clearing a backlog without a scrape.
+    #
+    # It exists because the DeepSeek key is a GitHub secret, so enrichment can
+    # only run inside Actions — and the only way to reach it there used to be a
+    # full `hosted` run. That meant a one-line data repair cost a scrape of all
+    # 213 sources, and a manual dispatch queued alongside the nightly cron put two
+    # such scrapes inside two hours, which is the burst this repo has already been
+    # rate-limited by once (see the workflow's concurrency comment, 2026-08-13).
+    #
+    # restore and publish are not optional decoration: `restore` pulls the live
+    # database down from Railway and `publish` hands it back, so without them the
+    # phase would enrich a database nobody reads. The three together are the
+    # smallest set that changes production.
+    "enrich_only": _profile(
+        "enrich_only",
+        "restore",
+        "deepseek",
+        "publish",
+    ),
     "local": _profile(
         "local",
         "scrape",

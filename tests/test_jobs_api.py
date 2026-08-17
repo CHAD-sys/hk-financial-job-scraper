@@ -33,6 +33,12 @@ from .support import enrichment, job, make_app, make_bundle, make_jobs_db, signa
 
 # Companies chosen so SECTOR_SQL puts each in a different bucket.
 BANKING = "HSBC"
+
+#: Stamped into every fixture row's `description_clean` — the employer's own text.
+#: No public response may echo it back. See test_no_public_response_echoes_the_
+#: employers_own_text, which is the blocker: it does not care what a field is
+#: called, only whether the employer's words reach the wire.
+EMPLOYER_TEXT_SENTINEL = "QQEMPLOYERVERBATIMQQ"
 IB = "Goldman Sachs"
 INSURANCE = "AIA"
 ASSET_MGMT = "BlackRock"
@@ -124,7 +130,9 @@ def _seed():
     # filtering/sorting can work inside one legitimate research scope without
     # reopening the production endpoint's former unscoped catalogue access.
     for row in jobs:
-        row["description_clean"] = f"{row['description_clean']} finexscope".strip()
+        row["description_clean"] = (
+            f"{row['description_clean']} finexscope {EMPLOYER_TEXT_SENTINEL}".strip()
+        )
     return jobs, enrichments
 
 
@@ -485,3 +493,62 @@ def test_filter_facets_refuse_a_global_catalogue_read(client):
 def test_stats_counts_internships_the_same_way_the_filter_does(client):
     stats = client.get("/api/stats").json()
     assert stats["internship_count"] == _get(client, is_internship=True, page_size=1)["total"]
+
+
+# ── The blocker ───────────────────────────────────────────────────────────────
+# Publishing the employer's own job description is a licensing problem, and it
+# reached production twice over — once as `description_clean[:200]` in every list
+# response, once as the whole field in every detail response — because each was
+# reviewed as a display detail rather than as a publication decision.
+#
+# The two tests below are the standing gate. They are deliberately NOT written as
+# "no field called description_clean": a differently-named field, a new route, or
+# a debug echo would all pass that and still publish the text. Instead every
+# fixture row carries a sentinel inside its stored employer text, and the sweep
+# asserts no public response contains it. Anything that starts serving the
+# employer's words fails here, whatever it is called.
+
+#: Every ungated or Seeker-facing surface that carries Role data. A new one added
+#: without a line here is the gap this list exists to make obvious.
+def _public_surfaces(client):
+    listing = _get(client, page_size=100)
+    grant = listing["jobs"][0]["access_token"]
+    ref = listing["jobs"][0]
+    yield "/api/jobs", client.get("/api/jobs", params={"search": "finexscope"})
+    yield "/api/filters", client.get("/api/filters", params={"search": "finexscope"})
+    yield "/api/stats", client.get("/api/stats")
+    yield "/api/jobs/{source}/{id}", client.get(
+        f"/api/jobs/{ref['source']}/{ref['source_id']}",
+        headers={"X-Role-Access": grant},
+    )
+    yield "/sitemap.xml", client.get("/sitemap.xml")
+    yield "public teaser page", client.get(
+        f"/jobs/{ref['source']}/{ref['source_id']}", follow_redirects=True
+    )
+
+
+def test_no_public_response_echoes_the_employers_own_text(client):
+    """The gate. Not 'no field named description_clean' — no employer text, at all,
+    under any field name, on any of these surfaces."""
+    checked = 0
+    for name, response in _public_surfaces(client):
+        assert response.status_code in (200, 301, 302, 404), f"{name}: {response.status_code}"
+        assert EMPLOYER_TEXT_SENTINEL not in response.text, (
+            f"{name} published the employer's own description"
+        )
+        checked += 1
+    assert checked == 6, "a surface was dropped from the sweep without being replaced"
+
+
+def test_the_sentinel_is_really_in_the_database(client):
+    """Guards the guard. If the sentinel stopped being stored, the sweep above
+    would pass for the wrong reason and this whole gate would be theatre —
+    which is the failure mode CLAUDE.md warns about: a test that passes while
+    asserting nothing."""
+    body = _get(client, page_size=100)
+    assert body["total"] > 0
+    # It is searchable, because the index legitimately reads the employer's text
+    # server-side. That is the point: stored and indexed, never served.
+    found = client.get("/api/jobs", params={"search": EMPLOYER_TEXT_SENTINEL})
+    assert found.status_code == 200
+    assert found.json()["total"] > 0, "sentinel is not in description_clean any more"
