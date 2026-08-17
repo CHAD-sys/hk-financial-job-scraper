@@ -48,6 +48,27 @@ def test_profiles_share_one_phase_vocabulary_without_forcing_identical_work():
     assert hosted.phase("scrape") == local.phase("scrape")
 
 
+def test_enrich_only_is_the_smallest_profile_that_changes_production():
+    """Enrichment has to run inside GitHub Actions (the DeepSeek key is a secret
+    there), and the only route to it used to be a full `hosted` run — so clearing
+    an enrichment backlog cost a scrape of all 213 sources. restore and publish
+    are required, not decoration: without them the phase would enrich a database
+    nobody reads."""
+    assert [phase.key for phase in profile_for("enrich_only").phases] == [
+        "restore",
+        "deepseek",
+        "publish",
+    ]
+
+
+def test_enrich_only_reuses_the_shared_phase_definitions():
+    """A profile selects phases; it never redefines them. Otherwise 'deepseek'
+    could come to mean something different depending on how it was reached."""
+    hosted, enrich = profile_for("hosted"), profile_for("enrich_only")
+    for key in ("restore", "deepseek", "publish"):
+        assert hosted.phase(key) == enrich.phase(key)
+
+
 def test_required_failure_aborts_catalogue_work_but_record_remains_complete():
     record = DailyRunRecord.start(
         "run-1",
@@ -107,7 +128,7 @@ def test_unknown_profile_and_phase_fail_loudly():
     try:
         profile_for("desktop")
     except ValueError as exc:
-        assert "choose hosted, local" in str(exc)
+        assert "choose enrich_only, hosted, local" in str(exc)
     else:
         raise AssertionError("unknown profile should fail")
 

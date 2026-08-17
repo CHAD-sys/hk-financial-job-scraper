@@ -27,7 +27,9 @@ from hk_jobs.daily_run.runner import run_daily
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run the FinEx Careers Daily Run")
-    parser.add_argument("--profile", choices=("hosted", "local"), required=True)
+    parser.add_argument(
+        "--profile", choices=("hosted", "local", "enrich_only"), required=True
+    )
     parser.add_argument("--run-id", default=os.getenv("GITHUB_RUN_ID"))
     parser.add_argument("--record", default="data/daily-run.json")
     parser.add_argument("--database", default="data/jobs.db")

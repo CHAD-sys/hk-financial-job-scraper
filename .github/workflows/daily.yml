@@ -10,6 +10,14 @@ on:
         description: "Run only this company slug (leave blank for all)"
         required: false
         default: ""
+      profile:
+        description: "hosted = full nightly run; enrich_only = restore, enrich, publish (no scrape)"
+        required: false
+        default: hosted
+        type: choice
+        options:
+          - hosted
+          - enrich_only
 
 permissions:
   contents: read
@@ -115,9 +123,12 @@ jobs:
         env:
           COMPANY: ${{ github.event.inputs.company }}
           SEND_RESULT_EMAIL: ${{ github.event_name == 'schedule' && '1' || '0' }}
+          # A scheduled run is always the full nightly pipeline; only a manual
+          # dispatch may narrow it to enrich_only.
+          PROFILE: ${{ github.event_name == 'schedule' && 'hosted' || inputs.profile }}
         run: |
           ARGS=(
-            --profile hosted
+            --profile "${PROFILE:-hosted}"
             --run-id "$GITHUB_RUN_ID"
             --record data/daily-run.json
             --database data/jobs.db
