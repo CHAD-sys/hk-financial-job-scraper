@@ -115,7 +115,10 @@ export interface Job {
 }
 
 export interface JobDetail extends Job {
-  description_clean: string
+  // No `description_clean`. The employer's own text is not published — the API
+  // does not send it, so nothing here can render it. See the backend's
+  // PUBLISHABLE_DESCRIPTION. The admin editor works on AdminJobRecord, which
+  // does carry it, because editing the stored text is a different job.
   description_summary: string
   sources: string[]
 }

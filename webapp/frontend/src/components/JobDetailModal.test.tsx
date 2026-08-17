@@ -40,7 +40,6 @@ const recruiterAccountingOfficer: Job = {
 
 const detail: JobDetail = {
   ...recruiterAccountingOfficer,
-  description_clean: 'Salary up to HK$30K.',
   description_summary: 'Accounting Officer with salary up to HK$30K.',
   sources: ['linkedin_posts'],
 }
@@ -76,7 +75,6 @@ describe('JobDetailModal compensation', () => {
     vi.mocked(fetchJobDetail).mockResolvedValue({
       ...detail,
       ...annualJob,
-      description_clean: 'Salary HKD720000 per annum.',
       description_summary: 'Annual salary HKD720000.',
       sources: ['linkedin_posts'],
     })

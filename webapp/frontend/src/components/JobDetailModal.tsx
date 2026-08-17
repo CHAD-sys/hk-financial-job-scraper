@@ -147,11 +147,15 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
                 guess rather than the employer's requirement. Same rule as the
                 card; the reasoning is written out in JobCard.tsx. */}
             {job.source_tier !== 'social' && <SkillsSection skills={d.required_skills} />}
+            {/* Summary, then the list excerpt (itself built from the summary),
+                then a placeholder. There is deliberately no fall back to the
+                employer's own description: it is not ours to republish, and the
+                API no longer sends it. A Role with no summary shows nothing here
+                until enrichment gives it one. */}
             <DescriptionSection
               loading={loading}
               text={
                 detail?.description_summary ||
-                detail?.description_clean ||
                 job.description_excerpt ||
                 'No description available.'
               }

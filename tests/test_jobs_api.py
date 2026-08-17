@@ -105,7 +105,13 @@ def _seed():
         enrichment(source="workday", source_id="BANK",
                    salary_hkd_min=40_000, salary_hkd_max=60_000,
                    seniority="mid", remote_type="on-site",
+                   description_summary="A credit risk role at a Hong Kong bank.",
                    required_skills='["credit risk"]', years_experience_required=5),
+        # Truncation is a property of the SUMMARY now, so the long text under
+        # test has to be a summary. 'y' here, 'x' in the row's own description:
+        # the excerpt test asserts it sees the former and never the latter.
+        enrichment(source="workday", source_id="LONGDESC",
+                   description_summary="y" * 500),
         enrichment(source="workday", source_id="IB",
                    salary_estimated_min=80_000, salary_estimated_max=120_000,
                    seniority="senior", remote_type="hybrid"),
@@ -310,6 +316,16 @@ def test_excerpt_is_truncated_with_an_ellipsis(client):
     body = _get(client, companies=[BANKING], page_size=100)
     excerpt = next(j for j in body["jobs"] if j["source_id"] == "LONGDESC")["description_excerpt"]
     assert len(excerpt) == 201 and excerpt.endswith("…")
+    # Truncated from the AI summary, never from the employer's own description.
+    assert excerpt.startswith("y") and "x" not in excerpt
+
+
+def test_the_list_never_puts_the_employers_own_words_on_the_wire(client):
+    """The exposure this replaced: description_excerpt was description_clean[:200]
+    for every row of every list response, anonymous included."""
+    body = _get(client, page_size=100)
+    for row in body["jobs"]:
+        assert "x" * 20 not in row["description_excerpt"]
 
 
 def test_apply_url_wins_over_the_source_url(client):
@@ -384,7 +400,15 @@ def test_detail_returns_the_role(client):
     assert r.status_code == 200
     body = r.json()
     assert body["company"] == BANKING
-    assert body["description_clean"].startswith("Analyse credit risk.")
+    assert body["description_summary"].startswith("A credit risk role")
+
+
+def test_detail_never_puts_the_employers_own_words_on_the_wire(client):
+    """This assertion used to be its opposite — the test asserted the payload
+    DID carry description_clean, which is part of why it shipped for seven weeks."""
+    body = _detail(client, "workday", "BANK").json()
+    assert "description_clean" not in body
+    assert "Analyse credit risk." not in _detail(client, "workday", "BANK").text
 
 
 def test_detail_404s_for_an_unknown_role(client):
