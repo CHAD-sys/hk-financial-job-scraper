@@ -33,6 +33,7 @@ from job_read import (  # noqa: E402
     jobs_by_refs,
     list_jobs,
     prepare,
+    research_facets,
 )
 
 LIVE = ("workday", "LIVE")
@@ -364,3 +365,88 @@ def test_boost_paginates_without_gaps_or_duplicates(boost_conn):
                        audience=CatalogueAudience.MEMBER, boost_recruiter_posts=True)
     seen = _ids(page1.jobs) + _ids(page2.jobs) + _ids(page3.jobs)
     assert len(seen) == len(set(seen)) == 12
+
+
+# ── A recruiter is not an employer ────────────────────────────────────────────
+# `company` on a social-tier row never holds an employer a Seeker could filter a
+# board by. It holds either "Confidential via {recruiter}" — the RECRUITER's own
+# name — or a name the LLM extracted from post prose, which on the live board has
+# included outright sentence fragments ("business leaders to", lifted from
+# "Partner with business leaders to forecast talent needs"). Both are category
+# errors in the employer dimension, so the whole tier stays out of it.
+
+
+@pytest.fixture()
+def employer_conn(tmp_path) -> sqlite3.Connection:
+    """One real employer, plus recruiter posts of all three shapes the live board
+    actually contains: a "Confidential via …" recruiter name, an LLM-extracted
+    sentence fragment, and an extracted name that COLLIDES with a real employer."""
+    db = tmp_path / "employer.db"
+    make_jobs_db(
+        db,
+        jobs=[
+            job(source="workday", source_id="REAL", company="HSBC",
+                title="Credit Analyst finexscope", posted_at="2026-07-01"),
+            job(source="linkedin_posts", source_id="CONF", source_tier="social",
+                company="Confidential via Janice Wong",
+                title="Credit Analyst finexscope", posted_at="2026-07-02"),
+            job(source="linkedin_posts", source_id="FRAGMENT", source_tier="social",
+                company="business leaders to",
+                title="Credit Analyst finexscope", posted_at="2026-07-03"),
+            job(source="linkedin_posts", source_id="COLLIDES", source_tier="social",
+                company="HSBC",
+                title="Credit Analyst finexscope", posted_at="2026-07-04"),
+        ],
+    )
+    c = prepare(sqlite3.connect(db))
+    yield c
+    c.close()
+
+
+def test_a_recruiter_is_never_offered_as_an_employer(employer_conn):
+    """The employer facet is a list of EMPLOYERS. A recruiter's name in it invites
+    a Seeker to filter the board by a person who does not employ anyone."""
+    facets = research_facets(employer_conn, "finexscope",
+                             audience=CatalogueAudience.MEMBER)
+    names = [c.name for c in facets.companies]
+    assert not any(n.startswith("Confidential via") for n in names)
+    assert "business leaders to" not in names
+
+
+def test_the_employer_facet_holds_only_real_employers(employer_conn):
+    """Three of the four rows are recruiter posts, so exactly one employer is on
+    offer — and its count is 1, not 2, because the colliding post is not an HSBC
+    vacancy just because the model wrote "HSBC"."""
+    facets = research_facets(employer_conn, "finexscope",
+                             audience=CatalogueAudience.MEMBER)
+    assert [(c.name, c.count) for c in facets.companies] == [("HSBC", 1)]
+
+
+def test_a_company_filter_never_returns_a_recruiter_post(employer_conn):
+    """The rule, stated directly: no company filter, for any audience, by any
+    name, may hand back a recruiter's post."""
+    for name in ("Confidential via Janice Wong", "business leaders to", "HSBC"):
+        page = list_jobs(employer_conn, JobFilters(companies=(name,)), page_size=100,
+                         audience=CatalogueAudience.MEMBER)
+        assert all(j.source != "linkedin_posts" for j in page.jobs), name
+
+
+def test_a_company_filter_on_a_real_employer_returns_only_its_own_role(employer_conn):
+    """Filtering HSBC must reach the Workday vacancy and NOT the recruiter post
+    whose employer name the LLM guessed as "HSBC"."""
+    page = list_jobs(employer_conn, JobFilters(companies=("HSBC",)), page_size=100,
+                     audience=CatalogueAudience.MEMBER)
+    assert _ids(page.jobs) == ["REAL"]
+    assert page.total == 1
+
+
+def test_recruiter_posts_stay_reachable_outside_the_employer_dimension(employer_conn):
+    """Leaving the employer dimension is not leaving the board. The Secret Market
+    is a member benefit; only the company filter and facet stop carrying it."""
+    everything = list_jobs(employer_conn, JobFilters(), page_size=100,
+                           audience=CatalogueAudience.MEMBER)
+    assert set(_ids(everything.jobs)) == {"REAL", "CONF", "FRAGMENT", "COLLIDES"}
+
+    social = list_jobs(employer_conn, JobFilters(tier="social"), page_size=100,
+                       audience=CatalogueAudience.MEMBER)
+    assert set(_ids(social.jobs)) == {"CONF", "FRAGMENT", "COLLIDES"}

@@ -111,6 +111,8 @@ class PipelineArgs:
     force_refresh: bool = False
     deactivate_stale_posts: int | None = None
     check_ghost_jobs: bool = False
+    repair_post_employers: bool = False
+    repair_apply: bool = False
 
     @classmethod
     def from_namespace(cls, ns: argparse.Namespace) -> PipelineArgs:
@@ -347,6 +349,26 @@ def build_parser() -> argparse.ArgumentParser:
             "Only sensible while the dataset is small enough to make a full LLM pass "
             "affordable — use --audit-limit to cap cost/time if needed."
         ),
+    )
+    p.add_argument(
+        "--repair-post-employers",
+        dest="repair_post_employers",
+        action="store_true",
+        help=(
+            "Re-apply the employer-name plausibility rule to Recruiter Post rows "
+            "already on the board. Rows promoted before the rule existed kept "
+            "whatever the extractor claimed, including prose it mislabelled as an "
+            "employer ('business leaders to'); those are rewritten to the "
+            "'Confidential via {recruiter}' form. Reads each post's STORED "
+            "extraction result — no DeepSeek calls, no cost. Reports what it would "
+            "change and does nothing unless --repair-apply is also given."
+        ),
+    )
+    p.add_argument(
+        "--repair-apply",
+        dest="repair_apply",
+        action="store_true",
+        help="Actually write the changes a --repair-* pass reports. Off by default.",
     )
     p.add_argument(
         "--repair-companies",
@@ -693,6 +715,18 @@ def _check_ghost_jobs(args: PipelineArgs) -> None:
     )
 
 
+def _repair_post_employers(args: PipelineArgs) -> None:
+    from hk_jobs.posts.promote import repair_employer_names
+
+    summary = repair_employer_names(args.db, dry_run=not args.repair_apply)
+    verb = "would rewrite" if not args.repair_apply else "rewrote"
+    print(f"{summary.examined} promoted posts examined; {verb} {summary.repaired}.")
+    for name in summary.names:
+        print(f"  refused as an employer name: {name!r}")
+    if summary.repaired and not args.repair_apply:
+        print("Nothing was written. Re-run with --repair-apply to apply.")
+
+
 def _repair_companies(args: PipelineArgs) -> None:
     from hk_jobs.description_fetcher import DescriptionFetcher
 
@@ -725,6 +759,8 @@ MODES: tuple[Mode, ...] = (
     Mode("deactivate-stale-posts",
          lambda a: a.deactivate_stale_posts is not None, _deactivate_stale_posts),
     Mode("check-ghost-jobs", lambda a: a.check_ghost_jobs, _check_ghost_jobs),
+    Mode("repair-post-employers",
+         lambda a: a.repair_post_employers, _repair_post_employers),
     Mode("repair-companies", lambda a: a.repair_companies, _repair_companies),
 )
 
