@@ -30,6 +30,7 @@ match was found (PLAN_LINKEDIN_POSTS.md §4, §7).
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
@@ -221,10 +222,155 @@ def _fetch_pending(db_path: str, *, limit: int | None) -> list[sqlite3.Row]:
         conn.close()
 
 
+# ── Does the extraction LOOK like what it claims to be? ───────────────────────
+# The prompt in extractor.py is already explicit: "NEVER invent an employer name.
+# employer_named is true ONLY if a specific company/bank/fund name is explicitly
+# written in the post. A phrase like 'a leading private bank' or 'my client' is
+# NOT a named employer." The model agrees and then does it anyway, and this module
+# used to copy whatever it said onto the board: `employer_named: true,
+# employer_hint: "business leaders to"` produced a company literally called
+# "business leaders to", sliced out of "Partner with business leaders to forecast
+# talent needs". 15% of named employers were prose like that. One guess collided
+# with a real employer's name, so a recruiter's post answered a filter for that
+# employer's own vacancies and inflated its count.
+#
+# So `employer_named` is no longer taken on trust — a hint has to look like a name
+# before it is used as one. Tightening the prompt cannot replace this: the prompt
+# was already correct, and a model's self-report about its own compliance is not
+# evidence. These are shape tests, not a blocklist of known-bad strings, so a new
+# fragment the model has never produced before is still caught.
+#
+# The thresholds are calibrated against every hint the live extractor has actually
+# returned — see the table in tests/test_posts_promote.py, where the accept-list
+# matters more than the reject-list. Known residue that still gets through: bare
+# generic nouns ("Chinese", "DCM", "Private Family Office") and plausible-looking
+# truncations ("Tier International Bank"). They are wrong but name-shaped, and
+# tightening far enough to catch them starts rejecting real employers.
+
+#: Words that begin prose, never a company name.
+_PROSE_STARTERS = frozenset({
+    "we", "we're", "we’re", "i", "i'm", "i’m", "our", "your", "their", "my",
+    "this", "that", "these", "those", "it", "there",
+    "join", "joining", "seeking", "looking", "hiring", "apply", "please",
+    "exciting", "opportunity", "proven", "proficient", "experienced",
+    "currently", "urgently", "now", "also", "given", "after",
+})
+
+#: A name cannot END on a function word — "business leaders to" is a clause with
+#: its object cut off, which is exactly what slicing mid-sentence produces.
+_DANGLING_WORDS = frozenset({
+    "to", "and", "or", "with", "for", "of", "in", "on", "at", "from", "by",
+    "as", "a", "an", "the", "&", "that", "which", "who", "is", "are",
+})
+
+#: What the prompt asks for when employer_named is FALSE — "a short generic
+#: description like 'international private bank'". Ending on one of these means
+#: the model described an employer rather than naming one, whatever the flag said.
+_GENERIC_TAIL = frozenset({
+    "leading", "foreign", "regional", "corporate", "international", "financial",
+    "dynamic", "prestigious", "reputable", "renowned", "growing", "global",
+    "boutique", "top", "major", "large", "established", "sizeable", "reputed",
+})
+
+#: Prose verbs. A name is a noun phrase; "We are partnering with…" is a sentence.
+_PROSE_VERB = re.compile(r"\b(are|is|was|were|will|would|can|have|has|been)\b", re.I)
+
+#: Text lifted out of a post body brings its layout with it. A real name never
+#: contains a newline, a tab, or the non-breaking space LinkedIn sprinkles around.
+_LAYOUT_CHARS = "\n\r\t\v\f\xa0  "
+
+#: "東亞銀行 The Bank of East Asia (BEA)" is seven words and real, so the cap sits
+#: above it rather than at the more natural four.
+_NAME_WORD_CAP = 7
+
+
+def _is_proper_noun(word: str) -> bool:
+    """Capitalised, or any non-ASCII script (CJK names carry no case)."""
+    head = word.lstrip("(“\"'‘（")[:1]
+    return bool(head) and (head.isupper() or not head.isascii())
+
+
+def _looks_like_an_employer_name(hint: str) -> bool:
+    """
+    Whether `hint` is shaped like an employer's name rather than post prose.
+
+    Refusing is cheap and never blocks a promotion: the caller falls back to the
+    "Confidential via {recruiter}" path that decision #7 already specifies for a
+    mandate with no named employer, which is always available and always correct.
+    """
+    name = (hint or "").strip()
+    if len(name) < 3:
+        return False                                  # "Sc" — a truncation
+    if any(ch in name for ch in _LAYOUT_CHARS):
+        return False                                  # sliced out of the body
+    if "#" in name or "http" in name.lower():
+        return False                                  # hashtag block or a link
+    if _PROSE_VERB.search(name):
+        return False
+
+    words = name.split()
+    if len(words) > _NAME_WORD_CAP:
+        return False
+    if name[:1].islower() and len(words) > 1:
+        return False                                  # "business leaders to"
+
+    first = words[0].lower().strip(".,:;!?")
+    if first in _PROSE_STARTERS:
+        return False
+    last = words[-1].lower().strip(".,:;!?()（）")
+    if last in _DANGLING_WORDS or last in _GENERIC_TAIL:
+        return False
+
+    # An article has to be followed by the thing it introduces. This is the rule
+    # that separates the two article shapes the model produces: "The Bank of East
+    # Asia (BEA)" names an employer, "A leading foreign" only describes one.
+    if first in {"a", "an", "the"} and not any(_is_proper_noun(w) for w in words[1:]):
+        return False
+
+    return True
+
+
+def _looks_like_a_job_title(title: str) -> bool:
+    """
+    Whether `title` is a job title rather than a fragment of the post.
+
+    Deliberately looser than the employer test, because there is no fallback for
+    a title: refusing one refuses the whole post. So this rejects only shapes that
+    cannot be a title under any reading — no word cap (real HK finance titles run
+    long: "Executive Director, Consumer & Retail Coverage, Investment Banking"),
+    and no vocabulary rules. It cannot catch a plausible truncation like "Direc".
+    """
+    text = (title or "").strip()
+    if len(text) < 3:
+        return False                                  # ":", ")", "! 🌟"
+    if any(ch in text for ch in "\n\r\v\f  "):
+        return False                                  # two fields glued together
+    if not text[0].isalnum() and not _is_proper_noun(text):
+        return False                                  # "| VP / Director", "🔔 !!"
+    if text.startswith("#"):
+        return False                                  # a hashtag block
+    if not re.search(r"[^\W\d_]{3}", text, re.UNICODE):
+        return False                                  # no word in it at all
+    if text.endswith(":"):
+        return False                                  # "stands out:", "for:"
+
+    words = text.split()
+    first = words[0].lower().strip(".,:;!?|")
+    if first in _PROSE_STARTERS or first in _DANGLING_WORDS:
+        return False                                  # "for you!", "and let's…"
+    if text[:1].islower() and len(words) > 1:
+        return False                                  # "covering custody"
+    return True
+
+
 def _passes_gate(result: ExtractionResult) -> bool:
     return (
         result.is_job_post
         and bool(result.title and result.title.strip())
+        # The gate's contract has always said "concrete title" (see the module
+        # docstring); until this call it only checked "non-empty", which let
+        # "for you!" and "stands out:" onto the board as job titles.
+        and _looks_like_a_job_title(result.title or "")
         and result.hk_plausible
     )
 
@@ -235,7 +381,15 @@ def _build_job(
     recruiter_slug = row["recruiter_slug"]
     author_name = row["author_name"] or recruiter_slug
 
-    if result.employer_named and result.employer_hint:
+    # `employer_named` alone is not enough — see _looks_like_an_employer_name.
+    # A hint that doesn't look like a name is treated exactly as "no named
+    # employer", which is the case decision #7 already covers.
+    named = bool(
+        result.employer_named
+        and result.employer_hint
+        and _looks_like_an_employer_name(result.employer_hint)
+    )
+    if named:
         company = result.employer_hint
         company_slug = _slugify(result.employer_hint)
     else:
@@ -246,7 +400,10 @@ def _build_job(
         "recruiter_name": author_name,
         "recruiter_profile_url": row["author_profile_url"],
         "recruiter_email": recruiter_email,  # None until hk_jobs.posts.email_harvest runs
-        "employer_hint": result.employer_hint if not result.employer_named else None,
+        # Keyed off `named`, not `employer_named`: a hint we refused to use as the
+        # company is still the best evidence we have about the employer, so it is
+        # kept here rather than discarded.
+        "employer_hint": result.employer_hint if not named else None,
         "engagement": {
             "likes": row["engagement_likes"],
             "comments": row["engagement_comments"],
@@ -321,3 +478,104 @@ def _set_status(conn: sqlite3.Connection, post_urn: str, status: str) -> None:
             "UPDATE linkedin_posts SET extraction_status = ? WHERE post_urn = ?",
             (status, post_urn),
         )
+
+
+# ── Backfill ──────────────────────────────────────────────────────────────────
+
+@dataclass
+class RepairSummary:
+    """What a repair pass found. `repaired` is what it did, or in a dry run what
+    it would have done — the two are deliberately the same number so a dry run
+    predicts the real thing exactly."""
+
+    examined: int = 0
+    repaired: int = 0
+    names: list[str] = field(default_factory=list)
+
+
+def repair_employer_names(db_path: str, *, dry_run: bool = True) -> RepairSummary:
+    """
+    Re-apply the employer-name rule to Recruiter Post rows already on the board.
+
+    The validator only guards new promotions; the rows promoted before it existed
+    keep whatever the model said. This re-reads each promoted post's STORED
+    extraction result — no DeepSeek calls, so no cost and no risk of a re-run
+    disagreeing with what was originally extracted — and rewrites the `jobs` row
+    to the confidential form wherever the stored hint would be refused today.
+
+    `dedup_hash` is recomputed because it is sha256(company_slug|title|location):
+    leaving it would keep a fingerprint of a name no longer on the row, and
+    reconcile_cross_posted() reads that fingerprint to decide cross_posted.
+
+    Dry run by default — this rewrites production rows, so it has to be asked for.
+    """
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    summary = RepairSummary()
+    try:
+        rows = conn.execute(
+            "SELECT p.post_urn, p.author_name, p.recruiter_slug,"
+            "       p.extraction_result_json, j.company, j.title, j.locations"
+            "  FROM linkedin_posts p"
+            "  JOIN jobs j ON j.source = ? AND j.source_id = p.post_urn"
+            " WHERE p.extraction_status = 'promoted'"
+            "   AND p.extraction_result_json IS NOT NULL",
+            (SOURCE,),
+        ).fetchall()
+
+        pending: list[tuple[str, str, str, str]] = []
+        for row in rows:
+            summary.examined += 1
+            try:
+                stored = json.loads(row["extraction_result_json"])
+            except (TypeError, ValueError):
+                continue
+            hint = (stored.get("employer_hint") or "").strip()
+            if not (stored.get("employer_named") and hint):
+                continue
+            if _looks_like_an_employer_name(hint):
+                continue
+
+            author = row["author_name"] or row["recruiter_slug"]
+            company = f"Confidential via {author}"
+            slug = f"confidential-{row['recruiter_slug']}"
+            if row["company"] == company:
+                continue                      # already repaired — idempotent
+
+            summary.repaired += 1
+            summary.names.append(hint)
+            pending.append((company, slug, _dedup_hash(slug, row), row["post_urn"]))
+
+        if pending and not dry_run:
+            with conn:
+                conn.executemany(
+                    "UPDATE jobs SET company = ?, company_slug = ?, dedup_hash = ?"
+                    " WHERE source = 'linkedin_posts' AND source_id = ?",
+                    pending,
+                )
+    finally:
+        conn.close()
+
+    if pending and not dry_run:
+        # The rewritten slugs change which rows fingerprint alike, so the
+        # cross_posted flags derived from them have to be rebuilt.
+        with JobStore(db_path) as store:
+            store.reconcile_cross_posted()
+
+    logger.info(
+        "Employer-name repair%s: %d promoted posts examined, %d rewritten to"
+        " 'Confidential via …'", " (dry run)" if dry_run else "",
+        summary.examined, summary.repaired,
+    )
+    return summary
+
+
+def _dedup_hash(company_slug: str, row: sqlite3.Row) -> str:
+    """The same fingerprint Job.dedup_hash() computes, from stored columns."""
+    try:
+        locations = json.loads(row["locations"] or "[]")
+    except (TypeError, ValueError):
+        locations = []
+    first_loc = locations[0].lower() if locations else ""
+    key = f"{company_slug}|{(row['title'] or '').lower()}|{first_loc}"
+    return hashlib.sha256(key.encode()).hexdigest()[:12]
