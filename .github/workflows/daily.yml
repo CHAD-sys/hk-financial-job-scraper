@@ -42,7 +42,24 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-      DEEPSEEK_DAILY_ENRICH_LIMIT: "300"
+      # A ceiling on Roles enriched per run, not a budget. It becomes a starvation
+      # risk whenever the backlog exceeds it, because the enricher selects
+      # `ORDER BY j.fetched_at DESC LIMIT <this>` — newest first. At 300, a night
+      # that brought in 300+ un-enriched Roles pushed the older ones further down
+      # every subsequent night, and they were never reached again. 569 Roles on
+      # production had no enrichment row at all, so no `description_summary`, and
+      # the read path used to fall back to publishing the employer's own text.
+      #
+      # 1200 clears that 569 backlog in one run and still leaves room for a
+      # night's intake (recent runs: 372-806 Roles). The bill is bounded by
+      # construction, not by hope: LIMIT caps rows at 1200, enrichers/deepseek.py
+      # retries at most 3 times per Role and then gives up, and one Role is one
+      # call — so at the observed $0.00193/Role this phase cannot exceed
+      # 1200 x 3 x $0.00193 = $6.95, and costs ~$1.10-2.30 in practice.
+      #
+      # Safe to drop back to 300 once the backlog is clear, but leaving headroom
+      # above the nightly intake is what stops the starvation recurring.
+      DEEPSEEK_DAILY_ENRICH_LIMIT: "1200"
       PIPELINE_SYNC_TOKEN: ${{ secrets.PIPELINE_SYNC_TOKEN }}
       PIPELINE_DATABASE_SYNC_URL: https://finex-careers.up.railway.app/api/admin/pipeline/database
       PIPELINE_OPERATIONS_URL: https://finex-careers.up.railway.app/api/admin/pipeline/operations
