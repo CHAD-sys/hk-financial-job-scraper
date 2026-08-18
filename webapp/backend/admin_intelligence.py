@@ -373,22 +373,48 @@ def _operations_dashboard(
             WHERE scraped_date=latest.day GROUP BY source ORDER BY roles DESC, source
             """,
         )
+        # Health follows FAILURES, not how many employers happened to be hiring.
+        #
+        # A company run is success, zero or failed, and `zero` means the adapter
+        # worked perfectly and the employer had no vacancies. The old rule scored
+        # `successful / companies`, so a quiet employer counted exactly like a
+        # crash: Boutique sites read "47.8% — failed" on a night when 36 of 69
+        # small HK asset managers simply were not hiring and NOTHING had errored.
+        # That is their normal state, so the badge was permanently red for a
+        # healthy source, which is the fastest way to teach an operator to ignore
+        # a dashboard.
+        #
+        # `hiring_rate_pct` keeps the old number, because "how much of this source
+        # is live today" is worth seeing — it just no longer decides the badge.
+        #
+        # The one thing the old rule caught by accident is kept explicitly: a
+        # source where every company ran clean and yet the whole source produced
+        # zero Roles is NOT healthy. That is what a silently broken adapter looks
+        # like — Indeed behaved exactly that way before it was disabled ("yields
+        # nothing from GitHub Actions") — and it has to stay loud.
         source_health = []
         for row in source_rows:
             companies = int(row["companies"])
-            success_rate = _pct(int(row["successful"]), companies)
+            roles = int(row["roles"])
+            failed = int(row["failed"])
+            failure_rate = _pct(failed, companies)
+            if companies and roles == 0:
+                status = "failed"
+            elif failed == 0:
+                status = "healthy"
+            elif failure_rate <= 10:
+                status = "warning"
+            else:
+                status = "failed"
             source_health.append(
                 {
                     **dict(row),
                     "tracking_available": True,
-                    "roles_found": int(row["roles"]),
+                    "roles_found": roles,
                     "active_roles": None,
-                    "success_rate_pct": success_rate,
-                    "status": "healthy"
-                    if success_rate >= 90
-                    else "warning"
-                    if success_rate >= 70
-                    else "failed",
+                    "failure_rate_pct": failure_rate,
+                    "hiring_rate_pct": _pct(int(row["successful"]), companies),
+                    "status": status,
                 }
             )
         if not source_health:
@@ -404,7 +430,8 @@ def _operations_dashboard(
                     "roles_found": None,
                     "active_roles": int(row["roles"]),
                     "runtime_seconds": None,
-                    "success_rate_pct": None,
+                    "failure_rate_pct": None,
+                    "hiring_rate_pct": None,
                     "status": "not_recorded",
                 }
                 for row in _rows(
@@ -499,7 +526,13 @@ def _operations_dashboard(
                 {
                     "severity": "warning",
                     "title": f"{source['source']} source health dropped",
-                    "detail": f"Success rate {source['success_rate_pct']}% in the latest run.",
+                    "detail": (
+                        f"{source['failed']} of {source['companies']} companies failed"
+                        f" ({source['failure_rate_pct']}%) in the latest run."
+                        if source["failed"]
+                        else "Every company ran clean but the source returned no Roles"
+                        " in the latest run."
+                    ),
                 }
             )
 

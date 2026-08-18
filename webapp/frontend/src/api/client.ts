@@ -895,7 +895,11 @@ export interface AdminOperationsDashboard {
     failed: number | null
     roles: number
     runtime_seconds: number | null
-    success_rate_pct: number | null
+    /** Share of this source's companies whose run ERRORED. Drives the badge. */
+    failure_rate_pct: number | null
+    /** Share that found at least one Role. Informational: a quiet employer is
+     *  not a fault, so this never decides the badge. */
+    hiring_rate_pct: number | null
     status: 'healthy' | 'warning' | 'failed' | 'not_recorded'
     tracking_available: boolean
     roles_found: number | null

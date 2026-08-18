@@ -972,6 +972,81 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 """
 
 #: Every migration, in the order it must run. The ONE list — appending here is
+_PIPELINE_COMPANY_RUNS_V2_DDL = """
+CREATE TABLE IF NOT EXISTS pipeline_company_runs_v2 (
+    run_id          TEXT NOT NULL,
+    scraped_date    TEXT NOT NULL,
+    source          TEXT NOT NULL,
+    company_slug    TEXT NOT NULL,
+    company_name    TEXT NOT NULL,
+    status          TEXT NOT NULL CHECK (status IN ('success', 'zero', 'failed')),
+    jobs_found      INTEGER NOT NULL DEFAULT 0,
+    jobs_inserted   INTEGER NOT NULL DEFAULT 0,
+    jobs_updated    INTEGER NOT NULL DEFAULT 0,
+    jobs_deactivated INTEGER NOT NULL DEFAULT 0,
+    runtime_seconds REAL NOT NULL DEFAULT 0,
+    error           TEXT,
+    recorded_at     TEXT NOT NULL,
+    PRIMARY KEY (run_id, source, company_slug)
+)
+"""
+
+
+def migrate_to_phase_35(db_path: str) -> None:
+    """
+    Put `source` in the pipeline_company_runs key.
+
+    Phase 34 keyed the table on (run_id, company_slug). One company legitimately
+    runs under several sources — cross-posting is the whole point of the fallback
+    strategy, and 52 of the 148 enabled slugs are configured on more than one
+    source (citibank-hk on efinancialcareers, jobsdb AND linkedin; dbs-hk on
+    efinancialcareers, linkedin and workday). The writer uses INSERT OR REPLACE,
+    so every night the source that finished last overwrote the others and 65
+    company-runs were destroyed.
+
+    That silently corrupted the source-health report rather than losing anything a
+    Seeker sees: jobsdb showed 19 companies of the 65 configured, and its success
+    rate — and therefore its healthy/warning/failed badge — was computed over that
+    arbitrary surviving subset.
+
+    Rebuild rather than ALTER, because SQLite cannot change a primary key in
+    place. Rows already written are copied across as they are; the ones previous
+    runs overwrote are gone and cannot be recovered from here.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        with conn:
+            existing = {row[1] for row in conn.execute("PRAGMA table_info(pipeline_company_runs)")}
+            if not existing:
+                # Phase 34 has not run on this database yet; it will create the
+                # table, and a fresh create should already use the current shape.
+                conn.execute(_PIPELINE_COMPANY_RUNS_V2_DDL)
+                conn.execute("ALTER TABLE pipeline_company_runs_v2 RENAME TO pipeline_company_runs")
+                return
+            conn.execute(_PIPELINE_COMPANY_RUNS_V2_DDL)
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO pipeline_company_runs_v2 (
+                    run_id, scraped_date, source, company_slug, company_name,
+                    status, jobs_found, jobs_inserted, jobs_updated,
+                    jobs_deactivated, runtime_seconds, error, recorded_at
+                )
+                SELECT run_id, scraped_date, source, company_slug, company_name,
+                       status, jobs_found, jobs_inserted, jobs_updated,
+                       jobs_deactivated, runtime_seconds, error, recorded_at
+                  FROM pipeline_company_runs
+                """
+            )
+            conn.execute("DROP TABLE pipeline_company_runs")
+            conn.execute("ALTER TABLE pipeline_company_runs_v2 RENAME TO pipeline_company_runs")
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_company_runs_date"
+                " ON pipeline_company_runs (scraped_date DESC, source)"
+            )
+    finally:
+        conn.close()
+
+
 #: the whole of registering a new phase.
 #:
 #: Order is load-bearing beyond the obvious: 10 creates `jobs` before the seven
@@ -1005,6 +1080,7 @@ MIGRATIONS: tuple[tuple[int, Callable[[str], None]], ...] = (
     (32, migrate_to_phase_32),
     (33, migrate_to_phase_33),
     (34, migrate_to_phase_34),
+    (35, migrate_to_phase_35),
 )
 
 LATEST_PHASE = MIGRATIONS[-1][0]
