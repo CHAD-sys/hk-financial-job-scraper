@@ -69,11 +69,9 @@ def test_sitemap_lists_static_pages(client):
     body = client.get("/sitemap.xml").text
     assert "<loc>" in body
     assert "/about</loc>" in body
-    # Bare /jobs was here until 2026-08-18. It is noindex now: ADR 0018 refuses an
-    # empty query, so it shows a crawler no Roles at all and Google returned Soft
-    # 404 on it twice. Its thirteen discipline pages are listed instead — each of
-    # those carries a query, so each answers with real Roles.
-    assert "<loc>http://testserver/jobs</loc>" not in body
+    assert "<loc>http://testserver/jobs</loc>" in body
+    # And the thirteen discipline pages it links to, each carrying a query so
+    # each answers a signed-out crawler with real Roles.
     assert "/jobs?q=" in body.replace("&amp;", "&")
 
 

@@ -1098,22 +1098,6 @@ def _shell_head_tags(request: Request, path: str) -> str:
     # an infinite space of near-identical URLs to burn its crawl budget on.
     if normalised == "/jobs":
         query = (request.query_params.get(BOARD_QUERY_PARAM) or "").strip()
-        if not query:
-            # Bare /jobs is a search box, not a destination. ADR 0018 refuses an
-            # empty query outright, so this page shows a crawler no Roles and
-            # cannot be made to — Google inspected it twice on 2026-08-18 and
-            # returned Soft 404 both times, correctly.
-            #
-            # Declaring it noindex is the honest reading of that, not a way of
-            # hiding the error: there is no content here to rank. `follow` is the
-            # important half — Google still crawls through to the thirteen
-            # discipline pages below, which is where the Roles actually are.
-            title, description = _ROUTE_META["/jobs"]
-            return (
-                f"<title data-ssr>{html.escape(title)}</title>"
-                f'<meta data-ssr name="description" content="{html.escape(description)}" />'
-                '<meta data-ssr name="robots" content="noindex,follow" />'
-            )
         if query:
             match = next(
                 (c for c in BOARD_CATEGORIES if c.casefold() == query.casefold()), None
@@ -1270,6 +1254,51 @@ def _category_body(request: Request, category: str) -> str:
     )
 
 
+def _hub_body(request: Request) -> str:
+    """
+    What bare /jobs says for itself, written into the HTML.
+
+    ADR 0018 refuses an empty query, so this page has no Roles and never will.
+    What it does have is a real job: it is the way into thirteen disciplines, and
+    the public market totals the ADR explicitly keeps public for the anonymous
+    audience. Both go in the document rather than arriving by XHR, so the page
+    reads the same to a crawler as to a person.
+    """
+    audience_where = f"{BOARD_WHERE} AND {job_read.PUBLIC_AUDIENCE_WHERE}"
+    try:
+        with get_db(request) as conn:
+            total = conn.execute(
+                f"SELECT COUNT(*) FROM jobs j WHERE {audience_where}"
+            ).fetchone()[0]
+            employers = conn.execute(
+                f"SELECT COUNT(DISTINCT j.company) FROM jobs j"
+                f" WHERE {audience_where} AND {job_read.EMPLOYER_DIMENSION_WHERE}"
+            ).fetchone()[0]
+    except sqlite3.Error:
+        # A hub with no numbers still lists thirteen disciplines; a 500 helps no one.
+        total = employers = 0
+
+    scale = (
+        f"{total:,} open roles across {employers:,} employers, refreshed every morning."
+        if total and employers
+        else "Open finance roles across Hong Kong, refreshed every morning."
+    )
+    links = "".join(
+        f'<li><a href="{_category_path(c)}">{html.escape(c)} jobs in Hong Kong</a></li>'
+        for c in BOARD_CATEGORIES
+    )
+    return (
+        '<div id="ssr-hub">'
+        "<h1>Hong Kong Finance Jobs</h1>"
+        f"<p>{scale} FinEx Careers indexes Hong Kong's banks, asset managers, "
+        "insurers and boutiques daily, and estimates a salary range for every "
+        "listing.</p>"
+        "<h2>Browse by discipline</h2>"
+        f"<ul>{links}</ul>"
+        "</div>"
+    )
+
+
 def _shell_response(request: Request, settings: Settings, path: str) -> Response:
     """
     index.html with this route's identity written into it.
@@ -1289,12 +1318,19 @@ def _shell_response(request: Request, settings: Settings, path: str) -> Response
         match = next(
             (c for c in BOARD_CATEGORIES if c.casefold() == query.casefold()), None
         )
+        # A known discipline gets its Roles; the bare page gets the hub. A query
+        # that is neither gets nothing — it is noindex, and only the person who
+        # typed it ever sees it, by which time React has rendered their results.
         if match is not None:
             rendered = _category_body(request, match)
-            if rendered:
-                body = _ROOT_DIV.sub(
-                    lambda m: m.group(1) + rendered + m.group(2), body, count=1
-                )
+        elif not query:
+            rendered = _hub_body(request)
+        else:
+            rendered = ""
+        if rendered:
+            body = _ROOT_DIV.sub(
+                lambda m: m.group(1) + rendered + m.group(2), body, count=1
+            )
     return _noindex_if_off_canonical(
         request, HTMLResponse(body, headers={"Cache-Control": "no-cache"})
     )
@@ -1367,10 +1403,7 @@ def sitemap(request: Request):
     # The same set as _ROUTE_META — a page we give a title and description must
     # also be a page we tell Google exists. tests/test_route_meta_in_step.py
     # fails if these two drift apart.
-    # Bare /jobs is deliberately absent: it answers noindex (see
-    # _shell_head_tags), and listing a noindex URL in a sitemap tells Google to
-    # index a page that tells it not to. The disciplines carry its value instead.
-    static_paths = [p for p in _ROUTE_META if p != "/jobs"]
+    static_paths = list(_ROUTE_META)
     # The discipline landing pages. "/jobs" itself answers a crawler with no
     # roles (no session, no query — ADR 0018), which is what made it a Soft 404;
     # each of these answers with hundreds to thousands, and carries a query, so

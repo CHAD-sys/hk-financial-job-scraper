@@ -115,14 +115,9 @@ def test_the_sitemap_lists_exactly_the_indexable_routes(tmp_path):
     body = client.get("/sitemap.xml").text
     locs = set(re.findall(r"<loc>([^<]+)</loc>", body))
     paths = {loc.split("testserver", 1)[-1] or "/" for loc in locs}
-    # Bare /jobs is the one route with metadata and no sitemap row, on purpose:
-    # it answers noindex (ADR 0018 leaves it no Roles to show), and its thirteen
-    # discipline pages are listed in its place.
-    expected = set(_ROUTE_META) - {"/jobs"}
-    assert expected <= paths, (
-        f"routes with metadata missing from sitemap: {sorted(expected - paths)}"
+    assert set(_ROUTE_META) <= paths, (
+        f"routes with metadata missing from sitemap: {sorted(set(_ROUTE_META) - paths)}"
     )
-    assert "/jobs" not in paths, "bare /jobs is noindex and must not be in the sitemap"
 
 
 def test_no_route_is_both_indexable_and_noindex():

@@ -34,11 +34,7 @@ from fastapi.testclient import TestClient
 
 from .support import enrichment, job, make_app, make_bundle, make_jobs_db
 
-#: Routes that should be in Google's index. Bare "/jobs" is NOT one: ADR 0018
-#: refuses an empty query, so it shows a crawler no Roles and answers noindex —
-#: see test_bare_jobs_is_not_indexable. Its value is carried by the thirteen
-#: discipline pages it links to.
-_INDEXABLE = ["/", "/about", "/learning", "/get-started", "/post-a-role"]
+_INDEXABLE = ["/", "/about", "/jobs", "/learning", "/get-started", "/post-a-role"]
 
 
 @pytest.fixture()
@@ -287,26 +283,31 @@ def test_the_sitemap_lists_every_discipline(client):
 
 
 
-def test_bare_jobs_is_not_indexable(client):
+def test_bare_jobs_is_a_hub_not_an_empty_search_box(client):
     """
-    RED before: /jobs claimed index,follow and Google returned Soft 404 twice.
+    /jobs was noindex for part of 2026-08-18, on the reading that a page ADR 0018
+    leaves with no Roles has nothing to rank. That reading was made while
+    robots.txt still blocked /api/, so BOTH Soft 404 verdicts were passed on a
+    page Google could not get any data for at all.
 
-    A search box with no query has nothing to rank, and ADR 0018 means it never
-    will have. `follow` is deliberate — the crawler still walks through to the
-    discipline pages.
+    With the API allowed it renders the market totals and thirteen disciplines,
+    which is a real hub page — so it is indexable again, and it carries that
+    content in the HTML rather than depending on anyone's renderer.
     """
     body = _head(client, "/jobs")
-    assert 'content="noindex,follow"' in body
-    assert 'content="index,follow"' not in body
-    # It still identifies itself for anyone who shares the link.
-    assert "FinEx Careers" in re.findall(r"<title[^>]*>(.*?)</title>", body, re.S)[0]
+    assert 'content="index,follow"' in body
+    assert 'id="ssr-hub"' in body
+    # Thirteen discipline links a crawler can follow with no JavaScript.
+    assert body.count('<li><a href="/jobs?q=') == 13
+    assert "Browse by discipline" in body
 
 
-def test_bare_jobs_is_not_in_the_sitemap(client):
-    """Listing a noindex URL contradicts the noindex."""
-    body = client.get("/sitemap.xml").text
-    assert "<loc>http://testserver/jobs</loc>" not in body
-    assert "q=Risk+Management" in unescape(body), "the disciplines must still be listed"
+def test_the_hub_never_shows_roles_it_may_not_show(client):
+    """The hub carries public totals and links — never Roles, and never a tier."""
+    body = _head(client, "/jobs")
+    assert 'id="ssr-roles"' not in body
+    assert "Treasury Analyst" not in body, "a boutique Role leaked onto the hub"
+    assert "Risk Manager" not in body, "a recruiter-posted Role leaked onto the hub"
 
 
 def test_a_discipline_page_carries_its_roles_without_javascript(client):
