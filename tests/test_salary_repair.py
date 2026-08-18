@@ -110,3 +110,18 @@ def test_a_match_that_is_not_junior_is_surfaced_for_review(tmp_path):
 def test_nothing_at_or_below_the_cap_is_rewritten(tmp_path, mx):
     path = _db(tmp_path, [("Summer Analyst", "junior", 10_000, mx, 1)])
     assert repair_internship_salaries(path, dry_run=False).repaired == 0
+
+
+def test_a_compound_manager_slash_intern_listing_is_skipped_not_capped(tmp_path):
+    """One listing advertising two roles. Real production row, found the night the cap
+    shipped: "Weath Management Manager / Wealth Management Intern", stored as `mid`.
+    The title matches the internship pattern, but capping it would be wrong for the
+    Manager half — so two signals must agree, and this one is reported instead."""
+    path = _db(tmp_path, [
+        ("Weath Management Manager / Wealth Management Intern 财富管理實習生", "mid", 40_000, 60_000, 1),
+    ])
+    summary = repair_internship_salaries(path, dry_run=False)
+    assert summary.matched == 1
+    assert summary.repaired == 0, "an ambiguous compound title must never be written"
+    assert summary.suspicious
+    assert _stored(path) == [(40_000, 60_000)]

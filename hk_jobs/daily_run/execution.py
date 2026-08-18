@@ -210,7 +210,12 @@ class CommandPhaseExecutor:
         return PhaseOutput(detail="Audited salary outliers")
 
     def _salary_repair(self, _record: DailyRunRecord) -> PhaseOutput:
-        self._pipeline("--repair-internship-salaries", "--repair-apply")
+        # --repair-all-rows, not just the live board: a soft-deleted Role keeps its
+        # estimate and returns with it when a later scrape re-activates it, so a
+        # board-only pass leaves a backlog that drips back onto the board.
+        self._pipeline(
+            "--repair-internship-salaries", "--repair-all-rows", "--repair-apply",
+        )
         return PhaseOutput(detail="Re-applied deterministic salary repairs")
 
     def _pocketbase(self, _record: DailyRunRecord) -> PhaseOutput:

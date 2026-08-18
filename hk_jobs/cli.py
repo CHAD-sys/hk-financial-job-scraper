@@ -113,6 +113,7 @@ class PipelineArgs:
     check_ghost_jobs: bool = False
     repair_post_employers: bool = False
     repair_internship_salaries: bool = False
+    repair_all_rows: bool = False
     repair_apply: bool = False
 
     @classmethod
@@ -377,6 +378,17 @@ def build_parser() -> argparse.ArgumentParser:
             "stored row \u2014 no DeepSeek calls, no cost \u2014 and idempotent, so a repeat "
             "run changes nothing. Reports what it would change and does nothing unless "
             "--repair-apply is also given."
+        ),
+    )
+    p.add_argument(
+        "--repair-all-rows",
+        dest="repair_all_rows",
+        action="store_true",
+        help=(
+            "Repair every row, not just the live board. A soft-deleted Role keeps its "
+            "estimate and comes back with it when a later scrape re-activates it, so a "
+            "board-only backfill leaves a backlog that drips onto the board over time "
+            "(92 such rows, found the night the internship cap shipped)."
         ),
     )
     p.add_argument(
@@ -745,7 +757,11 @@ def _repair_post_employers(args: PipelineArgs) -> None:
 def _repair_internship_salaries(args: PipelineArgs) -> None:
     from hk_jobs.salary_repair import repair_internship_salaries
 
-    summary = repair_internship_salaries(args.db, dry_run=not args.repair_apply)
+    summary = repair_internship_salaries(
+        args.db,
+        dry_run=not args.repair_apply,
+        live_board_only=not args.repair_all_rows,
+    )
     verb = "would lower" if not args.repair_apply else "lowered"
     print(
         f"{summary.examined} estimates examined; {summary.matched} internship titles; "

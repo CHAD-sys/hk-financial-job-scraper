@@ -40,9 +40,10 @@ class RepairSummary:
     examined: int = 0
     matched: int = 0
     repaired: int = 0
-    #: Rows whose title matched but whose stored seniority is not "junior". Empty in every
-    #: run so far; a non-empty list is the signal that the title pattern has started
-    #: catching full-time roles and wants a human before the write is trusted.
+    #: Rows whose title matched but whose stored seniority is not "junior" — reported
+    #: and SKIPPED, never written. A compound listing ("Manager / Intern") is the real
+    #: case this catches; a growing list is the signal that the title pattern has started
+    #: catching full-time roles.
     suspicious: list[str] = field(default_factory=list)
     #: (title, old_max, new_max), largest reduction first — for the run log.
     examples: list[tuple[str, int, int]] = field(default_factory=list)
@@ -96,8 +97,23 @@ def repair_internship_salaries(
             if not is_internship(row["title"]):
                 continue
             summary.matched += 1
+            # Two independent signals must agree before this rewrites a published
+            # salary. The title is one; the stored seniority is the other, and it comes
+            # from a separate field of the model's answer rather than from the words
+            # being matched here.
+            #
+            # Found the night this shipped: "Weath Management Manager / Wealth Management
+            # Intern" is ONE listing advertising two roles, stored as `mid`. The title
+            # matches, but capping it at the internship ceiling would be wrong for the
+            # Manager half. A compound title like that is exactly the case a title-only
+            # rule cannot read, so it is reported and skipped rather than written.
+            #
+            # Skipping costs almost nothing: when the cap first shipped, all 168 matched
+            # live rows independently carried `junior`, so this gate changes the outcome
+            # only for the genuinely ambiguous handful.
             if row["seniority"] not in (None, "junior"):
                 summary.suspicious.append(f"[{row['seniority']}] {row['title']}")
+                continue
             new_min, new_max = _capped(row["mn"], row["mx"])
             if (new_min, new_max) == (row["mn"], row["mx"]):
                 continue
