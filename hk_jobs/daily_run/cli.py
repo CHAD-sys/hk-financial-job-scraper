@@ -14,7 +14,7 @@ from hk_jobs.daily_run.execution import (
     collect_database_facts,
 )
 from hk_jobs.daily_run.model import PhaseStatus, RunStatus
-from hk_jobs.daily_run.registry import profile_for
+from hk_jobs.daily_run.registry import PROFILES, profile_for
 from hk_jobs.daily_run.reporting import (
     EmailReporter,
     GitHubSummaryReporter,
@@ -28,7 +28,11 @@ from hk_jobs.daily_run.runner import run_daily
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run the FinEx Careers Daily Run")
     parser.add_argument(
-        "--profile", choices=("hosted", "local", "enrich_only"), required=True
+        # Derived from PROFILES, never a second hand-maintained list: adding the
+        # "repair" profile to the registry left this literal behind, and the run
+        # died at argument parsing with "invalid choice: 'repair'". A profile that
+        # exists is now automatically a profile you can ask for.
+        "--profile", choices=tuple(PROFILES), required=True
     )
     parser.add_argument("--run-id", default=os.getenv("GITHUB_RUN_ID"))
     parser.add_argument("--record", default="data/daily-run.json")

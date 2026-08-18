@@ -406,3 +406,18 @@ def test_repair_reuses_the_shared_phase_definitions():
     hosted, repair = profile_for("hosted"), profile_for("repair")
     for key in ("restore", "publish"):
         assert hosted.phase(key) == repair.phase(key)
+
+
+def test_every_registered_profile_can_actually_be_asked_for():
+    """The CLI's --profile choices are derived from PROFILES, not a second list.
+
+    Adding the "repair" profile to the registry left a hardcoded
+    ("hosted", "local", "enrich_only") tuple behind in daily_run/cli.py, and the
+    dispatched run died at argument parsing with "invalid choice: 'repair'" before
+    it reached a single phase. A profile that exists must be one you can run.
+    """
+    from hk_jobs.daily_run.cli import _parser
+    from hk_jobs.daily_run.registry import PROFILES
+
+    action = next(a for a in _parser()._actions if a.dest == "profile")
+    assert set(action.choices) == set(PROFILES)
