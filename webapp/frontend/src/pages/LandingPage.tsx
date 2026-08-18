@@ -37,7 +37,7 @@ export default function LandingPage() {
       <title>FinEx Careers — HK Finance Roles, Consultation &amp; Learning</title>
       <meta
         name="description"
-        content="Hong Kong finance careers in one place: a daily, AI-enriched index of open roles across 230+ employers, executive career consultation, and professional learning from the Financial Executive Club."
+        content="Hong Kong finance careers in one place: a daily, AI-enriched index of open roles across 230+ employers, plus consultation and professional learning."
       />
       <script type="application/ld+json">{JSON.stringify(ORG_JSONLD)}</script>
       <Nav />
@@ -51,13 +51,26 @@ export default function LandingPage() {
   )
 }
 
+// Kept deliberately in step with `_organisation_jsonld` in webapp/backend/main.py:
+// the server injects its copy for crawlers that never run JS, and main.tsx removes
+// that copy once React boots — so THIS is the block Google reads when it renders.
+// sameAs is the part that matters: it ties this domain to the Financial Executive
+// Club's established presence, which is what tells a classifier we are a real
+// organisation rather than a young domain wrapping an OAuth login.
 const ORG_JSONLD = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: 'FinEx Careers',
-  url: 'https://finexcareers.com',
+  legalName: 'Financial Executive Club',
+  url: 'https://www.finexcareers.com',
+  logo: 'https://www.finexcareers.com/og-image.png',
   description:
     'A daily, AI-enriched index of open finance roles across Hong Kong employers.',
+  areaServed: { '@type': 'Place', name: 'Hong Kong' },
+  sameAs: [
+    'https://www.finexclub.org',
+    'https://www.linkedin.com/company/financial-executive-club',
+  ],
 }
 
 // ── Hero + the three doors ────────────────────────────────────────────────────

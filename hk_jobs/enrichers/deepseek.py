@@ -57,6 +57,26 @@ v10: granular 3-source reference table + prefix-cached prompt layout. The anchor
     "Team Head" disambiguation (CR/service team heads are manager-grade, NOT the Director row
     — the #1 reported mispricing). Prompt reordered static-first/job-data-last so DeepSeek's
     automatic prefix caching bills the big reference block at ~1/10th input rate.
+v11: thinking mode OFF. It was enabled in v9 for genuinely better tier/role selection,
+    but the reasoning trace is billed as output tokens and it dominated the bill: the
+    2026-08-16 run spent $4.26 enriching 806 Roles, ~94% of it on traces averaging
+    ~7,000 output tokens a job to produce a ~350-token answer. Nothing in the suite
+    inspected the request body, so the switch that cost the money was untested — see
+    tests/test_deepseek_request.py, which now pins the shape of what we send.
+    With thinking off, max_tokens returns to answer-sized (700 with a description,
+    450 title-only) and temperature/top_p are live again (0.2/0.9) — thinking mode
+    silently ignored both, so the model has been sampling at its defaults since v9.
+    NOTE the tradeoff, deliberately accepted: the v9 A/B test that justified thinking
+    measured tier/role accuracy WITH it on. Turning it off may cost some of that
+    accuracy. The deterministic guards are unchanged and still catch the failure mode
+    thinking was brought in to fix — hk_jobs.salary_clamp still clips every estimate
+    to its (tier, seniority) band ceiling, the HK$200k/month absolute cap still
+    applies, and the management-grade caps still apply. Watch hk_jobs.salary_audit
+    for tier drift before assuming this was free.
+    PROMPT_VERSION is deliberately NOT bumped: it derives from model + prompt text +
+    anchors + clamp (none of which changed here), so this does not re-enrich the
+    active set. Existing rows keep their v9/v10 estimates; only new calls get the
+    cheaper shape.
 
 API key: set DEEPSEEK_API_KEY env var.
 """
@@ -78,13 +98,11 @@ from hk_jobs import salary, salary_anchors
 logger = logging.getLogger(__name__)
 
 _API_URL = "https://api.deepseek.com/chat/completions"
-# v4-pro + thinking was A/B tested and produced measurably better tier/role selection
-# (see v9 changelog), but at ~16s/job it would take ~21h to re-enrich the full active
-# set even at 20 concurrent workers. v4-flash + thinking (this module's PROMPT_VERSION
-# name still says "v4pro" from the first attempt — see below) is the fast tier with the
-# same reasoning-mode toggle: same cheap base rate as the old deepseek-chat, told to
-# reason harder via reasoning_effort="max" and given a large max_tokens budget so the
-# reasoning trace never gets cut off before the final answer.
+# v4-flash is the fast, cheap tier (same base rate as the retired deepseek-chat).
+# It was chosen in v9.1 to carry thinking mode at a workable ~s/job; thinking is off
+# as of v11 (see the changelog) but flash remains the right tier on price and speed.
+# This module's PROMPT_VERSION string still carries a "v4pro" manual tag from the
+# first v9 attempt — renaming it would re-enrich the whole active set for no gain.
 _MODEL = "deepseek-v4-flash"
 _DESC_MAX_CHARS = 2_000   # cap to keep prompt tight; descriptions are typically 1–4 KB
 
@@ -489,17 +507,18 @@ class DeepSeekEnricher:
                 salary_instructions=_SALARY_INSTRUCTIONS,
                 summary_instructions=_SUMMARY_INSTRUCTIONS,
             )
-            # Thinking mode's reasoning trace is billed as output and must complete
-            # before the model writes the final JSON — a small budget here truncates
-            # the reasoning and leaves `content` empty (see v9 changelog).
-            max_tokens = 12_000
+            # Sized for the answer, not a reasoning trace (v11). The JSON answer
+            # measures ~350 tokens; this branch also carries description_summary,
+            # so it gets the larger of the two budgets.
+            max_tokens = 700
         else:
             prompt = _PROMPT_TITLE_ONLY.format(
                 company=company, title=title,
                 translation_instructions=_TRANSLATION_INSTRUCTIONS,
                 salary_instructions=_SALARY_INSTRUCTIONS,
             )
-            max_tokens = 12_000
+            # No description_summary field in this branch, so a smaller answer.
+            max_tokens = 450
 
         with httpx.Client(timeout=120.0) as client:
             resp = client.post(
@@ -512,14 +531,14 @@ class DeepSeekEnricher:
                     "model": _MODEL,
                     "messages": [{"role": "user", "content": prompt}],
                     "max_tokens": max_tokens,
-                    "thinking": {"type": "enabled"},
-                    # reasoning_effort intentionally omitted (defaults to "high") — "max"
-                    # burned through the DeepSeek balance in ~9 minutes for no proven
-                    # quality gain over default; the A/B test that actually validated
-                    # thinking mode's tier/role improvements used default effort, not max.
-                    # temperature/top_p are unsupported under thinking mode (silently
-                    # ignored per DeepSeek's docs) — omitted for clarity, not because
-                    # they'd error.
+                    # No "thinking" key and no "reasoning_effort" — v11. Both are what
+                    # turned a ~350-token answer into ~7,000 billed output tokens.
+                    # Pinned by tests/test_deepseek_request.py; read the v11 changelog
+                    # before putting either back.
+                    # Live again now that thinking is off (it silently ignored these):
+                    # low temperature because this is extraction, not composition.
+                    "temperature": 0.2,
+                    "top_p": 0.9,
                 },
             )
 
@@ -532,13 +551,8 @@ class DeepSeekEnricher:
         with self._usage_lock:
             add_usage(self.usage_totals, payload)
         message = payload["choices"][0]["message"]
-        # Thinking mode adds this alongside `content` — not persisted to the DB, but
-        # logged at DEBUG so a mis-tiered job's reasoning can be inspected after the fact
-        # (set logging to DEBUG for hk_jobs.enrichers.deepseek to see it).
-        reasoning = message.get("reasoning_content")
-        if reasoning:
-            logger.debug("Reasoning for %r: %s", title[:60], reasoning[:2000])
-
+        # `reasoning_content` handling lived here until v11. With thinking off the API
+        # no longer returns it, so reading it was dead code that implied it was still on.
         text = message["content"].strip()
         text = text.replace("```json", "").replace("```", "").strip()
         return json.loads(text)

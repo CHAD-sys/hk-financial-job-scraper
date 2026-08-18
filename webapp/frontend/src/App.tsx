@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { recordVisit } from './api/client'
 import AuthProvider from './auth/AuthProvider'
 import EmployerAuthProvider from './auth/EmployerAuthProvider'
@@ -54,10 +54,49 @@ import EmployerVerifyEmailPage from './pages/EmployerVerifyEmailPage'
  * never mount two at once. LandingPage, AboutPage, JobBoardPage and
  * LearningPage sit outside this layout and set their own instead.
  */
+/**
+ * Head tags for the routes that do not carry their own.
+ *
+ * Two of these routes are indexable and want real copy — "/get-started" is the
+ * page LinkedIn unfurls when someone shares a sign-in link, and "/post-a-role"
+ * is how an employer finds us. The rest are account pages that must never be
+ * indexed at all.
+ *
+ * Kept in step with `_ROUTE_META` and `_NOINDEX_PREFIXES` in
+ * webapp/backend/main.py, which serves the same values to clients that never
+ * run JS. tests/test_route_meta_in_step.py fails if the two drift apart.
+ */
+const ROUTE_META: Record<string, { title: string; description: string }> = {
+  '/get-started': {
+    title: 'Create Your Free FinEx Careers Account',
+    description:
+      'Create a free FinEx Careers account to see full role descriptions, save positions, upload a CV for matching, and get a weekly digest of new roles.',
+  },
+  '/post-a-role': {
+    title: 'Post a Finance Role in Hong Kong | FinEx Careers',
+    description:
+      'Reach Hong Kong finance professionals directly. Submit an open role to the FinEx Careers board, reviewed before it is published.',
+  },
+}
+
 function DefaultTitleLayout() {
+  const { pathname } = useLocation()
+  const meta = ROUTE_META[pathname.replace(/\/+$/, '') || '/']
+  if (!meta) {
+    return (
+      <>
+        <title>FinEx Careers</title>
+        {/* An account page. Keeping it out of the index is the point: a sign-in
+            form in search results is a reputation liability, not traffic. */}
+        <meta name="robots" content="noindex,follow" />
+        <Outlet />
+      </>
+    )
+  }
   return (
     <>
-      <title>FinEx Careers</title>
+      <title>{meta.title}</title>
+      <meta name="description" content={meta.description} />
       <Outlet />
     </>
   )

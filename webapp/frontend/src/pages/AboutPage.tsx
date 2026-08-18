@@ -90,7 +90,7 @@ export default function AboutPage() {
       <title>About FinEx Careers — How We Source Hong Kong Finance Roles</title>
       <meta
         name="description"
-        content="How FinEx Careers builds its daily Hong Kong finance job index: direct ATS feeds, major boards, boutique careers pages, recruiter LinkedIn posts, and a single AI enrichment pass per role."
+        content="How FinEx Careers builds its daily Hong Kong finance job index: direct ATS feeds, major boards, boutique careers pages and recruiter posts."
       />
       <Nav />
       <main id="main-content">
