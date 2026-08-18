@@ -42,6 +42,7 @@ PHASES: dict[str, PhaseDefinition] = {
         PhaseDefinition("descriptions", "Descriptions", PhaseRequirement.REQUIRED),
         PhaseDefinition("deepseek", "DeepSeek", PhaseRequirement.REQUIRED),
         PhaseDefinition("salary_audit", "Salary audit", PhaseRequirement.OPTIONAL),
+        PhaseDefinition("salary_repair", "Salary repair", PhaseRequirement.REQUIRED),
         PhaseDefinition("pocketbase", "PocketBase mirror", PhaseRequirement.OPTIONAL),
         PhaseDefinition("linkedin_fetch", "LinkedIn watchlist", PhaseRequirement.OPTIONAL),
         PhaseDefinition("linkedin_discovery", "LinkedIn discovery", PhaseRequirement.OPTIONAL),
@@ -84,6 +85,23 @@ PROFILES: dict[str, ExecutionProfile] = {
         "enrich_only",
         "restore",
         "deepseek",
+        "publish",
+    ),
+    # A deterministic data repair, with no scrape and no model call.
+    #
+    # A clamp change only affects estimates written after it (deliberately — see
+    # salary.py on what version() does and does not fingerprint), so rows already
+    # published keep whatever the old clamp allowed. This profile is how such a
+    # repair reaches production: restore pulls the live database down from Railway,
+    # salary_repair recomputes the affected rows in Python, publish hands it back.
+    #
+    # Costs nothing and is idempotent, so re-running it is always safe. It is NOT in
+    # the hosted profile on purpose: once the clamp is in place no new bad rows are
+    # written, which makes this a backfill rather than a nightly chore.
+    "repair": _profile(
+        "repair",
+        "restore",
+        "salary_repair",
         "publish",
     ),
     "local": _profile(

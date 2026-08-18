@@ -1,0 +1,511 @@
+<title>Salary Estimator Audit</title>
+<style>
+  :root {
+    --ground: #F6F8F7;
+    --surface: #FFFFFF;
+    --ink: #16211F;
+    --muted: #5B6B67;
+    --accent: #0B6B5B;
+    --rule: #DBE3E0;
+    --stripe: #E8EDEB;
+    --critical: #A8291E;
+    --warn: #8A5B04;
+    --ok: #2E6A4F;
+    --crit-wash: #FBEEEC;
+    --warn-wash: #FAF3E4;
+    --ok-wash: #EAF3EE;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0F1513;
+      --surface: #161F1D;
+      --ink: #E7EDEA;
+      --muted: #94A39F;
+      --accent: #52D0B4;
+      --rule: #26332F;
+      --stripe: #1D2825;
+      --critical: #F0857A;
+      --warn: #E0AC55;
+      --ok: #6FC79B;
+      --crit-wash: #241816;
+      --warn-wash: #221C12;
+      --ok-wash: #14231C;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0F1513;
+    --surface: #161F1D;
+    --ink: #E7EDEA;
+    --muted: #94A39F;
+    --accent: #52D0B4;
+    --rule: #26332F;
+    --stripe: #1D2825;
+    --critical: #F0857A;
+    --warn: #E0AC55;
+    --ok: #6FC79B;
+    --crit-wash: #241816;
+    --warn-wash: #221C12;
+    --ok-wash: #14231C;
+  }
+
+  *{ box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 16.5px;
+    line-height: 1.62;
+    margin: 0;
+    padding: 0 1.25rem 6rem;
+  }
+
+  .wrap { max-width: 54rem; margin: 0 auto; }
+  .prose { max-width: 38rem; }
+
+  /* ── masthead ─────────────────────────────────────────── */
+  header {
+    padding: 4.5rem 0 2rem;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 2.5rem;
+  }
+  .eyebrow {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 1.1rem;
+  }
+  h1 {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    font-weight: 600;
+    font-size: clamp(2.1rem, 5vw, 3.1rem);
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 0 0 1rem;
+  }
+  .standfirst {
+    font-size: 1.12rem;
+    color: var(--muted);
+    max-width: 36rem;
+    margin: 0 0 1.75rem;
+    text-wrap: pretty;
+  }
+  .byline {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.4rem;
+    margin: 0;
+  }
+
+  /* ── verdict tiles ────────────────────────────────────── */
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    margin: 0 0 3rem;
+  }
+  .tile { background: var(--surface); padding: 1.3rem 1.25rem; }
+  .tile .k {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.66rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 0.6rem;
+  }
+  .tile .v {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    font-size: 1.95rem;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    margin: 0 0 0.4rem;
+  }
+  .tile .n { font-size: 0.83rem; color: var(--muted); margin: 0; line-height: 1.45; }
+  .v.good { color: var(--ok); }
+  .v.bad { color: var(--critical); }
+
+  /* ── sections ─────────────────────────────────────────── */
+  section { margin: 0 0 3.25rem; }
+  h2 {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    font-size: 1.6rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 0.4rem;
+    text-wrap: balance;
+  }
+  .sec-note {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 0 0 1.4rem;
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  h3 {
+    font-size: 1.02rem;
+    font-weight: 650;
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.005em;
+  }
+  p { margin: 0 0 1rem; }
+  .prose p:last-child { margin-bottom: 0; }
+
+  /* ── findings ─────────────────────────────────────────── */
+  .finding {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--muted);
+    padding: 1.4rem 1.5rem;
+    margin: 0 0 1.15rem;
+  }
+  .finding.critical { border-left-color: var(--critical); }
+  .finding.high { border-left-color: var(--warn); }
+  .finding.medium { border-left-color: var(--accent); }
+  .fhead {
+    display: flex;
+    align-items: baseline;
+    gap: 0.85rem;
+    flex-wrap: wrap;
+    margin: 0 0 0.7rem;
+  }
+  .chip {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.63rem;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    padding: 0.22rem 0.55rem;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .chip.critical { background: var(--crit-wash); color: var(--critical); }
+  .chip.high { background: var(--warn-wash); color: var(--warn); }
+  .chip.medium { background: var(--ok-wash); color: var(--ok); }
+  .finding h3 { margin: 0; flex: 1 1 16rem; }
+  .finding p { margin: 0 0 0.85rem; max-width: 40rem; }
+  .finding p:last-child { margin-bottom: 0; }
+
+  blockquote {
+    margin: 0 0 0.9rem;
+    padding: 0.7rem 0 0.7rem 1rem;
+    border-left: 2px solid var(--rule);
+    color: var(--muted);
+    font-style: italic;
+    max-width: 40rem;
+  }
+  blockquote .src {
+    display: block;
+    font-style: normal;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+    margin-top: 0.5rem;
+  }
+
+  code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.86em;
+    background: var(--stripe);
+    padding: 0.1em 0.35em;
+    border-radius: 2px;
+  }
+
+  /* ── tables ───────────────────────────────────────────── */
+  .scroll { overflow-x: auto; margin: 0 0 1rem; border: 1px solid var(--rule); }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.86rem;
+    background: var(--surface);
+  }
+  caption {
+    caption-side: top;
+    text-align: left;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0 0 0.6rem;
+  }
+  th, td {
+    padding: 0.6rem 0.85rem;
+    text-align: right;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+  th:first-child, td:first-child { text-align: left; }
+  td.t { text-align: left; white-space: normal; min-width: 15rem; }
+  thead th {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.66rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    border-bottom: 1px solid var(--ink);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  .num { font-variant-numeric: tabular-nums; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  .neg { color: var(--critical); }
+  .pos { color: var(--ok); }
+  tfoot td {
+    font-weight: 650;
+    border-top: 1px solid var(--ink);
+    border-bottom: none;
+    background: var(--stripe);
+  }
+
+  ul { margin: 0 0 1rem; padding-left: 1.15rem; max-width: 40rem; }
+  li { margin-bottom: 0.45rem; }
+
+  .rec {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.9rem 1.1rem;
+    align-items: baseline;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .rec:last-child { border-bottom: none; }
+  .rec .r {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.72rem;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+  }
+  .rec p { margin: 0.3rem 0 0; color: var(--muted); font-size: 0.93rem; }
+
+  footer {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--rule);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.73rem;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  a { color: var(--accent); }
+  a:focus-visible, :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">Estimator quality check · 2026-08-18</p>
+  <h1>What the board says a job pays</h1>
+  <p class="standfirst">A blind re-estimate of 150 randomly sampled live listings, run through Sonnet against the production estimator's own prompt — plus 49 salaries employers actually disclosed, used as ground truth.</p>
+  <p class="byline">
+    <span>Population: 4,256 published rows</span>
+    <span>Sample: n=150, stratified</span>
+    <span>Model under test: deepseek-v4-flash</span>
+  </p>
+</header>
+
+<div class="tiles">
+  <div class="tile">
+    <p class="k">Aggregate level</p>
+    <p class="v good">−3.2%</p>
+    <p class="n">Production vs Sonnet across the whole board. The overall salary level is sound.</p>
+  </div>
+  <div class="tile">
+    <p class="k">Per-job agreement</p>
+    <p class="v">65%</p>
+    <p class="n">Share of listings where the two estimates land within ±25% of each other.</p>
+  </div>
+  <div class="tile">
+    <p class="k">Internship cap breaches</p>
+    <p class="v bad">58</p>
+    <p class="n">Live listings priced above the HK$15,000 ceiling the prompt sets for interns.</p>
+  </div>
+  <div class="tile">
+    <p class="k">Worst live estimate</p>
+    <p class="v bad">5.6×</p>
+    <p class="n">A 2027 summer internship published at HK$41,500–83,500 a month.</p>
+  </div>
+</div>
+
+<section>
+  <h2>The verdict</h2>
+  <p class="sec-note">Read this first</p>
+  <div class="prose">
+    <p><strong>The estimator is well-calibrated in aggregate and unreliable per listing.</strong> Weighted to the population, its midpoint sits 3.2% below Sonnet's — for a market-level statistic, that is a good number, and the median per-job deviation is exactly 0.0%. If you are publishing "the median HK compliance role pays X", the figure holds.</p>
+    <p>But a job seeker does not read the aggregate; they read one card. At that level the two estimators disagree by more than 25% on a third of listings, and their bands fail to overlap at all on 32%. The dispersion — not the bias — is the problem.</p>
+    <p>Underneath that dispersion sits one defect class that is not noise, is currently visible on the public board, and is <em>already prohibited by the estimator's own prompt</em>: internships priced as full-time front-office roles.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Findings</h2>
+  <p class="sec-note">Ordered by severity</p>
+
+  <div class="finding critical">
+    <div class="fhead">
+      <span class="chip critical">Critical</span>
+      <h3>Internships are priced as full-time analysts, against an explicit rule</h3>
+    </div>
+    <p>STEP 1 of the production prompt — the very first instruction, before any tier table — says an internship is <strong>capped at HK$3,000–12,000/month, never above HK$15,000</strong>, and spells out the whole-word matching so that "Internal Audit" is not caught by mistake. The rule is well written. It is being ignored.</p>
+    <p>Of <strong>153 internship, graduate-programme and placement listings live on the board, 58 (38%) exceed the HK$15,000 cap.</strong> The median breach is HK$37,500. Eight sit at HK$41,500–83,500 — Citi, Morgan Stanley, Deutsche Bank, Standard Chartered, Barclays summer programmes for 2027.</p>
+    <p>The failure is specific and legible: the model reads the desk correctly (investment banking, global markets), maps it to the right tier table, then applies the full-time <em>Analyst</em> band because that is the lowest row the tier table contains. Seniority is separately (and correctly) stored as <code>junior</code> on every one of these rows — so the signal needed to catch this is already in the record.</p>
+  </div>
+
+  <div class="finding high">
+    <div class="fhead">
+      <span class="chip high">High</span>
+      <h3>The salary audit agent looks straight at these and approves them</h3>
+    </div>
+    <p>Of the 47 intern rows priced at HK$30,000 or more, <strong>21 were never selected for audit</strong> — they fall under the HK$120,000 bar and match none of the ambiguous-title patterns in <code>_select_outliers</code>. Of the 26 that <em>were</em> audited, <strong>14 came back <code>ok</code></strong> (11 were lowered, 1 flagged upward).</p>
+    <blockquote>Electronic Trading maps to global markets trading and the estimate sits within the Analyst band, the lowest appropriate grade for a summer internship.
+      <span class="src">salary_audit_log — verdict "ok" on HK$35,500–57,000</span></blockquote>
+    <p>The auditor recognises it is a summer internship and approves anyway, because its prompt asks only whether the <em>tier and grade</em> are right. Employment class is not in its remit, and the internship cap does not appear in its prompt at all. Both layers of defence share the same blind spot.</p>
+  </div>
+
+  <div class="finding medium">
+    <div class="fhead">
+      <span class="chip medium">Medium</span>
+      <h3>Lead roles still run hot — the exact thing the audit was built for</h3>
+    </div>
+    <p>The <code>lead</code> stratum is the only one with a material directional bias: production sits <strong>+15.1% above Sonnet</strong>, and its bands overlap Sonnet's on just 57% of listings, the worst of any group. The offenders are the titles <code>salary_audit.py</code> was written to catch — "Team Head, Relationship Management" at +112%, "Team Leader, FCC Investigations" at +187%, "Section Head, Treasury Settlement" at +94%.</p>
+    <p>The audit is running (2,277 verdicts, 482 corrections applied) and its downward-only design is sound. It is simply not reaching these. Worth noting the prompt's own preamble states the estimator "has historically run about 30% too high" — at lead level that correction has not fully landed.</p>
+  </div>
+
+  <div class="finding medium">
+    <div class="fhead">
+      <span class="chip medium">Medium</span>
+      <h3>Stated confidence is genuinely calibrated — use it in the UI</h3>
+    </div>
+    <p>This one is good news, and it is unusual enough to be worth acting on. The estimator's own <code>confidence</code> field predicts its accuracy cleanly:</p>
+    <div class="scroll">
+      <table>
+        <caption>Agreement with the blind Sonnet re-estimate, by production's stated confidence</caption>
+        <thead><tr><th>Confidence</th><th>n</th><th>Bands overlap</th><th>Disagree &gt;25%</th><th>Live rows</th></tr></thead>
+        <tbody>
+          <tr><td>high</td><td class="num">5</td><td class="num pos">100%</td><td class="num pos">0%</td><td class="num">85</td></tr>
+          <tr><td>medium</td><td class="num">118</td><td class="num">70%</td><td class="num">31%</td><td class="num">3,503</td></tr>
+          <tr><td>low</td><td class="num">26</td><td class="num neg">46%</td><td class="num neg">58%</td><td class="num">668</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>A <code>low</code>-confidence estimate is close to a coin flip, and there are 668 of them on the board. Suppressing the figure — or showing a wider, softer range — on those rows would cost little and remove the least defensible numbers from the product.</p>
+  </div>
+
+  <div class="finding medium">
+    <div class="fhead">
+      <span class="chip medium">Low</span>
+      <h3>Two small data defects worth a line of code each</h3>
+    </div>
+    <p><strong>Years of experience parsed as pay.</strong> Six of the 55 rows carrying a disclosed salary hold impossible values — <code>2–3</code>, <code>1–2</code>, <code>8–10</code> (plainly years), plus <code>380,000–450,000</code> and <code>833,333</code> (annual figures left unconverted). All six come from <code>linkedin_posts</code>.</p>
+    <p><strong>A null minimum with a non-null maximum.</strong> One sampled row — "Investment Data &amp; Operations Associate" — carries <code>salary_estimated_min = NULL</code> alongside a <code>high</code> confidence and a max of 37,000. Whatever renders a range on the job card has to handle that.</p>
+  </div>
+</section>
+
+<section>
+  <h2>How the two estimators compare</h2>
+  <p class="sec-note">Stratified by seniority · design-weighted to the population</p>
+  <div class="scroll">
+    <table>
+      <caption>Production vs blind Sonnet re-estimate, midpoint of band</caption>
+      <thead>
+        <tr><th>Stratum</th><th>Live rows</th><th>Sampled</th><th>Production</th><th>Sonnet</th><th>Gap</th><th>Bands overlap</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>junior</td><td class="num">763</td><td class="num">30</td><td class="num">20,796</td><td class="num">19,847</td><td class="num">+4.8%</td><td class="num">70%</td></tr>
+        <tr><td>mid</td><td class="num">1,981</td><td class="num">49</td><td class="num">40,559</td><td class="num">44,255</td><td class="num">−8.4%</td><td class="num">63%</td></tr>
+        <tr><td>senior</td><td class="num">1,258</td><td class="num">40</td><td class="num">64,609</td><td class="num">67,400</td><td class="num">−4.1%</td><td class="num">78%</td></tr>
+        <tr><td>lead</td><td class="num">254</td><td class="num">30</td><td class="num">101,192</td><td class="num">87,950</td><td class="num neg">+15.1%</td><td class="num neg">57%</td></tr>
+      </tbody>
+      <tfoot>
+        <tr><td>Population</td><td class="num">4,256</td><td class="num">149</td><td class="num">47,811</td><td class="num">49,376</td><td class="num">−3.2%</td><td class="num">68%</td></tr>
+      </tfoot>
+    </table>
+  </div>
+  <div class="prose">
+    <p>Band widths are near-identical — production's median range spans 28% of its midpoint, Sonnet's 29% — so the disagreement is about <em>where</em> the band sits, not how confidently it is drawn.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Checked against salaries employers actually stated</h2>
+  <p class="sec-note">49 usable rows · no model involved</p>
+  <div class="prose">
+    <p>A second, independent check that costs nothing: 55 live listings carry a disclosed salary, 49 of them plausible. Where the figure is in the text, the estimator is meant to lift it verbatim.</p>
+  </div>
+  <div class="scroll">
+    <table>
+      <caption>Estimated maximum vs the maximum the employer published</caption>
+      <thead><tr><th>Outcome</th><th>Rows</th><th>Share</th></tr></thead>
+      <tbody>
+        <tr><td>Exact match on the maximum</td><td class="num">30</td><td class="num pos">61%</td></tr>
+        <tr><td>Within ±10%</td><td class="num">34</td><td class="num pos">69%</td></tr>
+        <tr><td>Under-stated by more than 10%</td><td class="num">14</td><td class="num neg">29%</td></tr>
+        <tr><td>Over-stated by more than 10%</td><td class="num">1</td><td class="num">2%</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="prose">
+    <p>Median deviation is 0.0% and the errors are lopsided: when it misses a stated figure, it misses <em>low</em>, 14 times to 1. Two of those under-statements are marked <code>high</code> confidence — meaning the model claimed the figure was in the text and still got it wrong. The worst is a VP role stated at HK$125,000–150,000 and estimated at HK$31,000–47,000.</p>
+    <p>This cuts against the lead-role over-pricing above, and both can be true: the estimator over-reaches on titles it must infer, and under-reads figures that are sitting in front of it.</p>
+  </div>
+</section>
+
+<section>
+  <h2>What I would fix, in order</h2>
+  <p class="sec-note">Ranked by damage per unit of effort</p>
+
+  <div class="rec">
+    <span class="r">01</span>
+    <div>
+      <strong>Clamp internships deterministically, in code, not in the prompt.</strong>
+      <p>The rule is already written and the model ignores it on 38% of cases. <code>hk_jobs/salary_clamp.py</code> already exists as the place where a hard ceiling belongs — a whole-word title match plus a HK$15,000 cap fixes 58 live listings today and every future one, with no model call and no new spend.</p>
+    </div>
+  </div>
+  <div class="rec">
+    <span class="r">02</span>
+    <div>
+      <strong>Add employment class to the audit's selection and prompt.</strong>
+      <p><code>_select_outliers</code> should flag any internship priced above the cap regardless of the HK$120,000 bar, and the audit prompt needs the internship rule pasted into it — otherwise it will keep returning <code>ok</code> on roles it correctly identifies as internships.</p>
+    </div>
+  </div>
+  <div class="rec">
+    <span class="r">03</span>
+    <div>
+      <strong>Soften or suppress the figure on low-confidence rows.</strong>
+      <p>668 live rows where the estimate agrees with an independent model less than half the time. Confidence is calibrated well enough to drive this directly.</p>
+    </div>
+  </div>
+  <div class="rec">
+    <span class="r">04</span>
+    <div>
+      <strong>Sanity-bound the disclosed-salary parser.</strong>
+      <p>Reject a parsed monthly figure below HK$5,000 or above HK$250,000 at write time, and convert obvious annual figures. Six bad rows today, and this field is ground truth for every future calibration — it should not be the noisy one.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Method, and what it cannot tell you</h2>
+  <p class="sec-note">So the numbers can be judged</p>
+  <div class="prose">
+    <p><strong>Population.</strong> The 4,256 live published listings carrying an estimate — <code>is_active = 1 AND is_primary = 1</code>, the same BOARD rule <code>job_read.py</code> serves. All 4,256 share one model and one prompt version, so nothing here is version drift.</p>
+    <p><strong>Sample.</strong> 150 listings, seeded and reproducible, stratified by seniority with a floor of 30 per stratum so <code>lead</code> is measurable. Because that over-samples small strata, every population figure is design-weighted by <span class="num">N/n</span>; the per-stratum rows are unweighted.</p>
+    <p><strong>Blinding.</strong> Sonnet received title, company, location, employment type and description only — never the existing estimate, and never the stored seniority, which is itself model output. It ran the production prompt verbatim, at the same 2,000-character description cap.</p>
+    <p><strong>The limitation that matters.</strong> Sonnet is a second opinion, not truth. Where the two disagree, this establishes that the estimate is <em>unstable</em>, not which one is right. Only the 49 disclosed-salary rows are ground truth — and the internship finding, which needs no external referee, because the estimator is being measured against its own written rule.</p>
+    <p><strong>Cost.</strong> 150 re-estimates across six parallel workers. The full board would have been 4,256.</p>
+  </div>
+</section>
+
+<footer>
+  Salary estimator audit · sample seed 20260818 · database data/jobs.db as of 2026-08-17T17:00Z<br>
+  Per-listing comparison data: docs/salary_audit_2026-08-18/comparison.json
+</footer>
+
+</div>

@@ -112,6 +112,7 @@ class PipelineArgs:
     deactivate_stale_posts: int | None = None
     check_ghost_jobs: bool = False
     repair_post_employers: bool = False
+    repair_internship_salaries: bool = False
     repair_apply: bool = False
 
     @classmethod
@@ -362,6 +363,20 @@ def build_parser() -> argparse.ArgumentParser:
             "'Confidential via {recruiter}' form. Reads each post's STORED "
             "extraction result — no DeepSeek calls, no cost. Reports what it would "
             "change and does nothing unless --repair-apply is also given."
+        ),
+    )
+    p.add_argument(
+        "--repair-internship-salaries",
+        dest="repair_internship_salaries",
+        action="store_true",
+        help=(
+            "Clamp published internship/graduate-programme estimates down to the "
+            "HK$15,000 ceiling the salary prompt sets for them. The 2026-08-18 audit "
+            "found 58 of 153 live internship listings above that cap, the worst a 2027 "
+            "summer analyst at HK$41,500-83,500. Recomputed deterministically from the "
+            "stored row \u2014 no DeepSeek calls, no cost \u2014 and idempotent, so a repeat "
+            "run changes nothing. Reports what it would change and does nothing unless "
+            "--repair-apply is also given."
         ),
     )
     p.add_argument(
@@ -727,6 +742,23 @@ def _repair_post_employers(args: PipelineArgs) -> None:
         print("Nothing was written. Re-run with --repair-apply to apply.")
 
 
+def _repair_internship_salaries(args: PipelineArgs) -> None:
+    from hk_jobs.salary_repair import repair_internship_salaries
+
+    summary = repair_internship_salaries(args.db, dry_run=not args.repair_apply)
+    verb = "would lower" if not args.repair_apply else "lowered"
+    print(
+        f"{summary.examined} estimates examined; {summary.matched} internship titles; "
+        f"{verb} {summary.repaired}."
+    )
+    for title, old_max, new_max in summary.examples:
+        print(f"  {old_max:>7,} -> {new_max:>6,}  {title[:60]}")
+    for entry in summary.suspicious:
+        print(f"  REVIEW - matched but not stored as junior: {entry}")
+    if summary.repaired and not args.repair_apply:
+        print("Nothing was written. Re-run with --repair-apply to apply.")
+
+
 def _repair_companies(args: PipelineArgs) -> None:
     from hk_jobs.description_fetcher import DescriptionFetcher
 
@@ -761,6 +793,8 @@ MODES: tuple[Mode, ...] = (
     Mode("check-ghost-jobs", lambda a: a.check_ghost_jobs, _check_ghost_jobs),
     Mode("repair-post-employers",
          lambda a: a.repair_post_employers, _repair_post_employers),
+    Mode("repair-internship-salaries",
+         lambda a: a.repair_internship_salaries, _repair_internship_salaries),
     Mode("repair-companies", lambda a: a.repair_companies, _repair_companies),
 )
 

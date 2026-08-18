@@ -126,6 +126,51 @@ _INSURANCE_GRADE_PATTERNS: tuple[tuple[str, re.Pattern], ...] = (
 )
 
 
+# An internship is never paid on the ladder its desk sits on. The enricher's prompt says
+# so in STEP 1 — "cap at HK$3,000-12,000/month regardless of company tier; bulge-bracket
+# may reach HK$10,000-15,000; never exceed HK$15,000" — and the 2026-08-18 audit found the
+# model ignoring it on 38% of internship listings (58 of 153 live rows above the cap, the
+# worst at HK$41,500-83,500). The mechanism is legible: "Summer ANALYST, Investment
+# Banking" matches the full-time IBD Analyst row and the band is copied verbatim, so the
+# title's own word "Analyst" beats the internship rule. A prompt cannot enforce this; this
+# module can.
+#
+# 15,000 is the prompt's absolute never-exceed, not its 3,000-12,000 typical band: this is
+# a ceiling, and like every other ceiling here it only ever lowers. An estimate already
+# below it is left exactly as the model wrote it.
+INTERNSHIP_MAX_MONTHLY_HKD = 15_000
+
+# Whole words only, exactly as the prompt's own STEP 1 spells out — `\bintern\b` cannot
+# match "Internal" or "International", which is the false-positive class the prompt
+# explicitly warns about ("a Director, Internal Audit is a full-time senior role"). Bare
+# "trainee" is included: in this market "Financial Market Trainee 2026" and "Management
+# Trainee" are graduate programmes, and the audit found them priced on the full-time
+# ladder too. "Trainer"/"Training" are untouched by the word boundary.
+_INTERNSHIP_PATTERN = re.compile(
+    r"\b(?:"
+    r"intern|interns|internship|internships"
+    r"|summer\s+(?:intern|analyst|associate)"
+    r"|graduate\s+(?:intern|programme|program|trainee)"
+    r"|trainee|trainees"
+    r"|trainee\s+(?:programme|program)"
+    r"|industrial\s+placement"
+    r"|placement\s+(?:programme|program)"
+    r")\b"
+    r"|暑期實習|實習生|實習",
+    re.I,
+)
+
+
+def is_internship(title: str | None) -> bool:
+    """True when the title names a genuine internship / graduate / trainee programme.
+
+    Title-only by design. It is the one field that is never LLM-inferred — it comes
+    straight off the scraped row — so this cannot be talked out of firing by a model that
+    has already decided the role sits on a front-office desk.
+    """
+    return bool(title) and bool(_INTERNSHIP_PATTERN.search(title))
+
+
 # Real production bug (found 2026-07-22): DeepSeek occasionally emits the salary in
 # "thousands" shorthand — e.g. 66 instead of 66000 — with no unit marker, so a naive
 # int-coercion stores the bare number verbatim (found via a scan across 4,766 active
@@ -293,6 +338,13 @@ def clamp_salary(
     if new_max is not None:
         new_max = min(new_max, GLOBAL_MAX_MONTHLY_HKD)
 
+    # The internship ceiling, applied after every ladder above so it wins over all of
+    # them — the whole failure mode is a genuine internship matching a real full-time
+    # band, so a cap that merely competed with those bands would lose.
+    internship = is_internship(title)
+    if internship and new_max is not None:
+        new_max = min(new_max, INTERNSHIP_MAX_MONTHLY_HKD)
+
     # Floor raise: the one exception to "down-only". When the enricher confidently
     # matched a specific standardized grade row (named-row match, not the idiosyncratic
     # fallback) but its own raw estimate undershoots that row's own floor, trust the
@@ -300,7 +352,11 @@ def clamp_salary(
     # above. If the whole estimate sits below the row's floor, adopt the row's own band
     # outright; if only the min is a touch low but max already reaches into/above the
     # row, just lift the min (preserves whatever signal the model's own max carried).
-    band = _role_band(tier, role, seniority)
+    # ...but never for an internship. The floor raise adopts a matched full-time grade
+    # row outright when the estimate falls below it, which is exactly what an internship
+    # capped to HK$15,000 now does — without this guard it would hand the IBD Analyst
+    # band straight back and undo the cap above.
+    band = None if internship else _role_band(tier, role, seniority)
     if band is not None:
         lo, hi = band
         if new_max is not None and new_max < lo:

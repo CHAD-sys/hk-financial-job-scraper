@@ -11,13 +11,14 @@ on:
         required: false
         default: ""
       profile:
-        description: "hosted = full nightly run; enrich_only = restore, enrich, publish (no scrape)"
+        description: "hosted = full nightly run; enrich_only = restore, enrich, publish (no scrape); repair = restore, deterministic salary repair, publish (no scrape, no model calls)"
         required: false
         default: hosted
         type: choice
         options:
           - hosted
           - enrich_only
+          - repair
 
 permissions:
   contents: read

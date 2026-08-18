@@ -2,6 +2,7 @@
 from hk_jobs.salary_clamp import (
     BOUTIQUE_SALARY_MULTIPLIER,
     GLOBAL_MAX_MONTHLY_HKD,
+    INTERNSHIP_MAX_MONTHLY_HKD,
     _LADDERS,
     _TABLES,
     clamp_salary,
@@ -312,3 +313,79 @@ def test_floor_raise_does_not_apply_to_idiosyncratic_fallback_roles():
         "corporate_finance_accounting", "senior", 1_000, 2_000, role="accounting_support",
     )
     assert out == (1_000, 2_000)
+
+
+# ── internship cap ──────────────────────────────────────────────────────────────
+#
+# Found by the 2026-08-18 estimator audit (docs/SALARY_ESTIMATOR_AUDIT.html): 58 of the
+# 153 live internship listings were priced above the HK$15,000 ceiling the enricher's own
+# prompt sets for them, the worst at HK$41,500-83,500 — 5.6x the cap. The mechanism is
+# always the same: "Summer ANALYST, Investment Banking" matches the full-time IBD Analyst
+# row (corporate_finance_ma_ecm_dcm 41k-83k) and the model copies that band verbatim,
+# never reaching the internship rule at all. The prompt states the rule; the model ignores
+# it on 38% of cases; so it is enforced here instead, where it cannot be ignored.
+
+def test_summer_analyst_is_capped_at_the_internship_ceiling():
+    # Real production row: Citi, "Banking - Investment Banking, Summer Analyst,
+    # Hong Kong - APAC, 2027" stored at 41,500-83,500.
+    out = clamp_salary(
+        "front_office", "junior", 41_500, 83_500,
+        role="corporate_finance_ma_ecm_dcm",
+        title="Banking - Investment Banking, Summer Analyst, Hong Kong - APAC, 2027",
+    )
+    assert out[1] <= INTERNSHIP_MAX_MONTHLY_HKD
+
+
+def test_named_internship_titles_are_all_caught():
+    # Every one of these is a real live row from the audit.
+    for title in (
+        "Global Banking Intern Hong Kong 2027",
+        "Investment Banking Graduate Programme 2027 Hong Kong",
+        "2027 Deutsche Bank Summer Internship Programme - Investment Banking & Capital Markets - Hong Kong",
+        "2027 Investment Banking Summer Associate (MBA) Program (Hong Kong)",
+        "2027 Global Capital Markets Industrial Placement / Summer Analyst Program (Hong Kong)",
+        "Financial Market Trainee 2026",
+        "暑期實習生 - 投資銀行",
+    ):
+        out = clamp_salary(
+            "front_office", "junior", 41_500, 83_500,
+            role="corporate_finance_ma_ecm_dcm", title=title,
+        )
+        assert out[1] <= INTERNSHIP_MAX_MONTHLY_HKD, title
+
+
+def test_internship_cap_never_raises_a_lower_estimate():
+    # Down-only holds here too: an internship already priced under the cap is untouched.
+    out = clamp_salary(
+        "front_office", "junior", 8_000, 12_000,
+        role="corporate_finance_ma_ecm_dcm", title="Summer Intern",
+    )
+    assert out == (8_000, 12_000)
+
+
+def test_internal_and_international_are_not_internships():
+    # The prompt's own warning, enforced: these words merely CONTAIN "intern".
+    for title in (
+        "Director, Internal Audit",
+        "International Wealth Manager",
+        "Head of Internal Control",
+        "International Corporate Banking Relationship Manager",
+    ):
+        out = clamp_salary(
+            "middle_office", "lead", 90_000, 120_000, title=title,
+        )
+        assert out[1] > INTERNSHIP_MAX_MONTHLY_HKD, title
+
+
+def test_internship_cap_applies_without_a_tier_or_role():
+    # The cap is title-driven and must fire even when nothing else is recognised.
+    out = clamp_salary(None, None, 40_000, 80_000, title="Summer Analyst 2027")
+    assert out[1] <= INTERNSHIP_MAX_MONTHLY_HKD
+
+
+def test_internship_range_is_never_a_single_value():
+    out = clamp_salary(
+        "front_office", "junior", 41_500, 83_500,
+        role="corporate_finance_ma_ecm_dcm", title="Summer Analyst, Hong Kong 2027",
+    )
+    assert out[0] is not None and out[0] < out[1]

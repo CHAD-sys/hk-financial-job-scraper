@@ -381,3 +381,28 @@ def test_hosted_adapter_restores_and_publishes_the_same_database(tmp_path):
     assert record.restore_sha256 == record.published_sha256
     assert published["headers"]["X-Pipeline-Run-Id"] == "hosted-transport"
     assert gzip.decompress(published["body"]) == paths.database.read_bytes()
+
+
+def test_repair_is_the_smallest_profile_that_changes_production_without_a_model_call():
+    """A clamp change only affects estimates written after it, so rows already
+    published keep whatever the old clamp allowed. This is how a deterministic
+    repair reaches them: restore pulls the live database down, the repair recomputes
+    the affected rows in Python, publish hands it back. No scrape, no DeepSeek."""
+    assert [phase.key for phase in profile_for("repair").phases] == [
+        "restore",
+        "salary_repair",
+        "publish",
+    ]
+
+
+def test_repair_is_not_part_of_the_nightly_run():
+    """Once the clamp is in place no new bad rows are written, which makes the
+    repair a backfill rather than a nightly chore. Adding it to hosted would run a
+    full table scan every night to change nothing."""
+    assert "salary_repair" not in [phase.key for phase in profile_for("hosted").phases]
+
+
+def test_repair_reuses_the_shared_phase_definitions():
+    hosted, repair = profile_for("hosted"), profile_for("repair")
+    for key in ("restore", "publish"):
+        assert hosted.phase(key) == repair.phase(key)

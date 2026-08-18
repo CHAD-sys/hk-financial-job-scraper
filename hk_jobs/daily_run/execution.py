@@ -209,6 +209,10 @@ class CommandPhaseExecutor:
         self._pipeline("--audit-salaries")
         return PhaseOutput(detail="Audited salary outliers")
 
+    def _salary_repair(self, _record: DailyRunRecord) -> PhaseOutput:
+        self._pipeline("--repair-internship-salaries", "--repair-apply")
+        return PhaseOutput(detail="Re-applied deterministic salary repairs")
+
     def _pocketbase(self, _record: DailyRunRecord) -> PhaseOutput:
         self._run_command(
             [sys.executable, "-m", "hk_jobs.sync_pocketbase"],

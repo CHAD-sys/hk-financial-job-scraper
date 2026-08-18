@@ -260,3 +260,17 @@ def test_main_scrapes_when_no_mode_is_selected(tmp_path: Path, monkeypatch):
 
     assert len(seen) == 1
     assert seen[0].db == db and seen[0].no_enrich is True
+
+
+def test_repair_internship_salaries_is_a_mode_and_needs_repair_apply_to_write():
+    """The --repair-* convention: the pass reports by default and writes only when
+    --repair-apply is given, so a dry run can never touch published salaries."""
+    args = parse_args(["--repair-internship-salaries"])
+    assert args.repair_internship_salaries is True
+    assert args.repair_apply is False
+    mode = select_mode(args)
+    assert mode is not None and mode.name == "repair-internship-salaries"
+
+
+def test_repair_internship_salaries_is_not_selected_by_default():
+    assert select_mode(parse_args([])) is None
