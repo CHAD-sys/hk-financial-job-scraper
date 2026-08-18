@@ -1,0 +1,1352 @@
+[
+ {
+  "id": 15616,
+  "min": 38000,
+  "max": 55000,
+  "tier": "back_office_operations",
+  "grade": "Associate",
+  "confidence": "medium",
+  "reason": "Client-services/market-maker-monitoring ops associate at HKEX, ~3y exp."
+ },
+ {
+  "id": 16999,
+  "min": 38000,
+  "max": 52000,
+  "tier": "insurance",
+  "grade": "Assistant Manager/Manager",
+  "confidence": "medium",
+  "reason": "Underwriting operations manager grade at a non-mega insurer."
+ },
+ {
+  "id": 16176,
+  "min": 24000,
+  "max": 28000,
+  "tier": "back_office_operations",
+  "grade": "Senior Officer",
+  "confidence": "low",
+  "reason": "Junior HR recruiter role on a contract, discounted; grade label ambiguous."
+ },
+ {
+  "id": 14975,
+  "min": 65000,
+  "max": 80000,
+  "tier": "back_office_operations",
+  "grade": "VP",
+  "confidence": "medium",
+  "reason": "Head of a client-service/support team (not revenue-generating), StanChart tier-2."
+ },
+ {
+  "id": 1081,
+  "min": 78000,
+  "max": 95000,
+  "tier": "middle_office",
+  "grade": "VP",
+  "confidence": "medium",
+  "reason": "Senior transformation programme manager at bulge-bracket HSBC/Hang Seng."
+ },
+ {
+  "id": 14035,
+  "min": 58000,
+  "max": 78000,
+  "tier": "insurance",
+  "grade": "Senior Manager",
+  "confidence": "medium",
+  "reason": "Manulife Senior Manager capped at HK$80k under big-insurer rule."
+ },
+ {
+  "id": 18363,
+  "min": 4000,
+  "max": 10000,
+  "tier": "insurance",
+  "grade": "Trainee",
+  "confidence": "low",
+  "reason": "Commission-based fresh-grad/IANG wealth trainee programme, capped like an internship."
+ },
+ {
+  "id": 9141,
+  "min": 25000,
+  "max": 33000,
+  "tier": "back_office_operations",
+  "grade": "Consultant/Associate",
+  "confidence": "low",
+  "reason": "EY risk consulting posting is 'All Levels'; biased to entry grade."
+ },
+ {
+  "id": 15531,
+  "min": 20000,
+  "max": 30000,
+  "tier": "back_office_operations",
+  "grade": "Associate",
+  "confidence": "medium",
+  "reason": "Junior investment-ops role, 1-2y experience, associate-degree entry."
+ },
+ {
+  "id": 6126,
+  "min": 24000,
+  "max": 31000,
+  "tier": "back_office_operations",
+  "grade": "AVP (Associate band)",
+  "confidence": "medium",
+  "reason": "AVP title maps to the Associate row; tax-ops team lead at Citi."
+ },
+ {
+  "id": 17524,
+  "min": 30000,
+  "max": 45000,
+  "tier": "front_office",
+  "grade": "Associate",
+  "confidence": "low",
+  "reason": "No stated seniority; non-bulge-bracket Chinese brokerage sales trader."
+ },
+ {
+  "id": 15573,
+  "min": 76000,
+  "max": 98000,
+  "tier": "middle_office",
+  "grade": "Director/Associate Director",
+  "confidence": "low",
+  "reason": "Ambiguous dual title, Manulife's reversed grade order, and a 12-month contract discount."
+ },
+ {
+  "id": 8639,
+  "min": 10000,
+  "max": 15000,
+  "tier": "front_office",
+  "grade": "Intern",
+  "confidence": "high",
+  "reason": "Explicit Summer Analyst internship at bulge-bracket Bank of America."
+ },
+ {
+  "id": 9788,
+  "min": 25000,
+  "max": 32000,
+  "tier": "back_office_operations",
+  "grade": "Senior Marketing Executive",
+  "confidence": "low",
+  "reason": "Client-facing marketing/execution support role, junior-mid seniority."
+ },
+ {
+  "id": 17676,
+  "min": 22000,
+  "max": 35000,
+  "tier": "insurance",
+  "grade": "Officer/Senior Analyst",
+  "confidence": "medium",
+  "reason": "Junior actuarial associate role, regulatory reporting, at AIA."
+ },
+ {
+  "id": 11412,
+  "min": 4800,
+  "max": 8000,
+  "tier": "back_office_operations",
+  "grade": "Part-time Creator",
+  "confidence": "high",
+  "reason": "Salary explicitly stated in posting: HKD 4,800-8,000/month."
+ },
+ {
+  "id": 8248,
+  "min": 55000,
+  "max": 78000,
+  "tier": "middle_office",
+  "grade": "Manager",
+  "confidence": "low",
+  "reason": "Senior Specialist, no VP/Director title given, wide product-management band."
+ },
+ {
+  "id": 17578,
+  "min": 65000,
+  "max": 80000,
+  "tier": "insurance",
+  "grade": "Principal (Senior Manager)",
+  "confidence": "medium",
+  "reason": "AIA Senior Manager/Principal capped at HK$80k under big-insurer rule."
+ },
+ {
+  "id": 12228,
+  "min": 41000,
+  "max": 55000,
+  "tier": "front_office",
+  "grade": "Analyst",
+  "confidence": "low",
+  "reason": "Minimal recruiter post, no company/seniority detail; hedge fund analyst floor."
+ },
+ {
+  "id": 18393,
+  "min": 24000,
+  "max": 34000,
+  "tier": "back_office_operations",
+  "grade": "Manager/AVP (Associate band)",
+  "confidence": "medium",
+  "reason": "Treasury settlement ops at a regional bank; AVP maps to the Associate row."
+ },
+ {
+  "id": 12132,
+  "min": 155000,
+  "max": 176000,
+  "tier": "commercial_corporate_banking",
+  "grade": "MD",
+  "confidence": "medium",
+  "reason": "Explicit Managing Director, Corporate Banking, at a leading international bank."
+ },
+ {
+  "id": 6519,
+  "min": 18000,
+  "max": 28000,
+  "tier": "back_office_operations",
+  "grade": "Executive",
+  "confidence": "low",
+  "reason": "No description available; generic junior business-development fallback."
+ },
+ {
+  "id": 18404,
+  "min": 36000,
+  "max": 48000,
+  "tier": "back_office_operations",
+  "grade": "Senior Associate/Assistant Manager",
+  "confidence": "low",
+  "reason": "EY HR consulting, dual Senior Consultant/Manager title, biased to lower grade."
+ },
+ {
+  "id": 13714,
+  "min": 33000,
+  "max": 48000,
+  "tier": "middle_office",
+  "grade": "Associate/Manager",
+  "confidence": "medium",
+  "reason": "AML compliance manager grade at Bank of China (HK), 4+y experience."
+ },
+ {
+  "id": 15284,
+  "min": 75000,
+  "max": 80000,
+  "tier": "middle_office",
+  "grade": "VP",
+  "confidence": "high",
+  "reason": "Explicit VP title; bank hard-cap limits VP grade to HK$80,000."
+ },
+ {
+  "id": 15660,
+  "min": 19000,
+  "max": 23000,
+  "tier": "human_resources",
+  "grade": "hr_officer",
+  "confidence": "medium",
+  "reason": "Contract HR ops analyst role at Mizuho; hr_officer band with ~15% contract discount applied."
+ },
+ {
+  "id": 15458,
+  "min": 25000,
+  "max": 30000,
+  "tier": "professional_practice_advisory",
+  "grade": "Consultant / Associate",
+  "confidence": "medium",
+  "reason": "KPMG advisory associate-level role, no stated salary; bottom of consulting band."
+ },
+ {
+  "id": 15954,
+  "min": 30000,
+  "max": 40000,
+  "tier": "mortgage",
+  "grade": "Senior Specialist",
+  "confidence": "medium",
+  "reason": "Product manager for secured lending reporting to a Team Head, so below Team Head grade."
+ },
+ {
+  "id": 17667,
+  "min": 100000,
+  "max": 150000,
+  "tier": "it_executive_leadership",
+  "grade": "Associate Director",
+  "confidence": "medium",
+  "reason": "AIA tech/innovation Associate Director; big-insurance AD hard cap of 150k applied."
+ },
+ {
+  "id": 130,
+  "min": 22000,
+  "max": 30000,
+  "tier": "relationship_management",
+  "grade": "Assistant RM",
+  "confidence": "low",
+  "reason": "Entry-level retail consumer-loans telesales officer; no exact table row match."
+ },
+ {
+  "id": 16689,
+  "min": 65000,
+  "max": 80000,
+  "tier": "asset_management_portfolio",
+  "grade": "VP",
+  "confidence": "medium",
+  "reason": "Morgan Stanley VP, advisory portfolio management; bank VP hard cap of 80k applied."
+ },
+ {
+  "id": 17292,
+  "min": 17000,
+  "max": 24000,
+  "tier": "risk_credit",
+  "grade": "Analyst",
+  "confidence": "medium",
+  "reason": "1-year contract, entry-level (2yr exp) credit risk officer; Analyst band with contract discount."
+ },
+ {
+  "id": 9043,
+  "min": 25000,
+  "max": 30000,
+  "tier": "professional_practice_advisory",
+  "grade": "Consultant / Associate",
+  "confidence": "medium",
+  "reason": "KPMG GRC advisory associate-level role, no stated salary."
+ },
+ {
+  "id": 15302,
+  "min": 16000,
+  "max": 22000,
+  "tier": "agency_distribution",
+  "grade": "Officer / Senior Analyst",
+  "confidence": "low",
+  "reason": "AXA financial consultant/agency role explicitly targeting fresh grads; entry band despite Manager title."
+ },
+ {
+  "id": 16557,
+  "min": 25000,
+  "max": 35000,
+  "tier": "strategic_operations",
+  "grade": "Analyst",
+  "confidence": "low",
+  "reason": "Vague regional associate lead role at AXA, function unclear from truncated description."
+ },
+ {
+  "id": 11458,
+  "min": 50000,
+  "max": 65000,
+  "tier": "fi_banking_rm",
+  "grade": "Senior RM",
+  "confidence": "medium",
+  "reason": "Institutional/FI relationship manager at BOC(HK), 5+ yrs and managerial experience required."
+ },
+ {
+  "id": 18102,
+  "min": 50000,
+  "max": 58000,
+  "tier": "investment",
+  "grade": "Senior Analyst",
+  "confidence": "medium",
+  "reason": "FWD alternative-assets deal-execution role reporting to Head of Alternative Investments."
+ },
+ {
+  "id": 15434,
+  "min": 22000,
+  "max": 30000,
+  "tier": "operations_general",
+  "grade": "Associate",
+  "confidence": "low",
+  "reason": "Reconciliation team lead at MUFG; no job description available to confirm seniority."
+ },
+ {
+  "id": 607,
+  "min": 28000,
+  "max": 36000,
+  "tier": "claims",
+  "grade": "Officer / Senior Analyst",
+  "confidence": "medium",
+  "reason": "AIA/Amplify Health senior claims operations specialist, individual-contributor level."
+ },
+ {
+  "id": 17195,
+  "min": 19000,
+  "max": 26000,
+  "tier": "kyc_cdd_client_onboarding",
+  "grade": "Analyst",
+  "confidence": "medium",
+  "reason": "Entry KYC/CDD officer at ICBC(Asia), min 1yr experience, Officer-to-Assistant-Manager range biased low."
+ },
+ {
+  "id": 5961,
+  "min": 60000,
+  "max": 80000,
+  "tier": "commercial_banking_rm",
+  "grade": "Team Head",
+  "confidence": "medium",
+  "reason": "Hang Seng VP II, Business Banking SME portfolio with team guidance duties; bank VP hard cap of 80k applied."
+ },
+ {
+  "id": 16536,
+  "min": 40000,
+  "max": 52000,
+  "tier": "transaction_banking_rm",
+  "grade": "RM",
+  "confidence": "medium",
+  "reason": "OCBC AVP, merchant/card acquiring business; bank AVP hard cap of 70k applied."
+ },
+ {
+  "id": 13377,
+  "min": 35000,
+  "max": 45000,
+  "tier": "software_data_engineering",
+  "grade": "full_stack_developer",
+  "confidence": "low",
+  "reason": "Tech Lead at small unknown firm with almost no job description."
+ },
+ {
+  "id": 18442,
+  "min": 45000,
+  "max": 62000,
+  "tier": "product_control",
+  "grade": "Associate",
+  "confidence": "medium",
+  "reason": "BoCom valuation/treasury pricing manager, 5yr exp; bank Manager hard cap of 70k not binding here."
+ },
+ {
+  "id": 120,
+  "min": 90000,
+  "max": 130000,
+  "tier": "private_banking_rm",
+  "grade": "VP",
+  "confidence": "medium",
+  "reason": "HSBC GCB4 private banking RM, China team; GCB4 roughly maps to VP grade, HSBC tier-1 nudge upward."
+ },
+ {
+  "id": 17687,
+  "min": 130000,
+  "max": 176000,
+  "tier": "audit_insurance",
+  "grade": "Head",
+  "confidence": "medium",
+  "reason": "AIA regional audit director for technology/cyber/change, GIA Exec Committee member; big-insurance Director cap (200k) not binding."
+ },
+ {
+  "id": 13756,
+  "min": 32000,
+  "max": 45000,
+  "tier": "treasury",
+  "grade": "Associate",
+  "confidence": "low",
+  "reason": "CMB Wing Lung FTP/pricing role, title spans AVP/VP/SVP but only 3yr min experience required; biased to lower grade."
+ },
+ {
+  "id": 12526,
+  "min": 23000,
+  "max": 30000,
+  "tier": "agency_distribution",
+  "grade": "Officer / Senior Analyst",
+  "confidence": "high",
+  "reason": "Salary explicitly stated in the job title (23k~30k)."
+ },
+ {
+  "id": 9795,
+  "min": 18000,
+  "max": 26000,
+  "tier": "legal_counsel",
+  "grade": "Analyst",
+  "confidence": "low",
+  "reason": "Paralegal support role at Deloitte Legal; no direct table match, fell back to lowest legal-support band."
+ },
+ {
+  "id": 6491,
+  "min": 35000,
+  "max": 45000,
+  "tier": "global_markets_trading",
+  "grade": "Analyst",
+  "confidence": "low",
+  "reason": "Role is based in Buenos Aires, Argentina, not Hong Kong, with a near-empty description; hard to ground in HK bands."
+ },
+ {
+  "id": 11428,
+  "min": 8000,
+  "max": 12000,
+  "tier": "front_office",
+  "grade": "Intern/Graduate",
+  "confidence": "medium",
+  "reason": "2026 Graduate Program is a graduate/fresh-grad programme, capped under Step 1 internship rule regardless of desk."
+ },
+ {
+  "id": 17877,
+  "min": 80000,
+  "max": 115000,
+  "tier": "front_office",
+  "grade": "Investment Counsellor / Advisor",
+  "confidence": "medium",
+  "reason": "6-10y PB investment advisory role matches investment_counsellor band; DBS is Tier-2, mid-band."
+ },
+ {
+  "id": 17597,
+  "min": 35000,
+  "max": 48000,
+  "tier": "insurance",
+  "grade": "Manager",
+  "confidence": "low",
+  "reason": "AIA MPF/pension fund-switching team lead, but title 'Consultant' leaves seniority ambiguous so biased low."
+ },
+ {
+  "id": 16599,
+  "min": 54000,
+  "max": 70000,
+  "tier": "middle_office",
+  "grade": "Manager (AVP)",
+  "confidence": "medium",
+  "reason": "Audit Manager at a bank maps to audit_banking VP row, capped at HK$70k under the bank Manager=AVP ceiling."
+ },
+ {
+  "id": 15656,
+  "min": 32000,
+  "max": 45000,
+  "tier": "middle_office",
+  "grade": "Associate/Manager",
+  "confidence": "low",
+  "reason": "Trade-finance product manager role with only '3+ years' stated, ambiguous seniority so biased low in product_management band."
+ },
+ {
+  "id": 11914,
+  "min": 28000,
+  "max": 37000,
+  "tier": "back_office_operations",
+  "grade": "Associate",
+  "confidence": "medium",
+  "reason": "3-5y hedge-fund investment data/operations role fits fund_operations Associate band."
+ },
+ {
+  "id": 16650,
+  "min": 16000,
+  "max": 20000,
+  "tier": "back_office_operations",
+  "grade": "cs_executive",
+  "confidence": "medium",
+  "reason": "Entry-level contact centre customer service role, fresh graduates welcome."
+ },
+ {
+  "id": 16111,
+  "min": 18000,
+  "max": 24000,
+  "tier": "back_office_operations",
+  "grade": "receptionist/admin_assistant",
+  "confidence": "medium",
+  "reason": "General reception and admin support role with 2 years' experience."
+ },
+ {
+  "id": 13113,
+  "min": 65000,
+  "max": 70000,
+  "tier": "middle_office",
+  "grade": "Manager (AVP)",
+  "confidence": "medium",
+  "reason": "Senior IT QA/test management role at a bank, capped at HK$70k under the Manager=AVP bank ceiling."
+ },
+ {
+  "id": 12925,
+  "min": 21000,
+  "max": 30000,
+  "tier": "corporate_finance_accounting",
+  "grade": "Analyst",
+  "confidence": "low",
+  "reason": "No description available for seniority; generic in-house Finance Analyst title biased to Analyst band."
+ },
+ {
+  "id": 16191,
+  "min": 70000,
+  "max": 80000,
+  "tier": "insurance",
+  "grade": "Senior Manager (capped)",
+  "confidence": "medium",
+  "reason": "Prudential is a big insurer; Senior Manager title capped at HK$80k under Step 4."
+ },
+ {
+  "id": 13250,
+  "min": 60000,
+  "max": 85000,
+  "tier": "middle_office",
+  "grade": "Manager/Lead",
+  "confidence": "low",
+  "reason": "No description available; IT Transformation Delivery Lead treated as it_management band, biased low."
+ },
+ {
+  "id": 7386,
+  "min": 50000,
+  "max": 70000,
+  "tier": "middle_office",
+  "grade": "Manager (AVP)",
+  "confidence": "medium",
+  "reason": "(Senior) Credit Risk Manager at a bank maps to risk_credit AVP row, capped at HK$70k."
+ },
+ {
+  "id": 9199,
+  "min": 22000,
+  "max": 32000,
+  "tier": "corporate_finance_accounting",
+  "grade": "Consultant/Staff",
+  "confidence": "medium",
+  "reason": "EY Staff/Senior Associate with ~1y experience fits professional_practice_advisory entry band."
+ },
+ {
+  "id": 393,
+  "min": 40000,
+  "max": 62000,
+  "tier": "commercial_corporate_banking",
+  "grade": "Premier Banking RM (AVP)",
+  "confidence": "medium",
+  "reason": "Branch-based HNW distribution role defaults to the lower wealth_management tier rather than private-banking front office."
+ },
+ {
+  "id": 15934,
+  "min": 20000,
+  "max": 30000,
+  "tier": "insurance",
+  "grade": "Officer",
+  "confidence": "high",
+  "reason": "Description explicitly states the salary as 20-30K."
+ },
+ {
+  "id": 15612,
+  "min": 30000,
+  "max": 45000,
+  "tier": "back_office_operations",
+  "grade": "Associate",
+  "confidence": "medium",
+  "reason": "HKEX corporate-actions/nominee operations role with 3-5y experience fits documentation_operations Associate band."
+ },
+ {
+  "id": 16556,
+  "min": 100000,
+  "max": 140000,
+  "tier": "insurance",
+  "grade": "Head",
+  "confidence": "medium",
+  "reason": "Chief Underwriting Officer for General Insurance maps to the underwriting Head row at a large insurer."
+ },
+ {
+  "id": 16684,
+  "min": 90000,
+  "max": 130000,
+  "tier": "middle_office",
+  "grade": "IT Director/VP",
+  "confidence": "medium",
+  "reason": "Explicit VP title leading strategic network architecture matches it_executive_leadership VP band, mid-band."
+ },
+ {
+  "id": 13548,
+  "min": 50000,
+  "max": 70000,
+  "tier": "commercial_corporate_banking",
+  "grade": "AVP (Senior RM)",
+  "confidence": "medium",
+  "reason": "AVP managing SME portfolio at Hang Seng, capped at HK$70k under the bank AVP ceiling."
+ },
+ {
+  "id": 11247,
+  "min": 60000,
+  "max": 85000,
+  "tier": "middle_office",
+  "grade": "VP",
+  "confidence": "medium",
+  "reason": "VP-level business-analyst/platform delivery role for trading tech, not an actual trading desk; uses change_project_management VP band."
+ },
+ {
+  "id": 12274,
+  "min": 55000,
+  "max": 65000,
+  "tier": "insurance",
+  "grade": "Senior Manager",
+  "confidence": "high",
+  "reason": "Description explicitly states salary HKD55000-HKD65000 per month."
+ },
+ {
+  "id": 15604,
+  "min": 35000,
+  "max": 50000,
+  "tier": "middle_office",
+  "grade": "Associate/Officer",
+  "confidence": "medium",
+  "reason": "UBS enhanced due-diligence/financial-crime role with 3+ years fits fcc_aml Associate band."
+ },
+ {
+  "id": 18187,
+  "min": 65000,
+  "max": 80000,
+  "tier": "insurance",
+  "grade": "Senior Manager (capped)",
+  "confidence": "medium",
+  "reason": "FWD Investment Senior Manager capped at HK$80k under the big-insurer Senior Manager ceiling."
+ },
+ {
+  "id": 17529,
+  "min": 5000,
+  "max": 9000,
+  "tier": "front_office",
+  "grade": "Intern",
+  "confidence": "medium",
+  "reason": "Explicit internship programme for students, capped under Step 1 (non-bulge-bracket)."
+ },
+ {
+  "id": 18153,
+  "min": 31000,
+  "max": 42000,
+  "tier": "fcc_aml",
+  "grade": "Associate",
+  "confidence": "low",
+  "reason": "FCC/AML line manager, ambiguous seniority and non-HK (Jakarta) location, biased to bottom of Associate band."
+ },
+ {
+  "id": 17686,
+  "min": 65000,
+  "max": 80000,
+  "tier": "strategic_operations",
+  "grade": "Senior Manager",
+  "confidence": "medium",
+  "reason": "Group sourcing/procurement at big insurer AIA; dual Senior Manager/AD title, capped at insurance Senior Manager ceiling of 80k."
+ },
+ {
+  "id": 17678,
+  "min": 80000,
+  "max": 95000,
+  "tier": "distribution_training",
+  "grade": "Head",
+  "confidence": "medium",
+  "reason": "Associate Director of agency L&D at AIA, mapped to distribution_training Head row within the AD ceiling."
+ },
+ {
+  "id": 9116,
+  "min": 85000,
+  "max": 100000,
+  "tier": "it_governance_risk_compliance",
+  "grade": "it_governance_manager",
+  "confidence": "medium",
+  "reason": "Senior tech governance IC role at JPMorgan (tier-1), upper part of IT governance manager band."
+ },
+ {
+  "id": 15552,
+  "min": 24000,
+  "max": 32000,
+  "tier": "fund_operations",
+  "grade": "Associate",
+  "confidence": "medium",
+  "reason": "Custody/settlement ops, 2+ years exp despite 'AM/Manager' title inflation; regional bank, lower part of band."
+ },
+ {
+  "id": 14278,
+  "min": 35000,
+  "max": 45000,
+  "tier": "it_infrastructure_support",
+  "grade": "it_business_analyst",
+  "confidence": "low",
+  "reason": "Business analyst/UAT support role, based in Malaysia shared-services centre not HK, so estimate is uncertain."
+ },
+ {
+  "id": 9182,
+  "min": 50000,
+  "max": 65000,
+  "tier": "professional_practice_advisory",
+  "grade": "Manager",
+  "confidence": "medium",
+  "reason": "Big-4 infrastructure advisory Manager role at EY, matched to professional practice advisory Manager band."
+ },
+ {
+  "id": 14991,
+  "min": 66000,
+  "max": 95000,
+  "tier": "investment_counsellor",
+  "grade": "Investment Counsellor / Advisor",
+  "confidence": "low",
+  "reason": "Niche philanthropy advisory role at UBS GWM, closest fit is investment counsellor, biased to lower part of wide band."
+ },
+ {
+  "id": 18333,
+  "min": 8000,
+  "max": 12000,
+  "tier": "corporate_finance_ma_ecm_dcm",
+  "grade": "Intern",
+  "confidence": "high",
+  "reason": "Explicit 10-week Global Banking summer internship at a non-bulge-bracket bank; capped per internship rule."
+ },
+ {
+  "id": 15570,
+  "min": 15000,
+  "max": 25000,
+  "tier": "secretarial_admin",
+  "grade": "admin_assistant_officer",
+  "confidence": "high",
+  "reason": "Title states explicit salary range (15-25k) for an admin assistant role at Manulife."
+ },
+ {
+  "id": 8267,
+  "min": 45000,
+  "max": 65000,
+  "tier": "assistant_private_banker",
+  "grade": "Associate",
+  "confidence": "medium",
+  "reason": "Associate Banker (Intermediate/developing) in Citi Private Bank China team, biased toward assistant private banker Associate band."
+ },
+ {
+  "id": 11602,
+  "min": 70000,
+  "max": 85000,
+  "tier": "professional_practice_advisory",
+  "grade": "Senior Manager",
+  "confidence": "low",
+  "reason": "Senior Manager consulting title at A&M with no description available to confirm scope."
+ },
+ {
+  "id": 17866,
+  "min": 42000,
+  "max": 55000,
+  "tier": "transaction_banking_rm",
+  "grade": "RM",
+  "confidence": "medium",
+  "reason": "Senior Associate/AVP trade portfolio role at DBS, dual title biased to lower RM band rather than Senior RM."
+ },
+ {
+  "id": 17210,
+  "min": 40000,
+  "max": 60000,
+  "tier": "change_project_management",
+  "grade": "VP (capped as bank Manager/AVP grade)",
+  "confidence": "medium",
+  "reason": "Digital transformation Manager at Bank of China, mapped to change/project management band, capped at AVP grade ceiling."
+ },
+ {
+  "id": 622,
+  "min": 27000,
+  "max": 38000,
+  "tier": "agency_distribution",
+  "grade": "Assistant Manager/Manager",
+  "confidence": "low",
+  "reason": "12-month contract agency distribution consultant at AIA; Assistant Manager band with 10-15% contract discount applied."
+ },
+ {
+  "id": 16376,
+  "min": 140000,
+  "max": 164000,
+  "tier": "actuarial",
+  "grade": "Head",
+  "confidence": "medium",
+  "reason": "Head of an entire reinsurance in-force portfolio function at Swiss Re, top of actuarial Head band given bulge-tier reinsurer."
+ },
+ {
+  "id": 15099,
+  "min": 60000,
+  "max": 75000,
+  "tier": "it_management",
+  "grade": "it_operations_manager",
+  "confidence": "medium",
+  "reason": "L2 workplace technology operations manager (AVP grade) at HKEX, general IT ops role not a finance desk."
+ },
+ {
+  "id": 18093,
+  "min": 100000,
+  "max": 150000,
+  "tier": "it_executive_leadership",
+  "grade": "it_director_vp",
+  "confidence": "medium",
+  "reason": "Director-level GenAI tech delivery lead reporting to a VP at FWD; capped conservatively given FWD's reversed VP>AVP>Director hierarchy."
+ },
+ {
+  "id": 16225,
+  "min": 60000,
+  "max": 70000,
+  "tier": "it_management",
+  "grade": "development_manager",
+  "confidence": "medium",
+  "reason": "Application Development Manager at Bank of China; 'Manager' title maps to bank AVP grade, capped at 70k."
+ },
+ {
+  "id": 18353,
+  "min": 50000,
+  "max": 60000,
+  "tier": "marketing_communications",
+  "grade": "digital_crm_manager",
+  "confidence": "medium",
+  "reason": "Rewards/loyalty programme Manager (GCB5) at HSBC, mapped to digital/CRM marketing manager band, upper part for bulge-bracket bank."
+ },
+ {
+  "id": 17611,
+  "min": 100000,
+  "max": 140000,
+  "tier": "product_development",
+  "grade": "Associate Director",
+  "confidence": "medium",
+  "reason": "Associate Director of AI/analytics product management at AIA, capped under the insurance Associate Director ceiling of 150k."
+ },
+ {
+  "id": 15532,
+  "min": 50000,
+  "max": 60000,
+  "tier": "regulatory_reporting",
+  "grade": "VP",
+  "confidence": "medium",
+  "reason": "Explicit Vice President, Regulatory Reporting title at OCBC, matched to VP row of regulatory reporting band."
+ },
+ {
+  "id": 18113,
+  "min": 85000,
+  "max": 110000,
+  "tier": "corporate_accounting_finance",
+  "grade": "Finance Director",
+  "confidence": "low",
+  "reason": "Dual AVP/Director technical accounting SME title at FWD; biased to the lower (Director) interpretation given FWD's reversed hierarchy."
+ },
+ {
+  "id": 11462,
+  "min": 66000,
+  "max": 100000,
+  "tier": "investment_counsellor",
+  "grade": "Investment Counsellor / Advisor",
+  "confidence": "medium",
+  "reason": "Private banking consultancy services role at Bank of China, mapped to investment counsellor band, lower part for regional bank."
+ },
+ {
+  "id": 11433,
+  "min": 28000,
+  "max": 40000,
+  "tier": "fund_operations",
+  "grade": "Associate",
+  "confidence": "medium",
+  "reason": "Assistant/Deputy Custody Manager, Operations at Bank of China with 3-5 years experience, matched to fund/custody operations Associate band."
+ },
+ {
+  "id": 18426,
+  "min": 54000,
+  "max": 70000,
+  "tier": "middle_office",
+  "grade": "VP",
+  "confidence": "low",
+  "reason": "AML Section Head with 10y experience but title doesn't state a management grade, so biased to VP row of fcc_aml."
+ },
+ {
+  "id": 15665,
+  "min": 35000,
+  "max": 45000,
+  "tier": "middle_office",
+  "grade": "Associate",
+  "confidence": "medium",
+  "reason": "Assistant Manager, Market Risk with 2-3y experience maps to risk_market Associate row."
+ },
+ {
+  "id": 14783,
+  "min": 24000,
+  "max": 33000,
+  "tier": "back_office_operations",
+  "grade": "Associate",
+  "confidence": "low",
+  "reason": "No description; Lead of cash management operations at StanChart estimated from payment_operation Associate row."
+ },
+ {
+  "id": 13573,
+  "min": 15000,
+  "max": 20000,
+  "tier": "insurance",
+  "grade": "Officer/Senior Analyst",
+  "confidence": "low",
+  "reason": "AIA policy support role based in Malaysia shared-services centre, not Hong Kong, so biased below the HK policy_administration band."
+ },
+ {
+  "id": 16490,
+  "min": 30000,
+  "max": 40000,
+  "tier": "middle_office",
+  "grade": "Analyst",
+  "confidence": "medium",
+  "reason": "Credit Specialist Analyst supporting HSBC Private Banking credit book maps to risk_credit Analyst row."
+ },
+ {
+  "id": 10188,
+  "min": 42000,
+  "max": 50000,
+  "tier": "middle_office",
+  "grade": "Associate",
+  "confidence": "medium",
+  "reason": "UBS Product Specialist with 3+ years experience matches product_management Associate row."
+ },
+ {
+  "id": 16912,
+  "min": 166000,
+  "max": 195000,
+  "tier": "front_office",
+  "grade": "MD",
+  "confidence": "medium",
+  "reason": "Explicit Managing Director title leading Capital Markets Product/Treasury solutions maps to financial_markets_sales MD row."
+ },
+ {
+  "id": 18447,
+  "min": 56000,
+  "max": 70000,
+  "tier": "middle_office",
+  "grade": "VP",
+  "confidence": "low",
+  "reason": "Section Head, Valuation with 10y risk experience but ambiguous grade, biased to product_control VP row."
+ },
+ {
+  "id": 18443,
+  "min": 25000,
+  "max": 35000,
+  "tier": "back_office_operations",
+  "grade": "Associate",
+  "confidence": "low",
+  "reason": "Section Head, Treasury Settlement with 5y experience and ambiguous grade, biased to trade_services Associate row."
+ },
+ {
+  "id": 10576,
+  "min": 50000,
+  "max": 62000,
+  "tier": "corporate_finance_accounting",
+  "grade": "Manager",
+  "confidence": "medium",
+  "reason": "KPMG Finance Transformation Manager matches professional_practice_advisory Manager row."
+ },
+ {
+  "id": 6598,
+  "min": 85000,
+  "max": 110000,
+  "tier": "front_office",
+  "grade": "Associate Director",
+  "confidence": "medium",
+  "reason": "Private Banking RM Associate Director at Hang Seng, capped by the bank AD hard ceiling of 110k."
+ },
+ {
+  "id": 17615,
+  "min": 70000,
+  "max": 80000,
+  "tier": "insurance",
+  "grade": "Senior Manager",
+  "confidence": "medium",
+  "reason": "AIA Data & AI Product Senior Manager matches insurance product_development row, capped by big-insurance Senior Manager ceiling."
+ },
+ {
+  "id": 17661,
+  "min": 28000,
+  "max": 35000,
+  "tier": "back_office_operations",
+  "grade": "Supervisor",
+  "confidence": "medium",
+  "reason": "Clinic Supervisor at AIA Blue Care is not a finance desk; matched to customer_service supervisor row."
+ },
+ {
+  "id": 14253,
+  "min": 16000,
+  "max": 24000,
+  "tier": "back_office_operations",
+  "grade": "Analyst",
+  "confidence": "medium",
+  "reason": "Junior onboarding/documentation support role at CCB Asia, contract discount applied to documentation_operations Analyst row."
+ },
+ {
+  "id": 6164,
+  "min": 25000,
+  "max": 35000,
+  "tier": "insurance",
+  "grade": "Officer/Senior Analyst",
+  "confidence": "medium",
+  "reason": "Sun Life Actuarial Analyst with 3+ years experience matches actuarial Officer/Senior Analyst row."
+ },
+ {
+  "id": 901,
+  "min": 59000,
+  "max": 75000,
+  "tier": "insurance",
+  "grade": "Senior Manager/Senior Director",
+  "confidence": "medium",
+  "reason": "Sun Life Senior Manager, Business Development (MPF broker channel) matches distribution Senior Manager row, capped by big-insurance ceiling."
+ },
+ {
+  "id": 13328,
+  "min": 40000,
+  "max": 50000,
+  "tier": "front_office",
+  "grade": "Analyst",
+  "confidence": "low",
+  "reason": "Morgan Stanley Equity Research Analyst/Associate title is ambiguous between grades, biased to Analyst row."
+ },
+ {
+  "id": 11146,
+  "min": 133000,
+  "max": 155000,
+  "tier": "commercial_corporate_banking",
+  "grade": "Department Head",
+  "confidence": "medium",
+  "reason": "Head of Product Development and Channels across HK/Macau matches transaction_banking_rm Department Head row."
+ },
+ {
+  "id": 5975,
+  "min": 40000,
+  "max": 55000,
+  "tier": "back_office_operations",
+  "grade": "Manager",
+  "confidence": "medium",
+  "reason": "Manager, Customer Relations handling complaints at Hang Seng matches customer_service manager row."
+ },
+ {
+  "id": 13475,
+  "min": 8000,
+  "max": 12000,
+  "tier": "front_office",
+  "grade": "Graduate",
+  "confidence": "low",
+  "reason": "Japanese-language 2017 new-graduate recruitment posting is a graduate programme, capped accordingly."
+ },
+ {
+  "id": 10429,
+  "min": 40000,
+  "max": 55000,
+  "tier": "commercial_corporate_banking",
+  "grade": "Senior Wealth Manager",
+  "confidence": "low",
+  "reason": "Team Head, Wealth Management RM with no description; ambiguous whether banker or servicing team, biased low."
+ },
+ {
+  "id": 17092,
+  "min": 26000,
+  "max": 45000,
+  "tier": "middle_office",
+  "grade": "Associate",
+  "confidence": "low",
+  "reason": "7-month contract FCC Investigations Team Leader; no description, biased to fcc_aml Associate row with contract discount."
+ },
+ {
+  "id": 15111,
+  "min": 60000,
+  "max": 80000,
+  "tier": "retail_banking",
+  "grade": "Branch Manager",
+  "confidence": "medium",
+  "reason": "Branch Manager title at Bank of East Asia matches branch_management Branch Manager row, mid-band for a regional bank."
+ },
+ {
+  "id": 13603,
+  "min": 45000,
+  "max": 60000,
+  "tier": "middle_office",
+  "grade": "Project Manager",
+  "confidence": "low",
+  "reason": "OCBC renovation Project Manager is a facilities role, not a finance desk; estimated from generic it_management project_manager row."
+ },
+ {
+  "id": 13909,
+  "min": 70000,
+  "max": 85000,
+  "tier": "middle_office",
+  "grade": "AVP",
+  "confidence": "medium",
+  "reason": "HKEX Data Architect explicitly titled Assistant Vice President matches software_data_engineering solutions_architect band."
+ },
+ {
+  "id": 1190,
+  "min": 55000,
+  "max": 70000,
+  "tier": "insurance",
+  "grade": "Senior Manager",
+  "confidence": "low",
+  "reason": "Head of HNW case-management team is service/coordination, not a full function head, at big-insurer Prudential."
+ },
+ {
+  "id": 18491,
+  "min": 125000,
+  "max": 155000,
+  "tier": "middle_office",
+  "grade": "Director",
+  "confidence": "medium",
+  "reason": "Director-titled Markets CFCR role at Standard Chartered, banded mid-tier within the bank Director cap of 160k."
+ },
+ {
+  "id": 708,
+  "min": 60000,
+  "max": 80000,
+  "tier": "insurance",
+  "grade": "Senior Manager",
+  "confidence": "medium",
+  "reason": "Senior Manager, Agency Strategy at Prudential capped by the big-insurer Senior Manager ceiling of 80k."
+ },
+ {
+  "id": 11587,
+  "min": 72000,
+  "max": 93000,
+  "tier": "insurance",
+  "grade": "Associate Director",
+  "confidence": "low",
+  "reason": "AIA Associate Director between Senior Manager and Head bands, discounted ~15% for the 6-month fixed-term contract."
+ },
+ {
+  "id": 18477,
+  "min": 10000,
+  "max": 15000,
+  "tier": "middle_office",
+  "grade": "Graduate",
+  "confidence": "medium",
+  "reason": "2027 Graduate Talent Program is a graduate scheme at bulge-bracket UBS, capped 10k-15k."
+ },
+ {
+  "id": 9571,
+  "min": 130000,
+  "max": 176000,
+  "tier": "insurance",
+  "grade": "Head",
+  "confidence": "medium",
+  "reason": "Asia Segment Chief AML Officer is a regional financial-crime head role at Manulife, using the compliance_insurance Head band."
+ },
+ {
+  "id": 12126,
+  "min": 50000,
+  "max": 70000,
+  "tier": "middle_office",
+  "grade": "cosec_manager_listed",
+  "confidence": "low",
+  "reason": "Plain Company Secretary title with no stated seniority at an unnamed financial institution, biased to the manager-level cosec band."
+ },
+ {
+  "id": 16530,
+  "min": 45000,
+  "max": 65000,
+  "tier": "retail_banking",
+  "grade": "Operations Manager",
+  "confidence": "medium",
+  "reason": "Senior Customer Service Manager over branch operations at OCBC with 5+ years required, lower part of the Operations Manager band."
+ },
+ {
+  "id": 16571,
+  "min": 50000,
+  "max": 65000,
+  "tier": "middle_office",
+  "grade": "it_risk_manager",
+  "confidence": "medium",
+  "reason": "Technology Risk Manager at Bank of China, IT risk band capped by the bank Manager/AVP ceiling of 70k."
+ },
+ {
+  "id": 15606,
+  "min": 55000,
+  "max": 78000,
+  "tier": "middle_office",
+  "grade": "VP",
+  "confidence": "medium",
+  "reason": "VP, Market Surveillance at HKEX matched to compliance_banking VP band, not top-tier bulge-bracket bank."
+ },
+ {
+  "id": 16109,
+  "min": 6000,
+  "max": 10000,
+  "tier": "front_office",
+  "grade": "Intern",
+  "confidence": "medium",
+  "reason": "Summer Intern at boutique Apricot Capital ECM/Sales desk, non-bulge-bracket internship cap."
+ },
+ {
+  "id": 457,
+  "min": 20000,
+  "max": 23000,
+  "tier": "back_office_operations",
+  "grade": "cs_executive",
+  "confidence": "medium",
+  "reason": "Entry-level Service Analyst/Officer contact-centre role at Citibank, upper part of the customer-service executive band."
+ },
+ {
+  "id": 7295,
+  "min": 16000,
+  "max": 25000,
+  "tier": "back_office_operations",
+  "grade": "Officer/Associate",
+  "confidence": "low",
+  "reason": "Title spans Operation Officer to Operation Manager for BOC remittance ops; biased to the lower payment-operations grades."
+ },
+ {
+  "id": 5519,
+  "min": 50000,
+  "max": 65000,
+  "tier": "back_office_operations",
+  "grade": "senior_marketing_manager",
+  "confidence": "low",
+  "reason": "APAC GWM Marketing Strategist at UBS leads a team but seniority is unstated, biased to senior marketing manager band."
+ },
+ {
+  "id": 16555,
+  "min": 40000,
+  "max": 55000,
+  "tier": "middle_office",
+  "grade": "it_business_analyst",
+  "confidence": "medium",
+  "reason": "Senior Business Analyst (non-manager) IT role at AXA matched to the IT business-analyst band."
+ },
+ {
+  "id": 14606,
+  "min": 85000,
+  "max": 112000,
+  "tier": "front_office",
+  "grade": "VP",
+  "confidence": "medium",
+  "reason": "5-10y Macro Analyst/Trader/Sub PM at a hedge-fund platform matched to hedge_fund_investment VP band."
+ },
+ {
+  "id": 10547,
+  "min": 25000,
+  "max": 32000,
+  "tier": "corporate_finance_accounting",
+  "grade": "Consultant/Associate",
+  "confidence": "low",
+  "reason": "KPMG 25/26 Advisory-Transformation role has no explicit seniority stated, biased to entry consultant band."
+ },
+ {
+  "id": 10657,
+  "min": 35000,
+  "max": 45000,
+  "tier": "corporate_finance_accounting",
+  "grade": "Senior Associate/Assistant Manager",
+  "confidence": "medium",
+  "reason": "EY Officer (Senior Associate) internal-analytics role matched directly to that named grade."
+ },
+ {
+  "id": 17989,
+  "min": 65000,
+  "max": 80000,
+  "tier": "commercial_corporate_banking",
+  "grade": "VP/Team Head",
+  "confidence": "medium",
+  "reason": "VP, Team Lead over a Business Banking RM team at DBS, capped by the bank VP ceiling of 80k."
+ },
+ {
+  "id": 10546,
+  "min": 35000,
+  "max": 48000,
+  "tier": "corporate_finance_accounting",
+  "grade": "Senior Associate/Assistant Manager",
+  "confidence": "medium",
+  "reason": "Senior Consultant, Technology Consulting at KPMG matched to that named grade."
+ },
+ {
+  "id": 18218,
+  "min": 40000,
+  "max": 55000,
+  "tier": "insurance",
+  "grade": "Assistant Manager",
+  "confidence": "low",
+  "reason": "Actuarial Assistant Manager at FWD, though the posting location is Tokyo not Hong Kong, adding ambiguity."
+ },
+ {
+  "id": 10784,
+  "min": 35000,
+  "max": 48000,
+  "tier": "corporate_finance_accounting",
+  "grade": "Senior Associate/Assistant Manager",
+  "confidence": "low",
+  "reason": "EY financial-crime consulting role stated only as \"Senior or above\", biased to the lower named grade."
+ },
+ {
+  "id": 9746,
+  "min": 45000,
+  "max": 65000,
+  "tier": "front_office",
+  "grade": "Associate",
+  "confidence": "low",
+  "reason": "Investment Advisor supporting RMs/ICs at BNP Paribas AM is advisory support rather than a primary banker, biased to assistant_private_banker Associate."
+ },
+ {
+  "id": 17710,
+  "min": 15000,
+  "max": 25000,
+  "tier": "insurance",
+  "grade": "Officer",
+  "confidence": "medium",
+  "reason": "12-month contract outbound Contact Centre Officer at Prudential, discounted from the insurance customer-service Officer band."
+ },
+ {
+  "id": 12128,
+  "min": 16000,
+  "max": 24000,
+  "tier": "middle_office",
+  "grade": "Analyst",
+  "confidence": "medium",
+  "reason": "3-month contract KYC Support role, discounted from the kyc_cdd_client_onboarding Analyst band."
+ }
+]

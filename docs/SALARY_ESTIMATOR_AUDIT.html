@@ -492,6 +492,34 @@
 </section>
 
 <section>
+  <h2>What shipped</h2>
+  <p class="sec-note">Resolved 2026-08-18 — this section added after the fix went live</p>
+  <div class="prose">
+    <p>The internship ceiling now lives in <code>hk_jobs/salary_clamp.py</code>, where a
+    prompt cannot decline to apply it. It is enforced after every ladder ceiling, so it
+    wins over the full-time band that caused the problem, and it suppresses the
+    floor-raise step that would otherwise hand that band straight back. Matching is
+    whole-word, so "Internal Audit" and "International" cannot trigger it.</p>
+    <p><strong>138 published listings were corrected</strong> — 66 on the live board, then
+    72 more sitting off it. That second number is the part worth remembering: a
+    soft-deleted Role keeps its estimate and returns with it when a later scrape
+    re-activates it, so a board-only backfill would have leaked wrong figures back onto
+    the board for months. A repeat run now reports zero rows to change.</p>
+    <p>Two rows were deliberately <em>not</em> corrected. <code>Weath Management Manager /
+    Wealth Management Intern</code> is one listing advertising two jobs; the title matches
+    the internship rule but the cap would be wrong for the Manager half. The repair now
+    requires the stored seniority to agree with the title before it rewrites a published
+    salary, and reports the disagreements instead of writing them.</p>
+    <p>Total model cost of the correction: <strong>zero</strong>. The clamp is
+    deterministic and the repair recomputes from stored rows, so no DeepSeek call was
+    made — confirmed by <code>ai_usage.calls == 0</code> in every run record. Folding the
+    change into <code>salary.version()</code> instead would have re-enriched ~13,000 rows.</p>
+    <p>The other findings below are unchanged and still open: lead roles run hot, and the
+    668 low-confidence estimates remain a UI decision rather than a data fix.</p>
+  </div>
+</section>
+
+<section>
   <h2>Method, and what it cannot tell you</h2>
   <p class="sec-note">So the numbers can be judged</p>
   <div class="prose">
