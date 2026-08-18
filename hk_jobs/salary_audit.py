@@ -162,10 +162,23 @@ def _judge(enricher: DeepSeekEnricher, row: sqlite3.Row) -> dict | None:
             _API_URL,
             headers={"Authorization": f"Bearer {enricher.api_key}",
                      "Content-Type": "application/json"},
+            # Thinking mode off here for the same reason as the enricher (see the
+            # v11 changelog in enrichers/deepseek.py): the reasoning trace is billed
+            # as output and dwarfed the answer. The verdict is four short fields, so
+            # 300 is already generous. temperature/top_p were silently ignored under
+            # thinking and are live again; near-zero because this is a judgement
+            # against a fixed reference table, not open-ended writing.
+            #
+            # Worth knowing: this judge is the backstop that catches the tier
+            # mis-grading the enricher's own thinking mode was brought in to fix, and
+            # it runs only over flagged outliers, so its share of the bill was always
+            # small. If tier drift shows up after v11, this is the first place to
+            # consider turning reasoning back on.
             json={"model": _MODEL,
                   "messages": [{"role": "user", "content": prompt}],
-                  "max_tokens": 8_000,
-                  "thinking": {"type": "enabled"}},
+                  "max_tokens": 300,
+                  "temperature": 0.1,
+                  "top_p": 0.9},
         )
     if resp.status_code != 200:
         raise RuntimeError(f"API {resp.status_code}: {resp.text[:120]}")
