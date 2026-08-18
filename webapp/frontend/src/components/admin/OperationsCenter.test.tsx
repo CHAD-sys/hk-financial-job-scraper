@@ -17,7 +17,7 @@ const DATA: AdminOperationsDashboard = {
     { key: 'descriptions', label: 'Description coverage', value: 98.2, unit: '%', status: 'pass', detail: '12 listings are missing descriptions.' },
   ],
   source_health: [
-    { source: 'workday', companies: 5, successful: 5, zero_results: 0, failed: 0, roles: 120, runtime_seconds: 90, success_rate_pct: 100, status: 'healthy', tracking_available: true, roles_found: 120, active_roles: null },
+    { source: 'workday', companies: 5, successful: 5, zero_results: 0, failed: 0, roles: 120, runtime_seconds: 90, failure_rate_pct: 0, hiring_rate_pct: 100, status: 'healthy', tracking_available: true, roles_found: 120, active_roles: null },
   ],
   ai_cost: {
     calls: 14, roles_processed: 14, estimated_cost_usd: 0.0123,
@@ -60,7 +60,7 @@ describe('OperationsCenter', () => {
       ...DATA,
       run: { phases: [{ key: 'restore', label: 'Restore', status: 'not_recorded', duration_seconds: null }] },
       ai_cost: { ...DATA.ai_cost!, tracking_available: false, calls: 0, estimated_cost_usd: 0 },
-      source_health: DATA.source_health!.map(source => ({ ...source, tracking_available: false, roles_found: null, active_roles: 120, success_rate_pct: null, status: 'not_recorded' })),
+      source_health: DATA.source_health!.map(source => ({ ...source, tracking_available: false, roles_found: null, active_roles: 120, failure_rate_pct: null, hiring_rate_pct: null, status: 'not_recorded' })),
       recommendations: { ...DATA.recommendations!, tracking_available: false },
       alerts: [],
     }} />)

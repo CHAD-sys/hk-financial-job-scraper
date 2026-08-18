@@ -215,23 +215,25 @@ export default function OperationsCenter({ data }: { data: AdminOperationsDashbo
                 <Gauge size={18} style={{ color: 'var(--color-gold)' }} aria-hidden="true" />
                 <h3 id="source-health-heading" className="text-lg font-semibold" style={{ color: 'var(--color-ink)' }}>Source health</h3>
               </div>
-              <p id="source-health-description" className="mt-1 text-xs" style={{ color: 'var(--color-ink-muted)' }}>Success means the configured company completed with at least one listing in the latest scrape. Scroll horizontally for all columns on smaller screens.</p>
+              <p id="source-health-description" className="mt-1 text-xs" style={{ color: 'var(--color-ink-muted)' }}>State follows failures only. “Not hiring” counts companies that ran cleanly and had no open roles — normal for small firms, and not a fault. A source is marked failed when its runs error, or when every company ran clean and the source still returned nothing. Scroll horizontally for all columns on smaller screens.</p>
             </div>
           </div>
           <div className="overflow-x-auto rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2" tabIndex={0} role="region" aria-labelledby="source-health-heading" aria-describedby="source-health-description" style={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)', outlineColor: 'var(--color-gold)' }}>
             <table className="w-full min-w-[720px] border-collapse text-left text-sm">
               <thead style={{ backgroundColor: 'var(--color-surface-2)', color: 'var(--color-ink-muted)' }}>
                 <tr>
-                  {['Source', 'Success rate', 'Companies', 'Roles', 'Runtime', 'State'].map((heading) => <th key={heading} scope="col" className="px-4 py-3 text-xs font-semibold">{heading}</th>)}
+                  {['Source', 'Companies', 'Roles', 'Failures', 'Not hiring', 'Hiring', 'Runtime', 'State'].map((heading) => <th key={heading} scope="col" className="px-4 py-3 text-xs font-semibold">{heading}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {data.source_health.map((source) => (
                   <tr key={source.source} className="border-t" style={{ borderColor: 'var(--color-border)' }}>
                     <th scope="row" className="px-4 py-3 font-semibold" style={{ color: 'var(--color-ink)' }}>{sourceLabel(source.source)}</th>
-                    <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--color-ink)' }}>{source.success_rate_pct == null ? 'Next run' : `${source.success_rate_pct}%`}</td>
                     <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--color-ink-muted)' }}>{source.companies?.toLocaleString() ?? '—'}</td>
                     <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--color-ink-muted)' }}>{source.tracking_available ? `${source.roles_found?.toLocaleString() ?? '—'} found` : `${source.active_roles?.toLocaleString() ?? '—'} active`}</td>
+                    <td className="px-4 py-3 tabular-nums" style={{ color: source.failed ? 'var(--color-ink)' : 'var(--color-ink-muted)' }}>{source.failed == null ? 'Next run' : source.failed === 0 ? 'None' : `${source.failed} (${source.failure_rate_pct}%)`}</td>
+                    <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--color-ink-muted)' }}>{source.zero_results?.toLocaleString() ?? '—'}</td>
+                    <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--color-ink-muted)' }}>{source.hiring_rate_pct == null ? '—' : `${source.hiring_rate_pct}%`}</td>
                     <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--color-ink-muted)' }}>{durationLabel(source.runtime_seconds)}</td>
                     <td className="px-4 py-3"><StatusPill status={source.status === 'healthy' ? 'healthy' : source.status === 'failed' ? 'failed' : source.status === 'warning' ? 'warning' : 'not_recorded'} /></td>
                   </tr>

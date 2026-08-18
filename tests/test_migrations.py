@@ -21,6 +21,7 @@ from hk_jobs.migrations import (
     MIGRATIONS,
     applied_phases,
     migrate,
+    migrate_to_phase_34,
 )
 
 
@@ -336,3 +337,66 @@ def test_phase_33_is_idempotent_on_a_database_that_already_has_the_column(tmp_pa
     migrate(db)
     migrations.migrate_to_phase_33(db)  # explicit re-run must not raise
     assert "manually_edited_at" in _columns(db, "job_enrichments")
+
+
+# ── Phase 35: one company can run under several sources ───────────────────────
+
+def _company_run(conn, *, source, slug, status="success", run="r1", day="2026-08-18"):
+    conn.execute(
+        "INSERT OR REPLACE INTO pipeline_company_runs (run_id, scraped_date, source,"
+        " company_slug, company_name, status, jobs_found, recorded_at)"
+        " VALUES (?,?,?,?,?,?,?,?)",
+        (run, day, source, slug, slug.upper(), status, 1, "2026-08-18T00:00:00Z"),
+    )
+
+
+def test_phase_35_keeps_one_company_that_runs_under_several_sources(tmp_path: Path):
+    """Cross-posting is deliberate — citibank-hk is configured on efinancialcareers,
+    jobsdb AND linkedin. The old key was (run_id, company_slug), so the second and
+    third writes REPLACED the first and the source-health table under-counted
+    every source whose companies overlap another's: jobsdb showed 19 companies of
+    65 configured, and its success rate was computed on that arbitrary subset."""
+    db = str(tmp_path / "jobs.db")
+    migrate(db)
+    conn = sqlite3.connect(db)
+    with conn:
+        for source in ("efinancialcareers", "jobsdb", "linkedin"):
+            _company_run(conn, source=source, slug="citibank-hk")
+    rows = conn.execute(
+        "SELECT source FROM pipeline_company_runs WHERE company_slug='citibank-hk'"
+    ).fetchall()
+    conn.close()
+    assert sorted(r[0] for r in rows) == ["efinancialcareers", "jobsdb", "linkedin"]
+
+
+def test_phase_35_still_collapses_a_repeat_of_the_same_company_and_source(tmp_path: Path):
+    """The key still has to dedupe a genuine retry — one company, one source, one
+    run is still one row, so a re-run does not double-count it."""
+    db = str(tmp_path / "jobs.db")
+    migrate(db)
+    conn = sqlite3.connect(db)
+    with conn:
+        _company_run(conn, source="jobsdb", slug="citibank-hk", status="zero")
+        _company_run(conn, source="jobsdb", slug="citibank-hk", status="success")
+    rows = conn.execute(
+        "SELECT status FROM pipeline_company_runs WHERE company_slug='citibank-hk'"
+    ).fetchall()
+    conn.close()
+    assert [r[0] for r in rows] == ["success"]
+
+
+def test_phase_35_preserves_rows_written_under_the_old_key(tmp_path: Path):
+    """The table is rebuilt, so anything already recorded has to survive it."""
+    db = str(tmp_path / "jobs.db")
+    migrate_to_phase_34(db)
+    conn = sqlite3.connect(db)
+    with conn:
+        _company_run(conn, source="workday", slug="hsbc-hk", day="2026-08-01")
+    conn.close()
+    migrate(db)
+    conn = sqlite3.connect(db)
+    kept = conn.execute(
+        "SELECT source, scraped_date FROM pipeline_company_runs WHERE company_slug='hsbc-hk'"
+    ).fetchone()
+    conn.close()
+    assert tuple(kept) == ("workday", "2026-08-01")
