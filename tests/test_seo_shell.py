@@ -45,13 +45,24 @@ _INDEXABLE = ["/", "/about", "/learning", "/get-started", "/post-a-role"]
 def client(tmp_path):
     jobs = [
         job(source="workday", source_id="MAIN", company="HSBC",
-            title="Credit Risk Analyst", posted_at="2026-07-01",
+            title="Risk Management Officer", posted_at="2026-07-01",
             description_clean="SECRET FULL DESCRIPTION mainstream."),
+        # The two tiers an anonymous visitor must never be served (ADR 0018).
+        # They exist here so the server-rendered block can be shown NOT to leak
+        # them, which is the whole risk of writing Roles into public HTML.
+        job(source="longtail", source_id="BOUT", company="Harbour Capital",
+            title="Treasury Analyst", source_tier="boutique", posted_at="2026-07-02"),
+        job(source="linkedin_posts", source_id="SOC", company="Confidential",
+            title="Risk Manager", source_tier="social", posted_at="2026-07-03"),
     ]
     enrichments = [
         enrichment(source="workday", source_id="MAIN",
-                   description_summary="Analyse credit risk at HSBC.",
+                   description_summary="Manage risk at HSBC.",
                    salary_hkd_min=40_000, salary_hkd_max=60_000),
+        enrichment(source="longtail", source_id="BOUT",
+                   description_summary="Manage treasury operations."),
+        enrichment(source="linkedin_posts", source_id="SOC",
+                   description_summary="Lead risk management."),
     ]
     db = tmp_path / "jobs.db"
     make_jobs_db(db, jobs=jobs, enrichments=enrichments)
@@ -296,3 +307,40 @@ def test_bare_jobs_is_not_in_the_sitemap(client):
     body = client.get("/sitemap.xml").text
     assert "<loc>http://testserver/jobs</loc>" not in body
     assert "q=Risk+Management" in unescape(body), "the disciplines must still be listed"
+
+
+def test_a_discipline_page_carries_its_roles_without_javascript(client):
+    """
+    RED before: the served document was an empty <div id="root">, and every Role
+    on it arrived through a client-side call to /api/jobs. Google returned Soft
+    404 on /jobs?q=Risk+Management even though a browser renders 24 cards there.
+
+    These pages no longer depend on anyone's renderer.
+    """
+    from main import _category_path
+
+    body = _head(client, _category_path("Risk Management"))
+    assert 'id="ssr-roles"' in body, "no server-rendered Roles in the document"
+    assert "Risk Management Officer" in body, "the matching Role is not in the HTML"
+    # Every Role is a real route into the catalogue, not just text.
+    assert body.count('<li><a href="/jobs/') >= 1
+
+
+def test_server_rendered_roles_respect_the_anonymous_audience(client):
+    """
+    ADR 0018: an anonymous visitor receives mainstream Roles only. This block is
+    served with no session at all, so boutique and recruiter-posted Roles must
+    not appear in it — otherwise the SEO surface quietly becomes the catalogue
+    hole the ADR closed.
+    """
+    from main import _category_path
+
+    body = _head(client, _category_path("Treasury"))
+    assert "Treasury Analyst" not in body, "a boutique-tier Role leaked into the HTML"
+    assert "Risk Manager" not in body, "a recruiter-posted Role leaked into the HTML"
+
+
+def test_an_unknown_query_gets_no_server_rendered_roles(client):
+    """Only the thirteen chosen disciplines are worth a database read per request."""
+    body = _head(client, "/jobs?q=whatever+someone+typed")
+    assert 'id="ssr-roles"' not in body

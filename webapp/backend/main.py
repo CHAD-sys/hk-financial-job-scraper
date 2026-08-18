@@ -1213,6 +1213,63 @@ def _noindex_if_off_canonical(request: Request, response: Response) -> Response:
     return response
 
 
+# Both quote styles: the built bundle emits double, the test fixture single.
+_ROOT_DIV = re.compile(r"""(<div id=['"]root['"]>)\s*(</div>)""")
+
+
+def _category_body(request: Request, category: str) -> str:
+    """
+    The discipline page's Roles, written into the HTML rather than fetched.
+
+    Everything on the board arrives through a client-side call to /api/jobs, so
+    the served document is an empty <div id="root">. Google inspected
+    /jobs?q=Risk+Management on 2026-08-18 and returned Soft 404 even though the
+    rendered page carries 24 Role cards and "Showing 2,060 roles" — whatever its
+    renderer did with that page, the outcome was a page with no content.
+
+    Rather than keep guessing at the renderer, these thirteen pages stop needing
+    it. The same query the API would answer runs here, and its results ship in
+    the document, so the content is there for a client that executes no
+    JavaScript at all. React replaces this the moment it mounts.
+
+    The audience is PUBLIC, exactly as it is for a signed-out caller of
+    /api/jobs: boutique and recruiter-posted Roles stay out of it, so this adds
+    no visibility that ADR 0018 does not already grant an anonymous visitor.
+    Every Role links to its own teaser page, which also gives a crawler 24 real
+    routes into the catalogue per discipline without running any script.
+    """
+    filters = JobFilters.of(search=category)
+    with get_db(request) as conn:
+        result = job_read.list_jobs(
+            conn, filters, sort=Sort.RELEVANCE, page=1, page_size=24,
+            visibility=Visibility.BOARD, audience=CatalogueAudience.PUBLIC,
+        )
+    if not result.jobs:
+        return ""
+
+    items = []
+    for role in result.jobs:
+        href = _job_teaser_path(role.source, role.source_id, role.title, role.company)
+        line = " · ".join(
+            html.escape(part)
+            for part in (role.company, ", ".join(role.locations) or "Hong Kong", role.seniority)
+            if part
+        )
+        items.append(
+            f'<li><a href="{href}"><strong>{html.escape(role.title)}</strong></a>'
+            f"<span>{line}</span></li>"
+        )
+    return (
+        '<div id="ssr-roles">'
+        f"<h1>{html.escape(category)} Jobs in Hong Kong</h1>"
+        f"<p>{result.total:,} open {html.escape(category.lower())} roles across Hong Kong's "
+        "banks, funds and boutiques, refreshed every morning.</p>"
+        f"<ul>{''.join(items)}</ul>"
+        "<p><a href=\"/jobs\">Search all Hong Kong finance roles</a></p>"
+        "</div>"
+    )
+
+
 def _shell_response(request: Request, settings: Settings, path: str) -> Response:
     """
     index.html with this route's identity written into it.
@@ -1224,6 +1281,20 @@ def _shell_response(request: Request, settings: Settings, path: str) -> Response
     """
     document = settings.index_html.read_text(encoding="utf-8")
     body = _inject_head(document, _shell_head_tags(request, path))
+
+    # Only the discipline pages get server-written Roles — they are the ones a
+    # crawler is meant to read, and the only ones whose query is known in advance.
+    if path.rstrip("/") == "/jobs":
+        query = (request.query_params.get(BOARD_QUERY_PARAM) or "").strip()
+        match = next(
+            (c for c in BOARD_CATEGORIES if c.casefold() == query.casefold()), None
+        )
+        if match is not None:
+            rendered = _category_body(request, match)
+            if rendered:
+                body = _ROOT_DIV.sub(
+                    lambda m: m.group(1) + rendered + m.group(2), body, count=1
+                )
     return _noindex_if_off_canonical(
         request, HTMLResponse(body, headers={"Cache-Control": "no-cache"})
     )
