@@ -34,6 +34,18 @@ interface Props {
  * a suggestion. These are the queries a Hong Kong finance candidate actually
  * arrives with.
  */
+//
+// Each of these renders as a real <a href="/jobs?q=...">, not a button. Google
+// cannot click a button: with these as buttons, "/jobs" showed a crawler a page
+// promising jobs, delivering none (no session and no query means the API
+// correctly returns nothing — ADR 0018), and offering no followable link to any
+// job at all. Google called it a Soft 404 on 2026-08-18, correctly.
+//
+// As links they are thirteen real landing pages — "/jobs?q=Risk+Management"
+// answers with ~2,000 roles for a signed-out visitor — and they carry a query,
+// so nothing about the "no enumerable catalogue" rule bends to make them work.
+// Kept in step with BOARD_CATEGORIES in webapp/backend/main.py by
+// tests/test_route_meta_in_step.py.
 const MAJOR_CATEGORIES = [
   'Risk Management',
   'Accounting & Finance',
@@ -216,11 +228,18 @@ export default function SearchHero({ boardTotal, employerCount, onSearch }: Prop
 
           <div className="major-category-grid grid grid-cols-2 gap-2 lg:grid-cols-3">
             {MAJOR_CATEGORIES.map(label => (
-              <button
+              <a
                 key={label}
-                type="button"
-                onClick={() => onSearch(label)}
-                className="major-category-card flex min-h-14 items-center justify-center rounded-md px-3 py-3 text-center text-[0.8125rem] font-semibold leading-snug cursor-pointer outline-none sm:px-4 sm:text-sm"
+                href={`/jobs?q=${encodeURIComponent(label)}`}
+                onClick={e => {
+                  // Left-click stays a single-page transition. Everything else —
+                  // cmd/ctrl-click, middle-click, "open in new tab" — is left to
+                  // the browser, which is the whole point of using a real href.
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
+                  e.preventDefault()
+                  onSearch(label)
+                }}
+                className="major-category-card flex min-h-14 items-center justify-center rounded-md px-3 py-3 text-center text-[0.8125rem] font-semibold leading-snug cursor-pointer outline-none no-underline sm:px-4 sm:text-sm"
                 style={{
                   backgroundColor: 'var(--color-surface)',
                   border: '1px solid var(--color-border)',
@@ -228,7 +247,7 @@ export default function SearchHero({ boardTotal, employerCount, onSearch }: Prop
                 }}
               >
                 {label}
-              </button>
+              </a>
             ))}
           </div>
         </div>

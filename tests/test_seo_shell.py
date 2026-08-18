@@ -27,6 +27,7 @@ from __future__ import annotations
 import json
 import re
 from html import unescape
+from urllib.parse import quote_plus
 
 import pytest
 from fastapi.testclient import TestClient
@@ -220,3 +221,51 @@ def test_account_paths_are_disallowed_in_robots(client, monkeypatch):
     body = client.get("/robots.txt").text
     for path in ("/account", "/admin", "/signin", "/register", "/employer/"):
         assert f"Disallow: {path}" in body, f"{path} is crawlable"
+
+
+# ── Discipline landing pages ──────────────────────────────────────────────────
+#
+# "/jobs" answers a crawler with no roles at all: no session and no query means
+# the API correctly refuses (ADR 0018). Google inspected it on 2026-08-18 and
+# returned Soft 404 — right, given the page promised jobs and delivered none.
+# "/jobs?q=<discipline>" carries a query, so it answers with real roles while
+# leaving the "no enumerable catalogue" rule completely alone.
+
+
+def test_each_discipline_is_its_own_indexable_page(client):
+    from main import BOARD_CATEGORIES, _category_path
+
+    for category in BOARD_CATEGORIES:
+        body = _head(client, _category_path(category))
+        title = unescape(re.findall(r"<title[^>]*>(.*?)</title>", body, re.S)[0])
+        assert category.split(",")[0] in title, f"{category}: wrong title {title!r}"
+        assert len(title) <= 60, f"{category}: title is {len(title)} chars"
+        assert 'content="index,follow"' in body, f"{category} is not indexable"
+
+
+def test_a_discipline_canonical_keeps_its_query(client):
+    """Canonicalising these to bare /jobs would collapse 13 pages into one."""
+    from main import _category_path
+
+    body = _head(client, _category_path("Private Banking"))
+    canonical = re.search(r'<link[^>]*rel="canonical" href="([^"]+)"', body).group(1)
+    assert "q=Private+Banking" in unescape(canonical), canonical
+
+
+def test_an_arbitrary_search_is_not_indexable(client):
+    """
+    A free-text board offers a crawler an infinite space of near-identical URLs.
+    Only the thirteen known disciplines are indexable; everything else renders
+    for the human who typed it and is noindex for everyone else.
+    """
+    body = _head(client, "/jobs?q=some+visitor+typed+this")
+    assert re.search(r'<meta[^>]*name="robots" content="[^"]*noindex', body)
+    assert 'content="index,follow"' not in body
+
+
+def test_the_sitemap_lists_every_discipline(client):
+    from main import BOARD_CATEGORIES
+
+    body = client.get("/sitemap.xml").text
+    for category in BOARD_CATEGORIES:
+        assert f"q={quote_plus(category)}" in unescape(body), f"{category} not in sitemap"

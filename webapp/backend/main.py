@@ -19,7 +19,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal, Optional
-from urllib.parse import urlparse
+from urllib.parse import quote_plus, urlparse
 
 from fastapi import (
     APIRouter,
@@ -993,6 +993,57 @@ _NOINDEX_PREFIXES = (
 )
 
 
+#: The discipline tiles on the board's discover screen. Each one is a real,
+#: crawlable landing page — "/jobs?q=Risk+Management" answers with ~2,000 roles
+#: for a visitor with no session, where bare "/jobs" answers with none.
+#:
+#: That difference is why this list exists here as well as in the frontend.
+#: ADR 0018 means the catalogue is not enumerable without a query, so "/jobs"
+#: shows a crawler a page promising jobs and delivering none — Google called it
+#: a Soft 404 on 2026-08-18, correctly. The query URLs are the ADR-compliant way
+#: to give search engines real pages: every one carries a query, so nothing about
+#: the "no enumerable catalogue" rule bends to make them work.
+#:
+#: Kept in step with MAJOR_CATEGORIES in webapp/frontend/src/components/
+#: SearchHero.tsx by tests/test_route_meta_in_step.py.
+BOARD_CATEGORIES = (
+    "Risk Management",
+    "Accounting & Finance",
+    "Treasury",
+    "Investment",
+    "Operations",
+    "Technology & Transformation",
+    "Sales and Business Development",
+    "Private Banking",
+    "Commercial Banking",
+    "Investment Banking",
+    "Retail Banking",
+    "Sales & Marketing",
+    "Legal, Compliance & Audit",
+)
+
+#: The board reads its query from `?q=` (see searchParamsToFilters in
+#: webapp/frontend/src/api/client.ts). Named here so the sitemap, the canonical
+#: and the frontend's links cannot drift to three different spellings.
+BOARD_QUERY_PARAM = "q"
+
+
+def _category_path(label: str) -> str:
+    return f"/jobs?{BOARD_QUERY_PARAM}={quote_plus(label)}"
+
+
+def _category_meta(label: str) -> tuple[str, str]:
+    """Title and description for one discipline landing page."""
+    long_form = f"{label} Jobs in Hong Kong — FinEx Careers"
+    title = long_form if len(long_form) <= 60 else f"{label} Jobs — FinEx Careers"
+    description = (
+        f"Open {label.lower()} roles across Hong Kong's banks, funds and boutiques. "
+        "Indexed daily from employer sites and major boards, with an AI salary "
+        "estimate on every listing."
+    )
+    return title, description
+
+
 def _organisation_jsonld(base: str) -> list[dict]:
     """
     Who this site belongs to, in the vocabulary Google uses to build an entity.
@@ -1040,6 +1091,26 @@ def _organisation_jsonld(base: str) -> list[dict]:
 def _shell_head_tags(request: Request, path: str) -> str:
     """The head a non-JS client gets for one app route. Empty string if unknown."""
     normalised = "/" + path.strip("/") if path.strip("/") else "/"
+
+    # "/jobs?q=..." is its own page, not a variant of "/jobs". A known discipline
+    # gets real metadata and a canonical carrying the query; ANY OTHER query is
+    # noindex, because a board with free-text search otherwise offers a crawler
+    # an infinite space of near-identical URLs to burn its crawl budget on.
+    if normalised == "/jobs":
+        query = (request.query_params.get(BOARD_QUERY_PARAM) or "").strip()
+        if query:
+            match = next(
+                (c for c in BOARD_CATEGORIES if c.casefold() == query.casefold()), None
+            )
+            if match is None:
+                return (
+                    f"<title data-ssr>{html.escape(query)} — FinEx Careers</title>"
+                    '<meta data-ssr name="robots" content="noindex,follow" />'
+                )
+            return _indexable_head(
+                request, _category_path(match), *_category_meta(match)
+            )
+
     meta = _ROUTE_META.get(normalised)
     noindex = normalised.startswith(_NOINDEX_PREFIXES)
     if meta is None and not noindex:
@@ -1047,24 +1118,32 @@ def _shell_head_tags(request: Request, path: str) -> str:
         # it is; guessing a title here would be worse than sending none.
         return ""
 
-    base = _public_base(request)
     if meta is None:
         title = "Sign in — FinEx Careers"
         description = "Sign in to FinEx Careers."
     else:
         title, description = meta
 
+    if noindex:
+        return (
+            f"<title data-ssr>{html.escape(title)}</title>"
+            f'<meta data-ssr name="description" content="{html.escape(description)}" />'
+            '<meta data-ssr name="robots" content="noindex,follow" />'
+        )
+
+    return _indexable_head(request, normalised, title, description)
+
+
+def _indexable_head(
+    request: Request, path: str, title: str, description: str
+) -> str:
+    """The full head for one indexable page: identity, canonical, share card."""
+    base = _public_base(request)
+    canonical = f"{base}{path}" if path != "/" else f"{base}/"
+    image = f"{base}{_OG_IMAGE_PATH}"
     tags = [
         f"<title data-ssr>{html.escape(title)}</title>",
         f'<meta data-ssr name="description" content="{html.escape(description)}" />',
-    ]
-    if noindex:
-        tags.append('<meta data-ssr name="robots" content="noindex,follow" />')
-        return "".join(tags)
-
-    canonical = f"{base}{normalised}" if normalised != "/" else f"{base}/"
-    image = f"{base}{_OG_IMAGE_PATH}"
-    tags += [
         '<meta data-ssr name="robots" content="index,follow" />',
         f'<link data-ssr rel="canonical" href="{html.escape(canonical)}" />',
         '<meta data-ssr property="og:type" content="website" />',
@@ -1081,7 +1160,7 @@ def _shell_head_tags(request: Request, path: str) -> str:
         f'<meta data-ssr name="twitter:description" content="{html.escape(description)}" />',
         f'<meta data-ssr name="twitter:image" content="{html.escape(image)}" />',
     ]
-    if normalised == "/":
+    if path == "/":
         for block in _organisation_jsonld(base):
             tags.append(
                 '<script data-ssr type="application/ld+json">'
@@ -1202,7 +1281,12 @@ def sitemap(request: Request):
     # also be a page we tell Google exists. tests/test_route_meta_in_step.py
     # fails if these two drift apart.
     static_paths = list(_ROUTE_META)
-    urls = [f"<url><loc>{base}{p}</loc></url>" for p in static_paths]
+    # The discipline landing pages. "/jobs" itself answers a crawler with no
+    # roles (no session, no query — ADR 0018), which is what made it a Soft 404;
+    # each of these answers with hundreds to thousands, and carries a query, so
+    # the "no enumerable catalogue" rule is untouched.
+    static_paths += [_category_path(c) for c in BOARD_CATEGORIES]
+    urls = [f"<url><loc>{base}{html.escape(p)}</loc></url>" for p in static_paths]
     with get_db(request) as conn:
         for row in job_read.list_sitemap_refs(conn):
             path = _job_teaser_path(row["source"], row["source_id"], row["title"], row["company"])

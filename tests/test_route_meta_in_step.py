@@ -123,3 +123,40 @@ def test_no_route_is_both_indexable_and_noindex():
         assert not route.startswith(_NOINDEX_PREFIXES), (
             f"{route} has indexable metadata but matches a noindex prefix"
         )
+
+
+# ── The discipline list ───────────────────────────────────────────────────────
+
+SEARCH_HERO = ROOT / "webapp" / "frontend" / "src" / "components" / "SearchHero.tsx"
+
+
+def test_the_discipline_list_is_the_same_on_both_sides():
+    """
+    BOARD_CATEGORIES (main.py) builds the sitemap entries and the per-discipline
+    titles; MAJOR_CATEGORIES (SearchHero.tsx) builds the links a crawler follows.
+    A discipline in one but not the other is either a sitemap entry pointing at a
+    page nothing links to, or a linked page with no metadata and no sitemap row.
+    """
+    from main import BOARD_CATEGORIES
+
+    source = SEARCH_HERO.read_text(encoding="utf-8")
+    block = re.search(r"const MAJOR_CATEGORIES = \[(.*?)\]", source, re.S)
+    assert block, "could not find MAJOR_CATEGORIES in SearchHero.tsx"
+    client_side = re.findall(r"'([^']+)'", block.group(1))
+    assert client_side == list(BOARD_CATEGORIES), (
+        f"client {client_side} != server {list(BOARD_CATEGORIES)}"
+    )
+
+
+def test_the_category_links_use_the_param_the_board_reads():
+    """
+    The board parses its query from `?q=` (searchParamsToFilters in client.ts).
+    A link built with any other key lands on /jobs with no query — which is the
+    Soft 404 page these links exist to route around.
+    """
+    from main import BOARD_QUERY_PARAM
+
+    assert BOARD_QUERY_PARAM == "q"
+    assert f"/jobs?{BOARD_QUERY_PARAM}=$" in SEARCH_HERO.read_text(encoding="utf-8")
+    client = ROOT / "webapp" / "frontend" / "src" / "api" / "client.ts"
+    assert f"p.get('{BOARD_QUERY_PARAM}')" in client.read_text(encoding="utf-8")
