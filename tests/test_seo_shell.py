@@ -139,11 +139,19 @@ def test_a_client_side_only_route_still_falls_through_to_the_spa(client):
 def test_injected_tags_are_marked_so_the_client_can_hand_over(client):
     """
     React sets its own head tags once it boots. The server-injected ones carry
-    data-ssr so the app can drop them on mount and leave exactly one of each,
-    rather than two competing titles in the DOM.
+    data-ssr so the app can drop the ones React re-renders and leave exactly one
+    of each, rather than two competing titles in the DOM.
+
+    Only title, description and JSON-LD are dropped — see main.tsx. Canonical and
+    og:* have no React equivalent, so they stay; Google indexes the rendered page,
+    and stripping them would leave the canonical visible only to clients that
+    never run JS.
     """
     body = _head(client, "/about")
     assert body.count("data-ssr") >= 3
+    assert '<title data-ssr>' in body
+    assert '<meta data-ssr name="description"' in body
+    assert '<link data-ssr rel="canonical"' in body
 
 
 @pytest.mark.parametrize("path", _INDEXABLE)
