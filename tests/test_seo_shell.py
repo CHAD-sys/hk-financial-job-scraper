@@ -344,3 +344,39 @@ def test_an_unknown_query_gets_no_server_rendered_roles(client):
     """Only the thirteen chosen disciplines are worth a database read per request."""
     body = _head(client, "/jobs?q=whatever+someone+typed")
     assert 'id="ssr-roles"' not in body
+
+
+# ── The robots.txt rule that cost us the board ────────────────────────────────
+#
+# Googlebot obeys robots.txt for the XHRs a page makes while rendering. With
+# "Disallow: /api/" and nothing else, it fetched /jobs?q=..., ran the bundle, had
+# every data call refused (499 in its own console), rendered "No roles match
+# these filters" and called the page a Soft 404. Three attempts to fix that page
+# failed because the page was never the problem.
+
+
+@pytest.mark.parametrize(
+    "endpoint", ["/api/jobs", "/api/filters", "/api/stats"]
+)
+def test_the_board_can_fetch_what_it_needs_to_render(client, monkeypatch, endpoint):
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://testserver")
+    body = client.get("/robots.txt").text
+    assert f"Allow: {endpoint}" in body, f"{endpoint} is blocked; the board renders empty"
+    # Longest-match wins in robots.txt, so the Allow must be more specific than
+    # the Disallow it overrides — and must appear at all.
+    assert "Disallow: /api/" in body
+    assert len(endpoint) > len("/api/")
+
+
+def test_the_rest_of_the_api_stays_closed(client, monkeypatch):
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://testserver")
+    body = client.get("/robots.txt").text
+    for endpoint in ("/api/auth/me", "/api/me/saved", "/api/me/resume"):
+        assert f"Allow: {endpoint}" not in body
+
+
+def test_api_responses_are_fetchable_but_never_indexable(client):
+    """Allowing a crawler to read JSON is not wanting that JSON in the index."""
+    r = client.get("/api/stats")
+    assert r.status_code == 200
+    assert r.headers["X-Robots-Tag"] == "noindex"

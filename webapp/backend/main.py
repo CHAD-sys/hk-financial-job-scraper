@@ -1423,6 +1423,25 @@ def robots(request: Request):
     body = (
         "User-agent: *\n"
         "Allow: /\n"
+        # The read-only endpoints the board itself calls while rendering. These
+        # MUST come before "Disallow: /api/" and MUST stay allowed.
+        #
+        # Blocking them cost us every attempt at indexing the board. Googlebot
+        # obeys robots.txt for the XHRs a page makes while rendering, so with
+        # /api/ closed it fetched the document, ran the bundle, had /api/jobs,
+        # /api/filters and /api/stats refused (499 in its own console), and
+        # rendered the "No roles match these filters" empty state. It then called
+        # the page a Soft 404 — correctly, from what it was allowed to see. Three
+        # separate attempts to fix that page failed because the page was never
+        # the problem; this line was.
+        #
+        # Nothing is exposed by allowing them. /api/jobs refuses an empty query
+        # and scopes to the anonymous audience exactly as it does for any
+        # signed-out visitor (ADR 0018), and every /api/ response carries
+        # X-Robots-Tag: noindex so the JSON is fetchable but never indexed.
+        "Allow: /api/jobs\n"
+        "Allow: /api/filters\n"
+        "Allow: /api/stats\n"
         "Disallow: /api/\n"
         "Disallow: /account\n"
         "Disallow: /admin\n"
@@ -3241,6 +3260,22 @@ def create_app(
     app.state.limiter = (
         RedisRateLimiter(settings.redis_url) if settings.redis_url else RateLimiter()
     )
+
+    @app.middleware("http")
+    async def _never_index_the_api(request: Request, call_next):
+        """
+        API responses are fetchable but never indexable.
+
+        robots.txt allows Googlebot the three read-only endpoints the board calls
+        while rendering — without them it sees an empty board and calls the page
+        a Soft 404. Allowing a crawler to FETCH JSON is not the same as wanting
+        that JSON in the index, and a bare API response ranking for a query
+        instead of the page it belongs to is its own small disaster.
+        """
+        response = await call_next(request)
+        if request.url.path.startswith("/api/"):
+            response.headers["X-Robots-Tag"] = "noindex"
+        return response
 
     app.add_middleware(
         CORSMiddleware,
