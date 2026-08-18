@@ -43,10 +43,12 @@ from main import _NOINDEX_PREFIXES, _ROUTE_META  # noqa: E402
 _PAGE_FOR_ROUTE = {
     "/": "LandingPage.tsx",
     "/about": "AboutPage.tsx",
-    "/jobs": "JobBoardPage.tsx",
     "/learning": "LearningPage.tsx",
 }
 _LAYOUT_ROUTES = {"/get-started", "/post-a-role"}
+#: "/jobs" builds its head copy from the active query rather than writing a
+#: literal, so it is checked by its own two tests below instead.
+_COMPUTED_ROUTES = {"/jobs"}
 
 
 def _unescape(text: str) -> str:
@@ -91,7 +93,7 @@ def test_layout_route_matches_the_server(route):
 
 def test_every_indexable_route_is_covered_by_one_of_the_two_mechanisms():
     """A route added to the server table must get client tags too, or it drifts."""
-    assert set(_ROUTE_META) == set(_PAGE_FOR_ROUTE) | _LAYOUT_ROUTES
+    assert set(_ROUTE_META) == set(_PAGE_FOR_ROUTE) | _LAYOUT_ROUTES | _COMPUTED_ROUTES
 
 
 def test_the_sitemap_lists_exactly_the_indexable_routes(tmp_path):
@@ -165,3 +167,53 @@ def test_the_category_links_use_the_param_the_board_reads():
     assert f"/jobs?{BOARD_QUERY_PARAM}=$" in SEARCH_HERO.read_text(encoding="utf-8")
     client = ROOT / "webapp" / "frontend" / "src" / "api" / "client.ts"
     assert f"p.get('{BOARD_QUERY_PARAM}')" in client.read_text(encoding="utf-8")
+
+
+def test_the_discipline_title_rule_is_the_same_on_both_sides():
+    """
+    The server writes a discipline's title into the served HTML; JobBoardPage
+    writes it again once React boots. Google indexes the rendered page, so a
+    mismatch means the server's careful, keyword-targeted title is decoration
+    and all thirteen pages share one generic heading in the index.
+
+    The strings are built by a rule rather than a table, so this pins the rule:
+    the same template, the same >60 fallback, the same description sentence.
+    """
+    from main import BOARD_CATEGORIES, _category_meta
+
+    source = (ROOT / "webapp" / "frontend" / "src" / "pages" / "JobBoardPage.tsx").read_text(
+        encoding="utf-8"
+    )
+
+    # The template and its fallback, exactly as the server spells them.
+    assert "${activeQuery} Jobs in Hong Kong — FinEx Careers" in source
+    assert "${activeQuery} Jobs — FinEx Careers" in source
+    assert "longForm.length <= 60" in source, "the server truncates at 60 characters"
+
+    # The description sentence, split across lines in both languages.
+    assert "roles across Hong Kong's banks, funds and boutiques. " in source
+    assert "Indexed daily from employer sites and major boards, with an AI salary " in source
+    assert "estimate on every listing." in source
+
+    # And the rule the server applies, restated here so a change to _category_meta
+    # that this file does not follow fails loudly rather than silently.
+    for category in BOARD_CATEGORIES:
+        title, description = _category_meta(category)
+        long_form = f"{category} Jobs in Hong Kong — FinEx Careers"
+        expected = long_form if len(long_form) <= 60 else f"{category} Jobs — FinEx Careers"
+        assert title == expected, category
+        assert description.startswith(f"Open {category.lower()} roles across Hong Kong's")
+
+
+def test_the_board_falls_back_to_the_servers_words_when_there_is_no_query():
+    """
+    With no query the board is bare /jobs, and both sides must still agree — it
+    is the page people share even though Google is told not to index it.
+    """
+    source = (ROOT / "webapp" / "frontend" / "src" / "pages" / "JobBoardPage.tsx").read_text(
+        encoding="utf-8"
+    )
+    title, description = _ROUTE_META["/jobs"]
+    assert f"'{title}'" in source, f"JobBoardPage has no fallback title matching {title!r}"
+    for fragment in description.split(" — "):
+        assert fragment.split(",")[0] in source

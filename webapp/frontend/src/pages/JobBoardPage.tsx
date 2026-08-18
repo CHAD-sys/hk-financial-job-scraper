@@ -223,13 +223,35 @@ export default function JobBoardPage() {
   const totalPages = result?.total_pages ?? 0
   const jobs = result?.jobs ?? []
 
+  // Head copy for THIS query, not for the board in general.
+  //
+  // The backend writes the same strings into the served HTML for the thirteen
+  // discipline pages (_category_meta in webapp/backend/main.py), and Google
+  // indexes the RENDERED page — so if this rendered one generic title, all
+  // thirteen would share it and none would target the phrase it exists for.
+  // The two must produce byte-identical strings; the >60 fallback below is the
+  // server's rule restated, and test_route_meta_in_step.py checks they agree.
+  //
+  // An arbitrary query gets the same treatment for the person who typed it.
+  // Those pages are noindex, so only a human ever reads the result.
+  const activeQuery = activeFilters.search.trim()
+  const longForm = `${activeQuery} Jobs in Hong Kong — FinEx Careers`
+  const pageTitle = !activeQuery
+    ? 'Search Hong Kong Finance Jobs — FinEx Careers'
+    : longForm.length <= 60
+      ? longForm
+      : `${activeQuery} Jobs — FinEx Careers`
+  const pageDescription = activeQuery
+    ? `Open ${activeQuery.toLowerCase()} roles across Hong Kong's banks, funds and boutiques. ` +
+      'Indexed daily from employer sites and major boards, with an AI salary ' +
+      'estimate on every listing.'
+    : 'Search open finance roles across Hong Kong — banking, asset management, ' +
+      'insurance and professional services — indexed daily from employers and boards.'
+
   return (
     <div style={{ backgroundColor: 'var(--color-bg)', minHeight: '100dvh' }}>
-      <title>Search Hong Kong Finance Jobs — FinEx Careers</title>
-      <meta
-        name="description"
-        content="Search open finance roles across Hong Kong — banking, asset management, insurance and professional services — indexed daily from employers and boards."
-      />
+      <title>{pageTitle}</title>
+      <meta name="description" content={pageDescription} />
       <Nav />
 
       {/* ── DISCOVER MODE: the search-engine home ───────────── */}
