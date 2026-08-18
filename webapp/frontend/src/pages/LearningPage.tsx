@@ -91,7 +91,7 @@ export default function LearningPage() {
 
   return (
     <div style={{ backgroundColor: 'var(--color-surface-2)', minHeight: '100dvh' }}>
-      <title>Learning &amp; Events for HK Finance Professionals — FinEx Careers</title>
+      <title>Learning &amp; Events for HK Finance — FinEx Careers</title>
       <meta
         name="description"
         content="Professional learning from the Financial Executive Club: training strands, a video library and upcoming events for Hong Kong finance professionals."

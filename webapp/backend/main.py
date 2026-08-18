@@ -768,9 +768,37 @@ def _job_posting_jsonld(detail: JobDetail, canonical_url: str) -> dict:
             },
         },
         "url": canonical_url,
+        # Which record this is, so Google can tell two postings of the same
+        # vacancy apart and re-identify this one across re-crawls.
+        "identifier": {
+            "@type": "PropertyValue",
+            "name": detail.source,
+            "value": detail.source_id,
+        },
+        # Applying always leaves this page — sign in, then the employer's own
+        # form. Google added this flag precisely so a board cannot imply
+        # one-click apply it does not have.
+        "directApply": False,
     }
     if detail.posted_at:
         posting["datePosted"] = detail.posted_at[:10]
+    # NO validThrough. Google recommends it, but we do not know when a vacancy
+    # closes — every source here publishes an opening date and nothing else.
+    # Inventing an expiry would either drop a live Role out of Google early or
+    # assert a date no employer gave us. Closed Roles go noindex instead (see
+    # `robots_directive`), which is the honest lever we actually have.
+    if detail.is_internship:
+        # The one employment type any source states plainly enough to repeat.
+        posting["employmentType"] = "INTERN"
+    if detail.remote_type == "remote":
+        posting["jobLocationType"] = "TELECOMMUTE"
+    if detail.years_experience_required:
+        posting["experienceRequirements"] = {
+            "@type": "OccupationalExperienceRequirements",
+            "monthsOfExperience": detail.years_experience_required * 12,
+        }
+    if detail.job_category:
+        posting["occupationalCategory"] = detail.job_category
     # Only the DISCLOSED figure goes into structured data — Google's guidelines
     # treat baseSalary as a claim about the actual posting, so the AI *estimate*
     # (shown to a human reader below, clearly labelled) has no place here.
@@ -892,6 +920,220 @@ def _job_teaser_html(detail: JobDetail, canonical_url: str) -> str:
 </html>"""
 
 
+# ── Crawlable identity for the app's own routes ───────────────────────────────
+#
+# Everything above this point that a crawler can read is a Role teaser. The app's
+# OWN pages — "/", "/about", "/jobs", "/learning", "/get-started", "/post-a-role"
+# — are React routes, and index.html deliberately carries no title or description
+# (see its own comment: four page components set theirs via React 19 head
+# hoisting, and a static tag would sit in the DOM alongside the page's own).
+#
+# That was fine for browsers and wrong for everything else. A client with no
+# JavaScript got `<div id="root"></div>` and nothing else, which cost us twice:
+#
+#   1. Search. The five static URLs in sitemap.xml are the brand pages, and they
+#      were the thinnest pages on the site. Google renders JS on a delay and not
+#      always; Bing, DuckDuckGo, Yandex and Baidu largely do not render it at all.
+#   2. Reputation. LinkedIn, Slack and X unfurlers do not run JS either. They
+#      fetched a sign-in link and got an empty document. A page that answers a bot
+#      with nothing and a human with a login form is the cloaking signature that
+#      phishing kits use — and LinkedIn was showing a warning on our sign-in link
+#      while that was true of every route here.
+#
+# So the server now writes each route's identity into the HTML before sending it.
+# React still sets the same tags once it boots; the injected ones carry `data-ssr`
+# so the app can drop them on mount and leave exactly one of each in the DOM
+# rather than two competing titles.
+
+_OG_IMAGE_PATH = "/og-image.png"
+
+#: Indexable routes → (title, meta description). Keep in step with
+#: `sitemap()`'s `static_paths` — tests/test_seo_shell.py pins that every one of
+#: them answers with a distinct title and a description.
+_ROUTE_META: dict[str, tuple[str, str]] = {
+    "/": (
+        "FinEx Careers — HK Finance Roles, Consultation & Learning",
+        "Hong Kong finance careers in one place: a daily, AI-enriched index of open "
+        "roles across 230+ employers, plus consultation and professional learning.",
+    ),
+    "/about": (
+        "About FinEx Careers — How We Source Hong Kong Finance Roles",
+        "How FinEx Careers builds its daily Hong Kong finance job index: direct ATS "
+        "feeds, major boards, boutique careers pages and recruiter posts.",
+    ),
+    "/jobs": (
+        "Search Hong Kong Finance Jobs — FinEx Careers",
+        "Search open finance roles across Hong Kong — banking, asset management, "
+        "insurance and professional services — indexed daily from employers and "
+        "boards.",
+    ),
+    "/learning": (
+        "Learning & Events for HK Finance — FinEx Careers",
+        "Professional learning from the Financial Executive Club: training strands, "
+        "a video library and upcoming events for Hong Kong finance professionals.",
+    ),
+    "/get-started": (
+        "Create Your Free FinEx Careers Account",
+        "Create a free FinEx Careers account to see full role descriptions, save "
+        "positions, upload a CV for matching, and get a weekly digest of new roles.",
+    ),
+    "/post-a-role": (
+        "Post a Finance Role in Hong Kong | FinEx Careers",
+        "Reach Hong Kong finance professionals directly. Submit an open role to the "
+        "FinEx Careers board, reviewed before it is published.",
+    ),
+}
+
+#: Routes that must render but must never be indexed — anything behind or leading
+#: into an account. A sign-in page in the index is a reputation liability, not a
+#: traffic source: it is the page a phishing classifier looks hardest at.
+_NOINDEX_PREFIXES = (
+    "/account", "/saved", "/signin", "/register", "/forgot-password",
+    "/reset-password", "/verify", "/admin", "/employer", "/choose-view",
+)
+
+
+def _organisation_jsonld(base: str) -> list[dict]:
+    """
+    Who this site belongs to, in the vocabulary Google uses to build an entity.
+
+    A young domain running an OAuth sign-in and no stated owner is, to a
+    classifier, shaped exactly like a phishing site. `sameAs` is the part that
+    matters most here: it ties finexcareers.com to the Financial Executive Club's
+    established web presence, so the two are understood as one real organisation.
+    """
+    return [
+        {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "FinEx Careers",
+            "legalName": "Financial Executive Club",
+            "url": base,
+            "logo": f"{base}{_OG_IMAGE_PATH}",
+            "description": (
+                "A daily, AI-enriched index of open finance roles in Hong Kong, "
+                "published by the Financial Executive Club."
+            ),
+            "areaServed": {"@type": "Place", "name": "Hong Kong"},
+            "sameAs": [
+                "https://www.finexclub.org",
+                "https://www.linkedin.com/company/financial-executive-club",
+            ],
+        },
+        {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "FinEx Careers",
+            "url": base,
+            "potentialAction": {
+                "@type": "SearchAction",
+                "target": {
+                    "@type": "EntryPoint",
+                    "urlTemplate": f"{base}/jobs?search={{search_term_string}}",
+                },
+                "query-input": "required name=search_term_string",
+            },
+        },
+    ]
+
+
+def _shell_head_tags(request: Request, path: str) -> str:
+    """The head a non-JS client gets for one app route. Empty string if unknown."""
+    normalised = "/" + path.strip("/") if path.strip("/") else "/"
+    meta = _ROUTE_META.get(normalised)
+    noindex = normalised.startswith(_NOINDEX_PREFIXES)
+    if meta is None and not noindex:
+        # An unrecognised client-side route. React Router owns it and decides what
+        # it is; guessing a title here would be worse than sending none.
+        return ""
+
+    base = _public_base(request)
+    if meta is None:
+        title = "Sign in — FinEx Careers"
+        description = "Sign in to FinEx Careers."
+    else:
+        title, description = meta
+
+    tags = [
+        f"<title data-ssr>{html.escape(title)}</title>",
+        f'<meta data-ssr name="description" content="{html.escape(description)}" />',
+    ]
+    if noindex:
+        tags.append('<meta data-ssr name="robots" content="noindex,follow" />')
+        return "".join(tags)
+
+    canonical = f"{base}{normalised}" if normalised != "/" else f"{base}/"
+    image = f"{base}{_OG_IMAGE_PATH}"
+    tags += [
+        '<meta data-ssr name="robots" content="index,follow" />',
+        f'<link data-ssr rel="canonical" href="{html.escape(canonical)}" />',
+        '<meta data-ssr property="og:type" content="website" />',
+        '<meta data-ssr property="og:site_name" content="FinEx Careers" />',
+        '<meta data-ssr property="og:locale" content="en_HK" />',
+        f'<meta data-ssr property="og:title" content="{html.escape(title)}" />',
+        f'<meta data-ssr property="og:description" content="{html.escape(description)}" />',
+        f'<meta data-ssr property="og:url" content="{html.escape(canonical)}" />',
+        f'<meta data-ssr property="og:image" content="{html.escape(image)}" />',
+        '<meta data-ssr property="og:image:width" content="1200" />',
+        '<meta data-ssr property="og:image:height" content="630" />',
+        '<meta data-ssr name="twitter:card" content="summary_large_image" />',
+        f'<meta data-ssr name="twitter:title" content="{html.escape(title)}" />',
+        f'<meta data-ssr name="twitter:description" content="{html.escape(description)}" />',
+        f'<meta data-ssr name="twitter:image" content="{html.escape(image)}" />',
+    ]
+    if normalised == "/":
+        for block in _organisation_jsonld(base):
+            tags.append(
+                '<script data-ssr type="application/ld+json">'
+                + json.dumps(block)
+                + "</script>"
+            )
+    return "".join(tags)
+
+
+def _inject_head(document: str, tags: str) -> str:
+    """
+    Put `tags` at the top of the document's head.
+
+    Top, not bottom: where a tag React also renders ends up duplicated for the
+    moment before the app boots and removes the `data-ssr` copy, a crawler and a
+    browser both take the FIRST one they see, and the first one should be ours.
+    Handles a document with no <head> because the test bundle has none.
+    """
+    if not tags:
+        return document
+    lowered = document.lower()
+    for opener in ("<head>", "<html>"):
+        at = lowered.find(opener)
+        if at != -1:
+            cut = at + len(opener)
+            return document[:cut] + tags + document[cut:]
+    return tags + document
+
+
+def _noindex_if_off_canonical(request: Request, response: Response) -> Response:
+    """Header form of the robots.txt rule above, for hosts we do not publish."""
+    if not _is_canonical_host(request):
+        response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    return response
+
+
+def _shell_response(request: Request, settings: Settings, path: str) -> Response:
+    """
+    index.html with this route's identity written into it.
+
+    Still `Cache-Control: no-cache` for the same reason the plain file was: this
+    document names the current hashed JS bundle, and a stale copy pins a
+    returning visitor to a deleted file. The body now varies by path, which is
+    another reason it must not be cached by anything in front of us.
+    """
+    document = settings.index_html.read_text(encoding="utf-8")
+    body = _inject_head(document, _shell_head_tags(request, path))
+    return _noindex_if_off_canonical(
+        request, HTMLResponse(body, headers={"Cache-Control": "no-cache"})
+    )
+
+
 def _spa_shell(request: Request) -> Response:
     """
     The same response `_mount_frontend`'s catch-all gives an unrecognised
@@ -905,7 +1147,7 @@ def _spa_shell(request: Request) -> Response:
     settings = cfg(request)
     if not settings.frontend_present():
         raise HTTPException(status_code=404, detail="Not found")
-    return FileResponse(settings.index_html, headers={"Cache-Control": "no-cache"})
+    return _shell_response(request, settings, request.url.path)
 
 
 @router.get("/jobs/{source}/{source_id}", include_in_schema=False)
@@ -940,7 +1182,9 @@ def job_teaser(source: str, source_id: str, slug: str, request: Request):
     if slug != canonical_slug:
         return RedirectResponse(f"/jobs/{source}/{source_id}/{canonical_slug}", status_code=301)
     canonical_url = f"{_public_base(request)}/jobs/{source}/{source_id}/{canonical_slug}"
-    return HTMLResponse(_job_teaser_html(detail, canonical_url))
+    return _noindex_if_off_canonical(
+        request, HTMLResponse(_job_teaser_html(detail, canonical_url))
+    )
 
 
 @router.get("/sitemap.xml", include_in_schema=False)
@@ -954,7 +1198,10 @@ def sitemap(request: Request):
     section comment above.
     """
     base = _public_base(request)
-    static_paths = ["/", "/about", "/jobs", "/learning", "/get-started"]
+    # The same set as _ROUTE_META — a page we give a title and description must
+    # also be a page we tell Google exists. tests/test_route_meta_in_step.py
+    # fails if these two drift apart.
+    static_paths = list(_ROUTE_META)
     urls = [f"<url><loc>{base}{p}</loc></url>" for p in static_paths]
     with get_db(request) as conn:
         for row in job_read.list_sitemap_refs(conn):
@@ -973,16 +1220,66 @@ def sitemap(request: Request):
     return Response(content=body, media_type="application/xml")
 
 
+def _is_canonical_host(request: Request) -> bool:
+    """
+    Whether this request arrived on the address we publish.
+
+    Railway also answers on its own *.up.railway.app hostname, and that origin
+    served the entire site at 200 with `Allow: /`. Two consequences, both bad:
+    the same pages exist on two hosts (Google picks a winner and splits the
+    signals), and our sign-in page was reachable on a free-hosting subdomain,
+    which is the single most common place phishing kits are hosted. Requests
+    there still work — health checks use it — they just say "do not index me".
+    """
+    canonical = os.environ.get("PUBLIC_BASE_URL", "").strip()
+    if not canonical:
+        return True  # local dev: nothing to be non-canonical against
+    return request.url.netloc.lower() == urlparse(canonical).netloc.lower()
+
+
 @router.get("/robots.txt", include_in_schema=False)
 def robots(request: Request):
     base = _public_base(request)
+    if not _is_canonical_host(request):
+        # A crawler that found the Railway hostname is told to leave entirely,
+        # and pointed at the real one.
+        return PlainTextResponse(
+            "User-agent: *\nDisallow: /\n" f"Sitemap: {base}/sitemap.xml\n"
+        )
     body = (
         "User-agent: *\n"
         "Allow: /\n"
         "Disallow: /api/\n"
         "Disallow: /account\n"
         "Disallow: /admin\n"
+        "Disallow: /saved\n"
+        "Disallow: /signin\n"
+        "Disallow: /register\n"
+        "Disallow: /reset-password\n"
+        "Disallow: /forgot-password\n"
+        "Disallow: /verify\n"
+        "Disallow: /employer/\n"
+        "\n"
         f"Sitemap: {base}/sitemap.xml\n"
+    )
+    return PlainTextResponse(body)
+
+
+@router.get("/.well-known/security.txt", include_in_schema=False)
+def security_txt(request: Request):
+    """
+    Where to report a security problem (RFC 9116).
+
+    Small file, disproportionate effect on how automated reputation scoring
+    reads a domain: a site that publishes a real contact is a site someone is
+    accountable for. Costs nothing and is one of the few legitimacy signals we
+    can simply assert.
+    """
+    base = _public_base(request)
+    body = (
+        "Contact: mailto:security@finexclub.org\n"
+        "Preferred-Languages: en\n"
+        f"Canonical: {base}/.well-known/security.txt\n"
     )
     return PlainTextResponse(body)
 
@@ -2684,7 +2981,7 @@ def _mount_frontend(app: FastAPI, settings: Settings) -> None:
         app.mount("/assets", StaticFiles(directory=assets), name="assets")
 
     @app.get("/{full_path:path}", include_in_schema=False)
-    def spa_fallback(full_path: str):
+    def spa_fallback(full_path: str, request: Request):
         """
         Serve index.html for anything that is not an API path.
 
@@ -2712,8 +3009,9 @@ def _mount_frontend(app: FastAPI, settings: Settings) -> None:
 
         # index.html is the one file that must NOT be cached: it is what points at
         # the current hashed bundle, so a stale copy pins a returning visitor to a
-        # deleted JS file and the app boots to a blank page.
-        return FileResponse(settings.index_html, headers={"Cache-Control": "no-cache"})
+        # deleted JS file and the app boots to a blank page. It is also the one
+        # file we rewrite per route — see _shell_response.
+        return _shell_response(request, settings, "/" + full_path)
 
 
 def create_app(

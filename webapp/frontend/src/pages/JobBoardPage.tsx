@@ -228,7 +228,7 @@ export default function JobBoardPage() {
       <title>Search Hong Kong Finance Jobs — FinEx Careers</title>
       <meta
         name="description"
-        content="Search open finance roles across Hong Kong — banking, asset management, insurance and professional services — indexed daily from employer ATSs, major boards and boutique firms."
+        content="Search open finance roles across Hong Kong — banking, asset management, insurance and professional services — indexed daily from employers and boards."
       />
       <Nav />
 
