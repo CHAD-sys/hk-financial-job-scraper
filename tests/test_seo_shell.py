@@ -34,7 +34,11 @@ from fastapi.testclient import TestClient
 
 from .support import enrichment, job, make_app, make_bundle, make_jobs_db
 
-_INDEXABLE = ["/", "/about", "/jobs", "/learning", "/get-started"]
+#: Routes that should be in Google's index. Bare "/jobs" is NOT one: ADR 0018
+#: refuses an empty query, so it shows a crawler no Roles and answers noindex —
+#: see test_bare_jobs_is_not_indexable. Its value is carried by the thirteen
+#: discipline pages it links to.
+_INDEXABLE = ["/", "/about", "/learning", "/get-started", "/post-a-role"]
 
 
 @pytest.fixture()
@@ -269,3 +273,26 @@ def test_the_sitemap_lists_every_discipline(client):
     body = client.get("/sitemap.xml").text
     for category in BOARD_CATEGORIES:
         assert f"q={quote_plus(category)}" in unescape(body), f"{category} not in sitemap"
+
+
+
+def test_bare_jobs_is_not_indexable(client):
+    """
+    RED before: /jobs claimed index,follow and Google returned Soft 404 twice.
+
+    A search box with no query has nothing to rank, and ADR 0018 means it never
+    will have. `follow` is deliberate — the crawler still walks through to the
+    discipline pages.
+    """
+    body = _head(client, "/jobs")
+    assert 'content="noindex,follow"' in body
+    assert 'content="index,follow"' not in body
+    # It still identifies itself for anyone who shares the link.
+    assert "FinEx Careers" in re.findall(r"<title[^>]*>(.*?)</title>", body, re.S)[0]
+
+
+def test_bare_jobs_is_not_in_the_sitemap(client):
+    """Listing a noindex URL contradicts the noindex."""
+    body = client.get("/sitemap.xml").text
+    assert "<loc>http://testserver/jobs</loc>" not in body
+    assert "q=Risk+Management" in unescape(body), "the disciplines must still be listed"

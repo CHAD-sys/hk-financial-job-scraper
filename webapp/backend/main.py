@@ -1098,6 +1098,22 @@ def _shell_head_tags(request: Request, path: str) -> str:
     # an infinite space of near-identical URLs to burn its crawl budget on.
     if normalised == "/jobs":
         query = (request.query_params.get(BOARD_QUERY_PARAM) or "").strip()
+        if not query:
+            # Bare /jobs is a search box, not a destination. ADR 0018 refuses an
+            # empty query outright, so this page shows a crawler no Roles and
+            # cannot be made to — Google inspected it twice on 2026-08-18 and
+            # returned Soft 404 both times, correctly.
+            #
+            # Declaring it noindex is the honest reading of that, not a way of
+            # hiding the error: there is no content here to rank. `follow` is the
+            # important half — Google still crawls through to the thirteen
+            # discipline pages below, which is where the Roles actually are.
+            title, description = _ROUTE_META["/jobs"]
+            return (
+                f"<title data-ssr>{html.escape(title)}</title>"
+                f'<meta data-ssr name="description" content="{html.escape(description)}" />'
+                '<meta data-ssr name="robots" content="noindex,follow" />'
+            )
         if query:
             match = next(
                 (c for c in BOARD_CATEGORIES if c.casefold() == query.casefold()), None
@@ -1280,7 +1296,10 @@ def sitemap(request: Request):
     # The same set as _ROUTE_META — a page we give a title and description must
     # also be a page we tell Google exists. tests/test_route_meta_in_step.py
     # fails if these two drift apart.
-    static_paths = list(_ROUTE_META)
+    # Bare /jobs is deliberately absent: it answers noindex (see
+    # _shell_head_tags), and listing a noindex URL in a sitemap tells Google to
+    # index a page that tells it not to. The disciplines carry its value instead.
+    static_paths = [p for p in _ROUTE_META if p != "/jobs"]
     # The discipline landing pages. "/jobs" itself answers a crawler with no
     # roles (no session, no query — ADR 0018), which is what made it a Soft 404;
     # each of these answers with hundreds to thousands, and carries a query, so
