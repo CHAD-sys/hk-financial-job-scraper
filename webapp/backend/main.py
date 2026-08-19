@@ -1083,6 +1083,35 @@ def _category_meta(label: str) -> tuple[str, str]:
     return title, description
 
 
+#: Corporate and geographic tails that do not distinguish one employer from
+#: another in this market. "Bank of China (Hong Kong) Limited" and "Bank of China
+#: (Hong Kong)" are one employer with two spellings in the sources.
+_EMPLOYER_NOISE = (
+    r"(limited|ltd|company|co|corporation|corp|plc|inc|holdings|group|"
+    r"hong kong|hongkong|hk|china region|asia pacific|asia|macau|overseas|branch|and)"
+)
+_EMPLOYER_NOISE_RE = re.compile(rf"\s+{_EMPLOYER_NOISE}$")
+
+
+def _normalise_employer(name: str) -> str:
+    """
+    The key two spellings of the same employer share.
+
+    Sources disagree about corporate suffixes and place names, so the board
+    carries "AIA" and "AIA Hong Kong", "CMB Wing Lung Bank" and "CMB Wing Lung
+    Bank Limited" — twelve such pairs in production. Left alone that is twelve
+    pairs of near-identical landing pages competing for the same query: the
+    recognised company-name collision problem, surfacing in the SEO work.
+    """
+    s = re.sub(r"[^a-z0-9 ]+", " ", name.casefold())
+    s = re.sub(r"\s+", " ", s).strip()
+    previous = None
+    while previous != s:
+        previous = s
+        s = _EMPLOYER_NOISE_RE.sub("", s).strip()
+    return s
+
+
 def _landing_pages(request: Request) -> dict[str, tuple[str, str, int]]:
     """
     Every query that is worth its own indexable page, keyed by casefolded label.
@@ -1111,14 +1140,35 @@ def _landing_pages(request: Request) -> dict[str, tuple[str, str, int]]:
     pages: dict[str, tuple[str, str, int]] = {}
     try:
         with get_db(request) as conn:
-            for company, count in conn.execute(
-                f"SELECT j.company, COUNT(*) AS n FROM jobs j"
-                f" WHERE {audience_where} AND {job_read.EMPLOYER_DIMENSION_WHERE}"
-                f" GROUP BY j.company HAVING n >= ?",
-                (_MIN_ROLES_FOR_A_LANDING_PAGE,),
-            ):
-                if company and company.strip():
-                    pages[company.casefold()] = (company, "employer", count)
+            employers = [
+                (company, count)
+                for company, count in conn.execute(
+                    f"SELECT j.company, COUNT(*) AS n FROM jobs j"
+                    f" WHERE {audience_where} AND {job_read.EMPLOYER_DIMENSION_WHERE}"
+                    f" GROUP BY j.company HAVING n >= ?",
+                    (_MIN_ROLES_FOR_A_LANDING_PAGE,),
+                )
+                if company and company.strip()
+            ]
+            # One page per employer, not one per spelling. The variant carrying
+            # the most Roles wins the page; the others still resolve, and their
+            # canonical says which page actually counts.
+            winners: dict[str, tuple[str, int]] = {}
+            for company, count in employers:
+                key = _normalise_employer(company)
+                if not key:
+                    continue
+                best = winners.get(key)
+                if best is None or count > best[1]:
+                    winners[key] = (company, count)
+            for company, count in employers:
+                key = _normalise_employer(company)
+                if key in winners:
+                    pages[company.casefold()] = (winners[key][0], "employer", count)
+            # The plain name a person types ("HSBC", where the board only ever
+            # says "HSBC Hong Kong") reaches the same page.
+            for key, (company, count) in winners.items():
+                pages.setdefault(key, (company, "employer", count))
             for sector, count in conn.execute(
                 f"SELECT sector, COUNT(*) AS n FROM ("
                 f"  SELECT ({SECTOR_SQL}) AS sector FROM jobs j WHERE {audience_where}"
@@ -1522,9 +1572,9 @@ def sitemap(request: Request):
     # roles (no session, no query — ADR 0018), which is what made it a Soft 404;
     # each of these answers with hundreds to thousands, and carries a query, so
     # the "no enumerable catalogue" rule is untouched.
-    static_paths += [
-        _category_path(label) for label, _kind, _n in _landing_pages(request).values()
-    ]
+    static_paths += sorted(
+        {_category_path(label) for label, _kind, _n in _landing_pages(request).values()}
+    )
     urls = [f"<url><loc>{base}{html.escape(p)}</loc></url>" for p in static_paths]
     with get_db(request) as conn:
         for row in job_read.list_sitemap_refs(conn):

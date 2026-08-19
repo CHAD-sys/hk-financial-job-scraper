@@ -481,3 +481,45 @@ def test_the_onward_links_go_to_indexable_pages(client):
     for href in re.findall(r'href="(/jobs\?q=[^"]+)"', body):
         target = _head(client, unescape(href))
         assert 'content="index,follow"' in target, f"{href} is not indexable"
+
+
+def test_two_spellings_of_one_employer_share_one_page(client):
+    """
+    Sources disagree about corporate suffixes, so the board carries "AIA" and
+    "AIA Hong Kong", "CMB Wing Lung Bank" and "CMB Wing Lung Bank Limited" —
+    twelve such pairs in production. Left alone that is twelve pairs of
+    near-identical pages competing for one query and splitting its authority.
+    """
+    from main import _normalise_employer
+
+    assert _normalise_employer("HSBC Hong Kong") == _normalise_employer("HSBC")
+    assert _normalise_employer("CMB Wing Lung Bank Limited") == _normalise_employer(
+        "CMB Wing Lung Bank"
+    )
+    assert _normalise_employer("Bank of China (Hong Kong) Limited") == (
+        _normalise_employer("Bank of China (Hong Kong)")
+    )
+    # And genuinely different employers stay apart — over-merging would be worse
+    # than the duplication it fixes.
+    assert _normalise_employer("Bank of China") != _normalise_employer(
+        "Bank of Communications"
+    )
+    assert _normalise_employer("China Everbright Bank Company Limited") != (
+        _normalise_employer("China Everbright Limited")
+    )
+
+
+def test_the_plain_name_someone_types_reaches_the_page(client):
+    """The board says "HSBC Hong Kong"; a person searching types "HSBC"."""
+    body = _head(client, _q("HSBC"))
+    assert 'content="index,follow"' in body
+    canonical = unescape(
+        re.search(r'<link[^>]*rel="canonical" href="([^"]+)"', body).group(1)
+    )
+    assert "q=HSBC" in canonical
+
+
+def test_the_sitemap_never_repeats_a_url(client):
+    body = unescape(client.get("/sitemap.xml").text)
+    locs = re.findall(r"<loc>([^<]+)</loc>", body)
+    assert len(locs) == len(set(locs)), "the sitemap repeats a URL"
