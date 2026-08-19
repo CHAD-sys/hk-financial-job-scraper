@@ -45,6 +45,9 @@ class RepairSummary:
     #: case this catches; a growing list is the signal that the title pattern has started
     #: catching full-time roles.
     suspicious: list[str] = field(default_factory=list)
+    #: Rows whose title matched but which carry a figure the EMPLOYER stated — reported
+    #: and SKIPPED. A disclosed number outranks every estimate, including this repair's.
+    disclosed: list[str] = field(default_factory=list)
     #: (title, old_max, new_max), largest reduction first — for the run log.
     examples: list[tuple[str, int, int]] = field(default_factory=list)
 
@@ -85,7 +88,9 @@ def repair_internship_salaries(
     try:
         rows = conn.execute(
             f"""SELECT j.title, e.source, e.source_id, e.seniority,
-                       e.salary_estimated_min AS mn, e.salary_estimated_max AS mx
+                       e.salary_estimated_min AS mn, e.salary_estimated_max AS mx,
+                       e.salary_estimated_confidence AS conf,
+                       e.salary_hkd_max AS disclosed_max
                   FROM jobs j JOIN job_enrichments e
                     ON j.source = e.source AND j.source_id = e.source_id
                  WHERE e.salary_estimated_max IS NOT NULL {board}""",
@@ -114,6 +119,22 @@ def repair_internship_salaries(
             if row["seniority"] not in (None, "junior"):
                 summary.suspicious.append(f"[{row['seniority']}] {row['title']}")
                 continue
+            # A figure the EMPLOYER stated is extraction, not estimation, and outranks
+            # both this repair and the model that wrote the estimate. Two signals mark
+            # one: a disclosed `salary_hkd_max`, or `confidence = "high"`, which the
+            # enricher sets precisely when it found the number in the posting's text.
+            #
+            # Found live 2026-08-19, after this repair had already run unattended:
+            # "Business Analyst/ Junior/Trainee Analyst (NOT IT/Data)" disclosed
+            # HK$25,000-32,000 and was rewritten to the internship cap. Nine rows had
+            # been overwritten that way. Only the board's COALESCE onto the disclosed
+            # column kept it off the page — the stored estimate was simply lost.
+            #
+            # If the disclosed figure itself looks wrong, the bug is in the parser and
+            # rewriting the estimate would hide it. So: report, never write.
+            if row["disclosed_max"] is not None or row["conf"] == "high":
+                summary.disclosed.append(f"[disclosed] {row['title']}")
+                continue
             new_min, new_max = _capped(row["mn"], row["mx"])
             if (new_min, new_max) == (row["mn"], row["mx"]):
                 continue
@@ -123,6 +144,13 @@ def repair_internship_salaries(
         summary.repaired = len(pending)
         summary.examples.sort(key=lambda e: e[1], reverse=True)
         del summary.examples[10:]
+
+        if summary.disclosed:
+            logger.info(
+                "%d internship-matched rows carry an employer-stated figure and were "
+                "left alone: %s",
+                len(summary.disclosed), "; ".join(summary.disclosed[:5]),
+            )
 
         if summary.suspicious:
             logger.warning(

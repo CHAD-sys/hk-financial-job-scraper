@@ -13,7 +13,11 @@ from hk_jobs.salary_repair import repair_internship_salaries
 
 
 def _db(tmp_path, rows):
-    """A minimal jobs+job_enrichments pair. rows: (title, seniority, mn, mx, active)."""
+    """A minimal jobs+job_enrichments pair.
+
+    rows: (title, seniority, mn, mx, active) — or the same with three more fields
+    (confidence, disclosed_min, disclosed_max) for the disclosed-figure cases.
+    """
     path = tmp_path / "jobs.db"
     conn = sqlite3.connect(path)
     conn.executescript(
@@ -24,17 +28,21 @@ def _db(tmp_path, rows):
         );
         CREATE TABLE job_enrichments (
             source TEXT, source_id TEXT, seniority TEXT,
-            salary_estimated_min INTEGER, salary_estimated_max INTEGER
+            salary_estimated_min INTEGER, salary_estimated_max INTEGER,
+            salary_estimated_confidence TEXT,
+            salary_hkd_min INTEGER, salary_hkd_max INTEGER
         );
         """
     )
-    for i, (title, seniority, mn, mx, active) in enumerate(rows):
+    for i, row in enumerate(rows):
+        title, seniority, mn, mx, active = row[:5]
+        conf, hkd_mn, hkd_mx = (list(row[5:]) + [None, None, None])[:3]
         conn.execute(
             "INSERT INTO jobs VALUES (?,?,?,?,1)", ("linkedin", str(i), title, active)
         )
         conn.execute(
-            "INSERT INTO job_enrichments VALUES (?,?,?,?,?)",
-            ("linkedin", str(i), seniority, mn, mx),
+            "INSERT INTO job_enrichments VALUES (?,?,?,?,?,?,?,?)",
+            ("linkedin", str(i), seniority, mn, mx, conf, hkd_mn, hkd_mx),
         )
     conn.commit()
     conn.close()
@@ -125,3 +133,61 @@ def test_a_compound_manager_slash_intern_listing_is_skipped_not_capped(tmp_path)
     assert summary.repaired == 0, "an ambiguous compound title must never be written"
     assert summary.suspicious
     assert _stored(path) == [(40_000, 60_000)]
+
+
+def test_a_disclosed_salary_is_never_overwritten(tmp_path):
+    """The employer's own figure outranks any estimate, including this repair's.
+
+    Found live on 2026-08-19: "Business Analyst/ Junior/Trainee Analyst" matched the
+    title pattern and was stored as junior, so the repair rewrote its estimate to the
+    internship cap — even though the posting DISCLOSED HK$25,000-32,000 and the
+    enrichment recorded confidence "high", meaning the figure was read out of the text
+    rather than guessed. Nine such rows had already been overwritten in production.
+    """
+    path = _db(
+        tmp_path,
+        [("Business Analyst / Junior / Trainee Analyst", "junior", 25_000, 32_000, 1,
+          "high", 25_000, 32_000)],
+    )
+    summary = repair_internship_salaries(path, dry_run=False)
+
+    assert summary.repaired == 0, "a disclosed figure must not be rewritten"
+    assert _stored(path) == [(25_000, 32_000)]
+    assert summary.disclosed, "the skip must be reported, not silent"
+
+
+def test_a_disclosed_figure_is_skipped_even_without_high_confidence(tmp_path):
+    """salary_hkd_* being present is itself the signal — it is an extracted figure."""
+    path = _db(
+        tmp_path,
+        [("Management Trainee Programme", "junior", 30_000, 45_000, 1,
+          "medium", 30_000, 45_000)],
+    )
+    summary = repair_internship_salaries(path, dry_run=False)
+
+    assert summary.repaired == 0
+    assert _stored(path) == [(30_000, 45_000)]
+
+
+def test_a_high_confidence_estimate_without_a_disclosed_figure_is_still_skipped(tmp_path):
+    """confidence="high" alone means the number came from the text. Leave it."""
+    path = _db(
+        tmp_path,
+        [("Summer Internship Programme", "junior", 20_000, 40_000, 1, "high", None, None)],
+    )
+    summary = repair_internship_salaries(path, dry_run=False)
+
+    assert summary.repaired == 0
+    assert _stored(path) == [(20_000, 40_000)]
+
+
+def test_an_ordinary_estimated_internship_is_still_capped(tmp_path):
+    """The guard must not disarm the repair for rows that were genuinely estimated."""
+    path = _db(
+        tmp_path,
+        [("Summer Analyst 2027", "junior", 41_500, 83_500, 1, "medium", None, None)],
+    )
+    summary = repair_internship_salaries(path, dry_run=False)
+
+    assert summary.repaired == 1
+    assert _stored(path) == [(7_500, INTERNSHIP_MAX_MONTHLY_HKD)]
