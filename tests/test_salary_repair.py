@@ -191,3 +191,96 @@ def test_an_ordinary_estimated_internship_is_still_capped(tmp_path):
 
     assert summary.repaired == 1
     assert _stored(path) == [(7_500, INTERNSHIP_MAX_MONTHLY_HKD)]
+
+
+# ── the title-grade ceiling, re-applied to published rows ─────────────────────
+from hk_jobs.salary_repair import repair_grade_ceiling_salaries  # noqa: E402
+
+
+def _db2(tmp_path, rows):
+    """rows: (title, slug, tier, seniority, mn, mx, conf, hkd_max)."""
+    path = tmp_path / "jobs.db"
+    conn = sqlite3.connect(path)
+    conn.executescript(
+        """
+        CREATE TABLE jobs (
+            source TEXT, source_id TEXT, title TEXT, company_slug TEXT,
+            is_active INTEGER DEFAULT 1, is_primary INTEGER DEFAULT 1
+        );
+        CREATE TABLE job_enrichments (
+            source TEXT, source_id TEXT, salary_tier TEXT, seniority TEXT,
+            salary_estimated_min INTEGER, salary_estimated_max INTEGER,
+            salary_estimated_confidence TEXT, salary_hkd_max INTEGER
+        );
+        """
+    )
+    for i, (title, slug, tier, sen, mn, mx, conf, hkd) in enumerate(rows):
+        conn.execute("INSERT INTO jobs VALUES (?,?,?,?,1,1)", ("linkedin", str(i), title, slug))
+        conn.execute("INSERT INTO job_enrichments VALUES (?,?,?,?,?,?,?,?)",
+                     ("linkedin", str(i), tier, sen, mn, mx, conf, hkd))
+    conn.commit(); conn.close()
+    return str(path)
+
+
+def _maxes(path):
+    conn = sqlite3.connect(path)
+    out = [r[0] for r in conn.execute(
+        "SELECT salary_estimated_max FROM job_enrichments ORDER BY source_id")]
+    conn.close()
+    return out
+
+
+def test_a_support_function_row_above_its_grade_ceiling_is_lowered(tmp_path):
+    path = _db2(tmp_path, [
+        ("Senior Manager, Credit Risk", "dbs-hk", "middle_office", "senior",
+         75_000, 100_000, "medium", None)])
+    summary = repair_grade_ceiling_salaries(path, dry_run=False)
+    assert summary.repaired == 1
+    assert _maxes(path) == [70_000]
+
+
+def test_a_front_office_row_is_exempt(tmp_path):
+    """Mirrors clamp_salary's own exemption — the two must never disagree."""
+    path = _db2(tmp_path, [
+        ("Global Banking & Markets, SPG Basis Trading, Vice President", "goldman-sachs",
+         "front_office", "senior", 105_000, 163_500, "medium", None)])
+    summary = repair_grade_ceiling_salaries(path, dry_run=False)
+    assert summary.repaired == 0
+    assert _maxes(path) == [163_500]
+
+
+def test_a_disclosed_figure_is_never_overwritten_here_either(tmp_path):
+    path = _db2(tmp_path, [
+        ("Vice President, Operations", "citibank-hk", "middle_office", "senior",
+         90_000, 120_000, "high", 120_000)])
+    summary = repair_grade_ceiling_salaries(path, dry_run=False)
+    assert summary.repaired == 0
+    assert summary.disclosed
+    assert _maxes(path) == [120_000]
+
+
+def test_a_row_already_under_its_ceiling_is_untouched(tmp_path):
+    path = _db2(tmp_path, [
+        ("Vice President, Operations", "citibank-hk", "middle_office", "senior",
+         40_000, 60_000, "medium", None)])
+    assert repair_grade_ceiling_salaries(path, dry_run=False).repaired == 0
+    assert _maxes(path) == [60_000]
+
+
+def test_grade_ceiling_repair_is_idempotent(tmp_path):
+    path = _db2(tmp_path, [
+        ("Senior Manager, Credit Risk", "dbs-hk", "middle_office", "senior",
+         75_000, 100_000, "medium", None)])
+    repair_grade_ceiling_salaries(path, dry_run=False)
+    first = _maxes(path)
+    assert repair_grade_ceiling_salaries(path, dry_run=False).repaired == 0
+    assert _maxes(path) == first
+
+
+def test_grade_ceiling_repair_is_down_only(tmp_path):
+    """An unrecognised employer has no ceiling; nothing may be raised."""
+    path = _db2(tmp_path, [
+        ("Vice President, Trading", "some-boutique", "middle_office", "senior",
+         20_000, 30_000, "medium", None)])
+    assert repair_grade_ceiling_salaries(path, dry_run=False).repaired == 0
+    assert _maxes(path) == [30_000]

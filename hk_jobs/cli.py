@@ -113,6 +113,7 @@ class PipelineArgs:
     check_ghost_jobs: bool = False
     repair_post_employers: bool = False
     repair_internship_salaries: bool = False
+    repair_grade_ceilings: bool = False
     repair_all_rows: bool = False
     repair_apply: bool = False
 
@@ -378,6 +379,20 @@ def build_parser() -> argparse.ArgumentParser:
             "stored row \u2014 no DeepSeek calls, no cost \u2014 and idempotent, so a repeat "
             "run changes nothing. Reports what it would change and does nothing unless "
             "--repair-apply is also given."
+        ),
+    )
+    p.add_argument(
+        "--repair-grade-ceilings",
+        dest="repair_grade_ceilings",
+        action="store_true",
+        help=(
+            "Re-apply the title-grade ceiling (bank/insurance AVP, VP, Director \u2026) to "
+            "published estimates. The 2026-08-19 pass found 62 live rows above the "
+            "ceiling their own title implies \u2014 clamp_salary's floor raise adopted a "
+            "matched role band outright and handed back a maximum the ceiling had "
+            "already lowered. Front-office desks are exempt, exactly as the clamp "
+            "exempts them. Deterministic, no model calls, idempotent. Reports what it "
+            "would change and does nothing unless --repair-apply is also given."
         ),
     )
     p.add_argument(
@@ -775,6 +790,27 @@ def _repair_internship_salaries(args: PipelineArgs) -> None:
         print("Nothing was written. Re-run with --repair-apply to apply.")
 
 
+def _repair_grade_ceilings(args: PipelineArgs) -> None:
+    from hk_jobs.salary_repair import repair_grade_ceiling_salaries
+
+    summary = repair_grade_ceiling_salaries(
+        args.db,
+        dry_run=not args.repair_apply,
+        live_board_only=not args.repair_all_rows,
+    )
+    verb = "would lower" if not args.repair_apply else "lowered"
+    print(
+        f"{summary.examined} estimates examined; {summary.matched} above their grade "
+        f"ceiling; {verb} {summary.repaired}."
+    )
+    for title, old_max, new_max in summary.examples:
+        print(f"  {old_max:>7,} -> {new_max:>6,}  {title[:60]}")
+    for entry in summary.disclosed:
+        print(f"  SKIPPED - employer stated a figure: {entry}")
+    if summary.repaired and not args.repair_apply:
+        print("Nothing was written. Re-run with --repair-apply to apply.")
+
+
 def _repair_companies(args: PipelineArgs) -> None:
     from hk_jobs.description_fetcher import DescriptionFetcher
 
@@ -811,6 +847,8 @@ MODES: tuple[Mode, ...] = (
          lambda a: a.repair_post_employers, _repair_post_employers),
     Mode("repair-internship-salaries",
          lambda a: a.repair_internship_salaries, _repair_internship_salaries),
+    Mode("repair-grade-ceilings",
+         lambda a: a.repair_grade_ceilings, _repair_grade_ceilings),
     Mode("repair-companies", lambda a: a.repair_companies, _repair_companies),
 )
 

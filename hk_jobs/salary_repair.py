@@ -25,8 +25,10 @@ import sqlite3
 from dataclasses import dataclass, field
 
 from hk_jobs.salary_clamp import (
+    FRONT_OFFICE_TIER,
     INTERNSHIP_MAX_MONTHLY_HKD,
     SINGLE_VALUE_MIN_FRACTION,
+    _title_grade_ceiling,
     is_internship,
 )
 
@@ -168,6 +170,88 @@ def repair_internship_salaries(
                     pending,
                 )
             logger.info("Repaired %d internship salary estimates", summary.repaired)
+    finally:
+        conn.close()
+    return summary
+
+
+def repair_grade_ceiling_salaries(
+    db_path: str,
+    *,
+    dry_run: bool = True,
+    live_board_only: bool = True,
+) -> RepairSummary:
+    """Re-apply the title-grade ceiling to estimates already published.
+
+    Found 2026-08-19: 62 live rows sat ABOVE the ceiling their own title implies, and
+    rows enriched on the SAME DAY sat both at and above it — so this was never simply
+    "written before the ceiling shipped". `clamp_salary`'s floor raise adopted a matched
+    role band outright and then re-applied only the GLOBAL cap, handing back a maximum
+    the grade ceiling had already lowered. That is fixed in `salary_clamp` now; this
+    closes the gap for rows written while it was broken.
+
+    Front-office desks are exempt, exactly as `clamp_salary` exempts them — a flat
+    "Vice President = HK$80,000" is a support-function rule, and revenue desks run their
+    own ladder several times higher. The two exemptions must stay identical, which is
+    why both read `FRONT_OFFICE_TIER` rather than spelling the string twice.
+
+    Idempotent and down-only: `_title_grade_ceiling` is a pure function of the company
+    slug and the title, so a second run finds nothing, and the ceiling can only lower.
+    """
+    summary = RepairSummary()
+    board = "AND j.is_active = 1 AND j.is_primary = 1" if live_board_only else ""
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            f"""SELECT j.title, j.company_slug, e.source, e.source_id, e.salary_tier,
+                       e.salary_estimated_min AS mn, e.salary_estimated_max AS mx,
+                       e.salary_estimated_confidence AS conf,
+                       e.salary_hkd_max AS disclosed_max
+                  FROM jobs j JOIN job_enrichments e
+                    ON j.source = e.source AND j.source_id = e.source_id
+                 WHERE e.salary_estimated_max IS NOT NULL {board}""",
+        ).fetchall()
+        summary.examined = len(rows)
+
+        pending: list[tuple[int | None, int, str, str]] = []
+        for row in rows:
+            if row["salary_tier"] == FRONT_OFFICE_TIER:
+                continue
+            ceiling = _title_grade_ceiling(row["company_slug"], row["title"])
+            if ceiling is None or row["mx"] is None or row["mx"] <= ceiling:
+                continue
+            summary.matched += 1
+            # Same rule as the internship repair: a figure the EMPLOYER stated is
+            # extraction, not estimation, and outranks this repair's own ceiling.
+            if row["disclosed_max"] is not None or row["conf"] == "high":
+                summary.disclosed.append(f"[disclosed] {row['title']}")
+                continue
+            new_min = row["mn"]
+            if new_min is None or new_min >= ceiling:
+                new_min = round(ceiling * SINGLE_VALUE_MIN_FRACTION)
+            pending.append((new_min, ceiling, row["source"], row["source_id"]))
+            summary.examples.append((row["title"], row["mx"], ceiling))
+
+        summary.repaired = len(pending)
+        summary.examples.sort(key=lambda e: e[1], reverse=True)
+        del summary.examples[10:]
+
+        if summary.disclosed:
+            logger.info(
+                "%d grade-ceiling rows carry an employer-stated figure and were left "
+                "alone: %s", len(summary.disclosed), "; ".join(summary.disclosed[:5]),
+            )
+
+        if pending and not dry_run:
+            with conn:
+                conn.executemany(
+                    """UPDATE job_enrichments
+                          SET salary_estimated_min = ?, salary_estimated_max = ?
+                        WHERE source = ? AND source_id = ?""",
+                    pending,
+                )
+            logger.info("Repaired %d grade-ceiling salary estimates", summary.repaired)
     finally:
         conn.close()
     return summary

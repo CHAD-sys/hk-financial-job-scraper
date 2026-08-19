@@ -109,16 +109,24 @@ def test_unknown_role_falls_back_to_tier_ceiling_only():
 # ── bank management-grade title caps ────────────────────────────────────────────
 
 def test_bank_avp_title_capped_at_70k():
+    # Compliance is a control function, so it is tiered accordingly. Tiering it
+    # `front_office` (as this case did before 2026-08-19) now EXEMPTS it from the flat
+    # grade ceilings — see `test_a_front_office_desk_is_exempt_from_the_flat_grade_ceiling`
+    # — which is exactly why the tier, not the title, has to be right for a control role.
     out = clamp_salary(
-        "front_office", "senior", 40_000, 180_000,
+        "middle_office", "senior", 40_000, 180_000,
         company_slug="hsbc-hk", title="Assistant Vice President, Compliance",
     )
     assert out == (40_000, 70_000)
 
 
 def test_bank_director_capped_at_160k_even_if_role_band_is_higher():
+    # Tier changed from front_office on 2026-08-19: revenue desks are now exempt from
+    # the flat bank grade ceilings, so a front_office Director is bounded by the
+    # front_office ladder (HK$200,000) rather than by the HK$160,000 Director cap. The
+    # cap itself is unchanged and still governs every non-front-office desk.
     out = clamp_salary(
-        "front_office", "lead", 100_000, 200_000,
+        "middle_office", "lead", 100_000, 200_000,
         company_slug="goldman-sachs", title="Director, Global Markets",
     )
     assert out[1] == 160_000
@@ -189,7 +197,7 @@ def test_citi_display_name_variant_still_gets_capped_via_slug():
     # every Citi posting shares slug "citibank-hk" regardless of which adapter scraped
     # it, so matching on the slug catches all of them uniformly.
     out = clamp_salary(
-        "front_office", "lead", 100_000, 200_000,
+        "middle_office", "lead", 100_000, 200_000,
         company_slug="citibank-hk", title="Director, Global Markets",
     )
     assert out[1] == 160_000
@@ -389,3 +397,61 @@ def test_internship_range_is_never_a_single_value():
         role="corporate_finance_ma_ecm_dcm", title="Summer Analyst, Hong Kong 2027",
     )
     assert out[0] is not None and out[0] < out[1]
+
+
+# ── the grade ceiling, the floor raise, and front-office desks ────────────────
+# Found live 2026-08-19: 62 board rows sat ABOVE their own title-grade ceiling, and
+# rows enriched on the SAME DAY sat both at and above it — so this was never "written
+# before the ceiling shipped". The floor raise below adopts a matched band outright
+# (`new_min, new_max = lo, hi`) and then re-applies only the GLOBAL cap, handing back
+# a max the grade ceiling had already lowered. The internship cap was guarded against
+# exactly this; the grade ceiling never was.
+
+
+def test_the_floor_raise_cannot_undo_the_title_grade_ceiling():
+    """A support-function VP stays at their grade ceiling, band floor or no band floor.
+
+    `middle_office`/`senior` matches a band whose floor sits above the HK$80,000 VP
+    ceiling, which is precisely the shape that let the floor raise overwrite it.
+    """
+    out_min, out_max = clamp_salary(
+        "middle_office", "senior", 75_000, 100_000,
+        role="risk_credit", company_slug="dbs-hk",
+        title="Senior Manager, Credit Risk",
+    )
+    assert out_max <= 70_000, "the Manager/AVP grade ceiling must survive the floor raise"
+    assert out_min < out_max, "must never collapse to a flat point"
+
+
+def test_a_front_office_desk_is_exempt_from_the_flat_grade_ceiling():
+    """A flat "VP = HK$80,000" is a support-function rule, not a market-wide one.
+
+    The front_office ladder reaches HK$166,500-200,000 by design. Capping a Goldman
+    or JPMorgan trading VP at HK$80,000 contradicts that table and understates the one
+    stratum an independent re-estimate already found reading low.
+    """
+    out_min, out_max = clamp_salary(
+        "front_office", "mid", 125_000, 166_500,
+        company_slug="goldman-sachs",
+        title="Global Banking & Markets, SPG Basis Trading, Vice President",
+    )
+    assert out_max == 166_500, "front office keeps its own ladder's ceiling"
+
+
+def test_the_exemption_is_scoped_to_front_office_only():
+    """Same title, same bank, different desk — the ceiling still bites."""
+    _, front = clamp_salary("front_office", "mid", 125_000, 166_500,
+                            company_slug="citibank-hk", title="Vice President, Operations")
+    _, middle = clamp_salary("middle_office", "mid", 125_000, 166_500,
+                             company_slug="citibank-hk", title="Vice President, Operations")
+    assert front > middle, "the exemption must not leak into support functions"
+    assert middle <= 80_000
+
+
+def test_an_internship_is_still_capped_inside_a_front_office_desk():
+    """The front-office exemption must not reopen the internship hole."""
+    _, out_max = clamp_salary(
+        "front_office", "junior", 41_500, 83_500,
+        company_slug="goldman-sachs", title="2027 Summer Analyst Programme",
+    )
+    assert out_max <= INTERNSHIP_MAX_MONTHLY_HKD

@@ -140,6 +140,12 @@ _INSURANCE_GRADE_PATTERNS: tuple[tuple[str, re.Pattern], ...] = (
 # below it is left exactly as the model wrote it.
 INTERNSHIP_MAX_MONTHLY_HKD = 15_000
 
+#: The one tier exempt from the flat bank/insurance title-grade ceilings. Revenue desks
+#: run their own ladder here, several times the support-function cap for the same word
+#: in the title. Named rather than inlined so `salary_repair` applies the same exemption
+#: the clamp does — the two drifting apart is what a repair pass exists to prevent.
+FRONT_OFFICE_TIER = "front_office"
+
 # Whole words only, exactly as the prompt's own STEP 1 spells out — `\bintern\b` cannot
 # match "Internal" or "International", which is the false-positive class the prompt
 # explicitly warns about ("a Director, Internal Audit is a full-time senior role"). Bare
@@ -331,7 +337,16 @@ def clamp_salary(
     if role_ceiling is not None and new_max is not None:
         new_max = min(new_max, role_ceiling)
 
+    # A flat "Vice President = HK$80,000" is a SUPPORT-function rule. Front-office desks
+    # — trading, IB, private banking — have their own ladder in this file reaching
+    # HK$166,500 (mid) and HK$200,000 (senior/lead), and applying the grade ceiling there
+    # contradicts that table outright: a Goldman SPG trading VP is not paid an operations
+    # VP's salary. Two independent re-estimates priced exactly those rows as correct at
+    # HK$125,000-166,500, and `senior` is the one stratum a blind audit already found
+    # reading LOW, so capping it further would compound a known error rather than fix one.
     grade_ceiling = _title_grade_ceiling(company_slug, title)
+    if tier == FRONT_OFFICE_TIER:
+        grade_ceiling = None
     if grade_ceiling is not None and new_max is not None:
         new_max = min(new_max, grade_ceiling)
 
@@ -364,6 +379,15 @@ def clamp_salary(
         elif new_min is not None and new_min < lo:
             new_min = lo
         if new_max is not None:
+            # Re-apply the title-grade ceiling, not just the global one. Adopting the
+            # band outright above hands back a maximum the grade ceiling had already
+            # lowered — which is how 62 live rows came to sit above their own ceiling,
+            # 46 of them still reproducible against this very function. The title is
+            # hard evidence (it says "Vice President"); tier/role/seniority are model
+            # output, so the title-derived ceiling wins. Exactly the reasoning that
+            # already guards the internship cap against this same block.
+            if grade_ceiling is not None:
+                new_max = min(new_max, grade_ceiling)
             new_max = min(new_max, GLOBAL_MAX_MONTHLY_HKD)
 
     if source_tier == "boutique":

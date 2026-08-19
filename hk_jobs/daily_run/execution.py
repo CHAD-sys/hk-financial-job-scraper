@@ -216,6 +216,12 @@ class CommandPhaseExecutor:
         self._pipeline(
             "--repair-internship-salaries", "--repair-all-rows", "--repair-apply",
         )
+        # The title-grade ceiling, same posture: deterministic, down-only, and swept
+        # across all rows so a soft-deleted Role cannot carry a stale estimate back
+        # onto the board when a later scrape re-activates it.
+        self._pipeline(
+            "--repair-grade-ceilings", "--repair-all-rows", "--repair-apply",
+        )
         return PhaseOutput(detail="Re-applied deterministic salary repairs")
 
     def _pocketbase(self, _record: DailyRunRecord) -> PhaseOutput:
