@@ -584,3 +584,34 @@ def test_the_disciplines_are_never_normalised_into_each_other(client):
         body = _head(client, _category_path(label))
         title = unescape(re.findall(r"<title[^>]*>(.*?)</title>", body, re.S)[0])
         assert title == _category_meta(label)[0], label
+
+
+def test_the_plainest_spelling_wins_the_page(client):
+    """
+    Where several spellings collapse to one employer, the page should be the name
+    a person searches: KPMG, not KPMG China; JPMorgan, not JPMorganChase.
+
+    Row count in the database picked the opposite before. The plainer label is
+    also the better page — it answers a full-text search of itself, and the
+    shorter name matches more Roles.
+    """
+    from main import _landing_pages
+
+    class _Req:
+        def __init__(self, app): self.app = app
+
+    pages = _landing_pages(_Req(client.app))
+    for spelling, expected in [("hsbc hong kong", "HSBC Hong Kong")]:
+        if spelling in pages:
+            assert pages[spelling][0] == expected
+
+    # The winner of a group is never a longer spelling than one of its members.
+    by_winner: dict[str, list[str]] = {}
+    for _key, (winner, kind, _n) in pages.items():
+        if kind == "employer":
+            by_winner.setdefault(winner, [])
+    for spelling, (winner, kind, _n) in pages.items():
+        if kind == "employer" and " " in spelling:
+            assert len(winner.split()) <= len(spelling.split()) or winner.casefold() == spelling, (
+                f"{winner!r} is a wordier page than the spelling {spelling!r} that maps to it"
+            )

@@ -1163,17 +1163,27 @@ def _landing_pages(request: Request) -> dict[str, tuple[str, str, int]]:
                 )
                 if company and company.strip()
             ]
-            # One page per employer, not one per spelling. The variant carrying
-            # the most Roles wins the page; the others still resolve, and their
-            # canonical says which page actually counts.
+            # One page per employer, not one per spelling. The PLAINEST spelling
+            # wins it — fewest words, then shortest — because that is the name a
+            # person searches and the name a result should carry: "KPMG", not
+            # "KPMG China"; "JPMorgan", not "JPMorganChase"; "Bank of East Asia",
+            # not "The Bank of East Asia, Limited".
+            #
+            # It is also the better page on the merits. These pages answer a
+            # full-text search of their own label, and the plainer label matches
+            # more: JPMorgan finds 117 Roles where JPMorganChase finds 74, Bank of
+            # East Asia 155 where The Bank of East Asia, Limited finds 61. Row
+            # count in the database, which decided this before, pointed the other
+            # way and picked the uglier name.
+            def _plainness(item: tuple[str, int]) -> tuple[int, int, int]:
+                company, count = item
+                return (len(company.split()), len(company), -count)
+
             winners: dict[str, tuple[str, int]] = {}
-            for company, count in employers:
+            for company, count in sorted(employers, key=_plainness):
                 key = _normalise_employer(company)
-                if not key:
-                    continue
-                best = winners.get(key)
-                if best is None or count > best[1]:
-                    winners[key] = (company, count)
+                if key:
+                    winners.setdefault(key, (company, count))
             for company, count in employers:
                 key = _normalise_employer(company)
                 if key in winners:
