@@ -6,6 +6,8 @@ import io
 import sys
 import zipfile
 from pathlib import Path
+from datetime import datetime, timezone
+from xml.sax.saxutils import escape
 
 import pytest
 from reportlab.pdfgen import canvas
@@ -15,7 +17,10 @@ sys.path.insert(0, str(BACKEND))
 
 from resume_intelligence import (  # noqa: E402
     DOCX_MEDIA_TYPE,
+    _dated_spans,
+    _heading_kind,
     MAX_RESUME_BYTES,
+    MAX_SKILLS,
     ResumeValidationError,
     analyse_resume,
     evidence_from_storage,
@@ -282,3 +287,318 @@ def test_severe_seniority_mismatch_is_penalised_and_excluded_from_matches():
     assert "Career level looks like a mismatch" in fit.reasons
     assert fit.score < 25
     assert matches == ()
+
+
+# --- Realistic-CV regression fixtures -------------------------------------
+#
+# The two tests above this block pass only because their fixtures are phrased
+# to the regexes ("Second Year ... Student", "Expected Graduation: 2028",
+# "(2 years of experience)"). Real CVs state date ranges and put titles on
+# their own lines, which is what these fixtures do instead.
+
+STUDENT_CV = """Jane Doe
+Hong Kong | jane.doe@connect.hku.hk
+
+EDUCATION
+The University of Hong Kong
+BBA (Hons) in Finance, Year 2
+2024 - 2028
+
+WORK EXPERIENCE
+Goldman Sachs, Hong Kong
+Summer Analyst Intern, Investment Banking Division
+Jun 2026 - Aug 2026
+- Built financial models and supported valuation work on M&A deals
+- Reported directly to the Vice President covering capital markets
+
+Deloitte, Hong Kong
+Audit Intern
+Jan 2026 - Mar 2026
+- Assisted the Head of Assurance on IFRS financial reporting engagements
+
+EXTRACURRICULAR ACTIVITIES & LEADERSHIP
+HKU Finance Society
+Vice President, External Affairs
+- Led a team of 12 and managed a HKD 200,000 budget
+
+SKILLS
+Excel, Python, SQL, Bloomberg, financial modelling
+"""
+
+TREASURER_CV = """John Smith
+Hong Kong
+
+PROFESSIONAL EXPERIENCE
+The Hong Kong Jockey Club
+Treasurer
+Feb 2024 - Dec 2024
+- Owned group treasury operations, liquidity and cash flow analysis
+- Managed FX and interest rate hedging across a HKD 30bn balance sheet
+
+HSBC, Hong Kong
+Treasury Manager, Asset and Liability Management
+2018 - 2024
+- Led balance sheet management and funding strategy
+
+EDUCATION
+CUHK, BBA Finance, 2014 - 2018
+"""
+
+SOCIETY_TREASURER_CV = """Amy Chan
+Hong Kong
+
+EDUCATION
+CUHK, BBA in Accounting
+2025 - 2029
+
+INTERNSHIP EXPERIENCE
+PwC Hong Kong
+Assurance Intern
+Jul 2027 - Aug 2027
+- Supported IFRS financial reporting workstreams
+
+POSITIONS OF RESPONSIBILITY
+CUHK Accounting Society
+Treasurer
+- Managed the society budget and annual accounts
+"""
+
+
+def _analyse(text: str):
+    # make_docx interpolates straight into XML, so "&" in headings and "M&A"
+    # has to be escaped before it becomes a document part.
+    payload = make_docx(escape(text))
+    return analyse_resume(parse_resume("resume.docx", DOCX_MEDIA_TYPE, payload))
+
+
+def test_second_year_student_with_only_internships_is_not_senior():
+    # The reported bug: a 2nd-year undergraduate whose CV states "Year 2" and
+    # "2024 - 2028" rather than the stock phrase "Second Year Student".
+    analysis = _analyse(STUDENT_CV)
+
+    assert analysis.seniority == "junior"
+
+
+def test_supervisor_titles_in_bullets_do_not_set_seniority():
+    # "Reported directly to the Vice President" and "Assisted the Head of
+    # Assurance" name the candidate's supervisors, not the candidate.
+    analysis = _analyse(STUDENT_CV)
+
+    assert analysis.seniority != "senior"
+    assert analysis.seniority != "executive"
+
+
+def test_years_experience_is_derived_from_dated_roles():
+    # No CV in the wild writes "6 years of experience"; they write "2018 - 2024".
+    analysis = _analyse(TREASURER_CV)
+
+    assert analysis.years_experience is not None
+    assert 6 <= analysis.years_experience <= 8
+
+
+def test_an_internship_only_student_has_no_meaningful_years():
+    analysis = _analyse(STUDENT_CV)
+
+    assert (analysis.years_experience or 0) <= 1
+
+
+def test_treasury_is_a_recognised_role_family_and_skill_set():
+    analysis = _analyse(TREASURER_CV)
+
+    assert "treasury" in analysis.role_families
+    assert "treasury operations" in analysis.skills
+    assert "liquidity management" in analysis.skills
+
+
+def test_a_career_treasurer_reads_as_senior():
+    analysis = _analyse(TREASURER_CV)
+
+    assert analysis.seniority in {"senior", "executive"}
+
+
+def test_employer_names_imply_sector():
+    analysis = _analyse(TREASURER_CV)
+
+    assert "Banking" in analysis.sectors
+
+
+def test_student_society_treasurer_is_not_senior():
+    # "Treasurer" is a senior corporate officer AND the most common student
+    # society title in Hong Kong. Section context is what separates them.
+    analysis = _analyse(SOCIETY_TREASURER_CV)
+
+    assert analysis.seniority == "junior"
+
+
+# --- Layouts taken from two real Hong Kong finance CVs --------------------
+#
+# Both are anonymised rewrites that keep the structure that broke extraction:
+# a stated career total sitting in a Summary/Career Profile section (which is
+# not experience text), a "PROFESSIONAL CAREER" heading, and Hong Kong
+# day-first dates. The real files are not committed.
+
+SUMMARY_LED_CV = """EXECUTIVE SUMMARY & CORE COMPETENCES
+Finance and Treasury Executive with 20 years of progressive leadership
+experience spanning corporate treasury, asset management and business
+development.
+
+PROFESSIONAL CAREER
+Group Treasurer
+A Hong Kong Sports Club July 2024 - April 2025
+- Owned group treasury, liquidity and capital management
+Head of Treasury
+Standard Chartered Bank Oct 2021 - Jul 2024
+- Led regional cash management and funding strategy
+"""
+
+DAY_FIRST_DATES_CV = """CAREER PROFILE
+16+ years of experiences in financial institutions space
+Expertise in banking, treasury operations and liquidity management
+
+EMPLOYMENT HISTORY
+Manulife 31/07/2023 - now
+Position: Director - Asia Treasury
+- Managing regional banking relationships
+Hang Seng Bank Limited 14/10/2015 - 02/10/2017
+Position: Manager, Treasury
+- Balance sheet management
+"""
+
+
+@pytest.mark.parametrize(
+    "line,expected",
+    [
+        ("PROFESSIONAL CAREER", "experience"),
+        ("EMPLOYMENT HISTORY", "experience"),
+        ("CAREER PROFILE", "profile"),
+        ("PROFESSIONAL QUALIFICATION", "education"),
+        ("EXECUTIVE SUMMARY & CORE COMPETENCES", "profile"),
+        # Wrapped body text ending on a bare heading word must not close a
+        # section; a heading is never a sentence.
+        ("activities.", None),
+        ("- RFP", None),
+        ("Standard Chartered Bank Oct 2021 - Jul 2024", None),
+    ],
+)
+def test_heading_classification_matches_real_cv_headings(line, expected):
+    assert _heading_kind(line) == expected
+
+
+def test_a_stated_career_total_outside_the_experience_section_is_read():
+    # Both real CVs state the total in a summary block. Reading years only
+    # from the experience section threw the one number they actually give.
+    analysis = _analyse(SUMMARY_LED_CV)
+
+    assert analysis.years_experience == 20
+    assert analysis.seniority in {"senior", "executive"}
+    assert "treasury" in analysis.role_families
+
+
+def test_hong_kong_day_first_dates_and_plural_experiences_are_read():
+    analysis = _analyse(DAY_FIRST_DATES_CV)
+
+    assert analysis.years_experience >= 16
+    assert analysis.seniority == "senior"
+    assert "treasury" in analysis.role_families
+
+
+def test_day_first_and_month_first_ranges_both_parse():
+    now = datetime(2026, 8, 1, tzinfo=timezone.utc)
+
+    def months(text):
+        return [end - start for start, end in _dated_spans(text, now)]
+
+    assert months("22/04/2019 - 30/07/2023") == [51]   # Apr 2019 -> Jul 2023
+    assert months("03/2019 - 11/2021") == [32]         # Mar 2019 -> Nov 2021
+    assert months("31/07/2023 - now") == [37]          # Jul 2023 -> Aug 2026
+    # A phone number, a salary band and a percentage range are not durations.
+    assert _dated_spans("+852 9042 8479", now) == []
+    assert _dated_spans("HKD 200,000 - 300,000", now) == []
+    assert _dated_spans("achieved 15-20% growth", now) == []
+
+
+def test_stored_evidence_keeps_every_skill_analysis_produces():
+    # analyse_resume() writes the list and evidence_from_storage() reads it
+    # back; when the two caps drifted apart the tail was silently dropped.
+    skills = [f"skill {index}" for index in range(MAX_SKILLS)]
+    evidence = evidence_from_storage("text", {"skills": skills})
+
+    assert len(evidence.analysis.skills) == MAX_SKILLS
+
+
+def test_a_technical_candidate_keeps_their_stack():
+    analysis = _analyse(
+        "Experience\n"
+        "AI Engineer (Intern) May 2026 - Present\n"
+        "- Built services with Python, FastAPI, Docker and PostgreSQL\n"
+        "- Trained models with PyTorch, scikit-learn, pandas and NumPy\n"
+    )
+
+    assert {"python", "fastapi", "docker", "postgresql", "pytorch"} <= set(analysis.skills)
+
+
+def test_a_project_blurb_does_not_award_a_role_family():
+    # "for a portfolio manager" describes who a side project serves, not a job
+    # the candidate held — and a role family is worth +20 in score_resume_fit.
+    analysis = _analyse(
+        "Experience\n"
+        "Finance Intern Nov 2023 - Dec 2023\n"
+        "- Supported budgeting and cash-flow monitoring\n"
+        "Projects\n"
+        "- Surfaces cited long/short signals for a portfolio manager\n"
+    )
+
+    assert "portfolio management" not in analysis.role_families
+
+
+def test_hong_kong_finance_credentials_are_extracted():
+    analysis = _analyse(
+        "Experience\n"
+        "Treasury Manager, A Bank 2015 - 2024\n"
+        "- CFA and FRM certified; HKICPA member; CTP for treasury\n"
+    )
+
+    assert {"cfa", "frm", "cpa", "ctp"} <= set(analysis.certifications)
+
+
+def test_a_credential_the_role_asks_for_is_named_in_the_reasons():
+    analysis = _analyse(
+        "Experience\nAnalyst, A Bank 2018 - 2024\n- CFA charterholder\n"
+    )
+    evidence = evidence_from_storage("cfa charterholder", analysis.as_dict())
+    fit = score_resume_fit(role("r1", required_skills=["CFA", "valuation"]), evidence)
+
+    assert any("CFA" in reason for reason in fit.reasons)
+
+
+def test_stored_analysis_written_before_certifications_still_loads():
+    # Rows saved by the previous version have no "certifications" key at all.
+    evidence = evidence_from_storage("text", {"skills": ["python"]})
+
+    assert evidence.analysis.certifications == ()
+
+
+def test_an_accounting_firms_name_is_not_a_credential():
+    # "Morison Heng CPA" is an employer. Hong Kong practices are routinely
+    # named "<Partner> CPA", and reading that as a qualification credits the
+    # candidate with a credential they never claimed.
+    analysis = _analyse(
+        "PROFESSIONAL CAREER\n"
+        "Audit Associate\n"
+        "Morison Heng CPA Jul 2002 - Dec 2003\n"
+        "- Statutory audit engagements\n"
+    )
+
+    assert "cpa" not in analysis.certifications
+
+
+def test_credentials_beside_the_name_are_kept():
+    analysis = _analyse(
+        "Morris H CFA, FCCA, CTP, LSSBB\n"
+        "Mobile: +852 0000 0000\n"
+        "PROFESSIONAL CAREER\n"
+        "Group Treasurer\n"
+        "A Sports Club July 2024 - April 2025\n"
+    )
+
+    assert {"cfa", "acca", "ctp"} <= set(analysis.certifications)

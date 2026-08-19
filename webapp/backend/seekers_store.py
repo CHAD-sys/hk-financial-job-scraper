@@ -52,6 +52,12 @@ from pathlib import Path
 from typing import Any, Iterable, Iterator
 from zoneinfo import ZoneInfo
 
+# resume_intelligence owns which fields a Seeker may correct and how the two
+# halves combine; importing it here keeps that rule in one place rather than
+# letting the store grow a second, drifting copy. It pulls in job_read, which
+# imports nothing from this module, so there is no cycle.
+import resume_intelligence
+
 logger = logging.getLogger(__name__)
 
 # How long a query waits for a writer to finish before giving up with
@@ -616,6 +622,43 @@ def migrate_to_phase_10(conn: sqlite3.Connection) -> None:
     )
 
 
+def migrate_to_phase_11(conn: sqlite3.Connection) -> None:
+    """Let a Seeker correct what the extractor read from their own resume.
+
+    Extraction is a heuristic over an arbitrary PDF and it is sometimes wrong
+    in ways the Seeker can see on their own account page — a second-year
+    student read as "senior", a career treasurer read as nothing at all. The
+    person who wrote the CV is the authority on it.
+
+    A SEPARATE column, not an edit to `analysis_json`, because the two have
+    different owners and different lifetimes. `analysis_json` belongs to the
+    extractor and is rewritten wholesale whenever it improves
+    (scripts/reanalyse_resumes.py); a correction belongs to the Seeker and must
+    survive that. Merging the two at write time would mean the next backfill
+    silently discards a human's answer, which is the one outcome an override
+    layer exists to prevent.
+
+    Scoped to the row, so `replace_resume`'s INSERT OR REPLACE clears it: a
+    correction describes THIS document's extraction, and carrying it onto a
+    freshly uploaded CV would pin a stale claim (a promotion, say) forever.
+    """
+    columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(seeker_resumes)").fetchall()
+    }
+    if "analysis_override_json" not in columns:
+        conn.execute(
+            "ALTER TABLE seeker_resumes "
+            "ADD COLUMN analysis_override_json TEXT NOT NULL DEFAULT '{}'"
+        )
+        logger.info(
+            "seekers.db phase 11 migration: added seeker_resumes.analysis_override_json"
+        )
+    else:
+        logger.debug(
+            "seekers.db phase 11 migration: analysis_override_json already present"
+        )
+
+
 # Every phase, in order. A future phase appends here; it never edits an applied
 # phase because seekers.db is irreplaceable first-party account data.
 _MIGRATIONS = (
@@ -629,6 +672,7 @@ _MIGRATIONS = (
     migrate_to_phase_8,
     migrate_to_phase_9,
     migrate_to_phase_10,
+    migrate_to_phase_11,
 )
 
 
@@ -1922,6 +1966,11 @@ class SeekerStore:
                     file_content = excluded.file_content,
                     text_content = excluded.text_content,
                     analysis_json = excluded.analysis_json,
+                    -- A correction describes the extraction of ONE document.
+                    -- A replacement document gets a fresh extraction, so the
+                    -- old answer is cleared rather than pinned onto evidence
+                    -- it was never about (phase 11).
+                    analysis_override_json = '{}',
                     uploaded_at = excluded.uploaded_at
                 """,
                 (
@@ -1943,7 +1992,7 @@ class SeekerStore:
     ) -> dict[str, Any] | None:
         columns = "*" if include_document else (
             "seeker_id, filename, media_type, size_bytes, content_sha256, "
-            "analysis_json, uploaded_at"
+            "analysis_json, analysis_override_json, uploaded_at"
         )
         row = self._conn().execute(
             f"SELECT {columns} FROM seeker_resumes WHERE seeker_id = ?",
@@ -1953,11 +2002,37 @@ class SeekerStore:
             return None
         result = dict(row)
         try:
-            result["analysis"] = json.loads(result.pop("analysis_json"))
+            extracted = json.loads(result.pop("analysis_json"))
         except (TypeError, ValueError):
             result.pop("analysis_json", None)
-            result["analysis"] = {}
+            extracted = {}
+        try:
+            override = json.loads(result.pop("analysis_override_json", None) or "{}")
+        except (TypeError, ValueError):
+            override = {}
+        # `analysis` is the effective evidence — extraction with the Seeker's
+        # corrections applied — so every existing reader (role_feed,
+        # recommendations) honours a correction without knowing overrides
+        # exist. The two halves stay available for the account page to show
+        # what was read versus what was corrected.
+        result["analysis_extracted"] = extracted
+        result["analysis_override"] = override if isinstance(override, dict) else {}
+        result["analysis"] = resume_intelligence.apply_override(
+            extracted, result["analysis_override"]
+        )
         return result
+
+    def set_resume_analysis_override(self, seeker_id: str, override: dict) -> bool:
+        """Store one Seeker's corrections to their own extracted evidence."""
+        payload = json.dumps(
+            override or {}, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
+        with self._write() as conn:
+            cursor = conn.execute(
+                "UPDATE seeker_resumes SET analysis_override_json = ? WHERE seeker_id = ?",
+                (payload, seeker_id),
+            )
+        return cursor.rowcount > 0
 
     def record_resume_download(
         self,

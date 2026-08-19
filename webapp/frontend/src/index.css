@@ -1122,6 +1122,212 @@ select.finex-input {
   font-size: 0.68rem;
   font-weight: 600;
 }
+/* ── Resume corrections ──────────────────────────────────────────────────────
+   The extractor is a rules engine over an arbitrary PDF; when it misreads a CV
+   the author is the authority. Closed by default (progressive disclosure) so
+   the common case stays a quiet chip row, and every field shows what was read
+   beside what the Seeker said. */
+.resume-corrections__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+.resume-corrections__open {
+  display: inline-flex;
+  min-height: 44px;
+  cursor: pointer;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 0.35rem;
+  padding: 0.35rem 0.5rem;
+  margin-left: -0.5rem;
+  color: var(--color-ink-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.resume-corrections__open:hover { color: var(--color-ink); text-decoration: underline; }
+.resume-corrections__flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  border: 1px solid var(--color-success-border);
+  border-radius: 999px;
+  padding: 0.24rem 0.5rem;
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+.resume-corrections__saved {
+  color: var(--color-success);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+.resume-corrections {
+  margin-top: 0.95rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.6rem;
+  padding: 1rem;
+  background: var(--color-surface-2);
+}
+.resume-corrections__intro h3 {
+  color: var(--color-ink);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.resume-corrections__intro p {
+  margin-top: 0.25rem;
+  max-width: 58ch;
+  color: var(--color-ink-muted);
+  font-size: 0.74rem;
+  line-height: 1.55;
+}
+.resume-corrections__grid {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 0.95rem;
+}
+@media (min-width: 40rem) {
+  .resume-corrections__grid { grid-template-columns: 1fr 1fr; }
+}
+.resume-corrections__field { margin-top: 0.85rem; }
+.resume-corrections__grid .resume-corrections__field { margin-top: 0; }
+.resume-corrections__field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+.resume-corrections__field-head label {
+  color: var(--color-ink);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.resume-corrections__count {
+  color: var(--color-ink-faint);
+  font-size: 0.66rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.resume-corrections__reset {
+  display: inline-flex;
+  cursor: pointer;
+  align-items: center;
+  gap: 0.22rem;
+  color: var(--color-ink-muted);
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+.resume-corrections__reset:hover { color: var(--color-ink); text-decoration: underline; }
+.resume-corrections__input {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.35rem;
+  padding: 0.45rem 0.6rem;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-size: 0.78rem;
+}
+.resume-corrections__input:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 1px;
+}
+.resume-corrections__read {
+  margin-top: 0.28rem;
+  color: var(--color-ink-faint);
+  font-size: 0.66rem;
+}
+.resume-corrections__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.45rem;
+}
+.resume-corrections__chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0.2rem 0.3rem 0.2rem 0.55rem;
+  background: var(--color-surface);
+  color: var(--color-ink-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+.resume-corrections__chips button {
+  display: inline-flex;
+  height: 22px;
+  width: 22px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--color-ink-faint);
+}
+.resume-corrections__chips button:hover {
+  background: var(--color-danger-bg);
+  color: var(--color-destructive);
+}
+.resume-corrections__add { display: flex; gap: 0.4rem; }
+.resume-corrections__add-button {
+  display: inline-flex;
+  min-height: 44px;
+  flex: 0 0 auto;
+  cursor: pointer;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.35rem;
+  padding: 0.45rem 0.7rem;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.resume-corrections__add-button:hover:not(:disabled) { background: var(--color-surface-2); }
+.resume-corrections__add-button:disabled { cursor: not-allowed; opacity: 0.45; }
+.resume-corrections__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin-top: 0.8rem;
+  color: var(--color-destructive);
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+.resume-corrections__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.05rem;
+}
+.resume-corrections__save,
+.resume-corrections__cancel {
+  display: inline-flex;
+  min-height: 44px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border-radius: 0.35rem;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.resume-corrections__save {
+  background: var(--color-ink);
+  color: var(--color-ink-inverse);
+}
+.resume-corrections__save:disabled { cursor: wait; opacity: 0.6; }
+.resume-corrections__cancel { color: var(--color-ink-muted); }
+.resume-corrections__cancel:hover { color: var(--color-ink); text-decoration: underline; }
+
 .resume-manager__actions {
   display: flex;
   flex-wrap: wrap;

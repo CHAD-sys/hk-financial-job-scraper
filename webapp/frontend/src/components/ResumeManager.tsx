@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import type { ResumeDocument } from '../api/client'
 import { deleteResume, fetchResume, uploadResume } from '../api/client'
+import ResumeCorrections from './ResumeCorrections'
 import ResumeFlow from './ResumeFlow'
 
 const MAX_BYTES = 5 * 1024 * 1024
@@ -128,7 +129,7 @@ export default function ResumeManager() {
             </span>
           </div>
 
-          <ResumeEvidenceSummary resume={resume} />
+          <ResumeEvidenceSummary resume={resume} onCorrected={setResume} />
 
           {stage === 'confirming-remove' ? (
             <div className="resume-manager__remove-confirm" role="alert">
@@ -182,7 +183,13 @@ export default function ResumeManager() {
   )
 }
 
-function ResumeEvidenceSummary({ resume }: { resume: ResumeDocument }) {
+function ResumeEvidenceSummary({
+  resume,
+  onCorrected,
+}: {
+  resume: ResumeDocument
+  onCorrected: (updated: ResumeDocument) => void
+}) {
   const { analysis } = resume
   const evidence = [
     analysis.years_experience != null
@@ -190,6 +197,7 @@ function ResumeEvidenceSummary({ resume }: { resume: ResumeDocument }) {
       : analysis.seniority
         ? `${analysis.seniority} career level`
         : null,
+    ...(analysis.certifications ?? []).map(value => value.toUpperCase()),
     ...analysis.sectors.slice(0, 2),
   ].filter(Boolean) as string[]
 
@@ -206,6 +214,7 @@ function ResumeEvidenceSummary({ resume }: { resume: ResumeDocument }) {
           The text was readable, but structured evidence was limited. Strong matches may be broader.
         </p>
       )}
+      <ResumeCorrections resume={resume} onSaved={onCorrected} />
     </div>
   )
 }
@@ -220,7 +229,13 @@ function formatFileType(mediaType: string): string {
   return mediaType === 'application/pdf' ? 'PDF' : 'DOCX'
 }
 
+// Hoisted: constructing an Intl formatter is expensive and this one never varies.
+const DATE_FORMAT = new Intl.DateTimeFormat('en-HK', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+})
+
 function formatDate(value: string): string {
-  return new Intl.DateTimeFormat('en-HK', { day: 'numeric', month: 'short', year: 'numeric' })
-    .format(new Date(value))
+  return DATE_FORMAT.format(new Date(value))
 }
