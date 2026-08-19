@@ -5,6 +5,7 @@ import AuthProvider from './auth/AuthProvider'
 import EmployerAuthProvider from './auth/EmployerAuthProvider'
 import SavedRolesProvider from './savedRoles/SavedRolesProvider'
 import LandingPage from './pages/LandingPage'
+import PrivacyPage from './pages/PrivacyPage'
 import JobBoardPage from './pages/JobBoardPage'
 import SavedJobsPage from './pages/SavedJobsPage'
 import AboutPage from './pages/AboutPage'
@@ -117,6 +118,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/about" element={<AboutPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/jobs" element={<JobBoardPage />} />
               <Route path="/learning" element={<LearningPage />} />
               <Route element={<DefaultTitleLayout />}>

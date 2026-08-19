@@ -83,6 +83,7 @@ from sender import (  # noqa: E402
 )
 from settings import Settings  # noqa: E402
 from hk_jobs.migrations import migrate  # noqa: E402
+from hk_jobs.sources import BY_NAME as SOURCES_BY_NAME  # noqa: E402
 from hk_jobs.sources import SOURCE_NAMES  # noqa: E402
 from job_read import (  # noqa: E402
     BOARD_WHERE,
@@ -828,6 +829,37 @@ def _salary_line(detail: JobDetail) -> str:
     return f"{amount} (AI-estimated)" if estimated else amount
 
 
+def _provenance(detail: JobDetail) -> str:
+    """
+    Who published this Role, and who we are not.
+
+    Google Safe Browsing flagged the site "Deceptive pages" on 2026-08-19 with no
+    example URLs, meaning it judged a sitewide pattern rather than a page. The
+    pattern this site presents is the one phishing presents: thousands of pages
+    each headlined with a major bank's brand — HSBC, Goldman Sachs, Chinese
+    Banks' Association — carrying a sign-in call to action, on a domain days old,
+    with nothing anywhere saying we are not those employers.
+
+    Every word below is simply true, which is why it is the right answer rather
+    than a workaround: FinEx Careers is an index of other people's postings, it
+    is published by a named Hong Kong company at a real address, and it has never
+    claimed to hire for anyone.
+    """
+    source = SOURCES_BY_NAME.get(detail.source)
+    where = f" It was published on {html.escape(source.label)}." if source else ""
+    return (
+        '<aside class="provenance">'
+        "<p><strong>FinEx Careers is an independent job board</strong>, published by "
+        "the Financial Executive Club in Hong Kong. We are not affiliated with "
+        f"{html.escape(detail.company)} and we are not the employer for this role."
+        f"{where} Applications are made through the employer's own process, never "
+        "through us.</p>"
+        '<p>Read our <a href="/privacy">privacy notice</a> or '
+        '<a href="/about">how this index is built</a>.</p>'
+        "</aside>"
+    )
+
+
 def _onward_links(detail: JobDetail) -> str:
     """
     Where else to go from one Role.
@@ -882,6 +914,7 @@ def _job_teaser_html(detail: JobDetail, canonical_url: str) -> str:
         html.escape(p) for p in [detail.seniority, location, detail.job_category] if p
     )
     onward = _onward_links(detail)
+    provenance = _provenance(detail)
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -927,6 +960,12 @@ def _job_teaser_html(detail: JobDetail, canonical_url: str) -> str:
   }}
   .secondary {{ margin-top: 16px; }}
   .secondary a {{ color: #1E3A8A; }}
+  .provenance {{
+    margin-top: 34px; padding-top: 18px; border-top: 1px solid #E2E8F0;
+    font-size: 13px; line-height: 1.6; color: #64748B;
+  }}
+  .provenance p {{ margin: 0 0 8px; }}
+  .provenance a {{ color: #1E3A8A; }}
 </style>
 </head>
 <body>
@@ -943,6 +982,7 @@ def _job_teaser_html(detail: JobDetail, canonical_url: str) -> str:
     <a class="cta" href="/get-started">Sign in to see the full description &amp; apply</a>
   </div>
   {onward}
+  {provenance}
 </main>
 </body>
 </html>"""
@@ -1004,6 +1044,12 @@ _ROUTE_META: dict[str, tuple[str, str]] = {
         "Create Your Free FinEx Careers Account",
         "Create a free FinEx Careers account to see full role descriptions, save "
         "positions, upload a CV for matching, and get a weekly digest of new roles.",
+    ),
+    "/privacy": (
+        "Privacy Notice — FinEx Careers",
+        "How FinEx Careers, published by the Financial Executive Club in Hong Kong, "
+        "collects, uses and deletes personal data, written against the Personal Data "
+        "(Privacy) Ordinance (Cap. 486).",
     ),
     "/post-a-role": (
         "Post a Finance Role in Hong Kong | FinEx Careers",

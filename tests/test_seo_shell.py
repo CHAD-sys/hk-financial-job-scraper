@@ -38,7 +38,8 @@ from fastapi.testclient import TestClient
 
 from .support import enrichment, job, make_app, make_bundle, make_jobs_db
 
-_INDEXABLE = ["/", "/about", "/jobs", "/learning", "/get-started", "/post-a-role"]
+_INDEXABLE = ["/", "/about", "/jobs", "/learning", "/get-started", "/post-a-role",
+              "/privacy"]
 
 
 @pytest.fixture()
@@ -615,3 +616,32 @@ def test_the_plainest_spelling_wins_the_page(client):
             assert len(winner.split()) <= len(spelling.split()) or winner.casefold() == spelling, (
                 f"{winner!r} is a wordier page than the spelling {spelling!r} that maps to it"
             )
+
+
+# ── Saying who we are, on the pages that carry someone else's brand ───────────
+
+
+def test_a_role_page_says_we_are_not_the_employer(client):
+    """
+    RED before: 4,273 pages each headlined with a bank's brand and a sign-in call
+    to action, and nothing anywhere saying we are not that bank. Google Safe
+    Browsing flagged the site "Deceptive pages" on 2026-08-19 with no example
+    URLs — a sitewide pattern, and that is the pattern.
+    """
+    body = client.get("/jobs/workday/MAIN/risk-management-officer-hsbc").text
+    assert "independent job board" in body
+    assert "not affiliated with HSBC" in body
+    assert "not the employer for this role" in body
+    assert 'href="/privacy"' in body, "the notice that proves who we are must be linked"
+
+
+def test_the_privacy_notice_has_its_own_address(client):
+    """
+    It was only ever at /about#privacy. "/privacy" answered 200 like every
+    unknown path and React redirected it to the homepage — so a site collecting
+    accounts and CVs had no policy where anyone looks for one.
+    """
+    body = _head(client, "/privacy")
+    assert "Privacy Notice" in re.findall(r"<title[^>]*>(.*?)</title>", body, re.S)[0]
+    assert 'content="index,follow"' in body
+    assert "/privacy" in unescape(client.get("/sitemap.xml").text)
