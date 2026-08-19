@@ -523,3 +523,15 @@ def test_the_sitemap_never_repeats_a_url(client):
     body = unescape(client.get("/sitemap.xml").text)
     locs = re.findall(r"<loc>([^<]+)</loc>", body)
     assert len(locs) == len(set(locs)), "the sitemap repeats a URL"
+
+
+def test_an_employer_that_names_the_city_does_not_say_it_twice(client):
+    """"HSBC Hong Kong Jobs in Hong Kong" is the title a brand search lands on."""
+    from main import _landing_meta
+
+    assert _landing_meta("HSBC Hong Kong", "employer")[0] == (
+        "HSBC Hong Kong Jobs — FinEx Careers"
+    )
+    assert _landing_meta("Barclays", "employer")[0] == (
+        "Barclays Jobs in Hong Kong — FinEx Careers"
+    )

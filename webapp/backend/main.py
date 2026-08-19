@@ -1193,7 +1193,13 @@ def _landing_pages(request: Request) -> dict[str, tuple[str, str, int]]:
 def _landing_meta(label: str, kind: str) -> tuple[str, str]:
     """Title and description for one landing page, by what the page is about."""
     if kind == "employer":
-        long_form = f"{label} Jobs in Hong Kong — FinEx Careers"
+        # Many employers carry the city in their own name ("HSBC Hong Kong",
+        # "Citibank Hong Kong"), and "... Jobs in Hong Kong" after that reads as
+        # carelessness on the one page a brand search lands on.
+        says_hk = re.search(r"hong ?kong|\bhk\b", label, re.I) is not None
+        long_form = f"{label} Jobs — FinEx Careers" if says_hk else (
+            f"{label} Jobs in Hong Kong — FinEx Careers"
+        )
         title = long_form if len(long_form) <= 60 else f"{label} Jobs — FinEx Careers"
         return title, (
             f"Open roles at {label} in Hong Kong, indexed daily from employer sites "
