@@ -37,8 +37,26 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
-BACKEND = Path(__file__).resolve().parent.parent / "webapp" / "backend"
-sys.path.insert(0, str(BACKEND))
+def _backend_dir() -> Path:
+    """Where webapp/backend's modules live.
+
+    Two layouts have to work. In a repo checkout they sit under
+    webapp/backend. On Railway the deploy uploads that directory AS the app
+    root, so the modules are at /app and there is no `scripts/` at all — this
+    file gets piped in. Without this the backfill can only run somewhere the
+    production database isn't.
+    """
+    for candidate in (
+        Path(__file__).resolve().parent.parent / "webapp" / "backend",
+        Path("/app"),
+        Path.cwd(),
+    ):
+        if (candidate / "seekers_store.py").exists():
+            return candidate
+    raise SystemExit("Could not locate webapp/backend's modules.")
+
+
+sys.path.insert(0, str(_backend_dir()))
 
 import resume_intelligence  # noqa: E402
 import seekers_store  # noqa: E402
