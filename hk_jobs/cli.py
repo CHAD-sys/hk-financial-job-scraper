@@ -784,6 +784,8 @@ def _repair_internship_salaries(args: PipelineArgs) -> None:
     )
     for title, old_max, new_max in summary.examples:
         print(f"  {old_max:>7,} -> {new_max:>6,}  {title[:60]}")
+    for entry in summary.pinned:
+        print(f"  SKIPPED - hand-corrected by an admin: {entry}")
     for entry in summary.suspicious:
         print(f"  REVIEW - matched but not stored as junior: {entry}")
     if summary.repaired and not args.repair_apply:
@@ -805,6 +807,8 @@ def _repair_grade_ceilings(args: PipelineArgs) -> None:
     )
     for title, old_max, new_max in summary.examples:
         print(f"  {old_max:>7,} -> {new_max:>6,}  {title[:60]}")
+    for entry in summary.pinned:
+        print(f"  SKIPPED - hand-corrected by an admin: {entry}")
     for entry in summary.disclosed:
         print(f"  SKIPPED - employer stated a figure: {entry}")
     if summary.repaired and not args.repair_apply:

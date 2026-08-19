@@ -50,6 +50,9 @@ class RepairSummary:
     #: Rows whose title matched but which carry a figure the EMPLOYER stated — reported
     #: and SKIPPED. A disclosed number outranks every estimate, including this repair's.
     disclosed: list[str] = field(default_factory=list)
+    #: Rows an Ultimate Admin has hand-corrected (`manually_edited_at` set) — reported
+    #: and SKIPPED. A human who overruled the pipeline outranks every rule in this file.
+    pinned: list[str] = field(default_factory=list)
     #: (title, old_max, new_max), largest reduction first — for the run log.
     examples: list[tuple[str, int, int]] = field(default_factory=list)
 
@@ -92,7 +95,8 @@ def repair_internship_salaries(
             f"""SELECT j.title, e.source, e.source_id, e.seniority,
                        e.salary_estimated_min AS mn, e.salary_estimated_max AS mx,
                        e.salary_estimated_confidence AS conf,
-                       e.salary_hkd_max AS disclosed_max
+                       e.salary_hkd_max AS disclosed_max,
+                       e.manually_edited_at AS pinned_at
                   FROM jobs j JOIN job_enrichments e
                     ON j.source = e.source AND j.source_id = e.source_id
                  WHERE e.salary_estimated_max IS NOT NULL {board}""",
@@ -104,6 +108,15 @@ def repair_internship_salaries(
             if not is_internship(row["title"]):
                 continue
             summary.matched += 1
+            # An Ultimate Admin's correction is the last word. `enrichment.py` and
+            # `salary_audit.py` already exclude a pinned row unconditionally; this
+            # repair did not, so a hand-corrected salary was re-clamped every night
+            # and survived only because `pipeline_publish` replays the admin_edits
+            # ledger afterwards. The pin held by being undone downstream rather than
+            # respected here, which also meant this repair was never idempotent on it.
+            if row["pinned_at"] is not None:
+                summary.pinned.append(f"[pinned] {row['title']}")
+                continue
             # Two independent signals must agree before this rewrites a published
             # salary. The title is one; the stored seniority is the other, and it comes
             # from a separate field of the model's answer rather than from the words
@@ -146,6 +159,12 @@ def repair_internship_salaries(
         summary.repaired = len(pending)
         summary.examples.sort(key=lambda e: e[1], reverse=True)
         del summary.examples[10:]
+
+        if summary.pinned:
+            logger.info(
+                "%d rows were hand-corrected by an admin and were left alone: %s",
+                len(summary.pinned), "; ".join(summary.pinned[:5]),
+            )
 
         if summary.disclosed:
             logger.info(
@@ -207,7 +226,8 @@ def repair_grade_ceiling_salaries(
             f"""SELECT j.title, j.company_slug, e.source, e.source_id, e.salary_tier,
                        e.salary_estimated_min AS mn, e.salary_estimated_max AS mx,
                        e.salary_estimated_confidence AS conf,
-                       e.salary_hkd_max AS disclosed_max
+                       e.salary_hkd_max AS disclosed_max,
+                       e.manually_edited_at AS pinned_at
                   FROM jobs j JOIN job_enrichments e
                     ON j.source = e.source AND j.source_id = e.source_id
                  WHERE e.salary_estimated_max IS NOT NULL {board}""",
@@ -222,6 +242,10 @@ def repair_grade_ceiling_salaries(
             if ceiling is None or row["mx"] is None or row["mx"] <= ceiling:
                 continue
             summary.matched += 1
+            # An Ultimate Admin's correction outranks this ceiling, same as above.
+            if row["pinned_at"] is not None:
+                summary.pinned.append(f"[pinned] {row['title']}")
+                continue
             # Same rule as the internship repair: a figure the EMPLOYER stated is
             # extraction, not estimation, and outranks this repair's own ceiling.
             if row["disclosed_max"] is not None or row["conf"] == "high":

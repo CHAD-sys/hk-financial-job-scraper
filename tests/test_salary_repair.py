@@ -30,19 +30,20 @@ def _db(tmp_path, rows):
             source TEXT, source_id TEXT, seniority TEXT,
             salary_estimated_min INTEGER, salary_estimated_max INTEGER,
             salary_estimated_confidence TEXT,
-            salary_hkd_min INTEGER, salary_hkd_max INTEGER
+            salary_hkd_min INTEGER, salary_hkd_max INTEGER,
+            manually_edited_at TEXT
         );
         """
     )
     for i, row in enumerate(rows):
         title, seniority, mn, mx, active = row[:5]
-        conf, hkd_mn, hkd_mx = (list(row[5:]) + [None, None, None])[:3]
+        conf, hkd_mn, hkd_mx, pinned = (list(row[5:]) + [None, None, None, None])[:4]
         conn.execute(
             "INSERT INTO jobs VALUES (?,?,?,?,1)", ("linkedin", str(i), title, active)
         )
         conn.execute(
-            "INSERT INTO job_enrichments VALUES (?,?,?,?,?,?,?,?)",
-            ("linkedin", str(i), seniority, mn, mx, conf, hkd_mn, hkd_mx),
+            "INSERT INTO job_enrichments VALUES (?,?,?,?,?,?,?,?,?)",
+            ("linkedin", str(i), seniority, mn, mx, conf, hkd_mn, hkd_mx, pinned),
         )
     conn.commit()
     conn.close()
@@ -210,14 +211,17 @@ def _db2(tmp_path, rows):
         CREATE TABLE job_enrichments (
             source TEXT, source_id TEXT, salary_tier TEXT, seniority TEXT,
             salary_estimated_min INTEGER, salary_estimated_max INTEGER,
-            salary_estimated_confidence TEXT, salary_hkd_max INTEGER
+            salary_estimated_confidence TEXT, salary_hkd_max INTEGER,
+            manually_edited_at TEXT
         );
         """
     )
-    for i, (title, slug, tier, sen, mn, mx, conf, hkd) in enumerate(rows):
+    for i, row in enumerate(rows):
+        title, slug, tier, sen, mn, mx, conf, hkd = row[:8]
+        pinned = row[8] if len(row) > 8 else None
         conn.execute("INSERT INTO jobs VALUES (?,?,?,?,1,1)", ("linkedin", str(i), title, slug))
-        conn.execute("INSERT INTO job_enrichments VALUES (?,?,?,?,?,?,?,?)",
-                     ("linkedin", str(i), tier, sen, mn, mx, conf, hkd))
+        conn.execute("INSERT INTO job_enrichments VALUES (?,?,?,?,?,?,?,?,?)",
+                     ("linkedin", str(i), tier, sen, mn, mx, conf, hkd, pinned))
     conn.commit(); conn.close()
     return str(path)
 
@@ -284,3 +288,41 @@ def test_grade_ceiling_repair_is_down_only(tmp_path):
          20_000, 30_000, "medium", None)])
     assert repair_grade_ceiling_salaries(path, dry_run=False).repaired == 0
     assert _maxes(path) == [30_000]
+
+
+# ── an Ultimate Admin's correction outranks every repair ──────────────────────
+# `manually_edited_at` (migrations phase 33) is what makes a hand-correction stick.
+# enrichment.py and salary_audit.py already exclude a pinned row unconditionally.
+# These repairs did not, so a pinned salary was re-clamped every night and only
+# survived because pipeline_publish replays the admin_edits ledger afterwards —
+# the pin held by being undone downstream, not by being respected here.
+
+PINNED = "2026-08-19T12:00:00+00:00"
+
+
+def test_internship_repair_skips_a_manually_pinned_row(tmp_path):
+    path = _db(tmp_path, [
+        ("Summer Analyst 2027", "junior", 41_500, 83_500, 1, "medium", None, None, PINNED)])
+    summary = repair_internship_salaries(path, dry_run=False)
+    assert summary.repaired == 0
+    assert _stored(path) == [(41_500, 83_500)]
+    assert summary.pinned, "the skip must be reported, not silent"
+
+
+def test_grade_ceiling_repair_skips_a_manually_pinned_row(tmp_path):
+    path = _db2(tmp_path, [
+        ("Senior Manager, Credit Risk", "dbs-hk", "middle_office", "senior",
+         75_000, 100_000, "medium", None, PINNED)])
+    summary = repair_grade_ceiling_salaries(path, dry_run=False)
+    assert summary.repaired == 0
+    assert _maxes(path) == [100_000]
+    assert summary.pinned
+
+
+def test_an_unpinned_row_is_still_repaired(tmp_path):
+    """The guard must not disarm the repairs for ordinary rows."""
+    path = _db2(tmp_path, [
+        ("Senior Manager, Credit Risk", "dbs-hk", "middle_office", "senior",
+         75_000, 100_000, "medium", None, None)])
+    assert repair_grade_ceiling_salaries(path, dry_run=False).repaired == 1
+    assert _maxes(path) == [70_000]
