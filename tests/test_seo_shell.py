@@ -29,6 +29,10 @@ import re
 from html import unescape
 from urllib.parse import quote_plus
 
+
+def _q(label: str) -> str:
+    return f"/jobs?q={quote_plus(label)}"
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -43,6 +47,14 @@ def client(tmp_path):
         job(source="workday", source_id="MAIN", company="HSBC",
             title="Risk Management Officer", posted_at="2026-07-01",
             description_clean="SECRET FULL DESCRIPTION mainstream."),
+        # Enough HSBC Roles to clear _MIN_ROLES_FOR_A_LANDING_PAGE. An employer
+        # below that threshold deliberately gets no page — see the thin-content
+        # test — so the fixture has to be over it for the page to exist at all.
+        *[
+            job(source="workday", source_id=f"HSBC{n}", company="HSBC",
+                title=f"Banking Operations Officer {n}", posted_at="2026-07-04")
+            for n in range(1, 6)
+        ],
         # The two tiers an anonymous visitor must never be served (ADR 0018).
         # They exist here so the server-rendered block can be shown NOT to leak
         # them, which is the whole risk of writing Roles into public HTML.
@@ -55,6 +67,11 @@ def client(tmp_path):
         enrichment(source="workday", source_id="MAIN",
                    description_summary="Manage risk at HSBC.",
                    salary_hkd_min=40_000, salary_hkd_max=60_000),
+        *[
+            enrichment(source="workday", source_id=f"HSBC{n}",
+                       description_summary="Run banking operations at HSBC.")
+            for n in range(1, 6)
+        ],
         enrichment(source="longtail", source_id="BOUT",
                    description_summary="Manage treasury operations."),
         enrichment(source="linkedin_posts", source_id="SOC",
@@ -381,3 +398,86 @@ def test_api_responses_are_fetchable_but_never_indexable(client):
     r = client.get("/api/stats")
     assert r.status_code == 200
     assert r.headers["X-Robots-Tag"] == "noindex"
+
+
+# ── Employer and sector landing pages ─────────────────────────────────────────
+#
+# "/jobs?q=HSBC" always answered a signed-out visitor correctly — 308 Roles in
+# production — it simply was not indexable, because only the thirteen curated
+# disciplines were. These are the queries with real intent behind them, and the
+# ones this board can actually win.
+
+
+def test_an_employer_with_enough_roles_gets_an_indexable_page(client):
+    from main import _category_path
+
+    body = _head(client, _category_path("HSBC"))
+    title = unescape(re.findall(r"<title[^>]*>(.*?)</title>", body, re.S)[0])
+    assert "HSBC" in title, title
+    assert len(title) <= 60
+    assert 'content="index,follow"' in body
+    assert 'id="ssr-roles"' in body, "an employer page must carry its Roles too"
+
+
+def test_a_thin_employer_gets_no_page_at_all(client):
+    """
+    A landing page with two Roles on it is thin content, and a hundred of them
+    is a worse signal than not having them. Below the threshold an employer is
+    served like any other free-text query: rendered for the human, noindex.
+    """
+    from main import _category_path
+
+    body = _head(client, _category_path("Harbour Capital"))
+    assert re.search(r'<meta[^>]*name="robots" content="[^"]*noindex', body)
+    assert 'content="index,follow"' not in body
+
+
+def test_a_sector_gets_its_own_page(client):
+    from main import _category_path
+
+    body = _head(client, _category_path("Banking"))
+    assert 'content="index,follow"' in body
+    assert "Banking" in unescape(re.findall(r"<title[^>]*>(.*?)</title>", body, re.S)[0])
+
+
+def test_the_curated_disciplines_win_a_name_collision(client):
+    """
+    An employer named "Treasury" must not take the discipline's page. The
+    disciplines are the chosen set; everything else is derived from data that
+    changes nightly.
+    """
+    from main import _category_path, _category_meta
+
+    body = _head(client, _category_path("Treasury"))
+    title = unescape(re.findall(r"<title[^>]*>(.*?)</title>", body, re.S)[0])
+    assert title == _category_meta("Treasury")[0]
+
+
+def test_every_landing_page_is_in_the_sitemap(client):
+    body = unescape(client.get("/sitemap.xml").text)
+    assert "q=HSBC" in body, "employer pages are missing from the sitemap"
+    assert "q=Banking" in body, "sector pages are missing from the sitemap"
+    assert "q=Risk+Management" in body, "discipline pages are missing from the sitemap"
+
+
+# ── A Role page is no longer a dead end ───────────────────────────────────────
+
+
+def test_a_role_page_links_onward_to_pages_that_exist(client):
+    """
+    RED before: a teaser linked to "/", "/get-started" and "/jobs" and nothing
+    else, so 4,273 Role pages were 4,273 dead ends — no authority moved between
+    them and the sitemap was the only route in.
+    """
+    body = client.get("/jobs/workday/MAIN/risk-management-officer-hsbc").text
+    assert "More jobs at HSBC" in body
+    assert _q("HSBC") in body, "the employer link must point at the employer page"
+    assert "jobs in Hong Kong</a>" in body, "no sector link"
+
+
+def test_the_onward_links_go_to_indexable_pages(client):
+    """A link into a noindex page passes nothing on; these must be real pages."""
+    body = client.get("/jobs/workday/MAIN/risk-management-officer-hsbc").text
+    for href in re.findall(r'href="(/jobs\?q=[^"]+)"', body):
+        target = _head(client, unescape(href))
+        assert 'content="index,follow"' in target, f"{href} is not indexable"

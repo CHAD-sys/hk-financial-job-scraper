@@ -15,6 +15,7 @@ import logging
 import os
 import re
 import sqlite3
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -442,6 +443,7 @@ class ResumeAnalysisOut(BaseModel):
     sectors: list[str] = Field(default_factory=list)
     years_experience: Optional[int] = None
     seniority: Optional[str] = None
+    certifications: list[str] = Field(default_factory=list)
 
 
 class ResumeOut(BaseModel):
@@ -826,6 +828,31 @@ def _salary_line(detail: JobDetail) -> str:
     return f"{amount} (AI-estimated)" if estimated else amount
 
 
+def _onward_links(detail: JobDetail) -> str:
+    """
+    Where else to go from one Role.
+
+    Until now a teaser page linked to exactly three things — "/", "/get-started"
+    and "/jobs" — so 4,273 pages were 4,273 dead ends. Nothing pointed at the
+    employer, the sector, or another Role, which meant no authority moved between
+    them and the sitemap was the only way a crawler reached any of them.
+
+    Both links below land on pages that exist and are indexable in their own
+    right (see `_landing_pages`), so this is a real graph rather than decoration.
+    """
+    links = [
+        f'<a href="{_category_path(detail.company)}">'
+        f"More jobs at {html.escape(detail.company)}</a>"
+    ]
+    if detail.sector:
+        links.append(
+            f'<a href="{_category_path(detail.sector)}">'
+            f"More {html.escape(detail.sector.lower())} jobs in Hong Kong</a>"
+        )
+    links.append('<a href="/jobs">All Hong Kong finance roles</a>')
+    return '<nav class="secondary">' + " &middot; ".join(links) + "</nav>"
+
+
 def _job_teaser_html(detail: JobDetail, canonical_url: str) -> str:
     location = ", ".join(detail.locations) or "Hong Kong"
     title = html.escape(detail.title)
@@ -854,6 +881,7 @@ def _job_teaser_html(detail: JobDetail, canonical_url: str) -> str:
     facts = " &middot; ".join(
         html.escape(p) for p in [detail.seniority, location, detail.job_category] if p
     )
+    onward = _onward_links(detail)
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -914,7 +942,7 @@ def _job_teaser_html(detail: JobDetail, canonical_url: str) -> str:
   <div>
     <a class="cta" href="/get-started">Sign in to see the full description &amp; apply</a>
   </div>
-  <p class="secondary"><a href="/jobs">Search more roles on FinEx Careers</a></p>
+  {onward}
 </main>
 </body>
 </html>"""
@@ -1028,6 +1056,17 @@ BOARD_CATEGORIES = (
 BOARD_QUERY_PARAM = "q"
 
 
+#: An employer needs at least this many live Roles before it gets its own
+#: indexable page. A landing page with two Roles on it is thin content, and a
+#: hundred thin pages is a worse signal than not having them.
+_MIN_ROLES_FOR_A_LANDING_PAGE = 5
+
+#: How long the landing-page index is trusted before it is rebuilt. The set only
+#: changes when the nightly run does, so this is about not repeating a GROUP BY
+#: on every request, not about freshness.
+_LANDING_TTL_SECONDS = 600
+
+
 def _category_path(label: str) -> str:
     return f"/jobs?{BOARD_QUERY_PARAM}={quote_plus(label)}"
 
@@ -1042,6 +1081,84 @@ def _category_meta(label: str) -> tuple[str, str]:
         "estimate on every listing."
     )
     return title, description
+
+
+def _landing_pages(request: Request) -> dict[str, tuple[str, str, int]]:
+    """
+    Every query that is worth its own indexable page, keyed by casefolded label.
+
+    Three kinds, all answered by the same "/jobs?q=" machinery:
+
+      discipline  the thirteen tiles on the board's own hub, hardcoded
+      sector      the handful the classifier assigns — "Banking", "Insurance"
+      employer    any company with enough live Roles to be worth a page
+
+    Employers are the reason this exists. There are ~143 of them and queries like
+    "HSBC jobs Hong Kong" are both high-intent and winnable, because we genuinely
+    have the Roles: HSBC 308, Bank of China 840, AIA 160. They were already
+    served correctly by /jobs?q=HSBC and merely not indexable.
+
+    PUBLIC audience throughout, so this counts exactly the Roles a signed-out
+    visitor can already search (ADR 0018), and recruiter posts are excluded from
+    the employer dimension — their `company` is a recruiter's name, not an
+    employer's.
+    """
+    cached = getattr(request.app.state, "landing_pages", None)
+    if cached and cached[0] > time.time():
+        return cached[1]
+
+    audience_where = f"{BOARD_WHERE} AND {job_read.PUBLIC_AUDIENCE_WHERE}"
+    pages: dict[str, tuple[str, str, int]] = {}
+    try:
+        with get_db(request) as conn:
+            for company, count in conn.execute(
+                f"SELECT j.company, COUNT(*) AS n FROM jobs j"
+                f" WHERE {audience_where} AND {job_read.EMPLOYER_DIMENSION_WHERE}"
+                f" GROUP BY j.company HAVING n >= ?",
+                (_MIN_ROLES_FOR_A_LANDING_PAGE,),
+            ):
+                if company and company.strip():
+                    pages[company.casefold()] = (company, "employer", count)
+            for sector, count in conn.execute(
+                f"SELECT sector, COUNT(*) AS n FROM ("
+                f"  SELECT ({SECTOR_SQL}) AS sector FROM jobs j WHERE {audience_where}"
+                f") GROUP BY sector HAVING n >= ?",
+                (_MIN_ROLES_FOR_A_LANDING_PAGE,),
+            ):
+                if sector and sector.strip():
+                    pages[sector.casefold()] = (sector, "sector", count)
+    except sqlite3.Error:
+        # A database hiccup must not take the thirteen static pages with it.
+        pages = {}
+
+    # Disciplines last: they are the curated set and win any name collision
+    # (an employer literally called "Treasury" should not take that page over).
+    for category in BOARD_CATEGORIES:
+        pages[category.casefold()] = (category, "discipline", 0)
+
+    request.app.state.landing_pages = (time.time() + _LANDING_TTL_SECONDS, pages)
+    return pages
+
+
+def _landing_meta(label: str, kind: str) -> tuple[str, str]:
+    """Title and description for one landing page, by what the page is about."""
+    if kind == "employer":
+        long_form = f"{label} Jobs in Hong Kong — FinEx Careers"
+        title = long_form if len(long_form) <= 60 else f"{label} Jobs — FinEx Careers"
+        return title, (
+            f"Open roles at {label} in Hong Kong, indexed daily from employer sites "
+            "and major boards. Salary estimate, seniority and required skills on "
+            "every listing."
+        )
+    if kind == "sector":
+        long_form = f"{label} Jobs in Hong Kong — FinEx Careers"
+        title = long_form if len(long_form) <= 60 else f"{label} Jobs — FinEx Careers"
+        return title, (
+            f"Open {label.lower()} roles across Hong Kong, indexed daily from "
+            "employer sites, major boards and boutique firms, with an AI salary "
+            "estimate on every listing."
+        )
+    return _category_meta(label)
 
 
 def _organisation_jsonld(base: str) -> list[dict]:
@@ -1099,16 +1216,15 @@ def _shell_head_tags(request: Request, path: str) -> str:
     if normalised == "/jobs":
         query = (request.query_params.get(BOARD_QUERY_PARAM) or "").strip()
         if query:
-            match = next(
-                (c for c in BOARD_CATEGORIES if c.casefold() == query.casefold()), None
-            )
-            if match is None:
+            page = _landing_pages(request).get(query.casefold())
+            if page is None:
                 return (
                     f"<title data-ssr>{html.escape(query)} — FinEx Careers</title>"
                     '<meta data-ssr name="robots" content="noindex,follow" />'
                 )
+            label, kind, _count = page
             return _indexable_head(
-                request, _category_path(match), *_category_meta(match)
+                request, _category_path(label), *_landing_meta(label, kind)
             )
 
     meta = _ROUTE_META.get(normalised)
@@ -1315,14 +1431,12 @@ def _shell_response(request: Request, settings: Settings, path: str) -> Response
     # crawler is meant to read, and the only ones whose query is known in advance.
     if path.rstrip("/") == "/jobs":
         query = (request.query_params.get(BOARD_QUERY_PARAM) or "").strip()
-        match = next(
-            (c for c in BOARD_CATEGORIES if c.casefold() == query.casefold()), None
-        )
-        # A known discipline gets its Roles; the bare page gets the hub. A query
+        # A known landing page gets its Roles; the bare page gets the hub. A query
         # that is neither gets nothing — it is noindex, and only the person who
         # typed it ever sees it, by which time React has rendered their results.
-        if match is not None:
-            rendered = _category_body(request, match)
+        page = _landing_pages(request).get(query.casefold()) if query else None
+        if page is not None:
+            rendered = _category_body(request, page[0])
         elif not query:
             rendered = _hub_body(request)
         else:
@@ -1408,7 +1522,9 @@ def sitemap(request: Request):
     # roles (no session, no query — ADR 0018), which is what made it a Soft 404;
     # each of these answers with hundreds to thousands, and carries a query, so
     # the "no enumerable catalogue" rule is untouched.
-    static_paths += [_category_path(c) for c in BOARD_CATEGORIES]
+    static_paths += [
+        _category_path(label) for label, _kind, _n in _landing_pages(request).values()
+    ]
     urls = [f"<url><loc>{base}{html.escape(p)}</loc></url>" for p in static_paths]
     with get_db(request) as conn:
         for row in job_read.list_sitemap_refs(conn):
