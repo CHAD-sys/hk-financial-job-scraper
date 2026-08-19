@@ -557,3 +557,61 @@ def test_reading_the_employers_text_server_side_still_works(tmp_path):
         assert "per annum" not in detail.model_dump_json()   # but not published
     finally:
         conn.close()
+
+
+# ── annual figures must not outrank monthly ones ──────────────────────────────
+# Found live 2026-08-19: 31 of ~4,180 board rows carry a salary the employer quoted
+# PER YEAR. `_salary_period` already infers that correctly for display, but the sort
+# and filter expressions read the raw column, so a role quoted at HK$10,000,000/year
+# ranked above every monthly-paid job and topped "Highest salary".
+
+
+@pytest.fixture()
+def periods(tmp_path) -> sqlite3.Connection:
+    """Three rows: one annual, one monthly, one estimate-only."""
+    db = tmp_path / "periods.db"
+    make_jobs_db(
+        db,
+        jobs=[
+            job(source="workday", source_id="ANNUAL", title="Director, Legal Counsel"),
+            job(source="workday", source_id="MONTHLY", title="Head of Cash Operations"),
+            job(source="workday", source_id="ESTIMATE", title="Credit Analyst"),
+        ],
+        enrichments=[
+            # HK$1.65M a YEAR = HK$137,500 a month. Below the monthly row.
+            enrichment(source="workday", source_id="ANNUAL",
+                       salary_hkd_min=1_400_000, salary_hkd_max=1_650_000),
+            enrichment(source="workday", source_id="MONTHLY",
+                       salary_hkd_min=150_000, salary_hkd_max=180_000),
+            enrichment(source="workday", source_id="ESTIMATE",
+                       salary_estimated_min=30_000, salary_estimated_max=45_000),
+        ],
+    )
+    conn = sqlite3.connect(db)
+    conn.row_factory = sqlite3.Row
+    return prepare(conn)
+
+
+def test_an_annual_salary_does_not_outrank_a_higher_monthly_one(periods):
+    ids = _ids(list_jobs(periods, JobFilters(), sort=Sort.SALARY_HIGH, page_size=10).jobs)
+    assert ids.index("MONTHLY") < ids.index("ANNUAL"), (
+        "HK$180,000/month outranks HK$1.65M/year (HK$137,500/month) — the raw "
+        "annual figure must not be compared against monthly ones"
+    )
+
+
+def test_salary_low_sort_also_normalises_the_period(periods):
+    ids = _ids(list_jobs(periods, JobFilters(), sort=Sort.SALARY_LOW, page_size=10).jobs)
+    assert ids.index("ESTIMATE") < ids.index("ANNUAL") < ids.index("MONTHLY")
+
+
+def test_the_salary_filter_reads_an_annual_figure_as_monthly(periods):
+    """A seeker filtering "up to HK$140,000" should see the HK$137,500/month role."""
+    found = _ids(list_jobs(periods, JobFilters(salary_max=140_000), page_size=10).jobs)
+    assert "ANNUAL" in found, "HK$1.65M/year is HK$137,500/month and is under the cap"
+    assert "MONTHLY" not in found, "HK$180,000/month is over the cap"
+
+
+def test_a_monthly_figure_is_left_alone_by_the_filter(periods):
+    found = _ids(list_jobs(periods, JobFilters(salary_min=150_000), page_size=10).jobs)
+    assert found == ["MONTHLY"]

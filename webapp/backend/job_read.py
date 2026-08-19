@@ -399,6 +399,35 @@ class JobFilters:
         return cls(**clean)
 
 
+# ── Salary period normalisation ───────────────────────────────────────────────
+#: Above this, a figure is not a Hong Kong monthly salary. It is the enricher's own
+#: cap for an estimate, so `salary_estimated_*` can never exceed it — only a DISCLOSED
+#: `salary_hkd_*`, which is stored in whatever period the employer quoted, ever does.
+_MAX_PLAUSIBLE_MONTHLY_SALARY = 200_000
+
+
+def _as_monthly(column: str) -> str:
+    """SQL that reads a stored salary as a monthly figure whatever period it was quoted in.
+
+    The catalogue compares salaries monthly — the filter's bounds are monthly and the
+    estimates are monthly — but a disclosed figure keeps the posting's own period. Without
+    this, a role quoted at HK$1.65M PER YEAR is compared against monthly ones and buries
+    every genuinely high-paying job beneath it. Found live on 2026-08-19: 31 of ~4,180
+    board rows are annual, and "Highest salary" opened with a role apparently paying
+    HK$10,000,000 a month.
+
+    `_salary_period` answers the same question for DISPLAY and gets to consult the
+    description, which SQL cannot. This is its numeric branch alone, and the two agree on
+    91 of the 92 live disclosed rows — the exception being a row whose text mentions a
+    period its own figure contradicts. Display still shows the quoted period; only
+    ordering and filtering are normalised, so nothing here rewrites what a seeker reads.
+    """
+    return (
+        f"CASE WHEN {column} > {_MAX_PLAUSIBLE_MONTHLY_SALARY}"
+        f" THEN {column} / 12.0 ELSE {column} END"
+    )
+
+
 # ── WHERE building ────────────────────────────────────────────────────────────
 
 
@@ -507,10 +536,14 @@ def _where(
     # Salary filter matches the disclosed figure when present, else the AI estimate
     # (disclosed salaries are rare, so without this the filter returns almost nothing).
     if filters.salary_min is not None:
-        conditions.append("COALESCE(e.salary_hkd_min, e.salary_estimated_min) >= ?")
+        conditions.append(
+            f"{_as_monthly('COALESCE(e.salary_hkd_min, e.salary_estimated_min)')} >= ?"
+        )
         params.append(filters.salary_min)
     if filters.salary_max is not None:
-        conditions.append("COALESCE(e.salary_hkd_max, e.salary_estimated_max) <= ?")
+        conditions.append(
+            f"{_as_monthly('COALESCE(e.salary_hkd_max, e.salary_estimated_max)')} <= ?"
+        )
         params.append(filters.salary_max)
 
     if filters.exp_min is not None:
@@ -537,8 +570,11 @@ def _where(
 # leading CASE forces rows with NO salary at all to sink to the bottom in BOTH
 # directions — not relying on SQLite NULL ordering, which would float them to the
 # top on DESC.
-_SAL_HIGH = "COALESCE(e.salary_hkd_max, e.salary_estimated_max)"
-_SAL_LOW = "COALESCE(e.salary_hkd_min, e.salary_estimated_min)"
+#: Both are normalised to a monthly figure first (`_as_monthly`) — a disclosed salary
+#: keeps the period the employer quoted, and comparing an annual one against monthly
+#: ones puts it at the top of "Highest salary" regardless of what it really pays.
+_SAL_HIGH = _as_monthly("COALESCE(e.salary_hkd_max, e.salary_estimated_max)")
+_SAL_LOW = _as_monthly("COALESCE(e.salary_hkd_min, e.salary_estimated_min)")
 
 # "Newest" = most recent POSTING date. Some sources mis-parse dates and yield
 # posted_at values in the FUTURE (e.g. JobsDB relative-date bugs). A future date is
@@ -664,7 +700,6 @@ _MONTHLY_SALARY_RE = re.compile(
     r"|/(?:mo|month)\b|\bpcm\b|月薪",
     re.IGNORECASE,
 )
-_MAX_PLAUSIBLE_MONTHLY_SALARY = 200_000
 
 
 def _salary_period(row: sqlite3.Row) -> Literal["month", "year"] | None:
