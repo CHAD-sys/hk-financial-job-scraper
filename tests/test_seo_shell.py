@@ -535,3 +535,52 @@ def test_an_employer_that_names_the_city_does_not_say_it_twice(client):
     assert _landing_meta("Barclays", "employer")[0] == (
         "Barclays Jobs in Hong Kong — FinEx Careers"
     )
+
+
+def test_a_wrong_merge_is_worse_than_a_duplicate_page(client):
+    """
+    "Bank", "Banking" and "China" distinguish two real employers as often as they
+    decorate one, so they only come off when a single word would be left.
+
+    "Mizuho Bank" is Mizuho. "China Everbright Bank" is NOT China Everbright —
+    those are different companies, and merging them would point one's page at the
+    other's Roles. A missed merge costs a duplicate page; a wrong merge costs a
+    wrong page.
+    """
+    from main import _normalise_employer as n
+
+    # Safe to merge — one word left.
+    assert n("Mizuho Bank, Ltd") == n("Mizuho")
+    assert n("MUFG Bank, Ltd.") == n("MUFG")
+    assert n("KPMG China") == n("KPMG")
+    # Refused — two words left, and these are genuinely different companies.
+    assert n("China Everbright Bank Company Limited") != n("China Everbright Limited")
+    assert n("Bank of China") != n("Bank of Communications")
+    assert n("Bank of China") != n("Bank")
+
+
+def test_one_employer_across_three_spellings(client):
+    """The board carries JPMorgan, JPMorgan Chase and JPMorganChase."""
+    from main import _normalise_employer as n
+
+    assert n("JPMorgan") == n("JPMorgan Chase") == n("JPMorganChase")
+
+
+def test_a_leading_the_is_not_a_different_employer(client):
+    from main import _normalise_employer as n
+
+    assert n("The Bank of East Asia, Limited") == n("Bank of East Asia")
+
+
+def test_the_disciplines_are_never_normalised_into_each_other(client):
+    """
+    "Investment" and "Investment Banking" are two of the thirteen curated
+    disciplines and two separate pages. They would collapse under the employer
+    normaliser — which is exactly why it is never applied to them.
+    """
+    from main import _category_meta, _category_path
+
+    for label in ("Investment", "Investment Banking"):
+        body = _head(client, _category_path(label))
+        title = unescape(re.findall(r"<title[^>]*>(.*?)</title>", body, re.S)[0])
+        assert title == _category_meta(label)[0], label

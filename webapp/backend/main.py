@@ -1087,10 +1087,17 @@ def _category_meta(label: str) -> tuple[str, str]:
 #: another in this market. "Bank of China (Hong Kong) Limited" and "Bank of China
 #: (Hong Kong)" are one employer with two spellings in the sources.
 _EMPLOYER_NOISE = (
-    r"(limited|ltd|company|co|corporation|corp|plc|inc|holdings|group|"
+    r"(limited|ltd|company|co|corporation|corp|plc|inc|holdings|group|chase|"
     r"hong kong|hongkong|hk|china region|asia pacific|asia|macau|overseas|branch|and)"
 )
 _EMPLOYER_NOISE_RE = re.compile(rf"\s+{_EMPLOYER_NOISE}$")
+
+#: Words that distinguish two real employers as often as they decorate one, so
+#: they only come off when a single word would be left. "Mizuho Bank" is Mizuho;
+#: "China Everbright Bank" is NOT China Everbright — they are different companies
+#: and merging them would point one's page at the other's Roles. Losing a merge
+#: costs a duplicate page; a wrong merge costs a wrong page, which is worse.
+_ONLY_IF_ONE_WORD_REMAINS = re.compile(r"^(\w+)\s+(bank|banking|china)$")
 
 
 def _normalise_employer(name: str) -> str:
@@ -1105,10 +1112,16 @@ def _normalise_employer(name: str) -> str:
     """
     s = re.sub(r"[^a-z0-9 ]+", " ", name.casefold())
     s = re.sub(r"\s+", " ", s).strip()
+    s = re.sub(r"^the\s+", "", s)
     previous = None
     while previous != s:
         previous = s
         s = _EMPLOYER_NOISE_RE.sub("", s).strip()
+        s = _ONLY_IF_ONE_WORD_REMAINS.sub(r"\1", s)
+        # "JPMorganChase" arrives as one word where "JPMorgan Chase" arrives as
+        # two; both are the same employer and neither should have its own page.
+        if " " not in s and s.endswith("chase") and len(s) > len("chase"):
+            s = s[: -len("chase")]
     return s
 
 
