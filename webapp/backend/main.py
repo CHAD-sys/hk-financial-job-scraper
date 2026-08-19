@@ -447,12 +447,26 @@ class ResumeAnalysisOut(BaseModel):
     certifications: list[str] = Field(default_factory=list)
 
 
+class ResumeAnalysisOverrideIn(BaseModel):
+    """One whole set of corrections; `None` on a field means "use the extraction"."""
+
+    seniority: Optional[str] = None
+    years_experience: Optional[int] = None
+    skills: Optional[list[str]] = None
+    certifications: Optional[list[str]] = None
+
+
 class ResumeOut(BaseModel):
     filename: str
     media_type: str
     size_bytes: int
     uploaded_at: str
+    #: What the Seeker's evidence actually is — extraction with corrections on top.
     analysis: ResumeAnalysisOut
+    #: What the extractor read, kept so the account page can show both.
+    analysis_extracted: ResumeAnalysisOut
+    #: Only the fields the Seeker corrected; absent keys mean "not corrected".
+    analysis_override: dict = Field(default_factory=dict)
 
 
 def _resume_out(row: dict) -> ResumeOut:
@@ -461,6 +475,8 @@ def _resume_out(row: dict) -> ResumeOut:
         media_type=row["media_type"],
         size_bytes=row["size_bytes"],
         uploaded_at=row["uploaded_at"],
+        analysis_extracted=ResumeAnalysisOut(**(row.get("analysis_extracted") or {})),
+        analysis_override=row.get("analysis_override") or {},
         analysis=ResumeAnalysisOut(**(row.get("analysis") or {})),
     )
 
@@ -619,6 +635,26 @@ async def upload_resume(request: Request, resume: UploadFile = File(...)):
         analysis=analysis.as_dict(),
     )
     store.log_event("resume.replaced" if replaced else "resume.uploaded", seeker["id"])
+    return _resume_out(store.get_resume(seeker["id"]))
+
+
+@router.put("/api/me/resume/analysis", response_model=ResumeOut, tags=["resume"])
+def correct_resume_analysis(request: Request, payload: ResumeAnalysisOverrideIn):
+    """Record the Seeker's own corrections to what was read from their resume.
+
+    Stored beside the extraction rather than merged into it, so re-running the
+    extractor never discards an answer a human gave (seekers_store phase 11).
+    """
+    seeker = _require_seeker(request)
+    try:
+        override = resume_intelligence.sanitise_override(payload.model_dump())
+    except resume_intelligence.ResumeValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    store = seekers_store.get_store()
+    if not store.set_resume_analysis_override(seeker["id"], override):
+        raise HTTPException(status_code=404, detail="No resume on file to correct.")
+    store.log_event("resume.analysis_corrected", seeker["id"])
     return _resume_out(store.get_resume(seeker["id"]))
 
 

@@ -14,7 +14,17 @@ const DOCUMENT: ResumeDocument = {
     sectors: ['Banking'],
     years_experience: 6,
     seniority: 'mid',
+    certifications: ['cfa'],
   },
+  analysis_extracted: {
+    skills: ['credit risk', 'sql', 'python'],
+    role_families: ['credit', 'risk'],
+    sectors: ['Banking'],
+    years_experience: 6,
+    seniority: 'mid',
+    certifications: ['cfa'],
+  },
+  analysis_override: {},
 }
 
 const fetchResume = vi.fn<() => Promise<ResumeDocument | null>>()

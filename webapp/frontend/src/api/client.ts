@@ -231,6 +231,20 @@ export interface ResumeAnalysis {
   sectors: string[]
   years_experience: number | null
   seniority: string | null
+  certifications: string[]
+}
+
+/** Every rung the ladder can express, in order. */
+export const SENIORITY_CHOICES = [
+  'intern', 'junior', 'mid', 'senior', 'lead', 'executive',
+] as const
+
+/** A Seeker's corrections. An absent key means "use what was extracted". */
+export interface ResumeAnalysisOverride {
+  seniority?: string | null
+  years_experience?: number | null
+  skills?: string[] | null
+  certifications?: string[] | null
 }
 
 export interface ResumeDocument {
@@ -238,7 +252,12 @@ export interface ResumeDocument {
   media_type: string
   size_bytes: number
   uploaded_at: string
+  /** Effective evidence: the extraction with the Seeker's corrections on top. */
   analysis: ResumeAnalysis
+  /** What the extractor read, before any correction. */
+  analysis_extracted: ResumeAnalysis
+  /** Only the fields the Seeker corrected. */
+  analysis_override: ResumeAnalysisOverride
 }
 
 export interface ResumeMatch {
@@ -507,6 +526,25 @@ export async function uploadResume(file: File): Promise<ResumeDocument> {
   const res = await apiFetch('/api/me/resume', { method: 'PUT', body })
   if (!res.ok) {
     throw await authError(res, `Could not analyse your resume (${res.status}).`)
+  }
+  return res.json()
+}
+
+export async function correctResumeAnalysis(
+  override: ResumeAnalysisOverride,
+): Promise<ResumeDocument> {
+  const res = await apiFetch('/api/me/resume/analysis', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      seniority: override.seniority ?? null,
+      years_experience: override.years_experience ?? null,
+      skills: override.skills ?? null,
+      certifications: override.certifications ?? null,
+    }),
+  })
+  if (!res.ok) {
+    throw await authError(res, `Could not save your corrections (${res.status}).`)
   }
   return res.json()
 }
