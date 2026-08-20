@@ -10,6 +10,7 @@ import OperationsCenter from '../components/admin/OperationsCenter'
 import SubmissionsPanel from '../components/admin/SubmissionsPanel'
 import UserActivity from '../components/admin/UserActivity'
 import { useAuth } from '../auth/useAuth'
+import { useAdminMode } from '../adminMode/useAdminMode'
 import {
   fetchAdminAccounts,
   fetchAdminIntelligence,
@@ -27,6 +28,16 @@ import {
  */
 export default function AdminPage() {
   const { seeker, loading } = useAuth()
+  const { adminMode, canUseAdminMode, setAdminMode } = useAdminMode()
+
+  // Being on this page IS the admin view, so arriving here turns the mode on —
+  // by the switch, by a bookmark, or by typing the URL. Without this an admin
+  // who deep-linked to /admin would sit in the panel while the nav still
+  // offered to take them INTO Admin Mode, and the board behind them would still
+  // be the Seeker's.
+  useEffect(() => {
+    if (!loading && canUseAdminMode && !adminMode) setAdminMode(true)
+  }, [loading, canUseAdminMode, adminMode, setAdminMode])
   const [snapshot, setSnapshot] = useState<AdminIntelligenceSnapshot | null>(null)
   const [dashboardError, setDashboardError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)

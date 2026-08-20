@@ -7,6 +7,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { scrollToTop, scrollToHash } from '../utils/scroll'
 import type { Seeker, Employer } from '../api/client'
 import { useAuth } from '../auth/useAuth'
+import { useAdminMode } from '../adminMode/useAdminMode'
 import { useEmployerAuth } from '../auth/useEmployerAuth'
 import { useSavedRoles } from '../savedRoles/useSavedRoles'
 
@@ -94,8 +95,10 @@ export default function Nav() {
   // Both bits, for the same reason JobBoardPage reads both: seekers_store's
   // set_super_admin() writes only its own column, so an Ultimate Admin granted
   // that bit alone would otherwise get no way back to the panel.
-  const isAdmin = Boolean(seeker?.is_admin || seeker?.is_super_admin)
-  const primaryLinks = primaryLinksFor(!authLoading && isAdmin)
+  const { adminMode, canUseAdminMode, setAdminMode } = useAdminMode()
+  // The panel is an admin-view destination, so the row only carries it in admin
+  // view. In Seeker view an admin's nav is a Seeker's nav, entry for entry.
+  const primaryLinks = primaryLinksFor(!authLoading && adminMode)
 
   // Where sign-in should return to. The board is public, so nobody is ever sent
   // here by a wall — they came from a page they were reading and should land
@@ -241,8 +244,13 @@ export default function Nav() {
             {wordmark}
 
             <div className="flex shrink-0 items-center gap-3">
-              {!authLoading && isAdmin && (
-                <AdminModeSwitch pathname={pathname} onNavigate={() => setOpen(false)} compact />
+              {!authLoading && canUseAdminMode && (
+                <AdminModeSwitch
+                  adminMode={adminMode}
+                  onToggle={setAdminMode}
+                  onNavigate={() => setOpen(false)}
+                  compact
+                />
               )}
 
               {/* Only for a signed-in Employer now — PostRolePage.tsx redirects
@@ -352,8 +360,13 @@ export default function Nav() {
             {wordmark}
 
             <div className="flex shrink-0 items-center gap-3">
-              {!authLoading && isAdmin && (
-                <AdminModeSwitch pathname={pathname} onNavigate={() => setOpen(false)} compact />
+              {!authLoading && canUseAdminMode && (
+                <AdminModeSwitch
+                  adminMode={adminMode}
+                  onToggle={setAdminMode}
+                  onNavigate={() => setOpen(false)}
+                  compact
+                />
               )}
 
               <SavedButton
@@ -499,43 +512,66 @@ function SavedButton({
 }
 
 /**
- * The persistent Admin ⇄ Seeker toggle. Direction is read from the CURRENT
- * route, not stored: under /admin it points at the board, everywhere else it
- * points at /admin. Solid gold rather than the outline/ghost treatment every
- * other item in this bar gets — the five people who ever see this button need
- * it to read as "the special control", not blend into ordinary nav.
+ * The Admin ⇄ Seeker toggle.
+ *
+ * It used to derive its direction from the CURRENT ROUTE and do nothing but
+ * navigate, which made it decorative: the board's admin powers were on in both
+ * "modes", so the button announced a state change that never happened. It now
+ * flips the real flag (adminMode/AdminModeProvider.tsx) and navigates as a
+ * consequence — turning it on takes you to the panel, turning it off returns
+ * you to the board you would see as a Seeker.
+ *
+ * Rendered whenever the account COULD use Admin Mode, not only when it is
+ * already on: this is the way in as well as the way out. A <button> rather than
+ * a <Link> because its primary effect is the state change; the navigation is
+ * the follow-through.
  *
  * `state={{ discover: true }}` on the way back to /jobs is load-bearing:
  * JobBoardPage reads it to return to discover mode rather than whatever
  * research the admin had open before they entered the panel.
+ *
+ * Solid gold rather than the outline/ghost treatment every other item in this
+ * bar gets — the five people who ever see this button need it to read as "the
+ * special control", not blend into ordinary nav.
  */
 function AdminModeSwitch({
-  pathname,
+  adminMode,
+  onToggle,
   onNavigate,
   compact = false,
 }: {
-  pathname: string
+  adminMode: boolean
+  onToggle: (on: boolean) => void
   onNavigate: () => void
   compact?: boolean
 }) {
-  const inAdmin = pathname === '/admin' || pathname.startsWith('/admin/')
-  const to = inAdmin ? '/jobs' : '/admin'
-  const label = inAdmin ? 'Seeker view' : 'Admin Mode'
-  const Icon = inAdmin ? Search : LayoutDashboard
+  const navigate = useNavigate()
+  const label = adminMode ? 'Seeker view' : 'Admin Mode'
+  const Icon = adminMode ? Search : LayoutDashboard
 
   return (
-    <Link
-      to={to}
-      state={to === '/jobs' ? { discover: true } : undefined}
-      onClick={onNavigate}
-      className={`flex items-center gap-1.5 rounded font-semibold no-underline transition-colors duration-150 ${
+    <button
+      type="button"
+      onClick={() => {
+        const next = !adminMode
+        onToggle(next)
+        onNavigate()
+        navigate(next ? '/admin' : '/jobs', {
+          state: next ? undefined : { discover: true },
+        })
+      }}
+      aria-pressed={adminMode}
+      title={adminMode
+        ? 'Leave Admin Mode — see the board exactly as a Seeker does'
+        : 'Enter Admin Mode — edit Roles and browse the whole catalogue'}
+      className={`flex cursor-pointer items-center gap-1.5 rounded font-semibold transition-colors duration-150 ${
         compact ? 'min-h-9 px-3 py-1.5 text-sm' : 'min-h-11 px-3 text-sm'
       }`}
       style={{ backgroundColor: 'var(--color-gold)', color: '#fff' }}
     >
       <Icon size={14} strokeWidth={2} aria-hidden="true" />
       {label}
-    </Link>
+    </button>
   )
 }
 
