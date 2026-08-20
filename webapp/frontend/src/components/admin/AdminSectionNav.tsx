@@ -25,7 +25,10 @@ const SECTIONS: SectionItem[] = [
   { href: '#daily-collection', label: 'Daily collection', detail: 'Today’s pipeline totals', icon: CalendarSync },
   { href: '#verification', label: 'Verification', detail: 'Submitted Role review', icon: ClipboardCheck },
   { href: '#accounts', label: 'Account directory', detail: 'Every Seeker and Employer', icon: IdCard, superAdminOnly: true },
-  { href: '#job-editor', label: 'Job editor', detail: 'Ultimate Admin controls', icon: SquarePen, superAdminOnly: true },
+  // Not superAdminOnly since ADR 0019 — every admin may correct a Role, so
+  // every admin needs the category that reaches the editor. The account
+  // directory above stays Ultimate-Admin-only; that one did not change.
+  { href: '#job-editor', label: 'Job editor', detail: 'Search and correct any Role', icon: SquarePen },
 ]
 
 function currentSection() {
