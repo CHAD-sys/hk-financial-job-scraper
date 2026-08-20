@@ -281,11 +281,13 @@ export default function AdminPage() {
           </section>
         )}
 
-        {seeker?.is_super_admin && (
-          <section id="job-editor" className="mt-16 scroll-mt-28 border-t pt-12" style={{ borderColor: 'var(--color-border)' }}>
-            <JobEditor />
-          </section>
-        )}
+        {/* Every admin, not just Ultimate Admin (ADR 0019). The board's pencil
+            covers correcting a Role you happened to be looking at; this covers
+            working through a list of corrections without hunting for each one
+            on the board first. Both call the same two endpoints. */}
+        <section id="job-editor" className="mt-16 scroll-mt-28 border-t pt-12" style={{ borderColor: 'var(--color-border)' }}>
+          <JobEditor />
+        </section>
       </main>
     </div>
   )

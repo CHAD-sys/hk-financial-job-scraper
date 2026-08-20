@@ -628,7 +628,8 @@ export interface Seeker {
   email_verified: boolean
   /** Admin Mode. Same account, same sign-in — this is the one privilege bit. */
   is_admin: boolean
-  /** Ultimate Admin only: direct read/write onto a job's row and enrichment. */
+  /** Ultimate Admin: the account directory and a Seeker's stored resume.
+   *  Job editing is NOT gated on this any more — see ADR 0019. */
   is_super_admin: boolean
 }
 
@@ -1206,8 +1207,8 @@ export async function fetchSeekerInterests(seekerId: string): Promise<AdminSeeke
   return res.json()
 }
 
-// ── Ultimate Admin: direct job edit ────────────────────────────────────────────
-// Behind is_super_admin only — the other four admins never call these. The
+// ── Admin: direct job edit ────────────────────────────────────────────────────
+// Behind is_admin since ADR 0019 (was is_super_admin only). The
 // wire shape mirrors webapp/backend/job_edit.py's raw dict(row) exactly: it is
 // not the same Job shape /api/jobs returns (e.g. `locations`/`required_skills`
 // arrive as a raw JSON string here, not a parsed array — the backend never

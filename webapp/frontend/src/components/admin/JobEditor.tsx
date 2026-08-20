@@ -168,10 +168,11 @@ export default function JobEditor() {
         className="text-xs font-semibold uppercase tracking-widest mb-1"
         style={{ color: 'var(--color-gold)', letterSpacing: '0.08em' }}
       >
-        Ultimate Admin — Job Editor
+        Job Editor
       </h3>
       <p className="text-xs mb-4" style={{ color: 'var(--color-ink-faint)' }}>
-        Writes directly to the database, immediately — this bypasses the pipeline. Find a job, then edit anything below.
+        Writes directly to the database, immediately — this bypasses the pipeline. Find a job, then edit
+        anything below. Saved salary values are pinned: re-enrichment and the nightly audit leave them alone.
       </p>
 
       <form onSubmit={handleSearch} className="flex gap-2 mb-4">

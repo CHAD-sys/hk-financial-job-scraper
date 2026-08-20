@@ -5,7 +5,7 @@ import AdminSectionNav from './AdminSectionNav'
 beforeEach(() => window.history.replaceState(null, '', '/admin#operations-center'))
 
 describe('AdminSectionNav', () => {
-  it('makes every ordinary-admin section prominent without exposing the job editor', () => {
+  it('makes every ordinary-admin section prominent, the job editor included', () => {
     render(<AdminSectionNav isSuperAdmin={false} />)
 
     expect(screen.getByRole('navigation', { name: 'Admin page sections' })).toBeInTheDocument()
@@ -13,11 +13,25 @@ describe('AdminSectionNav', () => {
     expect(screen.getByRole('link', { name: /Market intelligence/ })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Daily collection/ })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Verification/ })).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /Job editor/ })).not.toBeInTheDocument()
+  })
+
+  it('gives an ordinary admin the category that reaches the job editor', () => {
+    // ADR 0019 widened /api/admin/jobs to every admin. Leaving the panel's
+    // category behind the stricter bit meant an admin in Admin Mode had the
+    // permission and no way in the panel to use it. Went RED before the
+    // superAdminOnly flag came off.
+    render(<AdminSectionNav isSuperAdmin={false} />)
+    expect(screen.getByRole('link', { name: /Job editor/ })).toBeInTheDocument()
+  })
+
+  it('still keeps the account directory to the Ultimate Admin', () => {
+    // The half of the split that did NOT move. Widening job editing must not
+    // quietly widen access to Seeker accounts and their stored resumes.
+    render(<AdminSectionNav isSuperAdmin={false} />)
     expect(screen.queryByRole('link', { name: /Account directory/ })).not.toBeInTheDocument()
   })
 
-  it('shows the privileged editor and account directory only to the Ultimate Admin and marks a selected section', () => {
+  it('shows the account directory to the Ultimate Admin and marks a selected section', () => {
     render(<AdminSectionNav isSuperAdmin />)
     const market = screen.getByRole('link', { name: /Market intelligence/ })
 
