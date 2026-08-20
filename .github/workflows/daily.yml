@@ -68,7 +68,17 @@ jobs:
       #
       # Safe to drop back to 300 once the backlog is clear, but leaving headroom
       # above the nightly intake is what stops the starvation recurring.
-      DEEPSEEK_DAILY_ENRICH_LIMIT: "1200"
+      # 1200 with thinking mode ON is what produced $6.31 on 2026-08-16 and
+      # ~$5.80 on 08-17 (real billing dashboard, not our own estimate — that
+      # ledger under-reports by ~5-10x). Observed cost with thinking is roughly
+      # $0.006-0.008 per Role, so 1200 Roles is a $7-10 night.
+      # 250 keeps an ordinary night near $1.50-2.00. The backlog is not lost:
+      # enrichment selects on prompt_version, so whatever is skipped is picked
+      # up by the following run.
+      DEEPSEEK_DAILY_ENRICH_LIMIT: "250"
+      # Hard stop in dollars, enforced in-process by hk_jobs/ai_budget.py. The
+      # Role limit above is only a proxy for cost; this is the actual cap.
+      DEEPSEEK_RUN_BUDGET_USD: "2.00"
       PIPELINE_SYNC_TOKEN: ${{ secrets.PIPELINE_SYNC_TOKEN }}
       PIPELINE_DATABASE_SYNC_URL: https://finex-careers.up.railway.app/api/admin/pipeline/database
       PIPELINE_OPERATIONS_URL: https://finex-careers.up.railway.app/api/admin/pipeline/operations

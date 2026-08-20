@@ -421,3 +421,88 @@ def test_every_registered_profile_can_actually_be_asked_for():
 
     action = next(a for a in _parser()._actions if a.dest == "profile")
     assert set(action.choices) == set(PROFILES)
+
+
+# ── The enrichment phase must not report success while writing nothing ───────
+#
+# On 2026-08-19 the DeepSeek phase made 906 API calls, every one truncated at
+# max_tokens, and wrote ZERO enrichments. It reported `success`, the run
+# published, and the daily record showed `ai_usage.calls: 906` as though work
+# had happened. Nothing compared calls made against rows written, so a total
+# outage looked like a normal night for two days running.
+
+def _enrichment_fixture(tmp_path, *, calls: int, writes_rows: bool):
+    """A database with the two tables the guard reads, and a fake pipeline run."""
+    database = tmp_path / "data" / "jobs.db"
+    database.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(database) as conn:
+        conn.execute(
+            "CREATE TABLE job_enrichments (source TEXT, source_id TEXT, enriched_at TEXT)"
+        )
+        # One pre-existing row, so "newest enrichment" is not simply NULL.
+        conn.execute(
+            "INSERT INTO job_enrichments VALUES ('jobsdb','1','2026-08-17T19:47:32+00:00')"
+        )
+        conn.execute(
+            """CREATE TABLE ai_usage (run_id TEXT, phase TEXT, model TEXT, calls INTEGER,
+                                      roles_processed INTEGER, prompt_cache_hit_tokens INTEGER,
+                                      prompt_cache_miss_tokens INTEGER, completion_tokens INTEGER,
+                                      estimated_cost_usd REAL, recorded_at TEXT)"""
+        )
+
+    def run_command(command, **_kwargs):
+        joined = " ".join(command)
+        if "--enrich" in joined:
+            with sqlite3.connect(database) as conn:
+                conn.execute(
+                    "INSERT INTO ai_usage VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    ("enrich-1", "deepseek_enrichment", "deepseek-v4-flash", calls,
+                     302, 0, 0, 0, 0.2077, "2026-08-19T21:44:57+00:00"),
+                )
+                if writes_rows:
+                    conn.execute(
+                        "INSERT INTO job_enrichments VALUES "
+                        "('jobsdb','2','2026-08-19T21:44:00+00:00')"
+                    )
+        return subprocess.CompletedProcess(command, 0, stdout="")
+
+    paths = RuntimePaths(tmp_path, database, tmp_path / "data/jobs.jsonl")
+    executor = CommandPhaseExecutor(
+        paths,
+        environ={"DEEPSEEK_API_KEY": "configured"},
+        run_command=run_command,
+        now=lambda: datetime(2026, 8, 19, tzinfo=timezone.utc),
+    )
+    return executor
+
+
+def test_enrichment_that_burns_calls_and_writes_nothing_fails_the_run(tmp_path):
+    """RED before this guard: 906 calls, 0 rows, and a green dashboard."""
+    executor = _enrichment_fixture(tmp_path, calls=906, writes_rows=False)
+
+    record = run_daily("local", "enrich-1", executor)
+
+    deepseek = record.phase("deepseek")
+    assert deepseek.status is PhaseStatus.FAILED
+    assert "906" in (deepseek.detail or "")
+    assert record.status is not RunStatus.SUCCESS
+
+
+def test_enrichment_that_writes_rows_succeeds_and_reports_the_count(tmp_path):
+    executor = _enrichment_fixture(tmp_path, calls=906, writes_rows=True)
+
+    record = run_daily("local", "enrich-1", executor)
+
+    deepseek = record.phase("deepseek")
+    assert deepseek.status is PhaseStatus.SUCCESS
+    assert "1" in (deepseek.detail or "")
+
+
+def test_a_night_with_nothing_to_enrich_is_not_a_failure(tmp_path):
+    """No calls and no rows is a quiet night, not an outage. The guard only fires
+    when money was spent and nothing came back."""
+    executor = _enrichment_fixture(tmp_path, calls=0, writes_rows=False)
+
+    record = run_daily("local", "enrich-1", executor)
+
+    assert record.phase("deepseek").status is PhaseStatus.SUCCESS

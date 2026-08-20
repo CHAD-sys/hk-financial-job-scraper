@@ -46,6 +46,12 @@ from hk_jobs import salary
 
 logger = logging.getLogger(__name__)
 
+#: Output budget for the outlier judge (v12). Its own number, not the
+#: enricher's: a four-field verdict needs far less writing than a full
+#: enrichment, but with thinking on it still needs room to reason over the
+#: anchor table. v11's 300 could not hold a reasoning trace at all.
+_JUDGE_MAX_TOKENS = 4_000
+
 _MAX_WORKERS = 30
 _HIGH_BAR = 120_000
 _CLUSTER_MULTIPLE = 1.5
@@ -58,11 +64,22 @@ is to judge whether that estimate is realistic for THIS title at THIS company in
 using the reference table below, and correct it if it is too high.
 
 The most common error you are looking for: a title matched to a band ABOVE its real grade.
-Examples: a "Team Head" of a client-relationship/service/support team priced as if heading a
+Examples: a "Team Head" of a client-relationship/SERVICE/support team priced as if heading a
 revenue-generating front-office team (a bank has MANY CR team heads at ~50k-100k, but few desk
 heads at 150k+); a "Manager" priced as a Director; a support-function role priced on a
 front-office ladder. Where the title's meaning is ambiguous, the LOWER interpretation is
 correct.
+
+DO NOT flag these as too high — they are correct by policy (Morris H., 2026-08-20), and
+marking them down would undo a deliberate correction every night:
+- "Team Head" of anything OTHER than a client-service/support/operations team is a
+  DIRECTOR-grade role (HK$100,000-150,000 at a bank). Only the service/CR/support variety
+  above is manager-grade.
+- "Division Head" is a MANAGING DIRECTOR-grade role (HK$180,000-250,000).
+- "Product Manager" and "Senior Product Manager" are DIRECTOR-grade (HK$100,000-150,000);
+  it is a big and genuinely senior category. "Assistant/Junior Product Manager" is not.
+- At a CHINESE bank, "General Manager" and "Deputy GM" are DIRECTOR/Head-of grade
+  (HK$100,000-150,000).
 
 REFERENCE — monthly HK$ BASE by tier -> named role -> grade row:
 {salary_reference}
@@ -162,23 +179,23 @@ def _judge(enricher: DeepSeekEnricher, row: sqlite3.Row) -> dict | None:
             _API_URL,
             headers={"Authorization": f"Bearer {enricher.api_key}",
                      "Content-Type": "application/json"},
-            # Thinking mode off here for the same reason as the enricher (see the
-            # v11 changelog in enrichers/deepseek.py): the reasoning trace is billed
-            # as output and dwarfed the answer. The verdict is four short fields, so
-            # 300 is already generous. temperature/top_p were silently ignored under
-            # thinking and are live again; near-zero because this is a judgement
-            # against a fixed reference table, not open-ended writing.
+            # v12: thinking back on here too, taking the advice the v11 comment left
+            # behind — this judge is the backstop that catches exactly the tier
+            # mis-grading thinking was brought in to fix, and it runs only over
+            # flagged outliers (34 roles on the last run), so its share of the bill
+            # is small by construction.
             #
-            # Worth knowing: this judge is the backstop that catches the tier
-            # mis-grading the enricher's own thinking mode was brought in to fix, and
-            # it runs only over flagged outliers, so its share of the bill was always
-            # small. If tier drift shows up after v11, this is the first place to
-            # consider turning reasoning back on.
+            # Its own budget, because it is its own task: the verdict is four short
+            # fields, far less to write than the enricher's answer, but it still needs
+            # room to reason over the anchor table. 4,000 sits between v11's
+            # answer-only 300 — which cannot hold a reasoning trace at all — and the
+            # pre-v11 blanket 8,000 that was simply the enricher's number reused.
+            #
+            # temperature/top_p are dropped: DeepSeek ignores them under thinking.
             json={"model": _MODEL,
                   "messages": [{"role": "user", "content": prompt}],
-                  "max_tokens": 300,
-                  "temperature": 0.1,
-                  "top_p": 0.9},
+                  "max_tokens": _JUDGE_MAX_TOKENS,
+                  "thinking": {"type": "enabled"}},
         )
     if resp.status_code != 200:
         raise RuntimeError(f"API {resp.status_code}: {resp.text[:120]}")

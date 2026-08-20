@@ -2292,5 +2292,173 @@
       ],
       "note": "At FWD, Sun Life, and Manulife specifically the seniority order is reversed at the top: Vice President > Assistant Vice President > Director > Associate Director > Senior Manager > Manager. No tighter figure is specified for VP/AVP at these three, so they fall back to global_max_monthly_hkd (200,000)."
     }
+  },
+  "title_grade_bands_monthly_hkd": {
+    "_desc": "Deterministic title-grade BANDS (floor AND ceiling) for banks and insurance companies. Unlike management_grade_caps_monthly_hkd — which only ever lowered a ceiling — a match here is authoritative for the whole range: these grades are the one place where the title is hard evidence and the model's read is not. Enforced in hk_jobs/salary_clamp.py; rendered into the DeepSeek prompt in hk_jobs/enrichers/deepseek.py; applied identically by the /fix-s skill.",
+    "_source": "Morris H., 2026-08-19 (WhatsApp). Domain expert: worked middle-to-senior grades in both HK banks and insurers. 'These salaries are close to reality.' Supersedes management_grade_caps_monthly_hkd wherever a title matches a grade here.",
+    "_not_applied_to": "front_office tier (revenue desks run their own, much higher ladder — a trading VP is not an operations VP) and internships (the internship cap wins over every band).",
+    "sme_discount": 0.3,
+    "sme_discount_note": "'Banks and insurance companies are mostly listed multinational corporations, therefore salaries are higher; for smaller/medium corporations apply 30% discount.' Already implemented as salary_clamp.BOUTIQUE_SALARY_MULTIPLIER = 0.7 keyed on jobs.source_tier == 'boutique'. Recorded here so the two cannot drift.",
+    "bank": {
+      "hierarchy_high_to_low": [
+        "global_head",
+        "division_head",
+        "managing_director",
+        "executive_director",
+        "senior_vice_president",
+        "assistant_vice_president",
+        "vice_president",
+        "director",
+        "team_head",
+        "general_manager",
+        "product_manager"
+      ],
+      "bands_monthly_hkd": {
+        "global_head": [
+          200000,
+          300000
+        ],
+        "managing_director": [
+          180000,
+          250000
+        ],
+        "executive_director": [
+          130000,
+          180000
+        ],
+        "director": [
+          100000,
+          150000
+        ],
+        "senior_vice_president": [
+          80000,
+          100000
+        ],
+        "vice_president": [
+          60000,
+          80000
+        ],
+        "assistant_vice_president": [
+          50000,
+          70000
+        ],
+        "division_head": [
+          180000,
+          250000
+        ],
+        "team_head": [
+          100000,
+          150000
+        ],
+        "product_manager": [
+          100000,
+          150000
+        ],
+        "general_manager": [
+          100000,
+          150000
+        ]
+      },
+      "note": "Morris's parenthetical equivalences: Senior Vice President = senior manager / associate director; Vice President = Manager / Senior Manager; Assistant Vice President = Manager. 'Head of' reads as Executive Director or Director depending on which of the two the title names.",
+      "exceeds_global_max": true,
+      "exceeds_global_max_note": "global_head (300k) and managing_director (250k) sit ABOVE meta.global_max_monthly_hkd (200k). That ceiling exists to stop an unmatched or mis-tiered model estimate drifting up (~30% ran high in production); a deterministic title match at a known bank is categorically different evidence, so these two grades — and ONLY these two, and ONLY on a title match — are allowed past it. Every other path still hard-caps at 200k.",
+      "grade_equivalences": {
+        "_source": "Morris H., 2026-08-20 (WhatsApp) — a second pass on the titles that confuse the estimator most.",
+        "division_head": "= managing_director. 'Division Head is a big role, equal to Managing Director grade.'",
+        "team_head": "= director. 'Team Head is equal to Director grade.'",
+        "product_manager": "= director. 'Senior Product Manager/Product Manager is a big category, it is also senior role, similar to Director grade.' Applies to both Product Manager and Senior Product Manager.",
+        "general_manager": "= director. 'For Chinese banks they like using General Manager or Deputy GM which is equivalent to Director/Head of, it is a senior role.' CHINESE BANKS ONLY — see chinese_bank_slugs."
+      },
+      "functional_titles_rank_below_grade_words": "team_head, general_manager and product_manager are FUNCTIONAL labels, not corporate grades, so they are matched only after the explicit grade words (MD/ED/SVP/AVP/VP/Director). 'Director, Trade Product Manager' is a Director because the title says so; 'ED, Team Head, Client Services' is an Executive Director. The grade word is harder evidence about the HR grade than the function is.",
+      "team_head_service_exclusion": "A Team Head whose title also names a client-relationship / client-service / customer-service / servicing / support / operations / admin / contact-centre function does NOT take the Director band. This is the one place Morris's rule is not applied wholesale, and it is deliberate: hk_jobs/enrichers/deepseek.py has carried the opposite instruction since v8 for a measured reason — a bank has MANY service/CR team heads at ~50k-100k and few desk heads at 150k+, and pricing the former as Directors is the exact over-estimation that disambiguation was added to stop. 3 of 16 live Team Head rows hit this exclusion. FLAG TO MORRIS.",
+      "product_manager_junior_exclusion": "Assistant / Junior / Trainee / Graduate Product Manager does not take the Director band. The category is senior; a title that explicitly says otherwise is not.",
+      "chinese_bank_slugs": [
+        "bochk",
+        "icbc-asia",
+        "ccb-asia",
+        "cmb-wing-lung",
+        "agricultural-bank-china",
+        "bank-of-communications",
+        "citic-bank",
+        "everbright-bank",
+        "china-merchants-bank",
+        "minsheng-bank",
+        "psbc",
+        "cicc"
+      ],
+      "chinese_bank_slugs_note": "Mainland-Chinese institutions operating in HK. 'bank-of-east-asia' is deliberately NOT here — it is a Hong Kong bank, and Morris scoped the General Manager convention to Chinese banks. It also uses GM titles, so ask him whether it belongs."
+    },
+    "insurance": {
+      "hierarchy_high_to_low": [
+        "vice_president",
+        "assistant_vice_president",
+        "director",
+        "associate_director",
+        "senior_manager_or_principal",
+        "manager",
+        "assistant_manager"
+      ],
+      "bands_monthly_hkd": {
+        "assistant_vice_president": [
+          150000,
+          200000
+        ],
+        "director": [
+          120000,
+          150000
+        ],
+        "associate_director": [
+          80000,
+          120000
+        ],
+        "senior_manager_or_principal": [
+          65000,
+          80000
+        ],
+        "manager": [
+          50000,
+          60000
+        ],
+        "assistant_manager": [
+          35000,
+          45000
+        ]
+      },
+      "note": "The hierarchy is INVERTED relative to banks: at insurers VP and AVP are the TOP grades, not mid-level. The old management_grade_caps table already knew this for FWD/Sun Life/Manulife only; Morris states it as the general insurance rule.",
+      "unmapped_grades": [
+        "vice_president"
+      ],
+      "unmapped_grades_note": "Morris listed insurance 'Vice President' at the top of the hierarchy but gave NO range for it. Deliberately left unmapped rather than invented: a VP title at a Tier 1 insurer therefore falls through to the existing 200k global ceiling. ASK MORRIS for the VP band.",
+      "tier_2_discount": 0.15,
+      "tier_2_discount_note": "'The index above only applies to Tier 1 groups. For Tier 2 companies apply 15% discount.' Applied to both endpoints of a matched insurance grade band.",
+      "tier_1_slugs": [
+        "aia-hk",
+        "hsbc-life",
+        "prudential-hk",
+        "axa-hk",
+        "manulife-hk",
+        "china-life",
+        "sun-life-hk",
+        "fwd-insurance",
+        "china-taiping",
+        "zurich-hk",
+        "chubb",
+        "generali-hk"
+      ],
+      "tier_1_not_configured": [
+        "BOC Group Life Assurance (only the bank, slug 'bochk', is in companies.yaml)",
+        "YF Life Insurance (formerly MassMutual Asia) — not in companies.yaml"
+      ],
+      "tier_2_slugs": [],
+      "tier_2_not_configured": [
+        "Hang Seng Insurance — NOTE: 'hang-seng-bank' is the BANK, not its insurance arm; do NOT map it here or the bank's own jobs get the insurance discount",
+        "Bupa Hong Kong",
+        "Cigna Worldwide General Insurance",
+        "MSIG Insurance (Hong Kong)",
+        "AIG Insurance Hong Kong",
+        "Bowtie Life Insurance"
+      ],
+      "tier_2_note": "None of Morris's six Tier 2 insurers is currently in companies.yaml, so the 15% discount is inert today. The list is recorded in full so it activates the moment any of them is added."
+    }
   }
 }

@@ -160,6 +160,39 @@ def _clamp_fingerprint() -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:8]
 
 
+#: Stored `prompt_version` values that are accepted as current — their rows are
+#: NOT queued for re-enrichment even though the string no longer matches.
+#:
+#: `version()` below is derived from the prompt text, so ANY edit to that text —
+#: a typo, a clarifying sentence, a new grade ladder — marks every stored
+#: estimate stale. Measured against the real billing dashboard that is ~$40 of
+#: DeepSeek across 6,188 active Roles ($0.0065/Role observed), every time anyone
+#: touches the prompt.
+#:
+#: Sometimes propagating IS the point: a recalibration should reach the back
+#: catalogue. Usually it is not, and the change only needs to apply to Roles
+#: enriched from now on. This list is where that judgement is recorded, one
+#: version at a time, with a reason.
+#:
+#: Note what this deliberately does NOT do: it does not rewrite old rows' stored
+#: `prompt_version`. Stamping them with the new string would buy the same saving
+#: by falsifying provenance, and every later audit would inherit the lie. The
+#: rows keep saying which prompt actually produced them; this list only says
+#: "and that is fine".
+#:
+#: `--re-enrich` still overrides everything here, so a genuine recalibration
+#: remains shippable.
+ACCEPTED_PRIOR_VERSIONS: frozenset[str] = frozenset({
+    # 2026-08-20 — Morris H.'s bank/insurance grade ladders were added to the
+    # DeepSeek prompt. Grandfathered by owner decision: the ladders are enforced
+    # deterministically by hk_jobs/salary_clamp.py on every row regardless of
+    # which prompt produced it, so re-running the model over the back catalogue
+    # would buy nothing the clamp does not already deliver for free.
+    "2026-07-21-v10-merged-3source-granular-prefix-cached"
+    "+deepseek-v4-flash+pac7b0b6b+adb2136ef+c0bba64e1",
+})
+
+
 def version(model: str, prompt: str) -> str:
     """
     The version stored alongside an enrichment, and compared on the next run.

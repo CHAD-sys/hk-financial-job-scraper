@@ -78,6 +78,24 @@ v11: thinking mode OFF. It was enabled in v9 for genuinely better tier/role sele
     active set. Existing rows keep their v9/v10 estimates; only new calls get the
     cheaper shape.
 
+v12: thinking mode BACK ON, with per-task output budgets and loud truncation.
+    v11's cost diagnosis was right and its cure was wrong. Sizing max_tokens for the
+    answer (700/450) while the model still had to produce one left no room at all:
+    every call on 2026-08-19 returned exactly 700.0 output tokens, truncated mid-JSON,
+    failed to parse, burned all three retries and wrote NOTHING. Two nightly runs
+    produced zero enrichments while still billing ~$0.21 a night. The newest row in
+    job_enrichments sat at 2026-08-17 for two days and no alarm existed to say so.
+    Three changes: thinking is enabled again (the v9 A/B test showed measurably better
+    tier/role selection, and tier/role is what selects the anchor cell that prices the
+    job); max_tokens is allocated PER TASK from the observed ledger rather than as one
+    blanket number — 10,000 with a description, 5,000 title-only, 4,000 for the audit
+    judge; and truncation is now its own error class, counted into usage totals and
+    never retried, because retrying a budget failure is deterministic and only triples
+    the bill. reasoning_effort stays at its default: "max" was tried in v9.2 and burned
+    the balance in ~9 minutes for no proven gain.
+    The bill goes back up — roughly $0.60 a night against v11's $0.07 — which is the
+    deliberate price of an estimator that produces estimates.
+
 API key: set DEEPSEEK_API_KEY env var.
 """
 
@@ -94,6 +112,7 @@ from typing import Any
 import httpx
 
 from hk_jobs import salary, salary_anchors
+from hk_jobs.ai_budget import BudgetExceeded, RunBudget
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +124,36 @@ _API_URL = "https://api.deepseek.com/chat/completions"
 # first v9 attempt — renaming it would re-enrich the whole active set for no gain.
 _MODEL = "deepseek-v4-flash"
 _DESC_MAX_CHARS = 2_000   # cap to keep prompt tight; descriptions are typically 1–4 KB
+
+# ── Per-task output budgets (v12) ────────────────────────────────────────────
+#
+# With thinking on, `max_tokens` must cover the reasoning trace AND the answer.
+# These are sized from the usage ledger, not from a guess: under thinking the
+# observed spend was 6,500–10,200 billed output tokens per role across seven
+# nightly runs, against a blanket 12,000 cap that the average never reached.
+#
+# v11 replaced that blanket with 700/450 — sized for the answer alone — and every
+# call on 2026-08-19 returned exactly 700.0 output tokens, truncated mid-JSON, for
+# zero enrichments across two nights. Never size this for the answer while
+# thinking is enabled.
+#
+# The two differ because the tasks differ. The description branch reads up to
+# 2,000 characters of posting, picks a tier/role/grade out of a 471-cell table and
+# writes a summary. The title-only branch has no posting to reason over and no
+# `description_summary` to produce, so it gets a smaller budget rather than the
+# same one — that is the "per task" part, which the pre-v11 blanket never did.
+MAX_TOKENS_WITH_DESCRIPTION = 10_000
+MAX_TOKENS_TITLE_ONLY = 5_000
+
+
+class TruncatedAnswer(RuntimeError):
+    """The model ran out of output budget before finishing its JSON.
+
+    It gets its own error class so the failure is legible in a log. As a bare
+    `json.JSONDecodeError` it was indistinguishable from a transient fault, was
+    retried three times, and hid a total two-day outage behind "all retries
+    failed".
+    """
 
 # PROMPT_VERSION is derived, not written down — see the bottom of this module.
 # hk_jobs.enrichment stores it alongside each enrichment row and re-enriches any
@@ -224,6 +273,21 @@ STEP 2 — Scan the FULL description for an explicitly stated salary. Look for p
 If found, use those EXACT figures as the estimate — they OVERRIDE the Step 1 caps and the
 Step 3 reference table. (e.g. description says "HK$3,000-5,000/month" → min 3000, max 5000.)
 
+STEP 2a — NOT every number next to a currency sign is a stated salary. Three traps:
+- "UP TO" IS A CEILING, NOT A RANGE. "up to HK$30K", "月薪可高达$100,000 - $130,000",
+  "最高可 $X", "as high as $X" state only an upper bound. Return salary_hkd_min = null and
+  salary_hkd_max = that figure. NEVER invent a lower bound, and never treat the two numbers
+  of an "up to $X - $Y" phrase as a range — the qualifier governs both.
+- COMMISSION AND AGENCY EARNINGS CLAIMS ARE NOT SALARY. Insurance-agency and wealth-
+  management "trainee"/"advisor" recruitment adverts advertise total achievable EARNINGS
+  (commission, 花紅/花红, 獎金/奖金, 佣金, bonus-inclusive). If the figure is an earnings
+  potential rather than a base salary, return null for BOTH salary_hkd fields and estimate
+  from the reference table instead. A HK$100,000/month "salary" for a trainee is the
+  clearest possible signal that the number is commission.
+- TOTAL COMP IS NOT BASE. "TC: 1.5-1.8M", "package", "OTE", "total compensation" are
+  bonus-inclusive. This board's basis is monthly BASE, so return null for both salary_hkd
+  fields rather than storing a total-comp figure as if it were base pay.
+
 STEP 3 — Only if NO salary is stated in the description, estimate from the REFERENCE TABLE
 below. It is a weighted merge of three 2025/2026 HK recruiter salary guides (Hays, PERSOLKELLY,
 Adecco), in monthly HK$ BASE, broken down into ~95 NAMED ROLES with per-grade rows. These bands
@@ -264,6 +328,15 @@ CRITICAL DISAMBIGUATION — "Team Head" / "Team Lead" / "Head of" titles:
 - "Head of [entire function/business]" (e.g. Head of Private Banking, Head of Compliance,
   Head of IT) → Director or MD row of that role, as the reference shows.
 - When you cannot tell which kind of team it is, use the LOWER interpretation.
+- BUT (Morris H., 2026-08-20) a "Team Head" that is NOT a service/CR/support/operations team
+  is a DIRECTOR-grade role at a bank — HK$100,000-150,000. The carve-out above is specifically
+  about the service/CR variety, which a bank has many of; it is not a rule about every Team Head.
+- "Division Head" is a big role, equal to the MANAGING DIRECTOR grade (HK$180,000-250,000).
+- "Product Manager" / "Senior Product Manager" at a bank is a big and genuinely SENIOR
+  category, similar to DIRECTOR grade (HK$100,000-150,000). "Assistant"/"Junior" Product
+  Manager is not.
+- Chinese banks favour "General Manager" and "Deputy GM"; both are DIRECTOR / "Head of"
+  grade there (HK$100,000-150,000) and are senior roles, not middle management.
 
 REFERENCE — monthly HK$ BASE, by function tier → named role → title level (higher tiers first;
 "[role_key]" is the exact string to return as "salary_role"):
@@ -282,25 +355,42 @@ STEP 4 — HARD CEILINGS. Apply LAST, after Steps 1-3. These can only LOWER your
 raise it, and they override every band above:
 - ABSOLUTE MAXIMUM: never estimate above HK$200,000/month for ANY role, at ANY company, at ANY
   seniority. There are no exceptions.
-- BANKS — if the company is a bank and the title clearly names one of these management grades
-  (hierarchy, highest to lowest: Managing Director > Executive Director > Director > Associate
-  Director > Vice President > Assistant Vice President; "Manager"/"Assistant Manager" titles
-  are the Assistant Vice President grade), cap at:
-    Assistant Vice President / AVP / Manager: max HK$70,000
-    Vice President / VP:                     max HK$80,000
-    Associate Director / AD:                 max HK$110,000
-    Director:                                max HK$160,000
-    Executive Director:                      max HK$200,000
-    Managing Director:                       max HK$200,000
-- BIG INSURANCE COMPANIES (e.g. AIA, Manulife, Prudential, AXA, Zurich, FWD, Sun Life,
-  Generali, China Life, Ping An, Chubb, Allianz, Swiss Re) — if the title clearly names one of
-  these grades, cap at:
-    Senior Manager / Principal: max HK$80,000
-    Associate Director / AD:    max HK$150,000
-    Director:                   max HK$200,000
-  Specifically at FWD, Sun Life, and Manulife the order is reversed at the top: Vice
-  President > Assistant Vice President > Director > Associate Director > Senior Manager >
-  Manager. VP/AVP roles at these three still never exceed the HK$200,000 absolute maximum.
+- BANKS — TITLE-GRADE BANDS. If the company is a bank and the title clearly names one of these
+  management grades, use the BAND as your whole answer (both endpoints), not merely as a cap.
+  At a bank the title IS the pay grade; it outranks whatever the tier/role tables suggested.
+  Hierarchy, highest to lowest, with the band for each:
+    Global Head:                                      HK$200,000-300,000
+    Regional Head / Managing Director:                HK$180,000-250,000
+    Executive Director / Head of:                     HK$130,000-180,000
+    Director / Head of:                               HK$100,000-150,000
+    Senior Vice President (= senior manager / associate director):  HK$80,000-100,000
+    Vice President (= Manager / Senior Manager):      HK$60,000-80,000
+    Assistant Vice President (= Manager):             HK$50,000-70,000
+  A bare "Manager" is ambiguous between the VP and AVP bands — use the AVP band.
+  These two grades are the ONLY place you may exceed the HK$200,000 absolute maximum, and only
+  at a bank on a clear title match: Managing Director and Global Head.
+- INSURANCE COMPANIES — TITLE-GRADE BANDS, and note the hierarchy is INVERTED relative to banks:
+  at insurers Vice President and Assistant Vice President are the TOP grades, not mid-level ones.
+  Highest to lowest:
+    Vice President:                                   (no band specified — do not guess; fall
+                                                       back to the tier/role tables)
+    Assistant Vice President / Head of:               HK$150,000-200,000
+    Senior Director / Director / Head of:             HK$120,000-150,000
+    Associate Director:                               HK$80,000-120,000
+    Principal / Senior Manager:                       HK$65,000-80,000
+    Manager:                                          HK$50,000-60,000
+    Assistant Manager:                                HK$35,000-45,000
+  These figures are for TIER 1 insurers: AIA Hong Kong, HSBC Life, Prudential Hong Kong, AXA
+  Hong Kong, Manulife Hong Kong, China Life (Overseas), BOC Group Life, Sun Life Hong Kong, FWD
+  Insurance, China Taiping (HK), Zurich (HK), Chubb (HK), YF Life, Generali (HK). For ANY OTHER
+  insurer — including Hang Seng Insurance, Bupa, Cigna, MSIG, AIG, Bowtie — apply a 15% discount
+  to both endpoints of the band.
+- SMALLER / MEDIUM EMPLOYERS. The bands above assume a listed multinational bank or insurer.
+  For a smaller or mid-sized firm, apply a 30% discount to both endpoints.
+- FRONT OFFICE IS EXEMPT from all of the title-grade bands above. A trading, investment-banking,
+  private-equity, hedge-fund, asset-management or private-banking-RM desk runs its own, much
+  higher ladder: a markets Vice President is not an operations Vice President. Use the
+  front_office tables for those and ignore this section.
 
 salary_estimated_max: the upper bound of a stated range if found in Step 2, otherwise AT MOST the
 matched band's upper figure after Step 4's caps — never above it. These are BASE SALARY only (in
@@ -447,7 +537,11 @@ Title: {title}"""
 
 
 class DeepSeekEnricher:
-    def __init__(self, api_key: str | None = None) -> None:
+    def __init__(
+        self,
+        api_key: str | None = None,
+        run_budget: "RunBudget | None" = None,
+    ) -> None:
         self.api_key = api_key or os.getenv("DEEPSEEK_API_KEY", "")
         if not self.api_key:
             raise ValueError(
@@ -459,6 +553,10 @@ class DeepSeekEnricher:
             "cache_miss": 0,
             "completion": 0,
         }
+        # A hard per-run spend cap. `DEEPSEEK_DAILY_ENRICH_LIMIT` bounds how many
+        # Roles a run touches, which is only a proxy for cost — and with thinking
+        # on it is a proxy that understates by ~100x. See hk_jobs/ai_budget.py.
+        self.run_budget = run_budget or RunBudget.from_environment()
         self._usage_lock = threading.Lock()
 
     def close(self) -> None:
@@ -483,6 +581,19 @@ class DeepSeekEnricher:
         results: dict[tuple[str, str], dict[str, Any] | None] = {}
         for source, source_id, title, description in jobs:
             key = (source, source_id)
+            if self.run_budget.exhausted:
+                # Stop cleanly and keep what was already bought. Everything not
+                # reached simply stays stale and is picked up by a later run —
+                # the enrichment selector is driven by prompt_version, so an
+                # unenriched Role is not lost, only deferred.
+                self._note_budget_stop()
+                logger.error(
+                    "BUDGET STOP — $%.2f of $%.2f spent over %d calls. %d Roles "
+                    "left for the next run.",
+                    self.run_budget.spent_usd, self.run_budget.limit_usd,
+                    self.run_budget.calls, len(jobs) - len(results),
+                )
+                break
             result = self._enrich_with_retry(title, description=description or "")
             results[key] = result
             if result:
@@ -507,18 +618,18 @@ class DeepSeekEnricher:
                 salary_instructions=_SALARY_INSTRUCTIONS,
                 summary_instructions=_SUMMARY_INSTRUCTIONS,
             )
-            # Sized for the answer, not a reasoning trace (v11). The JSON answer
-            # measures ~350 tokens; this branch also carries description_summary,
-            # so it gets the larger of the two budgets.
-            max_tokens = 700
+            max_tokens = MAX_TOKENS_WITH_DESCRIPTION
         else:
             prompt = _PROMPT_TITLE_ONLY.format(
                 company=company, title=title,
                 translation_instructions=_TRANSLATION_INSTRUCTIONS,
                 salary_instructions=_SALARY_INSTRUCTIONS,
             )
-            # No description_summary field in this branch, so a smaller answer.
-            max_tokens = 450
+            max_tokens = MAX_TOKENS_TITLE_ONLY
+
+        # Refuse BEFORE spending, not after. A guard that only reports is a
+        # receipt, not a cap.
+        self.run_budget.check()
 
         with httpx.Client(timeout=120.0) as client:
             resp = client.post(
@@ -531,14 +642,21 @@ class DeepSeekEnricher:
                     "model": _MODEL,
                     "messages": [{"role": "user", "content": prompt}],
                     "max_tokens": max_tokens,
-                    # No "thinking" key and no "reasoning_effort" — v11. Both are what
-                    # turned a ~350-token answer into ~7,000 billed output tokens.
-                    # Pinned by tests/test_deepseek_request.py; read the v11 changelog
-                    # before putting either back.
-                    # Live again now that thinking is off (it silently ignored these):
-                    # low temperature because this is extraction, not composition.
-                    "temperature": 0.2,
-                    "top_p": 0.9,
+                    # v12: thinking back on. It was removed in v11 to stop paying for
+                    # reasoning traces, which was the right cost diagnosis and the wrong
+                    # cure — the v9 A/B test showed thinking picks tiers and roles
+                    # measurably better, and tier/role selection is what decides which
+                    # of the 471 anchor cells prices the job.
+                    "thinking": {"type": "enabled"},
+                    # reasoning_effort is deliberately OMITTED so it stays at the
+                    # default. "max" was tried in v9.2 and burned the whole DeepSeek
+                    # balance in ~9 minutes for no proven quality gain; the A/B test
+                    # that justified thinking ran at default effort, so default is the
+                    # validated setting, not a compromise.
+                    #
+                    # temperature/top_p are NOT sent: DeepSeek silently ignores them
+                    # under thinking mode, and sending them implies a control we do not
+                    # have. Both are pinned by tests/test_deepseek_request.py.
                 },
             )
 
@@ -550,12 +668,58 @@ class DeepSeekEnricher:
 
         with self._usage_lock:
             add_usage(self.usage_totals, payload)
-        message = payload["choices"][0]["message"]
-        # `reasoning_content` handling lived here until v11. With thinking off the API
-        # no longer returns it, so reading it was dead code that implied it was still on.
-        text = message["content"].strip()
+        usage = payload.get("usage") or {}
+        self.run_budget.record(
+            cache_hit=int(usage.get("prompt_cache_hit_tokens") or 0),
+            cache_miss=int(usage.get("prompt_cache_miss_tokens") or 0),
+            completion=int(usage.get("completion_tokens") or 0),
+        )
+        choice = payload["choices"][0]
+        message = choice["message"]
+        # Thinking mode returns this alongside `content`. Never persisted, but logged at
+        # DEBUG so a mis-tiered job's reasoning can be read back afterwards.
+        reasoning = message.get("reasoning_content")
+        if reasoning:
+            logger.debug("Reasoning for %r: %s", title[:60], reasoning[:2000])
+
+        text = (message.get("content") or "").strip()
+
+        # Truncation is checked BEFORE parsing, and is its own error. Two distinct
+        # symptoms, one cause — the output budget ran out:
+        #   * finish_reason "length" with a partial answer (what v11 produced), and
+        #   * empty content, which is what happens when the reasoning trace alone
+        #     consumes the whole budget (see the v9 changelog).
+        # Parsing first turns both into a generic JSONDecodeError, which is precisely
+        # how a two-day outage passed for ordinary flakiness.
+        finish_reason = choice.get("finish_reason")
+        if finish_reason == "length" or not text:
+            self._note_truncation()
+            raise TruncatedAnswer(
+                f"answer truncated at max_tokens={max_tokens} "
+                f"(finish_reason={finish_reason!r}, content={len(text)} chars). "
+                "The output budget is too small for a reasoning trace plus the answer — "
+                "see MAX_TOKENS_WITH_DESCRIPTION / MAX_TOKENS_TITLE_ONLY."
+            )
+
         text = text.replace("```json", "").replace("```", "").strip()
         return json.loads(text)
+
+    def _note_budget_stop(self) -> None:
+        with self._usage_lock:
+            self.usage_totals["budget_stopped"] = 1
+            self.usage_totals["budget_spent_cents"] = int(
+                round(self.run_budget.spent_usd * 100)
+            )
+
+    def _note_truncation(self) -> None:
+        """Count truncations into the usage totals.
+
+        `ai_usage.record()` reads its columns by name, so an extra key rides along
+        harmlessly — but it means a run can finally SEE this. Nothing counted it
+        before, which is why 906 truncated calls looked like a normal night.
+        """
+        with self._usage_lock:
+            self.usage_totals["truncated"] = self.usage_totals.get("truncated", 0) + 1
 
     # ── helpers ───────────────────────────────────────────────────────────────
 
@@ -565,6 +729,16 @@ class DeepSeekEnricher:
         for attempt in range(max_retries):
             try:
                 return self.enrich_single(title, company, description)
+            except TruncatedAnswer as exc:
+                # Not retried. A budget that is too small is deterministic: the next
+                # two attempts fail identically and simply triple the bill, which is
+                # exactly what happened on 2026-08-19 (906 calls for 302 roles, all
+                # truncated, nothing written). Loud and once.
+                logger.error(
+                    "TRUNCATED %r — %s. Not retrying; raise the budget instead.",
+                    title[:50], exc,
+                )
+                return None
             except Exception as exc:
                 if attempt < max_retries - 1:
                     wait = 2 ** attempt

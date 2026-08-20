@@ -302,11 +302,18 @@ class EnrichmentPipeline:
         # 33), which the WHERE clause below excludes unconditionally, re_enrich/
         # boutique_only included: those flags exist to force everything ELSE to be
         # reconsidered, not to erase a correction a human already made.
+        # A version is "current enough" if it IS the current one, or if an operator
+        # has grandfathered it in salary.ACCEPTED_PRIOR_VERSIONS — see that constant
+        # for why. Without this, editing one sentence of the prompt re-enriches the
+        # entire active board (~$40 at the observed rate), which is a decision, not
+        # something that should happen as a side effect of a wording change.
+        accepted = {PROMPT_VERSION, *salary.ACCEPTED_PRIOR_VERSIONS}
+        accepted_sql = ", ".join("'" + v.replace("'", "''") + "'" for v in sorted(accepted))
         enriched_filter = (
             ""
             if (re_enrich or boutique_only)
             else f"AND (e.source_id IS NULL OR e.prompt_version IS NULL "
-                 f"OR e.prompt_version != '{PROMPT_VERSION}')"
+                 f"OR e.prompt_version NOT IN ({accepted_sql}))"
         )
         sql = f"""
             SELECT j.source, j.source_id, j.title, j.company, j.company_slug,

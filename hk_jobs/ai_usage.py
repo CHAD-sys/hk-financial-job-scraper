@@ -12,10 +12,26 @@ import sqlite3
 from datetime import UTC, datetime
 from typing import Any
 
-# DeepSeek-V4-Flash public USD prices per one million tokens, checked 2026-08-10.
-_CACHE_HIT_PER_MILLION = 0.0028
-_CACHE_MISS_PER_MILLION = 0.14
-_OUTPUT_PER_MILLION = 0.28
+# USD per one million tokens.
+#
+# These were "checked 2026-08-10" and were measured WRONG on 2026-08-20: against
+# the real billing dashboard ($26.46 for 171.0M tokens over 08/02-08/20, a
+# blended $0.155/1M) the old values under-estimated the bill by roughly 5-10x,
+# and a night that actually cost several dollars was reported internally as
+# "$0.21". They now come from hk_jobs/ai_budget.py, calibrated upward from
+# observed spend so an estimate errs toward caution.
+#
+# TWO CAVEATS, both load-bearing:
+#   * This is still an ESTIMATE. `estimated_cost_usd` is not a bill. The only
+#     authority on spend is platform.deepseek.com/usage.
+#   * The ledger is incomplete anyway — it recorded 3,476 calls over a window
+#     the dashboard billed 16,527 for (~21%). Do not size a decision on a SUM
+#     over this table without checking it against the dashboard first.
+from hk_jobs.ai_budget import (
+    CACHE_HIT_PER_MILLION as _CACHE_HIT_PER_MILLION,
+    CACHE_MISS_PER_MILLION as _CACHE_MISS_PER_MILLION,
+    OUTPUT_PER_MILLION as _OUTPUT_PER_MILLION,
+)
 
 _DDL = """
 CREATE TABLE IF NOT EXISTS ai_usage (

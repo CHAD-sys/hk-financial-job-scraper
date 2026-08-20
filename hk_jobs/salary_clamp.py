@@ -125,6 +125,103 @@ _INSURANCE_GRADE_PATTERNS: tuple[tuple[str, re.Pattern], ...] = (
     ("senior_manager_or_principal", re.compile(r"\bsenior manager\b|\bprincipal\b", re.I)),
 )
 
+# ── Morris H.'s title-grade BANDS (2026-08-19) ───────────────────────────────
+# Ordered highest-to-lowest, and the order is load-bearing: "Senior Vice
+# President" must match before the bare "Vice President" pattern gets a chance,
+# and "Associate Director" before "Director".
+#
+# Bank: Morris's parenthetical equivalences are encoded here — Senior Vice
+# President == senior manager == associate director; Vice President == Manager /
+# Senior Manager; Assistant Vice President == Manager. A bare "Manager" is
+# genuinely ambiguous between the VP and AVP bands, so it keeps the existing
+# table's reading (the lower one) rather than inventing a promotion.
+# The third element is AUTHORITATIVE: may this match set the whole band (floor
+# included), or may it only lower a ceiling?
+#
+# This distinction is the difference between a safe rule and a very unsafe one.
+# The old table mapped a bare "Manager" to the AVP grade, which was harmless
+# while it was only a CEILING — capping a HK$25,000 job at HK$70,000 does
+# nothing. As a FLOOR the same mapping drags every "Business Transformation
+# Manager" and "Customer Service Manager" at a bank up to HK$50,000, and on a
+# real 78-row sample it moved the median +47.7%.
+#
+# "Manager" in a HK bank title spans most of the pay scale and is not evidence
+# of a grade. Morris's own text reflects this: in the BANK list "Manager" is a
+# parenthetical gloss on AVP, whereas in the INSURANCE list Manager and
+# Assistant Manager are grades in their own right with their own bands. So the
+# explicit grade words are authoritative here and the glosses are not.
+_BANK_BAND_PATTERNS: tuple[tuple[str, re.Pattern, bool], ...] = (
+    ("global_head", re.compile(r"\bglobal head\b|\bhead of global\b", re.I), True),
+    ("division_head", re.compile(r"\bdivision head\b|\bhead of division\b", re.I), True),
+    ("managing_director", re.compile(r"\bmanaging director\b|\bMD\b", re.I), True),
+    ("executive_director", re.compile(r"\bexecutive director\b|\bED\b", re.I), True),
+    ("senior_vice_president", re.compile(r"\bsenior vice president\b|\bSVP\b", re.I), True),
+    # Morris folds associate director into the SVP grade.
+    ("senior_vice_president", re.compile(r"\bassociate director\b|\bAD\b", re.I), True),
+    ("assistant_vice_president",
+     re.compile(r"\bassistant vice president\b|\bassistant\s+V\.?P\.?\b|\bass?t\.?\s+V\.?P\.?\b|\bAVP\b", re.I), True),
+    ("vice_president", re.compile(r"\bvice president\b|\bVP\b", re.I), True),
+    ("director", re.compile(r"\bdirector\b", re.I), True),
+    # ── Functional titles (Morris, 2026-08-20) ───────────────────────────────
+    # Ranked BELOW every explicit grade word above, on purpose: "Director, Trade
+    # Product Manager" is a Director because the title says so, and "ED, Team Head"
+    # is an Executive Director. The grade word is harder evidence about the HR
+    # grade than the function is.
+    ("team_head", re.compile(r"\bteam head\b|\bhead of team\b", re.I), True),
+    ("general_manager",
+     # "General Manager" / "Deputy GM" spelled out only. A bare \bGM\b is NOT
+     # matched: live rows include "Senior Legal Counsel (GM)" and "Senior Treasury
+     # Marketing Manager (GM-Corporate)", where the two letters are part of a
+     # department name. Same trap as the bare "Manager" gloss.
+     re.compile(r"\b(?:deputy|assistant|acting)?\s*general manager\b|\bdeputy\s+GM\b", re.I),
+     True),
+    ("product_manager", re.compile(r"\b(?:senior\s+)?product manager\b", re.I), True),
+    # Ambiguous glosses — ceiling only, exactly as before Morris's tables landed.
+    ("assistant_vice_president", re.compile(r"\bassistant manager\b", re.I), False),
+    ("assistant_vice_president", re.compile(r"\bmanager\b", re.I), False),
+)
+
+#: A Team Head of one of these does NOT take the Director band — see the anchors
+#: file's `team_head_service_exclusion`. deepseek.py's prompt has carried this
+#: carve-out since v8 because a bank has MANY service/CR team heads at ~50k-100k.
+_SERVICE_TEAM = re.compile(
+    r"client relationship|client servic|customer servic|\bCRM\b|servicing"
+    r"|support|operations|\badmin\b|helpdesk|contact centre|call centre",
+    re.I,
+)
+
+#: The category is senior; a title that explicitly says otherwise is not.
+_JUNIOR_PRODUCT_MANAGER = re.compile(
+    r"\b(?:assistant|junior|trainee|graduate|associate)\s+(?:senior\s+)?product manager\b",
+    re.I,
+)
+
+# Insurance: the hierarchy INVERTS. VP and AVP are the top grades here, not the
+# middle ones — the old caps table already knew this for FWD/Sun Life/Manulife;
+# Morris states it as the general rule for insurers. `vice_president` is matched
+# but has NO band (he left the range blank), so it resolves to None and the row
+# falls through to the ordinary ceilings rather than to an invented number.
+# At insurers Manager and Assistant Manager ARE named grades in Morris's list,
+# each with its own band, so unlike the bank table they are authoritative.
+_INSURANCE_BAND_PATTERNS: tuple[tuple[str, re.Pattern, bool], ...] = (
+    ("assistant_vice_president",
+     re.compile(r"\bassistant vice president\b|\bassistant\s+V\.?P\.?\b|\bass?t\.?\s+V\.?P\.?\b|\bAVP\b", re.I), True),
+    ("vice_president", re.compile(r"\bvice president\b|\bVP\b", re.I), True),
+    ("associate_director", re.compile(r"\bassociate director\b|\bAD\b", re.I), True),
+    ("director", re.compile(r"\b(?:senior\s+)?director\b", re.I), True),
+    ("senior_manager_or_principal",
+     re.compile(r"\bsenior manager\b|\bprincipal\b", re.I), True),
+    ("assistant_manager", re.compile(r"\bassistant manager\b", re.I), True),
+    ("manager", re.compile(r"\bmanager\b", re.I), True),
+)
+
+_BANK_BANDS = salary_anchors.BANK_BANDS
+_INSURANCE_BANDS = salary_anchors.INSURANCE_BANDS
+_INSURANCE_TIER_1 = salary_anchors.INSURANCE_TIER_1_SLUGS
+_INSURANCE_TIER_2_DISCOUNT = salary_anchors.INSURANCE_TIER_2_DISCOUNT
+_BANK_EXCEEDS_GLOBAL_MAX = salary_anchors.BANK_EXCEEDS_GLOBAL_MAX
+_CHINESE_BANK_SLUGS = salary_anchors.CHINESE_BANK_SLUGS
+
 
 # An internship is never paid on the ladder its desk sits on. The enricher's prompt says
 # so in STEP 1 — "cap at HK$3,000-12,000/month regardless of company tier; bulge-bracket
@@ -156,11 +253,15 @@ _INTERNSHIP_PATTERN = re.compile(
     r"\b(?:"
     r"intern|interns|internship|internships"
     r"|summer\s+(?:intern|analyst|associate)"
-    r"|graduate\s+(?:intern|programme|program|trainee)"
+    # `programmes?` / `programs?`: without the optional plural the word boundary
+    # after "programme" fails against "Programmes" (the trailing "s" is a word
+    # character), and "2027 HSBC ... Graduate Programmes" was priced on the
+    # full-time ladder for months as a result.
+    r"|graduate\s+(?:intern|programmes?|programs?|trainee)"
     r"|trainee|trainees"
-    r"|trainee\s+(?:programme|program)"
+    r"|trainee\s+(?:programmes?|programs?)"
     r"|industrial\s+placement"
-    r"|placement\s+(?:programme|program)"
+    r"|placement\s+(?:programmes?|programs?)"
     r")\b"
     r"|暑期實習|實習生|實習",
     re.I,
@@ -284,9 +385,79 @@ def _company_category(company_slug: str | None) -> str | None:
 
 
 def _detect_grade(title: str, patterns: tuple[tuple[str, re.Pattern], ...]) -> str | None:
+    """First matching grade. Used by the legacy ceiling tables (2-tuples)."""
     for grade, pattern in patterns:
         if pattern.search(title):
             return grade
+    return None
+
+
+def _detect_grade_with_authority(
+    title: str, patterns: tuple[tuple[str, re.Pattern, bool], ...]
+) -> tuple[str, bool] | None:
+    """(grade, authoritative) for the highest-ranked pattern this title matches."""
+    for grade, pattern, authoritative in patterns:
+        if pattern.search(title):
+            return grade, authoritative
+    return None
+
+
+def title_grade_band(
+    company_slug: str | None, title: str | None
+) -> tuple[int, int, str] | None:
+    """Morris's (lo, hi, grade_key) for a bank/insurer title, or None.
+
+    Returns None — meaning "no opinion, use the ordinary ceilings" — for a
+    company that is neither a bank nor an insurer, a title that names no known
+    grade, and the one grade Morris deliberately left blank (insurance Vice
+    President). Inventing a band for that last case is the failure this guards.
+
+    Public because `/fix-s` and `salary_repair` must price a title exactly the
+    way the pipeline does; the two drifting apart is what a repair pass exists
+    to prevent.
+    """
+    if not title:
+        return None
+    category = _company_category(company_slug)
+    if category == "bank":
+        hit = _detect_grade_with_authority(title, _BANK_BAND_PATTERNS)
+        if hit is None or not hit[1]:
+            return None          # no match, or a ceiling-only gloss like "Manager"
+        grade = hit[0]
+
+        # Three narrow exclusions on the functional titles. Each one exists because
+        # the title alone is not enough evidence for the band it would otherwise get.
+        if grade == "team_head" and _SERVICE_TEAM.search(title):
+            return None
+        if grade == "product_manager" and _JUNIOR_PRODUCT_MANAGER.search(title):
+            return None
+        if grade == "general_manager" and company_slug not in _CHINESE_BANK_SLUGS:
+            # Morris scoped this convention to Chinese banks. Anywhere else
+            # "General Manager" means too many different things to price off.
+            return None
+
+        band = _BANK_BANDS.get(grade)
+        if not band:
+            return None
+        return int(band[0]), int(band[1]), grade
+
+    if category == "insurance":
+        hit = _detect_grade_with_authority(title, _INSURANCE_BAND_PATTERNS)
+        if hit is None or not hit[1]:
+            return None
+        grade = hit[0]
+        band = _INSURANCE_BANDS.get(grade)
+        if not band:
+            return None
+        lo, hi = int(band[0]), int(band[1])
+        # "The index above only applies to Tier 1 groups below. For Tier 2
+        # companies apply 15% discount." Anyone not on Morris's Tier 1 list
+        # takes the discount — that is the literal reading, and it is also the
+        # conservative one.
+        if company_slug not in _INSURANCE_TIER_1 and _INSURANCE_TIER_2_DISCOUNT:
+            factor = 1.0 - _INSURANCE_TIER_2_DISCOUNT
+            lo, hi = round(lo * factor), round(hi * factor)
+        return lo, hi, grade
     return None
 
 
@@ -389,6 +560,40 @@ def clamp_salary(
             if grade_ceiling is not None:
                 new_max = min(new_max, grade_ceiling)
             new_max = min(new_max, GLOBAL_MAX_MONTHLY_HKD)
+
+    # Morris H.'s title-grade band (2026-08-19). The ONE rule here that is not a
+    # ceiling: a matched grade at a known bank or insurer replaces BOTH endpoints,
+    # because at these employers the title is hard evidence of a pay grade and the
+    # model's tier/role read is not. It therefore also fixes the error every
+    # ceiling above is structurally blind to — a senior grade estimated far too LOW.
+    #
+    # Two exemptions, both already argued elsewhere in this module:
+    #   - front office, because a trading VP is not an operations VP and the
+    #     revenue ladder in the anchors file already reaches HK$200,000;
+    #   - internships, because the whole internship failure mode is a genuine
+    #     intern matching a real full-time band, so a band that merely competed
+    #     with the cap would win and undo it.
+    grade_band = (
+        None
+        if (internship or tier == FRONT_OFFICE_TIER)
+        else title_grade_band(company_slug, title)
+    )
+    if grade_band is not None:
+        lo, hi, grade_key = grade_band
+        new_min, new_max = lo, hi
+        # Managing Director (250k), Division Head (=MD) and Global Head (300k) are
+        # the only bands that
+        # may pass the global ceiling, and only on a deterministic title match at
+        # a bank. That ceiling exists to stop an UNMATCHED estimate drifting up;
+        # this is the opposite situation. Everything else still hard-caps.
+        exempt = (
+            _BANK_EXCEEDS_GLOBAL_MAX
+            and _company_category(company_slug) == "bank"
+            and grade_key in {"managing_director", "global_head", "division_head"}
+        )
+        if not exempt:
+            new_max = min(new_max, GLOBAL_MAX_MONTHLY_HKD)
+            new_min = min(new_min, new_max)
 
     if source_tier == "boutique":
         if new_min is not None:

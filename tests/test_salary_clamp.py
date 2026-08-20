@@ -117,7 +117,11 @@ def test_bank_avp_title_capped_at_70k():
         "middle_office", "senior", 40_000, 180_000,
         company_slug="hsbc-hk", title="Assistant Vice President, Compliance",
     )
-    assert out == (40_000, 70_000)
+    # SUPERSEDED 2026-08-19 by Morris H.'s title_grade_bands_monthly_hkd: the old
+    # management_grade_caps table was a CEILING; the band is a range and is
+    # authoritative for both endpoints. See tests/test_title_grade_bands.py.
+    # The floor is the upgrade: a ceiling-only table could never have raised 40k.
+    assert out == (50_000, 70_000)
 
 
 def test_bank_director_capped_at_160k_even_if_role_band_is_higher():
@@ -129,7 +133,11 @@ def test_bank_director_capped_at_160k_even_if_role_band_is_higher():
         "middle_office", "lead", 100_000, 200_000,
         company_slug="goldman-sachs", title="Director, Global Markets",
     )
-    assert out[1] == 160_000
+    # SUPERSEDED 2026-08-19 by Morris H.'s title_grade_bands_monthly_hkd: the old
+    # management_grade_caps table was a CEILING; the band is a range and is
+    # authoritative for both endpoints. See tests/test_title_grade_bands.py.
+    # Bank Director is now 100k-150k, tighter than the old 160k cap.
+    assert out[1] == 150_000
 
 
 def test_bank_plain_manager_title_treated_as_avp_grade():
@@ -165,7 +173,11 @@ def test_insurance_associate_director_capped_at_150k():
         "insurance", "lead", 100_000, 190_000,
         company_slug="manulife-hk", title="Associate Director, Actuarial",
     )
-    assert out[1] == 150_000
+    # SUPERSEDED 2026-08-19 by Morris H.'s title_grade_bands_monthly_hkd: the old
+    # management_grade_caps table was a CEILING; the band is a range and is
+    # authoritative for both endpoints. See tests/test_title_grade_bands.py.
+    # Insurance Associate Director is now 80k-120k.
+    assert out[1] == 120_000
 
 
 def test_insurance_director_capped_at_200k_global():
@@ -176,7 +188,12 @@ def test_insurance_director_capped_at_200k_global():
         "insurance", "lead", 100_000, 500_000,
         company_slug="fwd-insurance", title="Director, Distribution",
     )
-    assert out[1] == 200_000
+    # SUPERSEDED 2026-08-19 by Morris H.'s title_grade_bands_monthly_hkd: the old
+    # management_grade_caps table was a CEILING; the band is a range and is
+    # authoritative for both endpoints. See tests/test_title_grade_bands.py.
+    # Insurance Director is now 120k-150k; the extreme over-estimate is still
+    # pulled down, which is what this test actually guards.
+    assert out[1] == 150_000
 
 
 def test_insurance_vp_at_fwd_falls_back_to_global_cap_only():
@@ -200,7 +217,11 @@ def test_citi_display_name_variant_still_gets_capped_via_slug():
         "middle_office", "lead", 100_000, 200_000,
         company_slug="citibank-hk", title="Director, Global Markets",
     )
-    assert out[1] == 160_000
+    # SUPERSEDED 2026-08-19 by Morris H.'s title_grade_bands_monthly_hkd: the old
+    # management_grade_caps table was a CEILING; the band is a range and is
+    # authoritative for both endpoints. See tests/test_title_grade_bands.py.
+    # Slug matching is what this test guards; the number moved with the band.
+    assert out[1] == 150_000
 
 
 def test_unrecognised_slug_is_not_capped():

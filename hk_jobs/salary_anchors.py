@@ -64,6 +64,33 @@ GRADE_CAPS: dict = ANCHORS.get("management_grade_caps_monthly_hkd", {})
 BANK_CAPS: dict = GRADE_CAPS.get("bank", {}).get("caps_monthly_hkd", {})
 INSURANCE_CAPS: dict = GRADE_CAPS.get("insurance", {}).get("caps_monthly_hkd", {})
 
+# ── Title-grade BANDS (Morris H., 2026-08-19) ────────────────────────────────
+# The tables above are ceilings; these are ranges, and they supersede a ceiling
+# wherever a title matches. Kept as a SEPARATE key from GRADE_CAPS on purpose:
+# `fingerprint()` below hashes GRADE_CAPS, so folding these in would change
+# `salary.version()` and mark ~13,000 stored estimates stale, re-paying DeepSeek
+# for every one of them. The clamp reads the bands; the fingerprint does not.
+GRADE_BANDS: dict = ANCHORS.get("title_grade_bands_monthly_hkd", {})
+BANK_BANDS: dict = GRADE_BANDS.get("bank", {}).get("bands_monthly_hkd", {})
+INSURANCE_BANDS: dict = GRADE_BANDS.get("insurance", {}).get("bands_monthly_hkd", {})
+
+#: Grades allowed past `GLOBAL_MAX_MONTHLY_HKD` on a deterministic title match.
+BANK_EXCEEDS_GLOBAL_MAX: bool = bool(GRADE_BANDS.get("bank", {}).get("exceeds_global_max"))
+
+#: Chinese banks, where "General Manager"/"Deputy GM" is a Director-grade title.
+CHINESE_BANK_SLUGS: frozenset = frozenset(
+    GRADE_BANDS.get("bank", {}).get("chinese_bank_slugs", ())
+)
+
+#: Morris's Tier 1 insurers — the only ones his index applies to at face value.
+INSURANCE_TIER_1_SLUGS: frozenset = frozenset(
+    GRADE_BANDS.get("insurance", {}).get("tier_1_slugs", ())
+)
+#: Everyone else in the insurance set takes this discount off a matched band.
+INSURANCE_TIER_2_DISCOUNT: float = float(
+    GRADE_BANDS.get("insurance", {}).get("tier_2_discount") or 0.0
+)
+
 #: The one ceiling. Read from the file, so changing the calibration is one edit.
 GLOBAL_MAX_MONTHLY_HKD: int = int(META.get("global_max_monthly_hkd") or _FALLBACK_GLOBAL_MAX)
 

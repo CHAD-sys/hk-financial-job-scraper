@@ -195,15 +195,71 @@ class CommandPhaseExecutor:
         self._pipeline("--fetch-descriptions")
         return PhaseOutput(detail="Fetched missing Role descriptions")
 
-    def _deepseek(self, _record: DailyRunRecord) -> PhaseOutput:
+    def _deepseek(self, record: DailyRunRecord) -> PhaseOutput:
         if not self.environ.get("DEEPSEEK_API_KEY"):
             raise RuntimeError("DEEPSEEK_API_KEY is not configured")
         limit = self.environ.get("DEEPSEEK_DAILY_ENRICH_LIMIT")
         arguments = ["--enrich"]
         if limit:
             arguments.extend(["--enrich-limit", limit])
+
+        newest_before = self._newest_enrichment()
         self._pipeline(*arguments)
-        return PhaseOutput(detail="Enriched new and stale Roles")
+        written = self._enrichments_written_since(newest_before)
+        calls = self._enrichment_calls(record.run_id)
+
+        # Money spent, nothing produced. This is the assertion whose absence let
+        # the 2026-08-19 outage pass for a normal night: 906 calls, every one
+        # truncated at max_tokens, zero rows written, phase green, run published.
+        # Deliberately NOT "calls == 0 is a failure" — a night with nothing stale
+        # to enrich legitimately makes no calls at all.
+        if calls and not written:
+            raise RuntimeError(
+                f"DeepSeek made {calls} calls and wrote 0 enrichments. "
+                "The estimator is failing on every role — check for truncation "
+                "(TruncatedAnswer in the pipeline log) before the next run."
+            )
+
+        detail = f"Enriched {written} Roles" if written else "Nothing new to enrich"
+        return PhaseOutput(detail=detail, facts={})
+
+    # ── enrichment guard helpers ─────────────────────────────────────────────
+    #
+    # All three read through a fresh connection and fail open: on a database that
+    # predates these tables (a local run, a fixture) they return "no opinion", so
+    # the guard stays silent rather than inventing a failure.
+
+    def _query_one(self, sql: str, parameters: tuple = ()) -> Any:
+        try:
+            with sqlite3.connect(self.paths.database) as conn:
+                return conn.execute(sql, parameters).fetchone()[0]
+        except (sqlite3.Error, OSError, TypeError, IndexError):
+            return None
+
+    def _newest_enrichment(self) -> str | None:
+        """The high-water mark before the phase runs.
+
+        Taken from the database's own values rather than a wall clock, so the
+        before/after comparison cannot be skewed by the clock of whichever
+        process wrote the row.
+        """
+        return self._query_one("SELECT MAX(enriched_at) FROM job_enrichments")
+
+    def _enrichments_written_since(self, marker: str | None) -> int:
+        if marker is None:
+            return int(self._query_one(
+                "SELECT COUNT(*) FROM job_enrichments WHERE enriched_at IS NOT NULL"
+            ) or 0)
+        return int(self._query_one(
+            "SELECT COUNT(*) FROM job_enrichments WHERE enriched_at > ?", (marker,)
+        ) or 0)
+
+    def _enrichment_calls(self, run_id: str) -> int:
+        return int(self._query_one(
+            "SELECT COALESCE(SUM(calls),0) FROM ai_usage "
+            "WHERE run_id=? AND phase='deepseek_enrichment'",
+            (run_id,),
+        ) or 0)
 
     def _salary_audit(self, _record: DailyRunRecord) -> PhaseOutput:
         self._pipeline("--audit-salaries")
