@@ -233,6 +233,91 @@ def test_listing_refuses_an_unscoped_catalogue_read(client):
     assert "specific search" in response.json()["detail"]
 
 
+# ── Admin browse (ADR 0019) ───────────────────────────────────────────────────
+# Research Scope binds visitors and Seekers. It does not bind staff, who need to
+# page through Roles nobody would think to search for. Every test below went RED
+# before the exemption: each empty-query call returned 422.
+
+
+def test_an_untouched_estimate_is_not_marked_verified(client):
+    body = _get(client, page_size=100)
+    assert all(job["salary_verified"] is False for job in body["jobs"])
+
+
+def _register_admin(client, *, super_admin: bool = False):
+    """A signed-in admin on this client's session, by promoting a fresh Seeker."""
+    import seekers_store
+
+    email = f"admin-{uuid4().hex}@example.com"
+    response = client.post("/api/auth/register", json={
+        "email": email, "password": "correct horse battery staple", "display_name": "Admin",
+    })
+    assert response.status_code == 201, response.text
+    store = seekers_store.get_store()
+    row = store.get_seeker_by_email(email)
+    # Deliberately NOT set_admin as well when super_admin is asked for: the two
+    # columns are independent in the store, and the point of this branch is that
+    # is_super_admin ALONE is enough.
+    if super_admin:
+        store.set_super_admin(row["id"], True)
+    else:
+        store.set_admin(row["id"], True)
+    return row["id"]
+
+
+def test_an_admin_may_browse_the_catalogue_with_no_query(client):
+    _register_admin(client)
+    response = client.get("/api/jobs", params={"page_size": 100})
+    assert response.status_code == 200
+    # Not "some rows" — the whole live catalogue, member tiers included.
+    ids = set(_ids(response.json()))
+    assert {"MEDIUM", "RECRUITER"} <= ids
+
+
+def test_ultimate_admin_alone_may_browse_with_no_query(client):
+    """is_super_admin without is_admin still counts as staff — the two bits are
+    independent columns, and create_admin.py setting both is a convention, not a
+    constraint the store enforces."""
+    _register_admin(client, super_admin=True)
+    assert client.get("/api/jobs", params={"page_size": 100}).status_code == 200
+
+
+def test_admin_browse_still_hides_closed_and_duplicate_rows(client):
+    """The exemption lifts the QUERY requirement, not Visibility.BOARD. An admin
+    browsing everything must still see one card per live vacancy."""
+    _register_admin(client)
+    ids = set(_ids(client.get("/api/jobs", params={"page_size": 100}).json()))
+    assert "CLOSED" not in ids
+    assert "SECONDARY" not in ids
+    assert "XPOST_HIDDEN" not in ids
+
+
+def test_an_ordinary_seeker_is_still_refused_without_a_query(client):
+    """The exemption is staff-only. A signed-in non-admin gets the same 422 an
+    anonymous visitor does — being logged in is not being staff."""
+    _register_member(client)
+    response = client.get("/api/jobs", params={"page_size": 100})
+    assert response.status_code == 422
+    assert "specific search" in response.json()["detail"]
+
+
+def test_admin_facets_cover_the_whole_catalogue_when_browsing(client):
+    """A filter bar over an unscoped grid has to offer what that grid contains."""
+    _register_admin(client)
+    facets = client.get("/api/filters", params={"search": ""})
+    assert facets.status_code == 200
+    body = facets.json()
+    assert body["tier_counts"]["boutique"] == 1
+    assert body["tier_counts"]["social"] == 1
+    assert any(item["name"] == "Harbour Capital" for item in body["companies"])
+
+
+def test_an_empty_facet_request_is_still_refused_for_everyone_else(client):
+    response = client.get("/api/filters", params={"search": ""})
+    assert response.status_code == 422
+    assert "specific search" in response.json()["detail"]
+
+
 def test_total_counts_the_same_rows_it_returns(client):
     """The count is built from a hand-retyped copy of the listing's join, so it
     can drift from the rows without anything failing. Pin them together."""

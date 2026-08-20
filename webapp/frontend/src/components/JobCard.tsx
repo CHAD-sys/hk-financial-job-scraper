@@ -1,4 +1,4 @@
-import { Bookmark, MapPin, Briefcase, Clock, Star, Flame, Sparkles, Repeat2, Users, EyeOff, ShieldCheck, Archive } from 'lucide-react'
+import { Bookmark, MapPin, Briefcase, Clock, Star, Flame, Sparkles, Repeat2, Users, EyeOff, ShieldCheck, Archive, SquarePen } from 'lucide-react'
 import type { Job, LinkedInPostSignals } from '../api/client'
 import { SourceTag } from './SourceBadges'
 import {
@@ -12,6 +12,16 @@ interface Props {
   saved: boolean
   onToggleSave: (job: Job) => void
   onClick: (job: Job) => void
+  /**
+   * Open the admin edit drawer for this posting.
+   *
+   * Optional, and absent is the normal case: the board passes it only for a
+   * signed-in admin, so an ordinary Seeker's card never renders the control at
+   * all. The gate that matters is the server's (`require_admin` on
+   * /api/admin/jobs/*) — this prop only decides whether the affordance is
+   * drawn, never whether the write is allowed.
+   */
+  onEdit?: (job: Job) => void
 }
 
 type SectorColor = ReturnType<typeof getSectorColor>
@@ -35,7 +45,7 @@ const CLOSED_NEUTRAL: SectorColor = {
   accent: 'var(--color-border-strong)',
 }
 
-export default function JobCard({ job, saved, onToggleSave, onClick }: Props) {
+export default function JobCard({ job, saved, onToggleSave, onClick, onEdit }: Props) {
   const sectorColor = job.closed ? CLOSED_NEUTRAL : getSectorColor(job.sector)
   // Prefer the AI English title (Chinese postings); fall back to the original.
   const displayTitle = job.title_en || job.title
@@ -89,7 +99,7 @@ export default function JobCard({ job, saved, onToggleSave, onClick }: Props) {
         />
       )}
 
-      <CardHeader job={job} sectorColor={sectorColor} saved={saved} onToggleSave={onToggleSave} />
+      <CardHeader job={job} sectorColor={sectorColor} saved={saved} onToggleSave={onToggleSave} onEdit={onEdit} />
 
       {/* Title and the facts that qualify it are ONE group, so they sit closer
           to each other (gap-2) than to anything else (the card's gap-4). The
@@ -145,11 +155,13 @@ function CardHeader({
   sectorColor,
   saved,
   onToggleSave,
+  onEdit,
 }: {
   job: Job
   sectorColor: SectorColor
   saved: boolean
   onToggleSave: (job: Job) => void
+  onEdit?: (job: Job) => void
 }) {
   return (
     <div className="flex items-start justify-between gap-3 pt-1">
@@ -259,7 +271,25 @@ function CardHeader({
         </div>
       </div>
 
-      {/* Save button — raised above the card's stretched title button */}
+      {/* Save, and — for an admin only — edit. Both raised above the card's
+          stretched title button, and both stopPropagation: a click here must
+          not also open the posting the way a click anywhere else on the card
+          does. */}
+      <div className="flex flex-shrink-0 items-center gap-0.5">
+      {onEdit && (
+        <button
+          type="button"
+          onClick={e => { e.stopPropagation(); onEdit(job) }}
+          className="relative z-10 flex-shrink-0 p-1.5 rounded transition-colors duration-150 cursor-pointer"
+          style={{ color: 'var(--color-ink-faint)' }}
+          onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-blue)')}
+          onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-ink-faint)')}
+          aria-label={`Edit ${job.title_en || job.title}`}
+          title="Edit this posting"
+        >
+          <SquarePen size={15} strokeWidth={1.8} />
+        </button>
+      )}
       <button
         type="button"
         onClick={e => { e.stopPropagation(); onToggleSave(job) }}
@@ -281,6 +311,7 @@ function CardHeader({
           fill={saved ? 'currentColor' : 'none'}
         />
       </button>
+      </div>
     </div>
   )
 }
@@ -460,11 +491,21 @@ function CardFooter({ job }: { job: Job }) {
           {salary}
         </span>
       ) : estimatedSalary ? (
-        // AI estimate — muted + "AI est." tag so it never reads as disclosed pay
+        // Two different claims wearing the same shape. An untouched figure is
+        // the model's guess and stays muted with "AI est." on it. One a human
+        // corrected is not a guess any more, so it gets the ink and confidence
+        // of a real number and says "Checked" — calling a verified figure an AI
+        // estimate is the same error as the reverse, just quieter.
         <span
           className="flex items-center gap-1 text-xs tabular-nums"
-          style={{ color: 'var(--color-ink-faint)', fontFamily: 'var(--font-mono)' }}
-          title="AI-estimated base salary (not disclosed by employer)"
+          style={{
+            color: job.salary_verified ? 'var(--color-ink)' : 'var(--color-ink-faint)',
+            fontFamily: 'var(--font-mono)',
+            fontWeight: job.salary_verified ? 600 : undefined,
+          }}
+          title={job.salary_verified
+            ? 'Reviewed and corrected by the FinEx team (not disclosed by employer)'
+            : 'AI-estimated base salary (not disclosed by employer)'}
         >
           {estimatedSalary}
           <span
@@ -473,12 +514,15 @@ function CardFooter({ job }: { job: Job }) {
               fontFamily: 'var(--font-sans)',
               fontSize: '12px',
               letterSpacing: '0.04em',
-              backgroundColor: 'var(--color-surface-2)',
-              color: 'var(--color-ink-faint)',
-              border: '1px solid var(--color-border)',
+              backgroundColor: job.salary_verified
+                ? 'var(--color-success-bg)' : 'var(--color-surface-2)',
+              color: job.salary_verified
+                ? 'var(--color-success)' : 'var(--color-ink-faint)',
+              border: `1px solid ${job.salary_verified
+                ? 'var(--color-success-border)' : 'var(--color-border)'}`,
             }}
           >
-            AI est.
+            {job.salary_verified ? 'Checked' : 'AI est.'}
           </span>
         </span>
       ) : (

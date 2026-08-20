@@ -28,6 +28,7 @@ const recruiterAccountingOfficer: Job = {
   salary_estimated_min: null,
   salary_estimated_max: 23_500,
   salary_estimated_confidence: 'high',
+  salary_verified: false,
   years_experience_required: 2,
   posted_at: '2026-07-01T00:00:00Z',
   url: 'https://linkedin.example/post',

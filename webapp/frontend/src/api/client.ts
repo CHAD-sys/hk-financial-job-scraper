@@ -91,6 +91,12 @@ export interface Job {
   salary_estimated_min: number | null
   salary_estimated_max: number | null
   salary_estimated_confidence: string | null
+  /**
+   * A human on the FinEx team corrected this Role's enrichment, so the salary
+   * shown is not the model's guess. Derived server-side from
+   * `job_enrichments.manually_edited_at` — see JobSummary in job_read.py.
+   */
+  salary_verified: boolean
   years_experience_required: number | null
   posted_at: string | null
   url: string

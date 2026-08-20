@@ -24,7 +24,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from hk_jobs.enrichers.deepseek import _MODEL, PROMPT_VERSION, DeepSeekEnricher
-from hk_jobs import salary
+from hk_jobs import salary, salary_corrections
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +137,20 @@ class EnrichmentPipeline:
             logger.info("Enriching %d jobs [%s] with %d concurrent workers …", total, mode, _MAX_WORKERS)
 
             enriched = failed = 0
-            enricher = DeepSeekEnricher(api_key=self._api_key)
+            # Read once, on this run's own connection, and handed to the
+            # enricher. What admins have already corrected by hand becomes
+            # evidence in front of the model for Roles of the same shape — see
+            # hk_jobs/salary_corrections.py, including why this deliberately
+            # does NOT invalidate estimates already stored.
+            corrections = salary_corrections.load(conn)
+            if corrections:
+                logger.info(
+                    "Salary calibration: %d human correction(s) available to the estimator",
+                    len(corrections),
+                )
+            enricher = DeepSeekEnricher(
+                api_key=self._api_key, salary_corrections=corrections,
+            )
 
             for batch_start in range(0, total, batch_size):
                 batch = jobs[batch_start: batch_start + batch_size]
@@ -152,6 +165,7 @@ class EnrichmentPipeline:
                         pool.submit(
                             enricher._enrich_with_retry,
                             row["title"], row["company"], row["description_clean"] or "",
+                            seniority=row["seniority"] if "seniority" in row.keys() else None,
                         ): row
                         for row in batch
                     }

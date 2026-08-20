@@ -30,6 +30,7 @@ from hk_jobs.enrichers.deepseek import (
     DeepSeekEnricher,
     TruncatedAnswer,
 )
+from hk_jobs.salary_corrections import Correction
 
 _ANSWER = {
     "seniority": "mid", "years_experience": 5, "skills": ["excel"],
@@ -172,3 +173,63 @@ def test_usage_is_still_accumulated_for_the_cost_ledger(sent):
     assert enricher.usage_totals["cache_hit"] == 8500
     assert enricher.usage_totals["cache_miss"] == 300
     assert enricher.usage_totals["completion"] == 340
+
+
+# ── Human corrections reaching the model ─────────────────────────────────────
+# The write side (job_edit) and the selection side (salary_corrections) are
+# tested elsewhere. What is tested here is the join between them: that a
+# correction actually lands in the request body, and — the property that keeps
+# the nightly bill flat — that an irrelevant one changes nothing at all.
+
+
+def _prompt(sent) -> str:
+    return sent["messages"][0]["content"]
+
+
+#: The evidence block's own lead-in. NOT the bare words "HUMAN CORRECTIONS":
+#: Step 6 of the static salary instructions names the block in order to explain
+#: how to treat it, so those words are in every prompt whether or not any
+#: correction was attached.
+_BLOCK_MARKER = "our team reviewed these similar roles"
+
+
+def test_a_relevant_correction_reaches_the_model(sent):
+    enricher = DeepSeekEnricher(
+        api_key="test-key",
+        salary_corrections=[
+            Correction(
+                title="Credit Analyst", company="Industrial Bank", seniority="mid",
+                category=None, old_min=35000, old_max=60000,
+                new_min=42000, new_max=68000,
+            ),
+        ],
+    )
+    enricher.enrich_single("Senior Credit Analyst", "A Bank", description="Do credit things.")
+    prompt = _prompt(sent)
+    assert _BLOCK_MARKER in prompt
+    assert "HK$42,000-68,000" in prompt
+
+
+def test_an_irrelevant_correction_leaves_the_prompt_untouched(sent):
+    """The one that matters for cost. If an unrelated correction perturbed the
+    prompt, every admin edit would change what ~6,000 nightly calls send."""
+    baseline_enricher = DeepSeekEnricher(api_key="test-key")
+    baseline_enricher.enrich_single("Risk Analyst", "A Bank", description="Do risk things.")
+    baseline = _prompt(sent)
+
+    enricher = DeepSeekEnricher(
+        api_key="test-key",
+        salary_corrections=[
+            Correction(
+                title="Marine Biologist", company="Ocean Co", seniority="mid",
+                category=None, old_min=1, old_max=2, new_min=3, new_max=4,
+            ),
+        ],
+    )
+    enricher.enrich_single("Risk Analyst", "A Bank", description="Do risk things.")
+    assert _prompt(sent) == baseline
+
+
+def test_an_enricher_given_no_corrections_behaves_exactly_as_before(sent):
+    _enricher().enrich_single("Risk Analyst", "A Bank", description="Do risk things.")
+    assert _BLOCK_MARKER not in _prompt(sent)

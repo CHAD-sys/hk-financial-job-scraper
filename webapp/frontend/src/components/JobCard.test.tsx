@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import JobCard from './JobCard'
 import type { Job } from '../api/client'
@@ -32,6 +32,7 @@ const base: Job = {
   salary_estimated_min: null,
   salary_estimated_max: null,
   salary_estimated_confidence: null,
+  salary_verified: false,
   years_experience_required: null,
   posted_at: '2026-07-28T00:00:00Z',
   url: 'https://example.com/job',
@@ -128,5 +129,75 @@ describe('JobCard', () => {
 
     render(<JobCard job={{ ...live, closed: true }} saved={false} onToggleSave={noop} onClick={noop} />)
     expect(screen.queryByText('Urgently hiring')).toBeNull()
+  })
+
+  // ── Admin edit affordance ──────────────────────────────────────────────
+  // Absence again, and the same reason as the two above: an ordinary Seeker
+  // must never see the pencil, and a control that leaks onto every card is
+  // exactly the kind of regression nobody notices arriving.
+
+  it('shows no edit control when the board did not pass onEdit', () => {
+    render(<JobCard job={base} saved={false} onToggleSave={noop} onClick={noop} />)
+    expect(screen.queryByLabelText(/^Edit /)).toBeNull()
+  })
+
+  it('shows an edit control for an admin', () => {
+    render(<JobCard job={base} saved={false} onToggleSave={noop} onClick={noop} onEdit={noop} />)
+    expect(screen.getByLabelText('Edit Vice President, Credit Risk')).toBeTruthy()
+  })
+
+  // ── Whose number is it ────────────────────────────────────────────────
+  // Same figure, two very different claims. Badging a human-corrected salary
+  // "AI est." tells the Seeker a machine guessed it, which is exactly the
+  // provenance error the badge exists to prevent, pointed the other way.
+
+  it('badges an untouched estimate as the AI estimate it is', () => {
+    const estimated = { ...base, salary_estimated_min: 40_000, salary_estimated_max: 60_000 }
+    render(<JobCard job={estimated} saved={false} onToggleSave={noop} onClick={noop} />)
+    expect(screen.getByText('AI est.')).toBeTruthy()
+    expect(screen.queryByText('Checked')).toBeNull()
+  })
+
+  it('stops calling a corrected salary an AI estimate', () => {
+    const corrected = {
+      ...base,
+      salary_estimated_min: 40_000,
+      salary_estimated_max: 60_000,
+      salary_verified: true,
+    }
+    render(<JobCard job={corrected} saved={false} onToggleSave={noop} onClick={noop} />)
+    expect(screen.getByText('Checked')).toBeTruthy()
+    expect(screen.queryByText('AI est.')).toBeNull()
+  })
+
+  it('leaves a disclosed salary alone either way', () => {
+    // salary_verified rides on the enrichment, and an employer-stated figure is
+    // not an enrichment. It must not pick up a badge it never had.
+    const disclosed = {
+      ...base, salary_hkd_min: 50_000, salary_hkd_max: 80_000, salary_verified: true,
+    }
+    render(<JobCard job={disclosed} saved={false} onToggleSave={noop} onClick={noop} />)
+    expect(screen.queryByText('Checked')).toBeNull()
+    expect(screen.queryByText('AI est.')).toBeNull()
+  })
+
+  it('edits the posting without also opening it', () => {
+    // The card's title button is stretched over the whole card, so a pencil
+    // that did not stop propagation would fire both — the drawer and the
+    // detail panel would open on top of each other.
+    const edited: Job[] = []
+    const opened: Job[] = []
+    render(
+      <JobCard
+        job={base}
+        saved={false}
+        onToggleSave={noop}
+        onClick={j => opened.push(j)}
+        onEdit={j => edited.push(j)}
+      />,
+    )
+    fireEvent.click(screen.getByLabelText('Edit Vice President, Credit Risk'))
+    expect(edited).toHaveLength(1)
+    expect(opened).toHaveLength(0)
   })
 })

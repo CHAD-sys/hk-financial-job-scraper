@@ -29,6 +29,7 @@ import SearchHero from '../components/SearchHero'
 import RecommendedRoles from '../components/RecommendedRoles'
 import ResumeMatches from '../components/ResumeMatches'
 import MemberRoleNotice from '../components/MemberRoleNotice'
+import AdminJobEditDrawer from '../components/AdminJobEditDrawer'
 
 const PAGE_SIZE = 24
 const SORT_OPTIONS = [
@@ -61,9 +62,26 @@ export default function JobBoardPage() {
   const [sectorCount, setSectorCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
+  const [editingJob, setEditingJob] = useState<Job | null>(null)
+  // An admin who submitted the search box EMPTY, asking for the whole
+  // catalogue. Its own state rather than a derived "is an admin and has no
+  // query": arriving at /jobs as an admin must still land on the hero, exactly
+  // as it does for a Seeker. Browsing everything is a thing you ask for.
+  const [adminBrowse, setAdminBrowse] = useState(false)
   const [resumeMatches, setResumeMatches] = useState<ResumeMatchesResponse | null>(null)
   const { toggle: toggleSave, isSaved } = useSavedRoles()
   const { seeker, loading: authLoading } = useAuth()
+
+  // Whether to DRAW the pencil on each card, nothing more. The server decides
+  // whether the edit is allowed (`require_admin` on /api/admin/jobs/*); a
+  // Seeker who forged this bit locally would get a 403 on the first request.
+  //
+  // Both bits, not just is_admin. In practice every Ultimate Admin also carries
+  // is_admin — create_admin.py sets both — but seekers_store.set_super_admin()
+  // writes only its own column, so the two are independent in the data model.
+  // Reading just is_admin would hand Ultimate Admin a board with no pencil on
+  // it the first time someone granted the stronger bit on its own.
+  const canEdit = Boolean(seeker?.is_admin || seeker?.is_super_admin)
 
   // Public market totals are aggregate context only. Filter choices are never
   // loaded globally; the separate effect below derives them from one research.
@@ -85,7 +103,10 @@ export default function JobBoardPage() {
   const hasResearch = activeFilters.search.trim().length >= 2
 
   useEffect(() => {
-    if (!hasResearch) {
+    // Admin browse has no query, but it still shows the filter bar over a real
+    // grid — so it still needs facets. The backend answers an admin's empty
+    // `search` with catalogue-wide ones and refuses everyone else's.
+    if (!hasResearch && !adminBrowse) {
       setFilterData(null)
       return
     }
@@ -94,7 +115,7 @@ export default function JobBoardPage() {
       .then(data => { if (!cancelled) setFilterData(data) })
       .catch(console.error)
     return () => { cancelled = true }
-  }, [activeFilters.search, hasResearch, seeker?.id])
+  }, [activeFilters.search, hasResearch, adminBrowse, seeker?.id])
 
   // ── Two modes ───────────────────────────────────────────────────────────────
   // The page is now a search engine, which means it is two screens rather than
@@ -105,13 +126,22 @@ export default function JobBoardPage() {
   //
   // A research query is the boundary between the two. Structured filters can
   // narrow its result set but can never open the catalogue by themselves.
-  const showBoard = hasResearch
+  //
+  // ...for a visitor or a Seeker. An admin has a third way in: submit the box
+  // empty and browse the lot (ADR 0019). Still a deliberate act, still not
+  // something filters alone can open.
+  const showBoard = hasResearch || adminBrowse
 
   const runSearch = useCallback((query: string) => {
+    const trimmed = query.trim()
     setSearchInput(query)
     setBaseFilters(DEFAULT_FILTERS)
-    setSort('relevance')
+    // Relevance ranks a query. With no query there is nothing to be relevant
+    // to, so admin browse opens on newest — the order an unscoped catalogue
+    // is actually useful in.
+    setSort(trimmed ? 'relevance' : 'newest')
     setPage(1)
+    setAdminBrowse(trimmed === '')
   }, [])
 
   const backToSearch = useCallback(() => {
@@ -119,6 +149,7 @@ export default function JobBoardPage() {
     setSearchInput(DEFAULT_FILTERS.search)
     setSort('newest')
     setPage(1)
+    setAdminBrowse(false)
   }, [])
 
   // Typing a fresh query straight into the board's own search field (rather
@@ -261,6 +292,7 @@ export default function JobBoardPage() {
             boardTotal={boardTotal}
             employerCount={employerCount}
             onSearch={runSearch}
+            allowEmptySubmit={canEdit}
           />
           {/* The page rises over the masthead rather than starting after it.
               A full-width navy block ending on a hairline, with a bold serif
@@ -417,6 +449,7 @@ export default function JobBoardPage() {
                 saved={isSaved(job)}
                 onToggleSave={toggleSave}
                 onClick={setSelectedJob}
+                onEdit={canEdit ? setEditingJob : undefined}
               />
             ))}
           </div>
@@ -438,6 +471,41 @@ export default function JobBoardPage() {
           saved={isSaved(selectedJob)}
           onToggleSave={toggleSave}
           onClose={() => setSelectedJob(null)}
+        />
+      )}
+
+      {/* ── Admin edit drawer ───────────────────────────────── */}
+      {editingJob && canEdit && (
+        <AdminJobEditDrawer
+          job={editingJob}
+          onClose={() => setEditingJob(null)}
+          onSaved={record => {
+            // Repaint the edited card in place. Refetching the page instead
+            // would re-run the search and can move or drop the very row the
+            // admin just corrected (salary sort, an is_active flip), which
+            // reads as the edit having gone somewhere unexpected.
+            setResult(prev => prev && ({
+              ...prev,
+              jobs: prev.jobs.map(j =>
+                j.source === record.source && j.source_id === record.source_id
+                  ? {
+                      ...j,
+                      title: record.title ?? j.title,
+                      company: record.company ?? j.company,
+                      seniority: record.e_seniority ?? j.seniority,
+                      remote_type: record.e_remote_type ?? j.remote_type,
+                      job_category: record.job_category ?? j.job_category,
+                      salary_hkd_min: record.salary_hkd_min,
+                      salary_hkd_max: record.salary_hkd_max,
+                      salary_estimated_min: record.salary_estimated_min,
+                      salary_estimated_max: record.salary_estimated_max,
+                      salary_estimated_confidence: record.salary_estimated_confidence,
+                      years_experience_required: record.years_experience_required,
+                    }
+                  : j,
+              ),
+            }))
+          }}
         />
       )}
     </div>

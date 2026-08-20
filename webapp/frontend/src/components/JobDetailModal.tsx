@@ -138,6 +138,7 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
               <EstimatedSalary
                 estimatedSalary={estimatedSalary}
                 confidence={d.salary_estimated_confidence}
+                verified={d.salary_verified}
               />
             )}
 
@@ -361,39 +362,61 @@ function DisclosedSalary({ salary }: { salary: string }) {
   )
 }
 
-// ── Salary — AI estimate (muted/neutral, clearly not disclosed) ──────────────
+// ── Salary — estimated, or corrected by a human ──────────────────────────────
+//
+// The dashed border and muted ink say "not disclosed by the employer", and that
+// stays true either way. What changes is who produced the number: a model, or a
+// person on the FinEx team who overruled it (webapp/backend/job_edit.py). A
+// corrected figure loses the dashes and the "AI estimate" label, because both
+// are claims about the number's provenance that are no longer true — and the
+// confidence level goes with them: it scores the model's own certainty, and a
+// human correction does not inherit it.
 
 function EstimatedSalary({
   estimatedSalary,
   confidence,
+  verified = false,
 }: {
   estimatedSalary: string
   confidence: string | null | undefined
+  verified?: boolean
 }) {
   return (
     <div
       className="flex items-center gap-3 rounded-lg p-4"
       style={{
-        backgroundColor: 'var(--color-surface-2)',
-        border: '1px dashed var(--color-border-strong)',
+        backgroundColor: verified ? 'var(--color-success-bg)' : 'var(--color-surface-2)',
+        border: verified
+          ? '1px solid var(--color-success-border)'
+          : '1px dashed var(--color-border-strong)',
       }}
     >
-      <DollarSign size={18} style={{ color: 'var(--color-ink-faint)' }} strokeWidth={1.8} />
+      <DollarSign
+        size={18}
+        style={{ color: verified ? 'var(--color-success)' : 'var(--color-ink-faint)' }}
+        strokeWidth={1.8}
+      />
       <div className="min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-ink-faint)' }}>
-            Estimated base salary
+          <p
+            className="text-xs font-medium uppercase tracking-wider"
+            style={{ color: verified ? 'var(--color-success)' : 'var(--color-ink-faint)' }}
+          >
+            {verified ? 'Reviewed base salary' : 'Estimated base salary'}
           </p>
           <span
             className="rounded px-1.5 py-px text-xs"
             style={{
-              backgroundColor: 'var(--color-surface)',
-              color: 'var(--color-ink-muted)',
-              border: '1px solid var(--color-border)',
+              backgroundColor: verified ? 'var(--color-surface)' : 'var(--color-surface)',
+              color: verified ? 'var(--color-success)' : 'var(--color-ink-muted)',
+              border: `1px solid ${verified
+                ? 'var(--color-success-border)' : 'var(--color-border)'}`,
               fontSize: '12px',
             }}
           >
-            AI estimate{confidence ? ` · ${confidence} confidence` : ''}
+            {verified
+              ? 'Checked by FinEx'
+              : `AI estimate${confidence ? ` · ${confidence} confidence` : ''}`}
           </span>
         </div>
         <p
@@ -403,7 +426,9 @@ function EstimatedSalary({
           {estimatedSalary}
         </p>
         <p className="text-xs mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>
-          Estimated from role, seniority &amp; market — not disclosed by the employer.
+          {verified
+            ? 'Reviewed and set by the FinEx team — still not disclosed by the employer.'
+            : 'Estimated from role, seniority & market — not disclosed by the employer.'}
         </p>
       </div>
     </div>

@@ -62,7 +62,11 @@ class _StubEnricher:
     def __init__(self, *_args, **_kwargs) -> None:
         pass
 
-    def _enrich_with_retry(self, _title, _company, _description):
+    # Signature kept in step with DeepSeekEnricher._enrich_with_retry on purpose,
+    # keyword and all. A **kwargs catch-all here would let production's arguments
+    # drift away from what the suite exercises without one test going red — the
+    # failure CLAUDE.md's "one typed object over a silent default" rule is about.
+    def _enrich_with_retry(self, _title, _company, _description, seniority=None):
         return dict(_MODEL_ANSWER)
 
 
