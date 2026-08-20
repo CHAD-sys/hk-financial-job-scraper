@@ -45,9 +45,10 @@ import { useSavedRoles } from '../savedRoles/useSavedRoles'
  * everywhere else it goes to /admin. ModeChooserPage.tsx is the one-time fork
  * right after signing in; this button covers every visit after that.
  *
- * It replaced a plain "Admin panel" link (restored 2026-08-20). The link only
- * went one way: an admin who had entered the panel had to find their own way
- * back to the product they administer, and the nav gave them nothing to click.
+ * It sits ALONGSIDE the "Admin panel" entry in the primary row, not instead of
+ * it. The link is a destination among destinations; the switch is the one
+ * control that also carries an admin back OUT of the panel, which a one-way
+ * link never did.
  */
 
 export type PrimaryLink = { label: string; to: string; external?: boolean }
@@ -62,13 +63,21 @@ const LINKS: PrimaryLink[] = [
 ]
 
 /**
- * The primary row is now the same six destinations for everybody: an admin
- * reaches the panel through AdminModeSwitch, not through a seventh link.
+ * The primary row, plus one destination for admins.
+ *
+ * "Admin panel" sits in the row alongside Home/Careers/About because that is
+ * where a destination belongs — it is a place you go, listed with the other
+ * places you can go. AdminModeSwitch is a different thing and they are not
+ * redundant: the switch is a TOGGLE, it changes meaning with the route, and it
+ * is what carries an admin back OUT of the panel to the board. This is what
+ * puts the panel in the same list the rest of the product is in.
+ *
  * Kept as a function (rather than inlining LINKS) because the mobile menu and
- * the desktop row must not be able to drift apart on what "primary" means.
+ * the desktop row must not be able to drift apart on what "primary" means —
+ * both call this.
  */
-export function primaryLinksFor(_isAdmin: boolean): PrimaryLink[] {
-  return LINKS
+export function primaryLinksFor(isAdmin: boolean): PrimaryLink[] {
+  return isAdmin ? [...LINKS, { label: 'Admin panel', to: '/admin' }] : LINKS
 }
 
 export default function Nav() {
@@ -82,11 +91,11 @@ export default function Nav() {
   const { pathname, hash } = useLocation()
   const { seeker, loading: authLoading, logout } = useAuth()
   const { employer, loading: employerAuthLoading, logout: employerLogout } = useEmployerAuth()
-  const primaryLinks = primaryLinksFor(false)
   // Both bits, for the same reason JobBoardPage reads both: seekers_store's
   // set_super_admin() writes only its own column, so an Ultimate Admin granted
   // that bit alone would otherwise get no way back to the panel.
   const isAdmin = Boolean(seeker?.is_admin || seeker?.is_super_admin)
+  const primaryLinks = primaryLinksFor(!authLoading && isAdmin)
 
   // Where sign-in should return to. The board is public, so nobody is ever sent
   // here by a wall — they came from a page they were reading and should land

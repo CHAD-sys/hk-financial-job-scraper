@@ -2,23 +2,33 @@ import { describe, expect, it } from 'vitest'
 import { primaryLinksFor } from './Nav'
 
 /**
- * The primary row is the same six destinations for everybody. An admin reaches
- * the panel through the AdminModeSwitch button in the utility strip, which is
- * bidirectional; the old seventh "Admin panel" link only went one way and left
- * an admin inside the panel with no nav route back to the product.
+ * Admins get one extra destination in the primary row.
+ *
+ * It coexists with the AdminModeSwitch button rather than being replaced by it:
+ * the row lists places you can go, the switch toggles between two of them and
+ * is what carries an admin back out of the panel. Briefly (PR #42) the link was
+ * dropped in favour of the switch alone, which left the panel absent from the
+ * one list every other part of the product appears in.
  */
 describe('primaryLinksFor', () => {
   const SIX = ['Home', 'Careers', 'Consultation', 'Learning', 'Market Research', 'About']
 
-  it('gives administrators the same six destinations as everyone else', () => {
-    expect(primaryLinksFor(true).map(link => link.label)).toEqual(SIX)
+  it('adds one Admin panel destination for administrators', () => {
+    expect(primaryLinksFor(true).map(link => link.label)).toEqual([...SIX, 'Admin panel'])
   })
 
-  it('does not expose an Admin panel link to ordinary seekers', () => {
-    expect(primaryLinksFor(false).map(link => link.label)).not.toContain('Admin panel')
+  it('points that destination at the panel', () => {
+    const admin = primaryLinksFor(true).find(link => link.label === 'Admin panel')
+    expect(admin?.to).toBe('/admin')
   })
 
-  it('no longer routes admins to the panel through the primary row at all', () => {
-    expect(primaryLinksFor(true).map(link => link.to)).not.toContain('/admin')
+  it('does not expose the Admin panel destination to ordinary seekers', () => {
+    expect(primaryLinksFor(false).map(link => link.label)).toEqual(SIX)
+  })
+
+  it('leaves the six shared destinations untouched for admins', () => {
+    // The extra entry is an ADDITION. An admin must not lose or reorder the
+    // product's own navigation on their way to the panel.
+    expect(primaryLinksFor(true).slice(0, 6).map(link => link.label)).toEqual(SIX)
   })
 })
