@@ -4,6 +4,7 @@ import { recordVisit } from './api/client'
 import AuthProvider from './auth/AuthProvider'
 import EmployerAuthProvider from './auth/EmployerAuthProvider'
 import SavedRolesProvider from './savedRoles/SavedRolesProvider'
+import AdminModeProvider from './adminMode/AdminModeProvider'
 import LandingPage from './pages/LandingPage'
 import PrivacyPage from './pages/PrivacyPage'
 import JobBoardPage from './pages/JobBoardPage'
@@ -115,6 +116,9 @@ export default function App() {
       <AuthProvider>
         <EmployerAuthProvider>
           <SavedRolesProvider>
+            {/* Inside AuthProvider: whether Admin Mode is even available is a
+                function of the signed-in Seeker's privilege bits. */}
+            <AdminModeProvider>
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/about" element={<AboutPage />} />
@@ -141,6 +145,7 @@ export default function App() {
               <Route path="/choose-view" element={<Navigate to="/admin" replace />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+            </AdminModeProvider>
           </SavedRolesProvider>
         </EmployerAuthProvider>
       </AuthProvider>

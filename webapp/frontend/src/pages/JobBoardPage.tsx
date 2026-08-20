@@ -14,6 +14,7 @@ import {
 } from '../api/client'
 import type { JobFilters } from '../api/client'
 import { useAuth } from '../auth/useAuth'
+import { useAdminMode } from '../adminMode/useAdminMode'
 import { useSavedRoles } from '../savedRoles/useSavedRoles'
 import { useDebounce } from '../hooks/useDebounce'
 import { scrollToTop } from '../utils/scroll'
@@ -72,16 +73,18 @@ export default function JobBoardPage() {
   const { toggle: toggleSave, isSaved } = useSavedRoles()
   const { seeker, loading: authLoading } = useAuth()
 
-  // Whether to DRAW the pencil on each card, nothing more. The server decides
-  // whether the edit is allowed (`require_admin` on /api/admin/jobs/*); a
-  // Seeker who forged this bit locally would get a 403 on the first request.
+  // The board's two admin affordances — the pencil on each card, and the
+  // empty-search browse — are gated on ADMIN MODE, not merely on being an
+  // admin. In Seeker view an admin gets the Seeker's board, which is the whole
+  // point of the mode existing: a switch that changed nothing was the state
+  // this replaced.
   //
-  // Both bits, not just is_admin. In practice every Ultimate Admin also carries
-  // is_admin — create_admin.py sets both — but seekers_store.set_super_admin()
-  // writes only its own column, so the two are independent in the data model.
-  // Reading just is_admin would hand Ultimate Admin a board with no pencil on
-  // it the first time someone granted the stronger bit on its own.
-  const canEdit = Boolean(seeker?.is_admin || seeker?.is_super_admin)
+  // This decides what is DRAWN, never what is permitted. The server still
+  // decides that (`require_admin` on /api/admin/jobs/*, and on an empty
+  // research query), and it does not consult this flag — leaving Admin Mode
+  // puts the tools away, it does not drop the privilege.
+  const { adminMode } = useAdminMode()
+  const canEdit = adminMode
 
   // Public market totals are aggregate context only. Filter choices are never
   // loaded globally; the separate effect below derives them from one research.
