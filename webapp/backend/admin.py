@@ -1,18 +1,18 @@
 """
 Admin Mode — the HTTP surface signed-in admins get that an ordinary Seeker
 does not: the recruiter-submission queue (Verification), today's pipeline run,
-a deep read-only analytics pass over jobs.db, and — for Ultimate Admin only —
-direct read/write onto a single job's row and its enrichment.
+a deep read-only analytics pass over jobs.db, and direct read/write onto a
+single job's row and its enrichment.
 
-Every human-facing route here sits behind `require_admin` (the job_edit routes
-ALSO sit behind `require_super_admin`), both dependencies main.py hands to
-`build_router()`.  The machine-facing `/pipeline/database` and
+Every human-facing route here sits behind `require_admin` (the account-directory
+and resume routes ALSO sit behind `require_super_admin`), both dependencies
+main.py hands to `build_router()`.  The machine-facing `/pipeline/database` and
 `/pipeline/operations` routes use a separate timing-safe shared secret so the
 scheduled GitHub pipeline can publish its catalogue and completed Daily Run
 Record without possessing a human session.
 
-Writes to jobs.db are limited to submission approval, Ultimate Admin job edits,
-and the authenticated daily publication routes described above. All other
+Writes to jobs.db are limited to submission approval, admin job edits, and the
+authenticated daily publication routes described above. All other
 dashboard queries use the read-only `get_db` connection.
 
 Several queries below touch `job_history` / `company_metrics`, tables the
@@ -489,18 +489,24 @@ def build_router(
         an audit trail nobody can read is not an audit trail."""
         return {"downloads": seekers_store.get_store().list_resume_downloads()}
 
-    # ── Ultimate Admin: direct job edit ─────────────────────────────────────
-    # Behind require_super_admin, not require_admin — the other four admins
-    # never reach these two routes. See job_edit.py's module docstring for
-    # the allowlist, the audit trail, and why every enrichment write here
-    # marks the row against future automated correction.
+    # ── Admin: direct job edit ──────────────────────────────────────────────
+    # Behind require_admin, not require_super_admin: every admin may correct a
+    # posting, Ultimate Admin included. That is a deliberate widening (2026-08-20)
+    # of what used to be an Ultimate-Admin-only pair of routes — a wrong salary on
+    # the board is the most visible defect this product has, and gating its fix
+    # behind one account made every correction wait on that account.
+    #
+    # Nothing else about the write changed. See job_edit.py's module docstring for
+    # the allowlist, the audit trail (which now names whichever admin edited), and
+    # why every enrichment write here marks the row against future automated
+    # correction.
 
     @router.get("/jobs/{source}/{source_id}")
     def get_job_route(
         source: str,
         source_id: str,
         request: Request,
-        _admin: dict = Depends(require_super_admin),
+        _admin: dict = Depends(require_admin),
     ):
         with get_write_db(request) as conn:
             try:
@@ -514,7 +520,7 @@ def build_router(
         source_id: str,
         request: Request,
         body: dict = Body(default={}),
-        admin: dict = Depends(require_super_admin),
+        admin: dict = Depends(require_admin),
     ):
         job_changes = body.get("job") or {}
         enrichment_changes = body.get("enrichment") or {}

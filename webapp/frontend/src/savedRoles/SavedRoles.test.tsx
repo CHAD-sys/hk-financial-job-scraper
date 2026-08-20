@@ -29,7 +29,7 @@ function makeJob(over: Partial<Job> = {}): Job {
     locations: ['Hong Kong'], seniority: 'mid', job_category: null, remote_type: null,
     required_skills: [], salary_hkd_min: null, salary_hkd_max: null,
     salary_estimated_min: null, salary_estimated_max: null,
-    salary_estimated_confidence: null, years_experience_required: null,
+    salary_estimated_confidence: null, salary_verified: false, years_experience_required: null,
     posted_at: '2026-07-01', url: 'https://example.test/j1', is_internship: false,
     description_excerpt: '', closed: false, board_signals: {},
     access_token: 'role-grant',

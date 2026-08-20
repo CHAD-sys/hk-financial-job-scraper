@@ -20,11 +20,21 @@ interface Props {
   boardTotal: number | null
   employerCount: number | null
   /**
-   * Run a text query — the only thing on this screen that moves the page into
+   * Run a text query — the thing on this screen that moves the page into
    * results mode. The sector counts below are read-only stats, and there is no
-   * "browse everything" link, so a search is the way in by design.
+   * "browse everything" link, so for a visitor or a Seeker a search is the way
+   * in by design.
    */
   onSearch: (query: string) => void
+  /**
+   * Let an empty submit through, as `onSearch('')`.
+   *
+   * True only for admins (ADR 0019): pressing Search on an empty box is how
+   * they ask for the whole catalogue. For everyone else an empty submit stays
+   * inert, which is what keeps the catalogue non-enumerable — and the backend
+   * refuses their empty query regardless of what this prop says.
+   */
+  allowEmptySubmit?: boolean
 }
 
 /**
@@ -62,7 +72,9 @@ const MAJOR_CATEGORIES = [
   'Legal, Compliance & Audit',
 ]
 
-export default function SearchHero({ boardTotal, employerCount, onSearch }: Props) {
+export default function SearchHero({
+  boardTotal, employerCount, onSearch, allowEmptySubmit = false,
+}: Props) {
   const [value, setValue] = useState('')
 
   // Explicit submit, not the live-debounced search the results board uses. On a
@@ -71,8 +83,13 @@ export default function SearchHero({ boardTotal, employerCount, onSearch }: Prop
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
     const q = value.trim()
-    if (q) onSearch(q)
+    if (q || allowEmptySubmit) onSearch(q)
   }
+
+  // The button was disabled on an empty box, which for an admin would have made
+  // the empty submit unreachable by mouse — the exact gesture they are meant to
+  // use. Enter still works either way; this keeps the two paths in step.
+  const canSubmit = Boolean(value.trim()) || allowEmptySubmit
 
   return (
     <section
@@ -182,7 +199,7 @@ export default function SearchHero({ boardTotal, employerCount, onSearch }: Prop
             />
             <button
               type="submit"
-              disabled={!value.trim()}
+              disabled={!canSubmit}
               // Below sm: the label is hidden and only the arrow shows, which
               // would leave the button nameless to a screen reader.
               aria-label="Search"
@@ -191,14 +208,26 @@ export default function SearchHero({ boardTotal, employerCount, onSearch }: Prop
                 minHeight: '2.75rem',
                 backgroundColor: 'var(--color-ink)',
                 color: 'var(--color-ink-inverse)',
-                opacity: value.trim() ? 1 : 0.38,
-                cursor: value.trim() ? 'pointer' : 'not-allowed',
+                opacity: canSubmit ? 1 : 0.38,
+                cursor: canSubmit ? 'pointer' : 'not-allowed',
               }}
             >
               <span className="hidden sm:inline">Search</span>
               <ArrowRight size={16} strokeWidth={2.5} aria-hidden="true" />
             </button>
           </div>
+
+          {/* Admins only. The capability is useless if nothing says it exists —
+              an empty search box that suddenly has a live Search button is not
+              self-explanatory. */}
+          {allowEmptySubmit && (
+            <p
+              className="mt-3 text-center text-xs"
+              style={{ color: 'var(--color-ink-faint)' }}
+            >
+              Admin — press Search with the box empty to browse the whole catalogue.
+            </p>
+          )}
         </form>
 
         {/* ── Major categories ───────────────────────────────────────────────

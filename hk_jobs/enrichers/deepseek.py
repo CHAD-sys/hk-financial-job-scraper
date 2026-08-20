@@ -111,8 +111,9 @@ from typing import Any
 
 import httpx
 
-from hk_jobs import salary, salary_anchors
+from hk_jobs import salary, salary_anchors, salary_corrections
 from hk_jobs.ai_budget import BudgetExceeded, RunBudget
+from hk_jobs.salary_corrections import Correction
 
 logger = logging.getLogger(__name__)
 
@@ -397,6 +398,12 @@ matched band's upper figure after Step 4's caps — never above it. These are BA
 HK finance total comp is ~1.5-3x base at senior levels) — do NOT estimate total comp. Return null
 for all three fields if truly unable to estimate.
 
+Step 6. HUMAN CORRECTIONS. If a "HUMAN CORRECTIONS" block appears below, our team has already
+reviewed roles of this shape and replaced the estimate with the figure shown. Those figures
+OUTRANK the anchor tables above: where a correction covers a role like this one, price this role
+consistently with it, even if Steps 3-5 would have landed elsewhere. The block is often absent,
+which simply means nobody has corrected a role like this yet — proceed with Steps 1-5.
+
 salary_estimated_confidence:
 - "high"   = salary explicitly stated in the description (exact figures found in Step 2)
 - "medium" = not stated, but function tier + seniority + company are clear
@@ -541,6 +548,7 @@ class DeepSeekEnricher:
         self,
         api_key: str | None = None,
         run_budget: "RunBudget | None" = None,
+        salary_corrections: "list[Correction] | None" = None,
     ) -> None:
         self.api_key = api_key or os.getenv("DEEPSEEK_API_KEY", "")
         if not self.api_key:
@@ -557,6 +565,12 @@ class DeepSeekEnricher:
         # Roles a run touches, which is only a proxy for cost — and with thinking
         # on it is a proxy that understates by ~100x. See hk_jobs/ai_budget.py.
         self.run_budget = run_budget or RunBudget.from_environment()
+        # Loaded ONCE per run by the caller and held here, not re-queried per
+        # job: 6,000 enrichments would otherwise be 6,000 reads of a table whose
+        # contents cannot change while the run is in flight. Empty by default, so
+        # a caller that knows nothing about corrections (a test, enrich_single
+        # from a REPL) behaves exactly as before.
+        self.salary_corrections = list(salary_corrections or ())
         self._usage_lock = threading.Lock()
 
     def close(self) -> None:
@@ -607,15 +621,32 @@ class DeepSeekEnricher:
                 logger.error("✗ %s/%s: all retries failed", source, source_id)
         return results
 
-    def enrich_single(self, title: str, company: str = "", description: str = "") -> dict[str, Any]:
+    def enrich_single(
+        self,
+        title: str,
+        company: str = "",
+        description: str = "",
+        seniority: str | None = None,
+    ) -> dict[str, Any]:
         """Single API call. Raises on error."""
         company = company or "(unknown)"
+        # Appended to the salary instructions rather than formatted into the
+        # prompt template as its own slot: PROMPT_VERSION hashes
+        # _SALARY_INSTRUCTIONS, and this block is per-JOB. Baking it into the
+        # module-level constant would make the stored version churn with every
+        # admin correction and re-bill the back catalogue each time — the exact
+        # failure hk_jobs/salary_corrections.py's docstring exists to avoid.
+        # `evidence_for` returns "" when nothing is relevant, so the common case
+        # is a prompt byte-identical to the one this built before.
+        salary_instructions = _SALARY_INSTRUCTIONS + salary_corrections.evidence_for(
+            self.salary_corrections, title=title, seniority=seniority,
+        )
         if description.strip():
             desc_text = description.strip()[:_DESC_MAX_CHARS]
             prompt = _PROMPT_WITH_DESC.format(
                 company=company, title=title, description=desc_text,
                 translation_instructions=_TRANSLATION_INSTRUCTIONS,
-                salary_instructions=_SALARY_INSTRUCTIONS,
+                salary_instructions=salary_instructions,
                 summary_instructions=_SUMMARY_INSTRUCTIONS,
             )
             max_tokens = MAX_TOKENS_WITH_DESCRIPTION
@@ -623,7 +654,7 @@ class DeepSeekEnricher:
             prompt = _PROMPT_TITLE_ONLY.format(
                 company=company, title=title,
                 translation_instructions=_TRANSLATION_INSTRUCTIONS,
-                salary_instructions=_SALARY_INSTRUCTIONS,
+                salary_instructions=salary_instructions,
             )
             max_tokens = MAX_TOKENS_TITLE_ONLY
 
@@ -724,11 +755,12 @@ class DeepSeekEnricher:
     # ── helpers ───────────────────────────────────────────────────────────────
 
     def _enrich_with_retry(
-        self, title: str, company: str = "", description: str = "", max_retries: int = 3
+        self, title: str, company: str = "", description: str = "", max_retries: int = 3,
+        seniority: str | None = None,
     ) -> dict[str, Any] | None:
         for attempt in range(max_retries):
             try:
-                return self.enrich_single(title, company, description)
+                return self.enrich_single(title, company, description, seniority=seniority)
             except TruncatedAnswer as exc:
                 # Not retried. A budget that is too small is deterministic: the next
                 # two attempts fail identically and simply triple the bill, which is

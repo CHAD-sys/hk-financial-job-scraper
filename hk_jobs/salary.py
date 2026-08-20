@@ -190,6 +190,21 @@ ACCEPTED_PRIOR_VERSIONS: frozenset[str] = frozenset({
     # would buy nothing the clamp does not already deliver for free.
     "2026-07-21-v10-merged-3source-granular-prefix-cached"
     "+deepseek-v4-flash+pac7b0b6b+adb2136ef+c0bba64e1",
+    # 2026-08-20 — Step 6 was added to the salary prompt: how to treat the
+    # "HUMAN CORRECTIONS" block that hk_jobs/salary_corrections.py appends when
+    # an admin has already priced a similar Role by hand.
+    #
+    # Grandfathered because the instruction is INERT without that block, and the
+    # block is per-job and did not exist when these rows were written. Re-running
+    # the back catalogue would cost ~$40 (6,188 active Roles at the observed
+    # $0.0065) to hand most of them a rule with nothing to apply it to.
+    #
+    # To propagate deliberately once enough corrections have accumulated, delete
+    # this entry: every stored row becomes stale on the next run and is
+    # re-estimated with the corrections in front of the model. That is a real
+    # recalibration and a real bill — make it a decision, not an accident.
+    "2026-07-21-v10-merged-3source-granular-prefix-cached"
+    "+deepseek-v4-flash+pc9d76b29+adb2136ef+c0bba64e1",
 })
 
 

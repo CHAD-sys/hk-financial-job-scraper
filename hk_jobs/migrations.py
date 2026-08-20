@@ -1047,6 +1047,69 @@ def migrate_to_phase_35(db_path: str) -> None:
         conn.close()
 
 
+_ADMIN_SALARY_CORRECTIONS_DDL = """
+CREATE TABLE IF NOT EXISTS admin_salary_corrections (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    source        TEXT NOT NULL,
+    source_id     TEXT NOT NULL,
+    title         TEXT,
+    company       TEXT,
+    company_slug  TEXT,
+    source_tier   TEXT,
+    sector        TEXT,
+    seniority     TEXT,
+    job_category  TEXT,
+    old_min       INTEGER,
+    old_max       INTEGER,
+    new_min       INTEGER,
+    new_max       INTEGER,
+    seeker_id     TEXT NOT NULL,
+    corrected_at  TEXT NOT NULL
+)
+"""
+
+
+def migrate_to_phase_36(db_path: str) -> None:
+    """
+    Add `admin_salary_corrections` — every salary an admin has overruled, kept
+    as calibration data rather than only as an audit event.
+
+    WHY THIS IS NOT `admin_edits`
+    -----------------------------
+    `admin_edits` (phase 33) already records that a field changed, but it records
+    it the way an audit log does: one row per field, values as TEXT, no idea what
+    KIND of Role the correction was about. To answer "what do humans think a mid
+    front-office credit analyst is worth", you would have to join every
+    `enrichment.salary_estimated_*` row back to `jobs`, parse the strings, and
+    hope the Role still exists.
+
+    This table answers that question directly. It snapshots the Role's shape —
+    title, employer, tier, sector, seniority, category — ALONGSIDE the old and
+    new figures, at the moment of the correction. Denormalised on purpose: a
+    correction is evidence about what a role of that shape pays, and it has to
+    stay readable after the posting closes, the employer is renamed, or the
+    pipeline re-classifies the row. The audit log keeps accountability; this
+    keeps the knowledge.
+
+    Read by `hk_jobs/salary_anchors.py`, which folds these observations into what
+    the estimator is shown for future Roles (see `enrichers/deepseek.py`). It is
+    deliberately additive: nothing here rewrites
+    `salary_guidlines/hk_salary_anchors.json`, whose bands are a weighted merge of
+    three published salary guides and would be corrupted by single observations
+    being written into them.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        with conn:
+            conn.execute(_ADMIN_SALARY_CORRECTIONS_DDL)
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_salary_corrections_shape"
+                " ON admin_salary_corrections (sector, seniority, corrected_at DESC)"
+            )
+    finally:
+        conn.close()
+
+
 #: the whole of registering a new phase.
 #:
 #: Order is load-bearing beyond the obvious: 10 creates `jobs` before the seven
@@ -1081,6 +1144,7 @@ MIGRATIONS: tuple[tuple[int, Callable[[str], None]], ...] = (
     (33, migrate_to_phase_33),
     (34, migrate_to_phase_34),
     (35, migrate_to_phase_35),
+    (36, migrate_to_phase_36),
 )
 
 LATEST_PHASE = MIGRATIONS[-1][0]

@@ -266,6 +266,7 @@ _SELECT_COLUMNS = f"""
     e.salary_estimated_min,
     e.salary_estimated_max,
     e.salary_estimated_confidence,
+    e.manually_edited_at,
     e.years_experience_required,
     e.description_summary,
     e.title_en,
@@ -300,6 +301,20 @@ class JobSummary(BaseModel):
     salary_estimated_min: Optional[int] = None
     salary_estimated_max: Optional[int] = None
     salary_estimated_confidence: Optional[str] = None
+    #: A human overruled the estimator on this Role.
+    #:
+    #: The board used to badge every estimate "AI est.", including the ones an
+    #: admin had hand-checked and corrected — labelling a verified figure as a
+    #: machine guess, which is the opposite of what the badge is for. It is a
+    #: derived boolean, not the timestamp: WHEN it was corrected is an operational
+    #: fact for the admin desk, not something a Seeker's card should carry.
+    #:
+    #: `manually_edited_at` is set by any enrichment write in job_edit.py, so this
+    #: is true whenever a salary edit is what a human made — and also when they
+    #: only fixed, say, the category. That over-inclusion is deliberate: the
+    #: alternative is a second column tracking which FIELD was touched, and a
+    #: Role an admin has been through is one a human has vouched for either way.
+    salary_verified: bool = False
     years_experience_required: Optional[int] = None
     posted_at: Optional[str] = None
     url: str
@@ -759,6 +774,7 @@ def _to_summary(row: sqlite3.Row) -> JobSummary:
         salary_estimated_min=row["salary_estimated_min"],
         salary_estimated_max=row["salary_estimated_max"],
         salary_estimated_confidence=row["salary_estimated_confidence"],
+        salary_verified=row["manually_edited_at"] is not None,
         years_experience_required=row["years_experience_required"],
         posted_at=row["posted_at"],
         url=row["url"],
@@ -885,19 +901,31 @@ def research_facets(
     query: str,
     *,
     audience: CatalogueAudience = CatalogueAudience.PUBLIC,
+    unscoped: bool = False,
 ) -> ResearchFacets:
-    """Filter choices and counts drawn only from Roles matched by ``query``."""
-    rowids = search_index.matching_rowids(conn, query)
+    """Filter choices and counts drawn only from Roles matched by ``query``.
+
+    ``unscoped=True`` computes them over the whole live catalogue instead, for
+    the one caller ADR 0018 exempts: an admin browsing with no query at all.
+    It is an explicit parameter rather than an empty-``query`` special case
+    because "no query" reaching here by accident must keep meaning "match
+    nothing" — that is the refusal the ADR asks for, and it should not become
+    "hand back the entire catalogue" through a falsy string.
+    """
     audience_sql = (
         f" AND {PUBLIC_AUDIENCE_WHERE}"
         if audience == CatalogueAudience.PUBLIC
         else ""
     )
-    research = (
-        f"{BOARD_WHERE}{audience_sql} AND j.rowid IN ({','.join(str(rowid) for rowid in rowids)})"
-        if rowids
-        else f"{BOARD_WHERE}{audience_sql} AND 0"
-    )
+    if unscoped:
+        research = f"{BOARD_WHERE}{audience_sql}"
+    else:
+        rowids = search_index.matching_rowids(conn, query)
+        research = (
+            f"{BOARD_WHERE}{audience_sql} AND j.rowid IN ({','.join(str(rowid) for rowid in rowids)})"
+            if rowids
+            else f"{BOARD_WHERE}{audience_sql} AND 0"
+        )
 
     total = conn.execute(f"SELECT COUNT(*) FROM jobs j WHERE {research}").fetchone()[0]
     companies = [

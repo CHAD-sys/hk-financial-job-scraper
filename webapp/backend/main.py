@@ -370,7 +370,14 @@ def list_jobs(
     filtered, sorted and counted lives in job_read.
     """
     research_query = (search or "").strip()
-    if len(research_query) < 2:
+    seeker = _current_seeker(request)
+    # Research Scope binds visitors and Seekers, not staff. An admin submitting
+    # an empty query gets the whole live catalogue — the browse mode the board
+    # had before ADR 0018 — because auditing the catalogue means paging through
+    # roles nobody would think to search for. This lifts the QUERY requirement
+    # only: Visibility.BOARD below still hides closed and duplicate rows, so an
+    # admin sees every live Role once, not the raw table.
+    if len(research_query) < 2 and not _is_admin_session(seeker):
         raise HTTPException(
             status_code=422,
             detail="Start with a specific search of at least two characters.",
@@ -386,9 +393,7 @@ def list_jobs(
         verified_only=verified_only,
     )
     audience = (
-        CatalogueAudience.MEMBER
-        if _current_seeker(request) is not None
-        else CatalogueAudience.PUBLIC
+        CatalogueAudience.MEMBER if seeker is not None else CatalogueAudience.PUBLIC
     )
     with get_db(request) as conn:
         result = job_read.list_jobs(
@@ -1792,22 +1797,33 @@ def security_txt(request: Request):
 @router.get("/api/filters", response_model=job_read.ResearchFacets, tags=["meta"])
 def get_filters(
     request: Request,
-    search: str = Query(..., min_length=2, max_length=200),
+    search: str = Query("", max_length=200),
 ):
-    """Return facets computed inside one research query, never globally."""
+    """Return facets computed inside one research query, never globally.
+
+    The exception is an admin browsing with no query (see /api/jobs): their
+    facets are drawn from the whole live catalogue, because the filter bar over
+    an unscoped grid has to offer the choices that grid actually contains.
+
+    `min_length=2` came off the Query so an admin's empty `search` reaches the
+    body at all — FastAPI would otherwise 422 it before any session was read.
+    Non-admins are refused two lines later, with the same status and message.
+    """
     research_query = search.strip()
-    if len(research_query) < 2:
+    seeker = _current_seeker(request)
+    admin_browsing = len(research_query) < 2 and _is_admin_session(seeker)
+    if len(research_query) < 2 and not admin_browsing:
         raise HTTPException(
             status_code=422,
             detail="Start with a specific search of at least two characters.",
         )
     audience = (
-        CatalogueAudience.MEMBER
-        if _current_seeker(request) is not None
-        else CatalogueAudience.PUBLIC
+        CatalogueAudience.MEMBER if seeker is not None else CatalogueAudience.PUBLIC
     )
     with get_db(request) as conn:
-        return job_read.research_facets(conn, research_query, audience=audience)
+        return job_read.research_facets(
+            conn, research_query, audience=audience, unscoped=admin_browsing,
+        )
 
 
 # ── /api/stats ────────────────────────────────────────────────────────────────
@@ -2183,6 +2199,24 @@ def _current_seeker(request: Request) -> Optional[dict]:
         return None
 
 
+def _is_admin_session(seeker: Optional[dict]) -> bool:
+    """
+    Whether this reader is staff, for the one thing Research Scope exempts them
+    from: having to type a query before the catalogue answers.
+
+    ADR 0018 already carves this out — "job_read still supports unscoped internal
+    candidate reads for ranking and admin operations; the HTTP adapter owns the
+    public research requirement" — it was simply never wired to the HTTP adapter,
+    so an admin auditing the board hit the same 422 as a scraper.
+
+    Both privilege bits, as everywhere else: seekers_store.set_super_admin()
+    writes only its own column, so the two are independent in the data model.
+    """
+    if seeker is None:
+        return False
+    return bool(seeker.get("is_admin") or seeker.get("is_super_admin"))
+
+
 def _require_seeker(request: Request) -> dict:
     seeker = _current_seeker(request)
     if seeker is None:
@@ -2208,8 +2242,9 @@ def _require_admin(request: Request) -> dict:
 def _require_super_admin(request: Request) -> dict:
     """
     Admin Mode plus is_super_admin — Ultimate Admin, and only Ultimate Admin.
-    Gates webapp/backend/job_edit.py's direct read/write onto a job row: the
-    other four admins see the same dashboard but never this.
+    Gates the account directory and a Seeker's stored resume: the other four
+    admins see the same dashboard but never those. Job editing used to sit
+    here too and now sits behind `_require_admin` (see job_edit.py).
     """
     seeker = _require_admin(request)
     if not seeker.get("is_super_admin"):

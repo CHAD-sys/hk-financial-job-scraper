@@ -31,6 +31,7 @@ function makeJob(overrides: Partial<Job> = {}): Job {
     salary_estimated_min: null,
     salary_estimated_max: null,
     salary_estimated_confidence: null,
+    salary_verified: false,
     years_experience_required: 3,
     posted_at: '2026-08-06',
     url: 'https://example.test/j1',

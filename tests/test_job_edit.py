@@ -277,3 +277,113 @@ def test_multiple_fields_in_one_call_produce_one_audit_row_each(conn):
     )
     fields = {r[0] for r in conn.execute("SELECT field FROM admin_edits")}
     assert fields == {"job.title", "job.company"}
+
+
+# ── Salary corrections as calibration evidence (phase 36) ─────────────────────
+# Every test here went RED before _record_salary_correction existed: the table
+# was empty after each edit.
+
+
+def _corrections(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    return conn.execute(
+        "SELECT * FROM admin_salary_corrections ORDER BY id"
+    ).fetchall()
+
+
+def test_a_salary_correction_is_kept_as_evidence(conn):
+    job_edit.apply_edit(
+        conn, "workday", "W1", "admin-1",
+        enrichment_changes={"salary_estimated_min": 48000, "salary_estimated_max": 72000},
+    )
+    rows = _corrections(conn)
+    assert len(rows) == 1
+    assert (rows[0]["new_min"], rows[0]["new_max"]) == (48000, 72000)
+    assert rows[0]["seeker_id"] == "admin-1"
+
+
+def test_one_row_per_edit_not_per_field(conn):
+    """min and max moved together are ONE judgement about what the Role pays.
+    Two rows would make the corrected range unreadable."""
+    job_edit.apply_edit(
+        conn, "workday", "W1", "admin-1",
+        enrichment_changes={"salary_estimated_min": 48000, "salary_estimated_max": 72000},
+    )
+    assert len(_corrections(conn)) == 1
+
+
+def test_it_records_the_shape_of_the_role_not_just_the_number(conn):
+    """The point of the table: answering what roles of this KIND pay, after the
+    posting has closed and the row may no longer exist."""
+    job_edit.apply_edit(
+        conn, "workday", "W1", "admin-1",
+        enrichment_changes={"salary_estimated_max": 72000},
+    )
+    row = _corrections(conn)[0]
+    assert row["title"]
+    assert row["company"]
+    assert row["source"] == "workday" and row["source_id"] == "W1"
+
+
+def test_the_old_figure_is_kept_beside_the_new_one(conn):
+    """Without the before, a correction says what someone thinks a Role pays but
+    not that the estimator was wrong, or by how much."""
+    conn.execute(
+        "INSERT INTO job_enrichments (source, source_id, salary_estimated_min,"
+        " salary_estimated_max) VALUES (?, ?, ?, ?)",
+        ("workday", "W1", 30000, 45000),
+    )
+    conn.commit()
+
+    job_edit.apply_edit(
+        conn, "workday", "W1", "admin-1",
+        enrichment_changes={"salary_estimated_min": 48000, "salary_estimated_max": 72000},
+    )
+    row = _corrections(conn)[0]
+    assert (row["old_min"], row["old_max"]) == (30000, 45000)
+    assert (row["new_min"], row["new_max"]) == (48000, 72000)
+
+
+def test_a_field_left_alone_is_carried_across_not_nulled(conn):
+    """Correcting only the max must record the min the Role still has, or the
+    evidence reads as an open-ended range nobody set."""
+    conn.execute(
+        "INSERT INTO job_enrichments (source, source_id, salary_estimated_min,"
+        " salary_estimated_max) VALUES (?, ?, ?, ?)",
+        ("workday", "W1", 30000, 45000),
+    )
+    conn.commit()
+
+    job_edit.apply_edit(
+        conn, "workday", "W1", "admin-1", enrichment_changes={"salary_estimated_max": 72000},
+    )
+    row = _corrections(conn)[0]
+    assert row["new_min"] == 30000
+    assert row["new_max"] == 72000
+
+
+def test_a_non_salary_edit_records_no_correction(conn):
+    """An admin fixing a job title is not evidence about pay."""
+    job_edit.apply_edit(conn, "workday", "W1", "admin-1", job_changes={"title": "New Title"})
+    assert _corrections(conn) == []
+
+
+def test_a_disclosed_salary_edit_records_no_correction(conn):
+    """`salary_min`/`salary_max` hold what the EMPLOYER published. Correcting a
+    transcription of someone else's figure says nothing about the market."""
+    job_edit.apply_edit(
+        conn, "workday", "W1", "admin-1",
+        job_changes={"salary_min": 50000, "salary_max": 80000},
+    )
+    assert _corrections(conn) == []
+
+
+def test_resending_the_same_salary_records_nothing(conn):
+    """A form posting its whole state must not manufacture evidence out of a
+    field nobody touched — same rule the audit log already follows."""
+    job_edit.apply_edit(
+        conn, "workday", "W1", "admin-1", enrichment_changes={"salary_estimated_max": 72000},
+    )
+    job_edit.apply_edit(
+        conn, "workday", "W1", "admin-1", enrichment_changes={"salary_estimated_max": 72000},
+    )
+    assert len(_corrections(conn)) == 1

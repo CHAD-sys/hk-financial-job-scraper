@@ -260,7 +260,8 @@ def super_admin_client(migrated_jobs_db, dist, tmp_path, _seekers_env):
 @pytest.fixture()
 def admin_client_migrated_db(migrated_jobs_db, dist, tmp_path, _seekers_env):
     """An ordinary admin (is_admin, NOT is_super_admin) against the same db —
-    for proving the job-edit routes are gated on the stricter bit."""
+    for proving the job-edit routes accept the ordinary bit, and that the
+    account-directory routes still do not."""
     c = TestClient(make_app(migrated_jobs_db, dist, tmp_path, cookie_secure=False))
     c.post("/api/auth/register", json=SEEKER)
     _promote_to_admin(SEEKER["email"])
@@ -729,7 +730,7 @@ def test_salary_confidence_uses_the_same_complete_range_sample(admin_client, db)
     assert body["data_quality"]["high_confidence_salary_pct"] == 100.0
 
 
-# ── Ultimate Admin: direct job edit ───────────────────────────────────────────
+# ── Admin: direct job edit ────────────────────────────────────────────────────
 
 
 def test_job_edit_gate_anonymous_401(client):
@@ -742,12 +743,56 @@ def test_job_edit_gate_ordinary_seeker_403(seeker_client):
     assert r.status_code == 403
 
 
-def test_job_edit_gate_ordinary_admin_403(admin_client_migrated_db):
-    """is_admin alone is not enough — only is_super_admin reaches this route."""
+def test_ordinary_admin_can_read_a_job(admin_client_migrated_db):
+    """is_admin is enough since 2026-08-20 — this route is no longer Ultimate-only.
+
+    Went RED before the gate widened: both calls returned 403.
+    """
     r = admin_client_migrated_db.get("/api/admin/jobs/workday/W1")
-    assert r.status_code == 403
-    r = admin_client_migrated_db.patch("/api/admin/jobs/workday/W1", json={"job": {"title": "X"}})
-    assert r.status_code == 403
+    assert r.status_code == 200
+    assert r.json()["title"] == "Credit Analyst"
+
+
+def test_ordinary_admin_can_edit_the_salary_estimate(admin_client_migrated_db, migrated_jobs_db):
+    """The whole point of widening the gate: a non-Ultimate admin fixes a salary.
+
+    And it must pin exactly as an Ultimate Admin edit does — an unpinned
+    correction is the shape salary_audit.py re-judges and undoes.
+    """
+    r = admin_client_migrated_db.patch(
+        "/api/admin/jobs/workday/W1",
+        json={"enrichment": {"salary_estimated_min": 48000, "salary_estimated_max": 72000}},
+    )
+    assert r.status_code == 200
+
+    conn = sqlite3.connect(migrated_jobs_db)
+    row = conn.execute(
+        "SELECT salary_estimated_min, salary_estimated_max, manually_edited_at "
+        "FROM job_enrichments WHERE source='workday' AND source_id='W1'"
+    ).fetchone()
+    conn.close()
+    assert row[0] == 48000
+    assert row[1] == 72000
+    assert row[2] is not None
+
+
+def test_an_ordinary_admins_edit_is_logged_against_their_own_id(
+    admin_client_migrated_db, migrated_jobs_db,
+):
+    """Widening who may write is only defensible because who wrote is recorded."""
+    admin_client_migrated_db.patch(
+        "/api/admin/jobs/workday/W1", json={"job": {"title": "Credit Analyst II"}}
+    )
+    me = admin_client_migrated_db.get("/api/auth/me").json()
+
+    conn = sqlite3.connect(migrated_jobs_db)
+    seeker_ids = [
+        r[0] for r in conn.execute(
+            "SELECT seeker_id FROM admin_edits WHERE field='job.title'"
+        ).fetchall()
+    ]
+    conn.close()
+    assert seeker_ids == [me["id"]]
 
 
 def test_super_admin_can_read_a_job(super_admin_client):

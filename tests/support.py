@@ -122,6 +122,10 @@ CREATE TABLE job_enrichments (
     years_experience_required INTEGER,
     description_summary TEXT,
     title_en        TEXT,
+    -- Phase 33 (hk_jobs/migrations.py). The board's SELECT reads it to derive
+    -- JobSummary.salary_verified, so a stand-in without it 500s every list read
+    -- even though nothing in the test is about admin edits.
+    manually_edited_at TEXT,
     PRIMARY KEY (source, source_id)
 );
 """

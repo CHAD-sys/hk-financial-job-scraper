@@ -1,5 +1,6 @@
 import {
   Briefcase, Bookmark, Menu, X, ChevronDown, FileText, LogOut, ArrowUpRight, Building2,
+  LayoutDashboard, Search,
 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
@@ -36,9 +37,17 @@ import { useSavedRoles } from '../savedRoles/useSavedRoles'
  * requires an Employer account, so a link nobody-signed-in could click would
  * just be a promise this bar could not keep.
  *
- * Administrators get one additional destination, "Admin panel", in the same
- * navigation hierarchy. There is no separate Seeker/Admin mode: an admin can
- * browse the public product normally and open the panel like any other page.
+ * `AdminModeSwitch` is the admin privilege one step further in: a single
+ * button, not a seventh link in the row, because it is not a destination among
+ * equals — it is the one control an admin needs reachable from every page, in
+ * BOTH directions. Which direction it points is read from the CURRENT route
+ * rather than stored anywhere: on /admin (or under it) it goes to the board;
+ * everywhere else it goes to /admin. ModeChooserPage.tsx is the one-time fork
+ * right after signing in; this button covers every visit after that.
+ *
+ * It replaced a plain "Admin panel" link (restored 2026-08-20). The link only
+ * went one way: an admin who had entered the panel had to find their own way
+ * back to the product they administer, and the nav gave them nothing to click.
  */
 
 export type PrimaryLink = { label: string; to: string; external?: boolean }
@@ -52,8 +61,14 @@ const LINKS: PrimaryLink[] = [
   { label: 'About', to: '/about' },
 ]
 
-export function primaryLinksFor(isAdmin: boolean): PrimaryLink[] {
-  return isAdmin ? [...LINKS, { label: 'Admin panel', to: '/admin' }] : LINKS
+/**
+ * The primary row is now the same six destinations for everybody: an admin
+ * reaches the panel through AdminModeSwitch, not through a seventh link.
+ * Kept as a function (rather than inlining LINKS) because the mobile menu and
+ * the desktop row must not be able to drift apart on what "primary" means.
+ */
+export function primaryLinksFor(_isAdmin: boolean): PrimaryLink[] {
+  return LINKS
 }
 
 export default function Nav() {
@@ -67,7 +82,11 @@ export default function Nav() {
   const { pathname, hash } = useLocation()
   const { seeker, loading: authLoading, logout } = useAuth()
   const { employer, loading: employerAuthLoading, logout: employerLogout } = useEmployerAuth()
-  const primaryLinks = primaryLinksFor(!authLoading && Boolean(seeker?.is_admin))
+  const primaryLinks = primaryLinksFor(false)
+  // Both bits, for the same reason JobBoardPage reads both: seekers_store's
+  // set_super_admin() writes only its own column, so an Ultimate Admin granted
+  // that bit alone would otherwise get no way back to the panel.
+  const isAdmin = Boolean(seeker?.is_admin || seeker?.is_super_admin)
 
   // Where sign-in should return to. The board is public, so nobody is ever sent
   // here by a wall — they came from a page they were reading and should land
@@ -213,6 +232,10 @@ export default function Nav() {
             {wordmark}
 
             <div className="flex shrink-0 items-center gap-3">
+              {!authLoading && isAdmin && (
+                <AdminModeSwitch pathname={pathname} onNavigate={() => setOpen(false)} compact />
+              )}
+
               {/* Only for a signed-in Employer now — PostRolePage.tsx redirects
                   anyone else to /employer/signin, so a standing link nobody
                   anonymous could use would be a promise this bar could not keep. */}
@@ -320,6 +343,10 @@ export default function Nav() {
             {wordmark}
 
             <div className="flex shrink-0 items-center gap-3">
+              {!authLoading && isAdmin && (
+                <AdminModeSwitch pathname={pathname} onNavigate={() => setOpen(false)} compact />
+              )}
+
               <SavedButton
                 count={savedCount}
                 active={pathname === '/saved'}
@@ -459,6 +486,47 @@ function SavedButton({
         </span>
       )}
     </button>
+  )
+}
+
+/**
+ * The persistent Admin ⇄ Seeker toggle. Direction is read from the CURRENT
+ * route, not stored: under /admin it points at the board, everywhere else it
+ * points at /admin. Solid gold rather than the outline/ghost treatment every
+ * other item in this bar gets — the five people who ever see this button need
+ * it to read as "the special control", not blend into ordinary nav.
+ *
+ * `state={{ discover: true }}` on the way back to /jobs is load-bearing:
+ * JobBoardPage reads it to return to discover mode rather than whatever
+ * research the admin had open before they entered the panel.
+ */
+function AdminModeSwitch({
+  pathname,
+  onNavigate,
+  compact = false,
+}: {
+  pathname: string
+  onNavigate: () => void
+  compact?: boolean
+}) {
+  const inAdmin = pathname === '/admin' || pathname.startsWith('/admin/')
+  const to = inAdmin ? '/jobs' : '/admin'
+  const label = inAdmin ? 'Seeker view' : 'Admin Mode'
+  const Icon = inAdmin ? Search : LayoutDashboard
+
+  return (
+    <Link
+      to={to}
+      state={to === '/jobs' ? { discover: true } : undefined}
+      onClick={onNavigate}
+      className={`flex items-center gap-1.5 rounded font-semibold no-underline transition-colors duration-150 ${
+        compact ? 'min-h-9 px-3 py-1.5 text-sm' : 'min-h-11 px-3 text-sm'
+      }`}
+      style={{ backgroundColor: 'var(--color-gold)', color: '#fff' }}
+    >
+      <Icon size={14} strokeWidth={2} aria-hidden="true" />
+      {label}
+    </Link>
   )
 }
 

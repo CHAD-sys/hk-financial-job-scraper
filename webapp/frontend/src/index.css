@@ -676,6 +676,58 @@ select.finex-input {
   transition-duration: 200ms;
 }
 
+/* ── Admin edit drawer (native <dialog>) ───────────────────────
+   Same geometry and same enter/exit timing as .job-detail-dialog: it is the
+   same gesture from the same card, so it must arrive the same way. It is
+   narrower (a column of form fields, not a posting to read) and it starts at
+   the top of the viewport rather than below the nav, because an admin editing
+   a row is not browsing and should not have the board's chrome half-visible
+   above the thing they are changing. */
+.admin-edit-dialog {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: auto;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-left: 1px solid var(--color-border);
+  max-width: none;
+  max-height: none;
+  height: 100dvh;
+  width: min(460px, 100vw);
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-float);
+  transform: translateX(100%);
+  opacity: 0;
+  transition: transform 300ms var(--ease-out-expo), opacity 300ms var(--ease-out-expo);
+}
+.admin-edit-dialog[data-state="entered"] {
+  transform: translateX(0);
+  opacity: 1;
+}
+.admin-edit-dialog[data-state="closing"] {
+  transition-duration: 200ms;
+}
+.admin-edit-dialog::backdrop {
+  background-color: rgba(11, 22, 40, 0.55);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity 300ms var(--ease-out-expo);
+}
+.admin-edit-dialog[data-state="entered"]::backdrop {
+  opacity: 1;
+}
+.admin-edit-dialog[data-state="closing"]::backdrop {
+  transition-duration: 200ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-edit-dialog,
+  .admin-edit-dialog::backdrop { transition: none; }
+}
+
 /* ── Sign-in prompt ────────────────────────────────────────────────────
    A small centred dialog, opened when a signed-out visitor clicks something
    that needs an account. Unlike .job-detail-dialog it has no exit animation:
