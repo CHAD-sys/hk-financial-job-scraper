@@ -38,10 +38,12 @@ from zoneinfo import ZoneInfo
 import admin_intelligence
 import employers_store
 import job_edit
+import job_read
 import learning_content
 import pipeline_publish
 import seekers_store
 import submissions
+from job_read import JobFilters, Sort
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -538,5 +540,94 @@ def build_router(
                 raise HTTPException(status_code=404, detail="Job not found") from None
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from None
+
+    # ── ASF: Audit Salary Fixing (2026-08-21) ───────────────────────────────
+    # Ultimate-Admin-only end to end — require_super_admin, not require_admin.
+    # The whole catalogue plus the salary-audit filters JobFilters carries,
+    # including which admin last corrected a row and when. See job_read.
+    # salary_audit_rows' docstring for why the admin lookup is injected rather
+    # than joined in SQL.
+
+    @router.get("/salary-audit/jobs", response_model=job_read.SalaryAuditResponse)
+    def salary_audit_jobs_route(
+        request: Request,
+        search: str = Query("", max_length=200),
+        sectors: list[str] = Query(default=[]),
+        companies: list[str] = Query(default=[]),
+        seniority: list[str] = Query(default=[]),
+        remote_type: list[str] = Query(default=[]),
+        skills: list[str] = Query(default=[]),
+        salary_min: int | None = Query(None),
+        salary_max: int | None = Query(None),
+        exp_min: int | None = Query(None),
+        exp_max: int | None = Query(None),
+        posted_within_days: int | None = Query(None),
+        is_internship: bool | None = Query(None),
+        tier: str | None = Query(None),
+        is_new: bool | None = Query(None),
+        urgently_hiring: bool | None = Query(None),
+        max_applicants: int | None = Query(None, ge=1),
+        hidden_only: bool | None = Query(None),
+        verified_only: bool | None = Query(None),
+        has_ai_estimate: bool | None = Query(None),
+        has_disclosed_salary: bool | None = Query(None),
+        manually_edited: bool | None = Query(None),
+        coordinate_resolved: bool | None = Query(None),
+        confidence: list[str] = Query(default=[]),
+        salary_tier_key: list[str] = Query(default=[]),
+        salary_role_key: list[str] = Query(default=[]),
+        edited_by: str | None = Query(None, description="Admin's seeker id"),
+        edited_within_days: int | None = Query(None),
+        wide_range_only: bool | None = Query(None),
+        sort: Sort = Query(Sort.NEWEST),
+        page: int = Query(1, ge=1),
+        page_size: int = Query(24, ge=1, le=100),
+        _admin: dict = Depends(require_super_admin),
+    ):
+        filters = JobFilters.of(
+            search=search, sectors=sectors, companies=companies, seniority=seniority,
+            remote_type=remote_type, skills=skills, salary_min=salary_min,
+            salary_max=salary_max, exp_min=exp_min, exp_max=exp_max,
+            posted_within_days=posted_within_days, is_internship=is_internship,
+            tier=tier, is_new=is_new, urgently_hiring=urgently_hiring,
+            max_applicants=max_applicants, hidden_only=hidden_only,
+            verified_only=verified_only, has_ai_estimate=has_ai_estimate,
+            has_disclosed_salary=has_disclosed_salary, manually_edited=manually_edited,
+            coordinate_resolved=coordinate_resolved, confidence=confidence,
+            salary_tier_key=salary_tier_key, salary_role_key=salary_role_key,
+            edited_by=edited_by, edited_within_days=edited_within_days,
+            wide_range_only=wide_range_only,
+        )
+        with get_db(request) as conn:
+            return job_read.salary_audit_rows(
+                conn, filters, sort=sort, page=page, page_size=page_size,
+                resolve_admin=seekers_store.get_store().get_seeker,
+            )
+
+    @router.get("/salary-audit/editors")
+    def salary_audit_editors_route(
+        request: Request, _admin: dict = Depends(require_super_admin),
+    ):
+        """Every admin who has ever corrected a salary — for the 'edited by' filter."""
+        with get_db(request) as conn:
+            try:
+                rows = conn.execute(
+                    "SELECT DISTINCT seeker_id FROM admin_salary_corrections"
+                ).fetchall()
+            except sqlite3.Error:
+                # Phase 36 table, may not exist on a fresh/stand-in database —
+                # same guard job_read._latest_corrections uses.
+                rows = []
+        store = seekers_store.get_store()
+        editors = []
+        for row in rows:
+            admin = store.get_seeker(row["seeker_id"])
+            editors.append({
+                "id": row["seeker_id"],
+                "display_name": (admin or {}).get("display_name") or "(deleted account)",
+                "email": (admin or {}).get("email") or "",
+            })
+        editors.sort(key=lambda e: e["display_name"].lower())
+        return editors
 
     return router

@@ -243,6 +243,41 @@ def _load_salary_reference() -> str:
 
 _SALARY_REFERENCE = _load_salary_reference()
 
+
+def _load_blinded_salary_reference() -> str:
+    """
+    Render `salary_anchors.blinded_vocabulary()` into a compact prompt block —
+    the same (tier -> role -> grade) tree as `_load_salary_reference()`, but with
+    every dollar band stripped to grade NAMES only (v13 — coordinate pricing).
+
+    Deliberately blind: shown the money, a model tends to pick the grade whose
+    band suits the salary it already had in mind rather than the grade the
+    posting actually describes, which turns independent evidence into a menu
+    (the same reasoning `/fix-s` uses for its classifier vocabulary). This block
+    is placed BEFORE the numbered `_SALARY_REFERENCE` fallback in the prompt so
+    the coordinate pick is asked for first — not a hard guarantee in a single
+    linear prompt, but the closest a one-call design can get to fix-s's
+    two-script separation.
+    """
+    try:
+        vocab = salary_anchors.blinded_vocabulary()
+        order = salary_anchors.ANCHORS["tier_order_low_to_high"][::-1]
+        lines = []
+        for tier in order:
+            tier_data = vocab.get(tier)
+            if not tier_data:
+                continue
+            lines.append(f"- {_TIER_LABELS.get(tier, tier)}:")
+            for role, grades in tier_data.get("roles", {}).items():
+                lines.append(f"    [{role}] " + " | ".join(grades))
+        return "\n".join(lines)
+    except Exception as exc:  # missing file, bad JSON, schema drift — degrade gracefully
+        logger.warning("Salary anchor file unavailable (%s); coordinate pricing disabled.", exc)
+        return ""
+
+
+_BLINDED_SALARY_REFERENCE = _load_blinded_salary_reference()
+
 # Salary-estimation instructions, shared by both prompts. Produced in the same
 # call (no extra cost). Estimates HK market monthly pay from role/seniority/
 # company tier/sector — distinct from disclosed salary_hkd_min/max.
@@ -289,10 +324,45 @@ STEP 2a — NOT every number next to a currency sign is a stated salary. Three t
   bonus-inclusive. This board's basis is monthly BASE, so return null for both salary_hkd
   fields rather than storing a total-comp figure as if it were base pay.
 
-STEP 3 — Only if NO salary is stated in the description, estimate from the REFERENCE TABLE
-below. It is a weighted merge of three 2025/2026 HK recruiter salary guides (Hays, PERSOLKELLY,
-Adecco), in monthly HK$ BASE, broken down into ~95 NAMED ROLES with per-grade rows. These bands
-are GROUND TRUTH: your estimate MUST fall inside the matching named role's row.
+STEP 2b — COORDINATE PRICING (v13). Only if NO salary was found in Step 2, try this BEFORE
+writing your own band in Step 3 below. This board prices a job EXACTLY, with no dollar figures
+from you at all, when it can name the (tier, role, grade) coordinate a job belongs to — the
+table below then supplies the number deterministically, the same way `/fix-s` already prices
+the board offline. A coordinate you name here is thrown away silently if it turns out invalid,
+so Step 3 below is NOT optional — always complete it too — but a clean coordinate pick here is
+cheaper and more precise than a generated band, so give it a real, careful attempt first.
+
+This is a CLASSIFICATION task, not a pricing one: no dollar figures are shown below on purpose.
+Pick the row that matches what the job DOES and what grade its title/responsibilities describe
+— never let a salary figure you already have in mind steer which grade looks "right".
+
+- Detect the FUNCTION TIER exactly as Step 3b below describes (default to the modest tier when
+  unclear; front office ONLY for a title that clearly names an IB/PE/HF/AM/trading/private-
+  banking-RM desk).
+- Within that tier, find the SPECIFIC NAMED ROLE below whose label most closely matches this
+  posting's title + description. Return it as "salary_role", exactly as printed in brackets
+  (e.g. "audit_banking") — or null if nothing clearly fits.
+- Within that role, find the SPECIFIC GRADE — matched from the posting's title wording, years of
+  experience, scope, and who the role reports to, not from the title alone (HK titles inflate;
+  a two-year analyst is often called "AVP"). Return it as "salary_grade", copied VERBATIM from
+  the list below — or null if no single row is a confident, exact match. Declining is free and
+  costs nothing; a wrong coordinate is silently discarded if it does not match a real row, so
+  there is no reason to force a pick you are not sure of.
+- If you name both a "salary_role" and "salary_grade" this way, set salary_estimated_confidence
+  to "medium" (this is a confident estimate, not a disclosed figure — "high" stays reserved for
+  Step 2's stated-salary case).
+
+COORDINATE VOCABULARY — tier -> [role_key] -> grade names, NO dollar figures:
+{blinded_salary_reference}
+
+STEP 3 — Regardless of whether Step 2b succeeded, ALSO estimate a band from the REFERENCE TABLE
+below — it is the figure actually used whenever the coordinate above does not resolve to a real
+table cell, so treat it as required, not optional. (If Step 2b gave you a confident, exact
+coordinate, this band only needs to be a reasonable, brief estimate for that same title/tier/
+grade — you do not need to re-derive a full justification from scratch.) It is a weighted merge
+of three 2025/2026 HK recruiter salary guides (Hays, PERSOLKELLY, Adecco), in monthly HK$ BASE,
+broken down into ~95 NAMED ROLES with per-grade rows. These bands are GROUND TRUTH: your estimate
+MUST fall inside the matching named role's row.
 
 STEP 3a — Map the title to a GRADE row. Most banking roles use the corporate ladder
   Analyst (0-3y) / Associate (3-7y) / VP (7-10y) / Director (10y+) / MD (15y+):
@@ -363,11 +433,16 @@ raise it, and they override every band above:
     Global Head:                                      HK$200,000-300,000
     Regional Head / Managing Director:                HK$180,000-250,000
     Executive Director / Head of:                     HK$130,000-180,000
-    Director / Head of:                               HK$100,000-150,000
+    Director / Head of / Team Head:                   HK$100,000-150,000
+    Section Head:                                     HK$80,000-150,000
     Senior Vice President (= senior manager / associate director):  HK$80,000-100,000
     Vice President (= Manager / Senior Manager):      HK$60,000-80,000
     Assistant Vice President (= Manager):             HK$50,000-70,000
-  A bare "Manager" is ambiguous between the VP and AVP bands — use the AVP band.
+    Senior Associate:                                 HK$45,000-60,000
+  A bare "Manager" is ambiguous between the VP and AVP bands — use the AVP band. A bare
+  "Associate" (not "Senior Associate") is likewise ambiguous — many non-banking titles use
+  "Associate" too ("Research Associate", "Client Associate") — fall back to the tier/role
+  tables in that case rather than forcing a grade-word match.
   These two grades are the ONLY place you may exceed the HK$200,000 absolute maximum, and only
   at a bank on a clear title match: Managing Director and Global Head.
 - INSURANCE COMPANIES — TITLE-GRADE BANDS, and note the hierarchy is INVERTED relative to banks:
@@ -408,7 +483,9 @@ salary_estimated_confidence:
 - "high"   = salary explicitly stated in the description (exact figures found in Step 2)
 - "medium" = not stated, but function tier + seniority + company are clear
 - "low"    = not stated, and function tier or seniority is ambiguous (when low, bias to the
-             BOTTOM of the band)""".replace("{salary_reference}", _SALARY_REFERENCE)
+             BOTTOM of the band)""".replace(
+    "{blinded_salary_reference}", _BLINDED_SALARY_REFERENCE
+).replace("{salary_reference}", _SALARY_REFERENCE)
 
 
 # The version this enricher stamps on every row it writes.
@@ -485,6 +562,7 @@ appears at the END of this prompt. Return ONLY valid JSON, no markdown, in exact
   "salary_estimated_confidence": "low|medium|high" or null,
   "salary_tier": "front_office|commercial_corporate_banking|retail_banking|corporate_finance_accounting|middle_office|insurance|back_office_operations",
   "salary_role": "<role_key from the matched named role in the reference table, or null>",
+  "salary_grade": "<exact grade name from the coordinate vocabulary in Step 2b, or null>",
   "description_summary": "<short neutral English summary, see rules below>"
 }}
 
@@ -526,6 +604,7 @@ valid JSON, no markdown, in exactly this shape:
   "salary_estimated_confidence": "low|medium|high" or null,
   "salary_tier": "front_office|commercial_corporate_banking|retail_banking|corporate_finance_accounting|middle_office|insurance|back_office_operations",
   "salary_role": "<role_key from the matched named role in the reference table, or null>",
+  "salary_grade": "<exact grade name from the coordinate vocabulary in Step 2b, or null>",
   "description_summary": ""
 }}
 

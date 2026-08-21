@@ -52,6 +52,7 @@ def finalise(
     tier: str | None,
     seniority: str | None,
     role: str | None = None,
+    grade: str | None = None,
     company_slug: str | None = None,
     title: str | None = None,
     source_tier: str | None = None,
@@ -72,7 +73,7 @@ def finalise(
     fixed_min, fixed_max = fix_salary_magnitude(raw_min, raw_max)
     return clamp_salary(
         tier, seniority, fixed_min, fixed_max,
-        role=role, company_slug=company_slug, title=title, source_tier=source_tier,
+        role=role, grade=grade, company_slug=company_slug, title=title, source_tier=source_tier,
     )
 
 
@@ -84,6 +85,7 @@ def lowered(
     tier: str | None,
     seniority: str | None,
     role: str | None = None,
+    grade: str | None = None,
     company_slug: str | None = None,
     title: str | None = None,
     source_tier: str | None = None,
@@ -118,7 +120,7 @@ def lowered(
 
     return clamp_salary(
         tier, seniority, corrected_min, corrected_max,
-        role=role, company_slug=company_slug, title=title, source_tier=source_tier,
+        role=role, grade=grade, company_slug=company_slug, title=title, source_tier=source_tier,
     )
 
 

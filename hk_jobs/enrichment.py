@@ -196,6 +196,7 @@ class EnrichmentPipeline:
                                 tier=data.get("salary_tier"),
                                 seniority=data.get("seniority"),
                                 role=data.get("salary_role"),
+                                grade=data.get("salary_grade"),
                                 company_slug=row["company_slug"],
                                 title=row["title"],
                                 source_tier=row["source_tier"],
@@ -228,8 +229,9 @@ class EnrichmentPipeline:
                                      job_category, enriched_at, model_used,
                                      salary_estimated_min, salary_estimated_max,
                                      salary_estimated_confidence, description_summary,
-                                     title_en, prompt_version, salary_tier, salary_role)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                     title_en, prompt_version, salary_tier, salary_role,
+                                    salary_grade)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                                 ON CONFLICT (source, source_id) DO UPDATE SET
                                     seniority                 = excluded.seniority,
                                     years_experience_required = excluded.years_experience_required,
@@ -247,7 +249,8 @@ class EnrichmentPipeline:
                                     title_en                    = excluded.title_en,
                                     prompt_version               = excluded.prompt_version,
                                     salary_tier                  = excluded.salary_tier,
-                                    salary_role                  = excluded.salary_role
+                                    salary_role                  = excluded.salary_role,
+                                    salary_grade                 = excluded.salary_grade
                                 """,
                                 (
                                     row["source"], row["source_id"],
@@ -268,6 +271,7 @@ class EnrichmentPipeline:
                                     PROMPT_VERSION,
                                     data.get("salary_tier"),
                                     data.get("salary_role"),
+                                    data.get("salary_grade"),
                                 ),
                             )
                             enriched += 1

@@ -95,7 +95,16 @@ class PublicationReceipt:
 
 # Columns introduced by pipeline migrations that the web service can safely
 # add to an older persistent volume. Never infer DDL from an uploaded file.
-_ADDITIVE_COLUMNS = {("jobs", "closed_at"): "TEXT"}
+_ADDITIVE_COLUMNS = {
+    ("jobs", "closed_at"): "TEXT",
+    # hk_jobs/migrations.py phase 37 (2026-08-21) — the coordinate-pricing
+    # column DeepSeek's Step 2b writes alongside salary_tier/salary_role.
+    # Found the hard way: the first publish attempt after adding the column to
+    # job_enrichments failed with "Incompatible job_enrichments schema" — this
+    # allowlist is a real gate, not documentation, and every new column needs
+    # an entry here or publication stops rather than silently dropping it.
+    ("job_enrichments", "salary_grade"): "TEXT",
+}
 _SYNC_DDL = """
 CREATE TABLE IF NOT EXISTS pipeline_catalog_sync (
     source_run_id TEXT PRIMARY KEY,

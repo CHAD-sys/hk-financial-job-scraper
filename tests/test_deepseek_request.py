@@ -36,9 +36,15 @@ _ANSWER = {
     "seniority": "mid", "years_experience": 5, "skills": ["excel"],
     "remote_type": "onsite", "job_category": "middle_office",
     "salary_hkd_min": 40000, "salary_hkd_max": 60000,
-    "estimated_salary_hkd_min": 40000, "estimated_salary_hkd_max": 60000,
-    "estimated_salary_confidence": "medium", "description_summary": "A role.",
+    # These three field names were stale here (estimated_salary_hkd_min/max,
+    # estimated_salary_confidence) — the real schema is salary_estimated_*, per
+    # deepseek.py's _PROMPT_WITH_DESC/_PROMPT_TITLE_ONLY. Fixed in passing while
+    # adding salary_grade (v13, coordinate pricing); this file only pins request
+    # shape and error handling, so the mismatch never surfaced as a failure.
+    "salary_estimated_min": 40000, "salary_estimated_max": 60000,
+    "salary_estimated_confidence": "medium", "description_summary": "A role.",
     "title_en": "Risk Analyst", "salary_tier": "middle_office", "salary_role": None,
+    "salary_grade": None,
 }
 
 

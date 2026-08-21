@@ -402,6 +402,7 @@ def list_jobs(
             # Recruiter Posts get quick, steady visibility on the board itself,
             # whatever sort or filters are active — see job_read's boost docstring.
             boost_recruiter_posts=True,
+            is_admin=_is_admin_session(seeker),
         )
     _grant_role_access(request, result.jobs)
     return result
@@ -757,7 +758,14 @@ def get_job(
         raise HTTPException(status_code=404, detail="Job not found")
 
     with get_db(request) as conn:
-        detail = job_read.get_job(conn, source, source_id, visibility=Visibility.ADDRESSABLE)
+        # Deliberately the broad `_is_admin_session` here, not the narrow
+        # `is_admin` above (which excludes is_super_admin-only accounts and
+        # exists only for the access-token bypass) — an Ultimate Admin must
+        # still see the real salary estimate.
+        detail = job_read.get_job(
+            conn, source, source_id, visibility=Visibility.ADDRESSABLE,
+            is_admin=_is_admin_session(seeker),
+        )
     if detail is None:
         raise HTTPException(status_code=404, detail="Job not found")
     if detail.source_tier in MEMBER_ONLY_TIERS and seeker is None:
@@ -2677,7 +2685,7 @@ def list_saved(request: Request):
     conn = get_db(request)
     try:
         # Order is the Seeker's newest-first save order, preserved by saved_roles.
-        saved = job_read.saved_roles(conn, pairs)
+        saved = job_read.saved_roles(conn, pairs, is_admin=_is_admin_session(seeker))
     finally:
         conn.close()
 

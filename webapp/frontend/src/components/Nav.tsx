@@ -64,7 +64,8 @@ const LINKS: PrimaryLink[] = [
 ]
 
 /**
- * The primary row, plus one destination for admins.
+ * The primary row, plus one destination for admins and, for Ultimate Admin
+ * specifically, one more.
  *
  * "Admin panel" sits in the row alongside Home/Careers/About because that is
  * where a destination belongs — it is a place you go, listed with the other
@@ -73,12 +74,21 @@ const LINKS: PrimaryLink[] = [
  * is what carries an admin back OUT of the panel to the board. This is what
  * puts the panel in the same list the rest of the product is in.
  *
+ * ASF (Audit Salary Fixing) is deliberately gated on `isSuperAdmin` alone, NOT
+ * on `isAdmin` the way "Admin panel" is — and not on the `adminMode` toggle
+ * either, so it does not disappear just because an Ultimate Admin has Admin
+ * Mode switched off. It carries an admin's read/edit access to every job's
+ * salary; a plain `is_admin` account must never see the entry point, same bar
+ * as the Accounts Directory in AdminPage.tsx.
+ *
  * Kept as a function (rather than inlining LINKS) because the mobile menu and
  * the desktop row must not be able to drift apart on what "primary" means —
  * both call this.
  */
-export function primaryLinksFor(isAdmin: boolean): PrimaryLink[] {
-  return isAdmin ? [...LINKS, { label: 'Admin panel', to: '/admin' }] : LINKS
+export function primaryLinksFor(isAdmin: boolean, isSuperAdmin: boolean): PrimaryLink[] {
+  const links = isAdmin ? [...LINKS, { label: 'Admin panel', to: '/admin' }] : [...LINKS]
+  if (isSuperAdmin) links.push({ label: 'ASF', to: '/asf' })
+  return links
 }
 
 export default function Nav() {
@@ -98,7 +108,11 @@ export default function Nav() {
   const { adminMode, canUseAdminMode, setAdminMode } = useAdminMode()
   // The panel is an admin-view destination, so the row only carries it in admin
   // view. In Seeker view an admin's nav is a Seeker's nav, entry for entry.
-  const primaryLinks = primaryLinksFor(!authLoading && adminMode)
+  // ASF is the one exception: it reads seeker.is_super_admin directly, not
+  // adminMode, so it stays visible to Ultimate Admin regardless of the toggle.
+  const primaryLinks = primaryLinksFor(
+    !authLoading && adminMode, !authLoading && Boolean(seeker?.is_super_admin),
+  )
 
   // Where sign-in should return to. The board is public, so nobody is ever sent
   // here by a wall — they came from a page they were reading and should land

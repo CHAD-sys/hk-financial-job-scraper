@@ -168,6 +168,11 @@ _BANK_BAND_PATTERNS: tuple[tuple[str, re.Pattern, bool], ...] = (
     # is an Executive Director. The grade word is harder evidence about the HR
     # grade than the function is.
     ("team_head", re.compile(r"\bteam head\b|\bhead of team\b", re.I), True),
+    # "Section Head is close to Team Head, close to Associate Director or
+    # Director grade" (Morris H., 2026-08-21). Ranked with the other functional
+    # titles, above the ambiguous glosses below — "Section Head" is specific
+    # enough to be hard evidence, unlike a bare "Manager".
+    ("section_head", re.compile(r"\bsection head\b|\bhead of section\b", re.I), True),
     ("general_manager",
      # "General Manager" / "Deputy GM" spelled out only. A bare \bGM\b is NOT
      # matched: live rows include "Senior Legal Counsel (GM)" and "Senior Treasury
@@ -176,6 +181,13 @@ _BANK_BAND_PATTERNS: tuple[tuple[str, re.Pattern, bool], ...] = (
      re.compile(r"\b(?:deputy|assistant|acting)?\s*general manager\b|\bdeputy\s+GM\b", re.I),
      True),
     ("product_manager", re.compile(r"\b(?:senior\s+)?product manager\b", re.I), True),
+    # "Change Senior Associate to $45k-60k" (Morris H., 2026-08-21), a direct
+    # correction on a live row — supersedes the earlier assistant_vice_president-
+    # band guess. Deliberately "senior associate" only, not bare "associate":
+    # Morris's number was for this exact title, and a bare "Associate" is far
+    # more ambiguous (Research Associate, Client Associate...) than a title
+    # that specifically says "Senior".
+    ("senior_associate", re.compile(r"\bsenior associate\b", re.I), True),
     # Ambiguous glosses — ceiling only, exactly as before Morris's tables landed.
     ("assistant_vice_president", re.compile(r"\bassistant manager\b", re.I), False),
     ("assistant_vice_president", re.compile(r"\bmanager\b", re.I), False),
@@ -355,6 +367,29 @@ def _role_band(tier: str | None, role: str | None, seniority: str | None) -> tup
     return None
 
 
+def price_from_coordinate(tier: str | None, role: str | None, grade: str | None) -> tuple[int, int] | None:
+    """The published band for an exact (tier, role, grade) cell, or None.
+
+    Unlike `_role_band`, this needs no seniority-to-row-name translation: `grade`
+    is the model's own read of which named row in the role's ladder this posting
+    is (e.g. "cs_supervisor", "VP") — the same thing `/fix-s` asks a classifier to
+    pick, now asked inline by the nightly enricher. A hit here is exact evidence,
+    not the standardized-row-name-only subset `_role_band` trusts, so it also
+    resolves the roughly half of ladders that use idiosyncratic grade labels the
+    coarse 4-value `seniority` field cannot address at all.
+
+    Public because `/fix-s/scripts/apply.py` prices a coordinate the same way the
+    pipeline does; the two drifting into separate implementations is what this
+    function exists to prevent.
+    """
+    if not tier or not role or not grade:
+        return None
+    band = _TABLES.get(tier, {}).get("roles", {}).get(role, {}).get(grade)
+    if not isinstance(band, list) or len(band) != 2 or not band[0] or not band[1]:
+        return None
+    return int(band[0]), int(band[1])
+
+
 def _role_ceiling(tier: str | None, role: str | None, seniority: str | None) -> int | None:
     """Ceiling of the role's ladder row matching `seniority`, or None if unrecognised."""
     if not tier or not role:
@@ -482,6 +517,7 @@ def clamp_salary(
     est_max: int | None,
     *,
     role: str | None = None,
+    grade: str | None = None,
     company_slug: str | None = None,
     title: str | None = None,
     source_tier: str | None = None,
@@ -560,6 +596,26 @@ def clamp_salary(
             if grade_ceiling is not None:
                 new_max = min(new_max, grade_ceiling)
             new_max = min(new_max, GLOBAL_MAX_MONTHLY_HKD)
+
+    # Coordinate pricing (v13). The enricher's own exact (tier, role, grade) read,
+    # not the seniority-to-standardized-row-name guess `_role_band` above depends
+    # on. When it resolves, it REPLACES both endpoints outright, same treatment as
+    # Morris's title-grade band below and for the same reason: a coordinate the
+    # model committed to by name is harder evidence than the ceiling/floor stack
+    # above, which only ever worked from the coarse `seniority` field. Runs before
+    # Morris's block so a bank/insurance title match can still override it — title
+    # is harder evidence again, this time about company-specific pay grades a
+    # generic cross-employer table cannot know.
+    coordinate_band = None if internship else price_from_coordinate(tier, role, grade)
+    if coordinate_band is not None:
+        new_min, new_max = coordinate_band
+        # Same re-capping as the floor raise above, and for the same reason: adopting
+        # the cell outright must not hand back a maximum the title-grade ceiling or
+        # global cap had already lowered.
+        if grade_ceiling is not None:
+            new_max = min(new_max, grade_ceiling)
+        new_max = min(new_max, GLOBAL_MAX_MONTHLY_HKD)
+        new_min = min(new_min, new_max)
 
     # Morris H.'s title-grade band (2026-08-19). The ONE rule here that is not a
     # ceiling: a matched grade at a known bank or insurer replaces BOTH endpoints,

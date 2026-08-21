@@ -30,7 +30,7 @@ CREATE TABLE jobs (
 CREATE TABLE job_enrichments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     source TEXT, source_id TEXT, seniority TEXT, job_category TEXT,
-    salary_tier TEXT, salary_role TEXT,
+    salary_tier TEXT, salary_role TEXT, salary_grade TEXT,
     salary_estimated_min INTEGER, salary_estimated_max INTEGER,
     enriched_at TEXT,
     manually_edited_at TEXT,

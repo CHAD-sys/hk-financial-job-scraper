@@ -274,6 +274,66 @@ def test_an_admin_may_browse_the_catalogue_with_no_query(client):
     assert {"MEDIUM", "RECRUITER"} <= ids
 
 
+# ── AI salary estimate visibility (2026-08-21) ─────────────────────────────────
+# "IB" carries only an AI estimate (salary_estimated_*), no employer-disclosed
+# figure — the exact shape a wrong estimate reaches a visitor as. "BANK" is the
+# opposite: employer-disclosed only. Together they pin that the gate hides the
+# ESTIMATE specifically, never a disclosed salary, for either role.
+
+
+def _job(body, source_id: str) -> dict:
+    return next(j for j in body["jobs"] if j["source_id"] == source_id)
+
+
+def test_salary_estimate_is_hidden_from_an_anonymous_visitor(client):
+    ib = _job(_get(client, page_size=100), "IB")
+    assert ib["salary_estimated_min"] is None
+    assert ib["salary_estimated_max"] is None
+    assert ib["salary_estimated_confidence"] is None
+
+
+def test_salary_estimate_is_hidden_from_a_signed_in_seeker(client):
+    _register_member(client)
+    ib = _job(_get(client, page_size=100), "IB")
+    assert ib["salary_estimated_min"] is None
+    assert ib["salary_estimated_max"] is None
+
+
+def test_salary_estimate_is_visible_to_an_admin(client):
+    _register_admin(client)
+    ib = _job(_get(client, page_size=100), "IB")
+    assert (ib["salary_estimated_min"], ib["salary_estimated_max"]) == (80_000, 120_000)
+
+
+def test_salary_estimate_is_visible_to_a_super_admin_only_account(client):
+    # is_super_admin alone, no is_admin — the account shape the detail
+    # endpoint's OWN narrow admin check would wrongly exclude if the salary
+    # gate reused it instead of the broad _is_admin_session check.
+    _register_admin(client, super_admin=True)
+    ib = _job(_get(client, page_size=100), "IB")
+    assert (ib["salary_estimated_min"], ib["salary_estimated_max"]) == (80_000, 120_000)
+
+
+def test_disclosed_salary_is_never_hidden_anonymous_or_admin(client):
+    anon = _job(_get(client, page_size=100), "BANK")
+    assert (anon["salary_hkd_min"], anon["salary_hkd_max"]) == (40_000, 60_000)
+
+    _register_admin(client)
+    admin = _job(_get(client, page_size=100), "BANK")
+    assert (admin["salary_hkd_min"], admin["salary_hkd_max"]) == (40_000, 60_000)
+
+
+def test_salary_estimate_gate_also_applies_to_the_detail_endpoint(client):
+    anon_detail = _detail(client, "workday", "IB")
+    assert anon_detail.status_code == 200
+    assert anon_detail.json()["salary_estimated_min"] is None
+
+    _register_admin(client)
+    admin_detail = _detail(client, "workday", "IB")
+    assert admin_detail.status_code == 200
+    assert admin_detail.json()["salary_estimated_min"] == 80_000
+
+
 def test_ultimate_admin_alone_may_browse_with_no_query(client):
     """is_super_admin without is_admin still counts as staff — the two bits are
     independent columns, and create_admin.py setting both is a convention, not a

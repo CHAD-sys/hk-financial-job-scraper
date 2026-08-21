@@ -101,6 +101,46 @@ TIER_KEYS: tuple[str, ...] = tuple(LADDERS.keys()) or (
 )
 
 
+def vocabulary() -> dict:
+    """The closed (tier -> role -> grade rows, WITH bands) vocabulary.
+
+    Promoted out of `~/.claude/skills/fix-s/scripts/resolve.py`'s local copy so
+    the coordinate-first prompt in `hk_jobs/enrichers/deepseek.py` and fix-s's
+    offline resolver read one implementation instead of two that can drift.
+    Every key here is a key `salary_clamp.price_from_coordinate` can look up, so
+    a valid (tier, role, grade) answer is guaranteed to resolve to a band.
+    """
+    vocab: dict[str, dict] = {}
+    for tier, tbl in TABLES.items():
+        roles = {}
+        for role, ladder in (tbl.get("roles") or {}).items():
+            grades = {
+                name: band
+                for name, band in ladder.items()
+                if isinstance(band, list) and len(band) == 2 and band[0] and band[1]
+            }
+            if grades:
+                roles[role] = grades
+        if roles:
+            vocab[tier] = {"_desc": (tbl.get("_desc") or "").strip(), "roles": roles}
+    return vocab
+
+
+def blinded_vocabulary() -> dict:
+    """`vocabulary()` with every dollar band stripped down to grade names only.
+
+    This is what a classifier — the coordinate-first prompt, or fix-s's Opus
+    pass — must be shown. Seeing the money lets a model pick the grade whose
+    band suits the salary it already had in mind instead of the grade the
+    posting actually describes, which turns independent evidence into a menu.
+    Names only.
+    """
+    return {
+        tier: {"_desc": t["_desc"], "roles": {r: sorted(g) for r, g in t["roles"].items()}}
+        for tier, t in vocabulary().items()
+    }
+
+
 def fingerprint() -> str:
     """
     A short digest of the anchor data that actually affects an estimate.

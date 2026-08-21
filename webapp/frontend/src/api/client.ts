@@ -137,6 +137,103 @@ export interface JobListResponse {
   jobs: Job[]
 }
 
+// ── ASF: Audit Salary Fixing (2026-08-21) ────────────────────────────────────
+// Ultimate-Admin-only. A separate filter/response shape from the board's
+// JobFilters/JobListResponse above, deliberately: this always prices as
+// admin, always browses the whole catalogue, and carries audit fields
+// (the priced coordinate, who last corrected it) that have no place in the
+// public Job type.
+
+export interface SalaryCorrection {
+  admin_id: string
+  admin_name: string
+  admin_email: string
+  corrected_at: string
+  old_min: number | null
+  old_max: number | null
+  new_min: number | null
+  new_max: number | null
+}
+
+export interface SalaryAuditRow extends Job {
+  salary_tier: string | null
+  salary_role: string | null
+  salary_grade: string | null
+  last_correction: SalaryCorrection | null
+}
+
+export interface SalaryAuditResponse {
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+  jobs: SalaryAuditRow[]
+}
+
+export interface SalaryEditor {
+  id: string
+  display_name: string
+  email: string
+}
+
+export interface SalaryAuditFilters {
+  search: string
+  sectors: string[]
+  companies: string[]
+  seniority: string[]
+  remote_type: string[]
+  skills: string[]
+  salary_min: number | null
+  salary_max: number | null
+  exp_min: number | null
+  exp_max: number | null
+  is_internship: boolean | null
+  is_new: boolean
+  urgently_hiring: boolean
+  max_applicants: number | null
+  hidden_only: boolean
+  verified_only: boolean
+  has_ai_estimate: boolean | null
+  has_disclosed_salary: boolean | null
+  manually_edited: boolean | null
+  coordinate_resolved: boolean | null
+  confidence: string[]
+  salary_tier_key: string[]
+  salary_role_key: string[]
+  edited_by: string | null
+  edited_within_days: number | null
+  wide_range_only: boolean
+}
+
+export const DEFAULT_SALARY_AUDIT_FILTERS: SalaryAuditFilters = {
+  search: '',
+  sectors: [],
+  companies: [],
+  seniority: [],
+  remote_type: [],
+  skills: [],
+  salary_min: null,
+  salary_max: null,
+  exp_min: null,
+  exp_max: null,
+  is_internship: null,
+  is_new: false,
+  urgently_hiring: false,
+  max_applicants: null,
+  hidden_only: false,
+  verified_only: false,
+  has_ai_estimate: null,
+  has_disclosed_salary: null,
+  manually_edited: null,
+  coordinate_resolved: null,
+  confidence: [],
+  salary_tier_key: [],
+  salary_role_key: [],
+  edited_by: null,
+  edited_within_days: null,
+  wide_range_only: false,
+}
+
 export interface NameCount {
   name: string
   count: number
@@ -382,6 +479,63 @@ export async function fetchJobs(
 
   const res = await apiFetch(`/api/jobs?${p}`)
   if (!res.ok) throw new Error(`Jobs fetch failed: ${res.status}`)
+  return res.json()
+}
+
+export async function fetchSalaryAuditJobs(
+  filters: SalaryAuditFilters,
+  sort: string,
+  page: number,
+  pageSize = 50,
+): Promise<SalaryAuditResponse> {
+  const p = new URLSearchParams()
+
+  if (filters.search) p.set('search', filters.search)
+  filters.sectors.forEach(s => p.append('sectors', s))
+  filters.companies.forEach(c => p.append('companies', c))
+  filters.seniority.forEach(s => p.append('seniority', s))
+  filters.remote_type.forEach(r => p.append('remote_type', r))
+  filters.skills.forEach(s => p.append('skills', s))
+  if (filters.salary_min !== null) p.set('salary_min', String(filters.salary_min))
+  if (filters.salary_max !== null) p.set('salary_max', String(filters.salary_max))
+  if (filters.exp_min !== null) p.set('exp_min', String(filters.exp_min))
+  if (filters.exp_max !== null) p.set('exp_max', String(filters.exp_max))
+  if (filters.is_internship !== null) p.set('is_internship', String(filters.is_internship))
+  if (filters.is_new) p.set('is_new', 'true')
+  if (filters.urgently_hiring) p.set('urgently_hiring', 'true')
+  if (filters.max_applicants !== null) p.set('max_applicants', String(filters.max_applicants))
+  if (filters.hidden_only) p.set('hidden_only', 'true')
+  if (filters.verified_only) p.set('verified_only', 'true')
+
+  if (filters.has_ai_estimate !== null) p.set('has_ai_estimate', String(filters.has_ai_estimate))
+  if (filters.has_disclosed_salary !== null) {
+    p.set('has_disclosed_salary', String(filters.has_disclosed_salary))
+  }
+  if (filters.manually_edited !== null) p.set('manually_edited', String(filters.manually_edited))
+  if (filters.coordinate_resolved !== null) {
+    p.set('coordinate_resolved', String(filters.coordinate_resolved))
+  }
+  filters.confidence.forEach(c => p.append('confidence', c))
+  filters.salary_tier_key.forEach(t => p.append('salary_tier_key', t))
+  filters.salary_role_key.forEach(r => p.append('salary_role_key', r))
+  if (filters.edited_by) p.set('edited_by', filters.edited_by)
+  if (filters.edited_within_days !== null) {
+    p.set('edited_within_days', String(filters.edited_within_days))
+  }
+  if (filters.wide_range_only) p.set('wide_range_only', 'true')
+
+  p.set('sort', sort)
+  p.set('page', String(page))
+  p.set('page_size', String(pageSize))
+
+  const res = await apiFetch(`/api/admin/salary-audit/jobs?${p}`)
+  if (!res.ok) throw new Error(`Salary audit fetch failed: ${res.status}`)
+  return res.json()
+}
+
+export async function fetchSalaryAuditEditors(): Promise<SalaryEditor[]> {
+  const res = await apiFetch('/api/admin/salary-audit/editors')
+  if (!res.ok) throw new Error(`Salary audit editors fetch failed: ${res.status}`)
   return res.json()
 }
 

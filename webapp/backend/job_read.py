@@ -53,7 +53,7 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Iterable, Literal, Optional, Sequence
+from typing import Callable, Iterable, Literal, Optional, Sequence
 
 from pydantic import BaseModel
 
@@ -266,6 +266,9 @@ _SELECT_COLUMNS = f"""
     e.salary_estimated_min,
     e.salary_estimated_max,
     e.salary_estimated_confidence,
+    e.salary_tier,
+    e.salary_role,
+    e.salary_grade,
     e.manually_edited_at,
     e.years_experience_required,
     e.description_summary,
@@ -349,6 +352,47 @@ class JobListResponse(BaseModel):
     jobs: list[JobSummary]
 
 
+class SalaryCorrection(BaseModel):
+    """One `admin_salary_corrections` row, the admin's identity resolved in.
+
+    Deliberately its own model rather than more fields flattened onto
+    `SalaryAuditRow` — a job with no correction simply has `last_correction =
+    None`, which is clearer than five more Optional fields that are only ever
+    all-set or all-absent together.
+    """
+
+    admin_id: str
+    admin_name: str
+    admin_email: str
+    corrected_at: str
+    old_min: Optional[int] = None
+    old_max: Optional[int] = None
+    new_min: Optional[int] = None
+    new_max: Optional[int] = None
+
+
+class SalaryAuditRow(JobSummary):
+    """`JobSummary` plus the coordinate and correction-history ASF needs.
+
+    Not merged into `JobSummary` itself: this is admin-audit metadata (which
+    grade the model matched, who last overrode it), not part of the public
+    board's job schema.
+    """
+
+    salary_tier: Optional[str] = None
+    salary_role: Optional[str] = None
+    salary_grade: Optional[str] = None
+    last_correction: Optional[SalaryCorrection] = None
+
+
+class SalaryAuditResponse(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+    jobs: list[SalaryAuditRow]
+
+
 class NameCount(BaseModel):
     name: str
     count: int
@@ -402,13 +446,39 @@ class JobFilters:
     hidden_only: Optional[bool] = None
     verified_only: Optional[bool] = None
 
+    # ── Salary-audit filters (ASF, 2026-08-21) ─────────────────────────────
+    # Additive and admin-only in practice: every field defaults to "not
+    # requested", so every existing caller (/api/jobs, /api/filters,
+    # recommendations) is unaffected. Enforcement that only Ultimate Admin can
+    # actually SET these lives at the route layer (require_super_admin on the
+    # /api/admin/salary-audit/* routes), not here — this object has no notion
+    # of who is asking.
+    has_ai_estimate: Optional[bool] = None
+    has_disclosed_salary: Optional[bool] = None
+    manually_edited: Optional[bool] = None
+    #: True when the model named an exact (tier, role, grade) coordinate that
+    #: resolved to a table cell — see hk_jobs.salary_clamp.price_from_coordinate.
+    coordinate_resolved: Optional[bool] = None
+    confidence: tuple[str, ...] = ()
+    #: The pricing function tier (front_office, back_office_operations, ...) —
+    #: NOT `tier` above, which means source_tier (boutique/mainstream/social).
+    salary_tier_key: tuple[str, ...] = ()
+    salary_role_key: tuple[str, ...] = ()
+    #: seekers.id of the admin who last corrected this job's salary.
+    edited_by: Optional[str] = None
+    edited_within_days: Optional[int] = None
+    #: Mirrors /norm-it's WIDE_RATIO = 4.0 — an estimate whose max is at least
+    #: 4x its min, a shape norm-it flags as too imprecise to trust.
+    wide_range_only: Optional[bool] = None
+
     @classmethod
     def of(cls, **kwargs) -> "JobFilters":
         """Build from loose values — lists become tuples, `None` means default."""
         clean = {}
         for name, value in kwargs.items():
             if value is None and name in ("sectors", "companies", "seniority",
-                                          "remote_type", "skills"):
+                                          "remote_type", "skills", "confidence",
+                                          "salary_tier_key", "salary_role_key"):
                 continue
             clean[name] = tuple(value) if isinstance(value, list) else value
         return cls(**clean)
@@ -574,6 +644,52 @@ def _where(
 
     if filters.is_internship is not None:
         conditions.append(INTERNSHIP_COND if filters.is_internship else f"NOT {INTERNSHIP_COND}")
+
+    # ── Salary-audit filters (ASF) ──────────────────────────────────────────
+    if filters.has_ai_estimate is not None:
+        cond = "e.salary_estimated_max IS NOT NULL"
+        conditions.append(cond if filters.has_ai_estimate else f"NOT ({cond})")
+    if filters.has_disclosed_salary is not None:
+        cond = "e.salary_hkd_max IS NOT NULL"
+        conditions.append(cond if filters.has_disclosed_salary else f"NOT ({cond})")
+    if filters.manually_edited is not None:
+        cond = "e.manually_edited_at IS NOT NULL"
+        conditions.append(cond if filters.manually_edited else f"NOT ({cond})")
+    if filters.coordinate_resolved is not None:
+        cond = "e.salary_grade IS NOT NULL"
+        conditions.append(cond if filters.coordinate_resolved else f"NOT ({cond})")
+    if filters.confidence:
+        ph = ",".join("?" * len(filters.confidence))
+        conditions.append(f"e.salary_estimated_confidence IN ({ph})")
+        params += list(filters.confidence)
+    if filters.salary_tier_key:
+        ph = ",".join("?" * len(filters.salary_tier_key))
+        conditions.append(f"e.salary_tier IN ({ph})")
+        params += list(filters.salary_tier_key)
+    if filters.salary_role_key:
+        ph = ",".join("?" * len(filters.salary_role_key))
+        conditions.append(f"e.salary_role IN ({ph})")
+        params += list(filters.salary_role_key)
+    if filters.edited_by is not None:
+        conditions.append(
+            "EXISTS (SELECT 1 FROM admin_salary_corrections c"
+            " WHERE c.source = j.source AND c.source_id = j.source_id"
+            " AND c.seeker_id = ?)"
+        )
+        params.append(filters.edited_by)
+    if filters.edited_within_days is not None:
+        conditions.append(
+            "EXISTS (SELECT 1 FROM admin_salary_corrections c"
+            " WHERE c.source = j.source AND c.source_id = j.source_id"
+            " AND c.corrected_at >= datetime('now', ?))"
+        )
+        params.append(f"-{filters.edited_within_days} days")
+    if filters.wide_range_only:
+        conditions.append(
+            "e.salary_estimated_min IS NOT NULL AND e.salary_estimated_max IS NOT NULL"
+            " AND e.salary_estimated_min > 0"
+            " AND e.salary_estimated_max >= e.salary_estimated_min * 4"
+        )
 
     where_sql = ("WHERE " + " AND ".join(conditions)) if conditions else ""
     return where_sql, params
@@ -749,12 +865,20 @@ def _own_signals(row: sqlite3.Row) -> dict[str, dict]:
     return {row["source"]: sig} if sig else {}
 
 
-def _to_summary(row: sqlite3.Row) -> JobSummary:
+def _to_summary(row: sqlite3.Row, *, is_admin: bool = False) -> JobSummary:
     # From the AI summary, never `description_clean` — see PUBLISHABLE_DESCRIPTION.
     # This used to be the first 200 characters of the employer's own description,
     # on every row of every list response including anonymous ones.
     summary = row["description_summary"] or ""
     excerpt = summary[:200].rstrip() + ("…" if len(summary) > 200 else "")
+    # The AI SALARY ESTIMATE only — never the employer-disclosed salary_hkd_*
+    # below, which stays visible to everyone. Hidden from non-admins while a
+    # round of estimator fixes is in flight (Morris H., 2026-08-21: several
+    # visibly wrong estimates had already reached Seekers). `is_admin` defaults
+    # to False — every call site must opt IN to showing it, not opt out.
+    est_min = row["salary_estimated_min"] if is_admin else None
+    est_max = row["salary_estimated_max"] if is_admin else None
+    est_confidence = row["salary_estimated_confidence"] if is_admin else None
     return JobSummary(
         source=row["source"],
         source_id=row["source_id"],
@@ -771,9 +895,9 @@ def _to_summary(row: sqlite3.Row) -> JobSummary:
         salary_hkd_min=row["salary_hkd_min"],
         salary_hkd_max=row["salary_hkd_max"],
         salary_period=_salary_period(row),
-        salary_estimated_min=row["salary_estimated_min"],
-        salary_estimated_max=row["salary_estimated_max"],
-        salary_estimated_confidence=row["salary_estimated_confidence"],
+        salary_estimated_min=est_min,
+        salary_estimated_max=est_max,
+        salary_estimated_confidence=est_confidence,
         salary_verified=row["manually_edited_at"] is not None,
         years_experience_required=row["years_experience_required"],
         posted_at=row["posted_at"],
@@ -842,6 +966,7 @@ def list_jobs(
     visibility: Visibility = Visibility.BOARD,
     audience: CatalogueAudience = CatalogueAudience.PUBLIC,
     boost_recruiter_posts: bool = False,
+    is_admin: bool = False,
 ) -> JobListResponse:
     """
     One page of the board.
@@ -884,7 +1009,7 @@ def list_jobs(
         params + [page_size, offset],
     ).fetchall()
 
-    summaries = [_to_summary(r) for r in rows]
+    summaries = [_to_summary(r, is_admin=is_admin) for r in rows]
     _attach_group_signals(conn, rows, summaries)
 
     return JobListResponse(
@@ -894,6 +1019,125 @@ def list_jobs(
         total_pages=math.ceil(total / page_size) if total else 0,
         jobs=summaries,
     )
+
+
+def salary_audit_rows(
+    conn: sqlite3.Connection,
+    filters: JobFilters,
+    *,
+    sort: Sort = Sort.NEWEST,
+    page: int = 1,
+    page_size: int = 24,
+    resolve_admin: Callable[[str], Optional[dict]],
+) -> SalaryAuditResponse:
+    """
+    ASF's row source: the whole catalogue plus the salary-audit filters, the
+    priced coordinate, and the latest correction (if any) with the acting
+    admin's identity resolved.
+
+    `resolve_admin` is injected — jobs.db and seekers.db are separate files
+    (ADR 0006), so `admin_salary_corrections.seeker_id` cannot be joined in
+    SQL. The caller passes `seekers_store.get_seeker`; this module never
+    imports it directly, matching every other cross-store boundary here.
+
+    Always prices with `is_admin=True`: this endpoint is Ultimate-Admin-only
+    end to end (route-gated by `require_super_admin`), so there is no reader
+    here the estimate should ever be hidden from.
+    """
+    search_rowids = search_index.matching_rowids(conn, filters.search) if filters.search else None
+    where_sql, params = _where(filters, Visibility.BOARD, search_rowids, CatalogueAudience.MEMBER)
+    offset = (page - 1) * page_size
+
+    order_sql = (
+        _relevance_order_sql(search_rowids)
+        if sort == Sort.RELEVANCE and search_rowids
+        else _SORT_SQL[Sort.NEWEST if sort == Sort.RELEVANCE else sort]
+    )
+
+    total = conn.execute(f"{_COUNT_SELECT} {where_sql}", params).fetchone()[0]
+    rows = conn.execute(
+        f"{BASE_SELECT} {where_sql} ORDER BY {order_sql} LIMIT ? OFFSET ?",
+        params + [page_size, offset],
+    ).fetchall()
+
+    summaries = [_to_summary(r, is_admin=True) for r in rows]
+    _attach_group_signals(conn, rows, summaries)
+
+    corrections = _latest_corrections(conn, [(r["source"], r["source_id"]) for r in rows])
+    admin_cache: dict[str, Optional[dict]] = {}
+
+    audit_rows: list[SalaryAuditRow] = []
+    for row, summary in zip(rows, summaries):
+        correction = corrections.get((row["source"], row["source_id"]))
+        last_correction = None
+        if correction is not None:
+            admin_id = correction["seeker_id"]
+            if admin_id not in admin_cache:
+                admin_cache[admin_id] = resolve_admin(admin_id)
+            admin = admin_cache[admin_id] or {}
+            last_correction = SalaryCorrection(
+                admin_id=admin_id,
+                admin_name=admin.get("display_name") or "(deleted account)",
+                admin_email=admin.get("email") or "",
+                corrected_at=correction["corrected_at"],
+                old_min=correction["old_min"],
+                old_max=correction["old_max"],
+                new_min=correction["new_min"],
+                new_max=correction["new_max"],
+            )
+        audit_rows.append(SalaryAuditRow(
+            **summary.model_dump(),
+            salary_tier=row["salary_tier"],
+            salary_role=row["salary_role"],
+            salary_grade=row["salary_grade"],
+            last_correction=last_correction,
+        ))
+
+    return SalaryAuditResponse(
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=math.ceil(total / page_size) if total else 0,
+        jobs=audit_rows,
+    )
+
+
+def _latest_corrections(
+    conn: sqlite3.Connection, refs: list[tuple[str, str]]
+) -> dict[tuple[str, str], sqlite3.Row]:
+    """The most recent `admin_salary_corrections` row per (source, source_id) in `refs`.
+
+    `admin_salary_corrections` is phase 36 — a fresh or test-stand-in database
+    may not have it yet. Same guard admin_intelligence.py's `_rows` uses for
+    optional dashboard tables: missing table means "no corrections known", not
+    a 500, so a bare database renders ASF with an empty correction history
+    instead of failing to load at all.
+    """
+    if not refs:
+        return {}
+    result: dict[tuple[str, str], sqlite3.Row] = {}
+    for start in range(0, len(refs), _REF_CHUNK):
+        chunk = refs[start:start + _REF_CHUNK]
+        ref_clause = " OR ".join(["(source = ? AND source_id = ?)"] * len(chunk))
+        params = [value for pair in chunk for value in pair]
+        try:
+            rows = conn.execute(
+                f"""
+                SELECT source, source_id, seeker_id, corrected_at,
+                       old_min, old_max, new_min, new_max
+                  FROM admin_salary_corrections
+                 WHERE ({ref_clause})
+                 ORDER BY corrected_at ASC
+                """,
+                params,
+            ).fetchall()
+        except sqlite3.Error:
+            continue
+        # ASC order + dict overwrite: the last write for a given ref is the
+        # latest row, exactly like _attach_group_signals' own accumulation.
+        for r in rows:
+            result[(r["source"], r["source_id"])] = r
+    return result
 
 
 def research_facets(
@@ -1024,6 +1268,7 @@ def get_job(
     source_id: str,
     *,
     visibility: Visibility = Visibility.ADDRESSABLE,
+    is_admin: bool = False,
 ) -> Optional[JobDetail]:
     """
     One Role by reference, or `None` if no such row exists.
@@ -1038,7 +1283,7 @@ def get_job(
     if row is None:
         return None
 
-    summary = _to_summary(row)
+    summary = _to_summary(row, is_admin=is_admin)
     _attach_group_signals(conn, [row], [summary])
 
     return JobDetail(
@@ -1094,6 +1339,7 @@ def jobs_by_refs(
     refs: Iterable[tuple[str, str]],
     *,
     visibility: Visibility = Visibility.ADDRESSABLE,
+    is_admin: bool = False,
 ) -> list[JobSummary]:
     """
     Resolve `(source, source_id)` references, preserving the caller's order.
@@ -1105,7 +1351,7 @@ def jobs_by_refs(
     For a Seeker's Saved Roles use `saved_roles` instead: it is this, plus the
     retention rule, and that rule is not something a caller should be spelling.
     """
-    return _by_refs(conn, list(refs), visibility)
+    return _by_refs(conn, list(refs), visibility, is_admin=is_admin)
 
 
 #: How long a Closed Role stays in a Seeker's Saved Roles before it drops out.
@@ -1137,6 +1383,7 @@ def saved_roles(
     refs: Iterable[tuple[str, str]],
     *,
     now: Optional[datetime] = None,
+    is_admin: bool = False,
 ) -> list[JobSummary]:
     """
     A Seeker's Saved Roles: their references resolved, minus the long-dead ones.
@@ -1164,6 +1411,7 @@ def saved_roles(
         Visibility.ADDRESSABLE,
         extra_sql=_RETENTION_SQL,
         extra_params=[cutoff.isoformat()],
+        is_admin=is_admin,
     )
 
 
@@ -1174,6 +1422,7 @@ def _by_refs(
     *,
     extra_sql: Optional[str] = None,
     extra_params: Sequence = (),
+    is_admin: bool = False,
 ) -> list[JobSummary]:
     """Shared body of `jobs_by_refs` and `saved_roles`. Order follows `pairs`."""
     if not pairs:
@@ -1195,6 +1444,6 @@ def _by_refs(
             by_key[(row["source"], row["source_id"])] = row
 
     rows = [by_key[p] for p in pairs if p in by_key]
-    summaries = [_to_summary(r) for r in rows]
+    summaries = [_to_summary(r, is_admin=is_admin) for r in rows]
     _attach_group_signals(conn, rows, summaries)
     return summaries
