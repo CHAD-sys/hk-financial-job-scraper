@@ -749,12 +749,20 @@ def _own_signals(row: sqlite3.Row) -> dict[str, dict]:
     return {row["source"]: sig} if sig else {}
 
 
-def _to_summary(row: sqlite3.Row) -> JobSummary:
+def _to_summary(row: sqlite3.Row, *, is_admin: bool = False) -> JobSummary:
     # From the AI summary, never `description_clean` — see PUBLISHABLE_DESCRIPTION.
     # This used to be the first 200 characters of the employer's own description,
     # on every row of every list response including anonymous ones.
     summary = row["description_summary"] or ""
     excerpt = summary[:200].rstrip() + ("…" if len(summary) > 200 else "")
+    # The AI SALARY ESTIMATE only — never the employer-disclosed salary_hkd_*
+    # below, which stays visible to everyone. Hidden from non-admins while a
+    # round of estimator fixes is in flight (Morris H., 2026-08-21: several
+    # visibly wrong estimates had already reached Seekers). `is_admin` defaults
+    # to False — every call site must opt IN to showing it, not opt out.
+    est_min = row["salary_estimated_min"] if is_admin else None
+    est_max = row["salary_estimated_max"] if is_admin else None
+    est_confidence = row["salary_estimated_confidence"] if is_admin else None
     return JobSummary(
         source=row["source"],
         source_id=row["source_id"],
@@ -771,9 +779,9 @@ def _to_summary(row: sqlite3.Row) -> JobSummary:
         salary_hkd_min=row["salary_hkd_min"],
         salary_hkd_max=row["salary_hkd_max"],
         salary_period=_salary_period(row),
-        salary_estimated_min=row["salary_estimated_min"],
-        salary_estimated_max=row["salary_estimated_max"],
-        salary_estimated_confidence=row["salary_estimated_confidence"],
+        salary_estimated_min=est_min,
+        salary_estimated_max=est_max,
+        salary_estimated_confidence=est_confidence,
         salary_verified=row["manually_edited_at"] is not None,
         years_experience_required=row["years_experience_required"],
         posted_at=row["posted_at"],
@@ -842,6 +850,7 @@ def list_jobs(
     visibility: Visibility = Visibility.BOARD,
     audience: CatalogueAudience = CatalogueAudience.PUBLIC,
     boost_recruiter_posts: bool = False,
+    is_admin: bool = False,
 ) -> JobListResponse:
     """
     One page of the board.
@@ -884,7 +893,7 @@ def list_jobs(
         params + [page_size, offset],
     ).fetchall()
 
-    summaries = [_to_summary(r) for r in rows]
+    summaries = [_to_summary(r, is_admin=is_admin) for r in rows]
     _attach_group_signals(conn, rows, summaries)
 
     return JobListResponse(
@@ -1024,6 +1033,7 @@ def get_job(
     source_id: str,
     *,
     visibility: Visibility = Visibility.ADDRESSABLE,
+    is_admin: bool = False,
 ) -> Optional[JobDetail]:
     """
     One Role by reference, or `None` if no such row exists.
@@ -1038,7 +1048,7 @@ def get_job(
     if row is None:
         return None
 
-    summary = _to_summary(row)
+    summary = _to_summary(row, is_admin=is_admin)
     _attach_group_signals(conn, [row], [summary])
 
     return JobDetail(
@@ -1094,6 +1104,7 @@ def jobs_by_refs(
     refs: Iterable[tuple[str, str]],
     *,
     visibility: Visibility = Visibility.ADDRESSABLE,
+    is_admin: bool = False,
 ) -> list[JobSummary]:
     """
     Resolve `(source, source_id)` references, preserving the caller's order.
@@ -1105,7 +1116,7 @@ def jobs_by_refs(
     For a Seeker's Saved Roles use `saved_roles` instead: it is this, plus the
     retention rule, and that rule is not something a caller should be spelling.
     """
-    return _by_refs(conn, list(refs), visibility)
+    return _by_refs(conn, list(refs), visibility, is_admin=is_admin)
 
 
 #: How long a Closed Role stays in a Seeker's Saved Roles before it drops out.
@@ -1137,6 +1148,7 @@ def saved_roles(
     refs: Iterable[tuple[str, str]],
     *,
     now: Optional[datetime] = None,
+    is_admin: bool = False,
 ) -> list[JobSummary]:
     """
     A Seeker's Saved Roles: their references resolved, minus the long-dead ones.
@@ -1164,6 +1176,7 @@ def saved_roles(
         Visibility.ADDRESSABLE,
         extra_sql=_RETENTION_SQL,
         extra_params=[cutoff.isoformat()],
+        is_admin=is_admin,
     )
 
 
@@ -1174,6 +1187,7 @@ def _by_refs(
     *,
     extra_sql: Optional[str] = None,
     extra_params: Sequence = (),
+    is_admin: bool = False,
 ) -> list[JobSummary]:
     """Shared body of `jobs_by_refs` and `saved_roles`. Order follows `pairs`."""
     if not pairs:
@@ -1195,6 +1209,6 @@ def _by_refs(
             by_key[(row["source"], row["source_id"])] = row
 
     rows = [by_key[p] for p in pairs if p in by_key]
-    summaries = [_to_summary(r) for r in rows]
+    summaries = [_to_summary(r, is_admin=is_admin) for r in rows]
     _attach_group_signals(conn, rows, summaries)
     return summaries
