@@ -3304,8 +3304,10 @@
         "division_head",
         "managing_director",
         "executive_director",
+        "section_head",
         "senior_vice_president",
         "assistant_vice_president",
+        "senior_associate",
         "vice_president",
         "director",
         "team_head",
@@ -3356,6 +3358,14 @@
         "general_manager": [
           100000,
           150000
+        ],
+        "senior_associate": [
+          45000,
+          60000
+        ],
+        "section_head": [
+          80000,
+          150000
         ]
       },
       "note": "Morris's parenthetical equivalences: Senior Vice President = senior manager / associate director; Vice President = Manager / Senior Manager; Assistant Vice President = Manager. 'Head of' reads as Executive Director or Director depending on which of the two the title names.",
@@ -3366,7 +3376,8 @@
         "division_head": "= managing_director. 'Division Head is a big role, equal to Managing Director grade.'",
         "team_head": "= director. 'Team Head is equal to Director grade.'",
         "product_manager": "= director. 'Senior Product Manager/Product Manager is a big category, it is also senior role, similar to Director grade.' Applies to both Product Manager and Senior Product Manager.",
-        "general_manager": "= director. 'For Chinese banks they like using General Manager or Deputy GM which is equivalent to Director/Head of, it is a senior role.' CHINESE BANKS ONLY — see chinese_bank_slugs."
+        "general_manager": "= director. 'For Chinese banks they like using General Manager or Deputy GM which is equivalent to Director/Head of, it is a senior role.' CHINESE BANKS ONLY — see chinese_bank_slugs.",
+        "senior_associate_and_section_head": "Morris H., 2026-08-21 (WhatsApp). 'Change Senior Associate to $45k-60k' (a direct correction, superseding the earlier assistant_vice_president-band guess used for jobsdb/93991565). 'Section Head is close to Team Head, close to Associate Director or Director grade' — banded as [associate_director/senior_vice_president floor, director ceiling] = [80000, 150000]; wider than most grades here because three reference points were given rather than one, and averaging them away would discard evidence."
       },
       "functional_titles_rank_below_grade_words": "team_head, general_manager and product_manager are FUNCTIONAL labels, not corporate grades, so they are matched only after the explicit grade words (MD/ED/SVP/AVP/VP/Director). 'Director, Trade Product Manager' is a Director because the title says so; 'ED, Team Head, Client Services' is an Executive Director. The grade word is harder evidence about the HR grade than the function is.",
       "team_head_service_exclusion": "A Team Head whose title also names a client-relationship / client-service / customer-service / servicing / support / operations / admin / contact-centre function does NOT take the Director band. This is the one place Morris's rule is not applied wholesale, and it is deliberate: hk_jobs/enrichers/deepseek.py has carried the opposite instruction since v8 for a measured reason — a bank has MANY service/CR team heads at ~50k-100k and few desk heads at 150k+, and pricing the former as Directors is the exact over-estimation that disambiguation was added to stop. 3 of 16 live Team Head rows hit this exclusion. FLAG TO MORRIS.",

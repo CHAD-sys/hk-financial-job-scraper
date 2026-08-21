@@ -168,6 +168,11 @@ _BANK_BAND_PATTERNS: tuple[tuple[str, re.Pattern, bool], ...] = (
     # is an Executive Director. The grade word is harder evidence about the HR
     # grade than the function is.
     ("team_head", re.compile(r"\bteam head\b|\bhead of team\b", re.I), True),
+    # "Section Head is close to Team Head, close to Associate Director or
+    # Director grade" (Morris H., 2026-08-21). Ranked with the other functional
+    # titles, above the ambiguous glosses below — "Section Head" is specific
+    # enough to be hard evidence, unlike a bare "Manager".
+    ("section_head", re.compile(r"\bsection head\b|\bhead of section\b", re.I), True),
     ("general_manager",
      # "General Manager" / "Deputy GM" spelled out only. A bare \bGM\b is NOT
      # matched: live rows include "Senior Legal Counsel (GM)" and "Senior Treasury
@@ -176,6 +181,13 @@ _BANK_BAND_PATTERNS: tuple[tuple[str, re.Pattern, bool], ...] = (
      re.compile(r"\b(?:deputy|assistant|acting)?\s*general manager\b|\bdeputy\s+GM\b", re.I),
      True),
     ("product_manager", re.compile(r"\b(?:senior\s+)?product manager\b", re.I), True),
+    # "Change Senior Associate to $45k-60k" (Morris H., 2026-08-21), a direct
+    # correction on a live row — supersedes the earlier assistant_vice_president-
+    # band guess. Deliberately "senior associate" only, not bare "associate":
+    # Morris's number was for this exact title, and a bare "Associate" is far
+    # more ambiguous (Research Associate, Client Associate...) than a title
+    # that specifically says "Senior".
+    ("senior_associate", re.compile(r"\bsenior associate\b", re.I), True),
     # Ambiguous glosses — ceiling only, exactly as before Morris's tables landed.
     ("assistant_vice_president", re.compile(r"\bassistant manager\b", re.I), False),
     ("assistant_vice_president", re.compile(r"\bmanager\b", re.I), False),

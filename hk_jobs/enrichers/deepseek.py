@@ -433,11 +433,16 @@ raise it, and they override every band above:
     Global Head:                                      HK$200,000-300,000
     Regional Head / Managing Director:                HK$180,000-250,000
     Executive Director / Head of:                     HK$130,000-180,000
-    Director / Head of:                               HK$100,000-150,000
+    Director / Head of / Team Head:                   HK$100,000-150,000
+    Section Head:                                     HK$80,000-150,000
     Senior Vice President (= senior manager / associate director):  HK$80,000-100,000
     Vice President (= Manager / Senior Manager):      HK$60,000-80,000
     Assistant Vice President (= Manager):             HK$50,000-70,000
-  A bare "Manager" is ambiguous between the VP and AVP bands — use the AVP band.
+    Senior Associate:                                 HK$45,000-60,000
+  A bare "Manager" is ambiguous between the VP and AVP bands — use the AVP band. A bare
+  "Associate" (not "Senior Associate") is likewise ambiguous — many non-banking titles use
+  "Associate" too ("Research Associate", "Client Associate") — fall back to the tier/role
+  tables in that case rather than forcing a grade-word match.
   These two grades are the ONLY place you may exceed the HK$200,000 absolute maximum, and only
   at a bank on a clear title match: Managing Director and Global Head.
 - INSURANCE COMPANIES — TITLE-GRADE BANDS, and note the hierarchy is INVERTED relative to banks:
