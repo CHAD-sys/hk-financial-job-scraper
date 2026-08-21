@@ -1,18 +1,20 @@
 # HK Financial-Sector Salary Guidelines (calibration reference)
 
-**Source:** *2026 Hays Asia Salary Guide — Hong Kong* (19th edition), in this folder.
-**Purpose:** ground-truth anchors for our AI salary estimator, which had been
-**over-estimating** — especially at senior levels and for control/operations roles.
+**Historical source:** *2026 Hays Asia Salary Guide — Hong Kong* (19th edition),
+in this folder. This document is retained as a mapping reference; the current
+machine anchor table merges Hays, PERSOLKELLY and Adecco.
 
-> ⚠️ **Units.** Every figure in the Hays tables is **annual base salary in HK$'000**
-> (per the note "Salary ranges are represented in local currencies in '000").
-> Our DB stores **monthly** base, so **monthly ≈ annual ÷ 12**. All the "/mo" figures
-> below are already converted. These are **base salary only** — in HK finance total
-> comp is ~1.3–3× base at senior levels; we do **not** estimate total comp.
+> ⚠️ **Compensation basis correction (2026-08-21).** Hays defines these figures
+> as **total annual package values**, not annual base salary. The "/mo" figures
+> below are therefore the historical annual-package `/12` conversion and must
+> not be used as a monthly-base source. The live table temporarily applies
+> `/14` only to 136 direct Hays-only baseline cells; it is a numerical proxy,
+> not a semantic package-to-base conversion. See
+> [`docs/salary_anchor_compensation_semantics_2026-08-21.md`](../docs/salary_anchor_compensation_semantics_2026-08-21.md).
 
 ---
 
-## The two mistakes we were making
+## Historical calibration context
 
 1. **Senior bands 2–3× too high.** Old prompt priced "MD/C-suite" at
    HK$400k–900k/month (= HK$4.8M–10.8M/yr *base*). Hays shows an M&A Managing
@@ -45,7 +47,7 @@ VP/SVP→`senior`, Director/MD/Head→`lead`.
 
 ---
 
-## Anchor tables (monthly HK$ base, from Hays 2026 HK)
+## Historical Hays `/12` reference (not a monthly-base table)
 
 ### Front office
 | Desk | Analyst | Associate | VP | Director | MD / Head |
@@ -131,10 +133,8 @@ VP/SVP→`senior`, Director/MD/Head→`lead`.
 
 ---
 
-*Generated for the `hk-job-scraper` enrichment pipeline. This markdown is the
-human-readable companion; the **machine source of truth** the enricher actually reads is
-`salary_guidlines/hk_salary_anchors.json` (per-role/tier/level monthly HK$ bands, extracted
-directly from the Hays HK tables). `hk_jobs/enrichers/deepseek.py` loads that JSON at import
-and renders the tier ladders into the prompt automatically. When a newer Hays guide is dropped
-in this folder, re-derive the JSON (annual HK$'000 ÷ 12 → monthly) and both this doc and the
-prompt update from it — no hand-editing of bands inside `deepseek.py`.*
+*The machine source of truth is `salary_guidlines/hk_salary_anchors.json`.
+`hk_jobs/enrichers/deepseek.py` loads it at import and renders its vocabulary
+into the prompt. Before any future Hays import, record its compensation basis
+and keep it separate from monthly-base evidence; do not apply a generic annual
+package-to-monthly-base conversion.*
