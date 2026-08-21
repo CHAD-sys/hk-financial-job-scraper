@@ -17,6 +17,7 @@ import SignInPage from './pages/SignInPage'
 import RegisterPage from './pages/RegisterPage'
 import AccountPage from './pages/AccountPage'
 import AdminPage from './pages/AdminPage'
+import AsfPage from './pages/AsfPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
@@ -136,6 +137,7 @@ export default function App() {
                 <Route path="/verify" element={<VerifyEmailPage />} />
                 <Route path="/account" element={<AccountPage />} />
                 <Route path="/admin" element={<AdminPage />} />
+                <Route path="/asf" element={<AsfPage />} />
                 <Route path="/employer/register" element={<EmployerRegisterPage />} />
                 <Route path="/employer/signin" element={<EmployerSignInPage />} />
                 <Route path="/employer/forgot-password" element={<EmployerForgotPasswordPage />} />

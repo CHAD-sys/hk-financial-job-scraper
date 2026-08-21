@@ -980,3 +980,160 @@ def test_the_directory_says_which_seekers_have_a_resume(super_admin_client):
     rows = super_admin_client.get("/api/admin/accounts").json()["seekers"]
     by_email = {row["email"]: row for row in rows}
     assert by_email[ADMIN["email"]]["has_resume"] is True
+
+
+# ── ASF: Audit Salary Fixing (2026-08-21) ────────────────────────────────────
+# Ultimate-Admin-only end to end. `migrated_jobs_db` (line ~212) already seeds
+# one bare 'workday'/'W1' job via the REAL migrated schema (phase 36's
+# admin_salary_corrections included) — these tests add the job_enrichments row
+# and, where needed, one correction event on top of it.
+
+
+def _seed_salary_audit_row(
+    db_path, *, salary_grade="Manager", manually_edited=False, corrected_by=None,
+):
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """
+        INSERT INTO job_enrichments (
+            source, source_id, seniority, salary_estimated_min, salary_estimated_max,
+            salary_estimated_confidence, salary_tier, salary_role, salary_grade,
+            manually_edited_at, enriched_at
+        ) VALUES (
+            'workday', 'W1', 'mid', 50000, 70000, 'medium',
+            'back_office_operations', 'operations_general', ?, ?, '2026-08-21T00:00:00+00:00'
+        )
+        """,
+        (salary_grade, "2026-08-21T09:00:00+00:00" if manually_edited else None),
+    )
+    if corrected_by:
+        conn.execute(
+            """
+            INSERT INTO admin_salary_corrections (
+                source, source_id, title, company, company_slug, source_tier,
+                sector, seniority, job_category, old_min, old_max, new_min, new_max,
+                seeker_id, corrected_at
+            ) VALUES (
+                'workday', 'W1', 'Credit Analyst', 'HSBC', 'hsbc', 'mainstream',
+                'Banking', 'mid', 'Finance', 20000, 25000, 50000, 70000, ?,
+                '2026-08-21T09:00:00+00:00'
+            )
+            """,
+            (corrected_by,),
+        )
+    conn.commit()
+    conn.close()
+
+
+def test_salary_audit_route_rejects_a_plain_admin(admin_client_migrated_db):
+    # is_admin, NOT is_super_admin — proves the gate is stricter than the job
+    # editor routes, which accept either bit.
+    assert admin_client_migrated_db.get("/api/admin/salary-audit/jobs").status_code == 403
+
+
+def test_salary_audit_route_rejects_a_plain_seeker(seeker_client):
+    assert seeker_client.get("/api/admin/salary-audit/jobs").status_code == 403
+
+
+def test_salary_audit_editors_route_also_requires_super_admin(admin_client_migrated_db):
+    assert admin_client_migrated_db.get("/api/admin/salary-audit/editors").status_code == 403
+
+
+def test_salary_audit_shows_the_whole_catalogue_with_no_search(super_admin_client, migrated_jobs_db):
+    _seed_salary_audit_row(migrated_jobs_db)
+    body = super_admin_client.get("/api/admin/salary-audit/jobs").json()
+    assert body["total"] == 1
+    assert body["jobs"][0]["source_id"] == "W1"
+
+
+def test_salary_audit_row_carries_the_priced_coordinate(super_admin_client, migrated_jobs_db):
+    _seed_salary_audit_row(migrated_jobs_db, salary_grade="Manager")
+    row = super_admin_client.get("/api/admin/salary-audit/jobs").json()["jobs"][0]
+    assert row["salary_tier"] == "back_office_operations"
+    assert row["salary_role"] == "operations_general"
+    assert row["salary_grade"] == "Manager"
+    # This route always prices as admin — the whole point is auditing the real
+    # number, never the redacted one a signed-out visitor would see.
+    assert (row["salary_estimated_min"], row["salary_estimated_max"]) == (50_000, 70_000)
+
+
+def test_coordinate_resolved_filter(super_admin_client, migrated_jobs_db):
+    _seed_salary_audit_row(migrated_jobs_db, salary_grade="Manager")
+    resolved = super_admin_client.get(
+        "/api/admin/salary-audit/jobs", params={"coordinate_resolved": True}
+    ).json()
+    assert resolved["total"] == 1
+    unresolved = super_admin_client.get(
+        "/api/admin/salary-audit/jobs", params={"coordinate_resolved": False}
+    ).json()
+    assert unresolved["total"] == 0
+
+
+def test_manually_edited_filter(super_admin_client, migrated_jobs_db):
+    _seed_salary_audit_row(migrated_jobs_db, manually_edited=True)
+    edited = super_admin_client.get(
+        "/api/admin/salary-audit/jobs", params={"manually_edited": True}
+    ).json()
+    assert edited["total"] == 1
+    not_edited = super_admin_client.get(
+        "/api/admin/salary-audit/jobs", params={"manually_edited": False}
+    ).json()
+    assert not_edited["total"] == 0
+
+
+def test_edited_by_surfaces_the_correcting_admins_identity(super_admin_client, migrated_jobs_db):
+    import seekers_store
+
+    admin_id = seekers_store.get_store().get_seeker_by_email(ADMIN["email"])["id"]
+    _seed_salary_audit_row(migrated_jobs_db, manually_edited=True, corrected_by=admin_id)
+
+    row = super_admin_client.get("/api/admin/salary-audit/jobs").json()["jobs"][0]
+    correction = row["last_correction"]
+    assert correction is not None
+    assert correction["admin_id"] == admin_id
+    assert correction["admin_email"] == ADMIN["email"]
+    assert (correction["old_min"], correction["old_max"]) == (20_000, 25_000)
+    assert (correction["new_min"], correction["new_max"]) == (50_000, 70_000)
+
+    filtered = super_admin_client.get(
+        "/api/admin/salary-audit/jobs", params={"edited_by": admin_id}
+    ).json()
+    assert filtered["total"] == 1
+
+    filtered_out = super_admin_client.get(
+        "/api/admin/salary-audit/jobs", params={"edited_by": "not-a-real-admin-id"}
+    ).json()
+    assert filtered_out["total"] == 0
+
+
+def test_editors_route_lists_admins_who_have_corrected_a_salary(super_admin_client, migrated_jobs_db):
+    import seekers_store
+
+    admin_id = seekers_store.get_store().get_seeker_by_email(ADMIN["email"])["id"]
+    _seed_salary_audit_row(migrated_jobs_db, manually_edited=True, corrected_by=admin_id)
+
+    editors = super_admin_client.get("/api/admin/salary-audit/editors").json()
+    assert any(e["id"] == admin_id and e["email"] == ADMIN["email"] for e in editors)
+
+
+def test_salary_audit_route_works_on_a_volume_that_predates_phase_36(
+    super_admin_client, migrated_jobs_db,
+):
+    """A long-lived Railway volume can predate a phase this feature needs —
+    same situation job_edit.py's own `_SALARY_CORRECTIONS_DDL` comment
+    documents for `admin_salary_corrections` itself ("mirrors phase 33").
+    Drop the phase-36 table to simulate that and confirm the route still
+    answers instead of 500ing, per _latest_corrections' own guard."""
+    _seed_salary_audit_row(migrated_jobs_db)
+    conn = sqlite3.connect(migrated_jobs_db)
+    conn.execute("DROP TABLE admin_salary_corrections")
+    conn.commit()
+    conn.close()
+
+    r = super_admin_client.get("/api/admin/salary-audit/jobs")
+    assert r.status_code == 200
+    assert r.json()["jobs"][0]["last_correction"] is None
+
+    r2 = super_admin_client.get("/api/admin/salary-audit/editors")
+    assert r2.status_code == 200
+    assert r2.json() == []
