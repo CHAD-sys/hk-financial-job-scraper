@@ -1110,6 +1110,36 @@ def migrate_to_phase_36(db_path: str) -> None:
         conn.close()
 
 
+def migrate_to_phase_37(db_path: str) -> None:
+    """
+    Add `salary_grade` to job_enrichments.
+
+    Phase 25 added `salary_tier`/`salary_role` so the model's coordinate into
+    `tables_monthly_hkd` could be stored and later replayed through
+    `salary_clamp`. It stopped one field short: `tables_monthly_hkd` is a
+    tier -> role -> GRADE table, and without a stored grade the only stand-in
+    is the coarse 4-value `seniority` field, which cannot address roles whose
+    ladders use named grades (`cs_supervisor`, `hr_manager`...) instead of the
+    standard Analyst/Associate/VP/Director/MD rows. `salary_clamp.
+    price_from_coordinate` reads this column via `salary.finalise`/`lowered`
+    the same way it already reads `salary_tier`/`salary_role`. Rows enriched
+    before this migration have it NULL, same as `salary_tier`/`salary_role`
+    were for rows that predate phase 25.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(job_enrichments)").fetchall()}
+        with conn:
+            if "salary_grade" not in cols:
+                conn.execute("ALTER TABLE job_enrichments ADD COLUMN salary_grade TEXT")
+        if "salary_grade" not in cols:
+            logger.info("Phase 37 migration: added salary_grade column to job_enrichments")
+        else:
+            logger.debug("Phase 37 migration: salary_grade already exists")
+    finally:
+        conn.close()
+
+
 #: the whole of registering a new phase.
 #:
 #: Order is load-bearing beyond the obvious: 10 creates `jobs` before the seven
@@ -1145,6 +1175,7 @@ MIGRATIONS: tuple[tuple[int, Callable[[str], None]], ...] = (
     (34, migrate_to_phase_34),
     (35, migrate_to_phase_35),
     (36, migrate_to_phase_36),
+    (37, migrate_to_phase_37),
 )
 
 LATEST_PHASE = MIGRATIONS[-1][0]

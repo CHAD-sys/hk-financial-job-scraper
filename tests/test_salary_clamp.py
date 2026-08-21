@@ -7,6 +7,7 @@ from hk_jobs.salary_clamp import (
     _TABLES,
     clamp_salary,
     fix_salary_magnitude,
+    price_from_coordinate,
 )
 
 
@@ -474,5 +475,93 @@ def test_an_internship_is_still_capped_inside_a_front_office_desk():
     _, out_max = clamp_salary(
         "front_office", "junior", 41_500, 83_500,
         company_slug="goldman-sachs", title="2027 Summer Analyst Programme",
+    )
+    assert out_max <= INTERNSHIP_MAX_MONTHLY_HKD
+
+
+# ── price_from_coordinate / coordinate pricing (v13) ─────────────────────────
+# The model's own exact (tier, role, grade) read, priced straight off
+# tables_monthly_hkd — no seniority-to-standardized-row-name translation, unlike
+# `_role_band`. Added so a resolved coordinate can replace an estimate outright,
+# the same way Morris's title-grade band already does, for the roughly half of
+# ladders whose grade rows use idiosyncratic names `_role_band` cannot reach.
+
+def test_price_from_coordinate_resolves_an_exact_cell():
+    band = price_from_coordinate("back_office_operations", "customer_service", "cs_manager")
+    assert band == tuple(_TABLES["back_office_operations"]["roles"]["customer_service"]["cs_manager"])
+
+
+def test_price_from_coordinate_returns_none_on_an_unknown_grade():
+    assert price_from_coordinate("back_office_operations", "customer_service", "not_a_real_grade") is None
+
+
+def test_price_from_coordinate_is_none_safe():
+    assert price_from_coordinate(None, None, None) is None
+    assert price_from_coordinate("back_office_operations", None, "cs_manager") is None
+    assert price_from_coordinate("back_office_operations", "customer_service", None) is None
+
+
+def test_a_resolved_coordinate_replaces_a_bad_raw_guess():
+    """The whole point: a wildly-low raw estimate is overridden, not just capped."""
+    out_min, out_max = clamp_salary(
+        "back_office_operations", "mid", 5_000, 8_000,
+        role="customer_service", grade="cs_manager",
+        company_slug="some-boutique-firm", title="CS Manager",
+    )
+    assert (out_min, out_max) == (40_000, 60_000)
+
+
+def test_no_grade_leaves_clamp_salary_behaviour_unchanged():
+    """Backward compatibility: every caller that doesn't pass `grade` is unaffected."""
+    with_grade_none = clamp_salary(
+        "back_office_operations", "mid", 5_000, 8_000,
+        role="customer_service", grade=None,
+        company_slug="some-boutique-firm", title="CS Manager",
+    )
+    without_grade_kwarg = clamp_salary(
+        "back_office_operations", "mid", 5_000, 8_000,
+        role="customer_service",
+        company_slug="some-boutique-firm", title="CS Manager",
+    )
+    assert with_grade_none == without_grade_kwarg == (5_000, 8_000)
+
+
+def test_morris_title_grade_band_still_outranks_a_resolved_coordinate():
+    """Title is harder evidence than a role/grade guess — priority must not flip.
+
+    At a recognised bank, "Vice President" is Morris's authoritative band
+    (HK$60,000-80,000), which must win over a coordinate resolving to a lower
+    generic cell for the same job.
+    """
+    out_min, out_max = clamp_salary(
+        "back_office_operations", "mid", 5_000, 8_000,
+        role="customer_service", grade="cs_manager",
+        company_slug="bank-of-east-asia", title="Vice President, Customer Service",
+    )
+    assert (out_min, out_max) == (60_000, 80_000)
+
+
+def test_coordinate_replace_still_respects_the_title_grade_ceiling():
+    """A resolved coordinate must not hand back a maximum the title ceiling lowered.
+
+    Mirrors the same guard the floor-raise step already has (line ~552 above):
+    adopting a band outright is not allowed to undo evidence the title itself
+    already supplied.
+    """
+    out_min, out_max = clamp_salary(
+        "middle_office", "mid", 5_000, 8_000,
+        role="risk_credit", grade="Manager",
+        company_slug="dbs-hk", title="Manager, Credit Risk",
+    )
+    assert out_max <= 70_000, "the Manager/AVP grade ceiling must survive the coordinate replace"
+    assert out_min < out_max
+
+
+def test_coordinate_pricing_is_skipped_for_an_internship():
+    """The internship cap must win even when a (bad) coordinate is also supplied."""
+    _, out_max = clamp_salary(
+        "back_office_operations", "junior", 5_000, 8_000,
+        role="customer_service", grade="cs_manager",
+        title="2027 Summer Intern, Customer Service",
     )
     assert out_max <= INTERNSHIP_MAX_MONTHLY_HKD

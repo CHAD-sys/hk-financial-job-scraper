@@ -31,7 +31,8 @@ CREATE TABLE job_enrichments (
     enriched_at TEXT, model_used TEXT,
     salary_estimated_min INTEGER, salary_estimated_max INTEGER,
     salary_estimated_confidence TEXT, description_summary TEXT, title_en TEXT,
-    prompt_version TEXT, salary_tier TEXT, salary_role TEXT, manually_edited_at TEXT,
+    prompt_version TEXT, salary_tier TEXT, salary_role TEXT, salary_grade TEXT,
+    manually_edited_at TEXT,
     UNIQUE (source, source_id)
 );
 """
@@ -52,6 +53,7 @@ _MODEL_ANSWER = {
     "salary_estimated_confidence": "medium",
     "salary_tier": "middle_office",
     "salary_role": None,
+    "salary_grade": None,
     "description_summary": "A compliance role.",
 }
 

@@ -126,6 +126,7 @@ def _select_outliers(
     rows = conn.execute("""
         SELECT j.source, j.source_id, j.title, j.company, j.company_slug, j.source_tier,
                j.description_clean, e.seniority, e.job_category, e.salary_tier, e.salary_role,
+               e.salary_grade,
                e.salary_estimated_min AS est_min, e.salary_estimated_max AS est_max
         FROM jobs j JOIN job_enrichments e
           ON j.source = e.source AND j.source_id = e.source_id
@@ -258,6 +259,7 @@ def run_audit(db_path: str = "data/jobs.db", limit: int | None = None,
                         tier=r["salary_tier"],
                         seniority=r["seniority"],
                         role=r["salary_role"],
+                        grade=r["salary_grade"],
                         company_slug=r["company_slug"],
                         title=r["title"],
                         source_tier=r["source_tier"],

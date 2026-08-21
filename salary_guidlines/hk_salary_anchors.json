@@ -8,7 +8,8 @@
     "global_max_monthly_hkd": 200000,
     "global_max_note": "2026-07-21: every ladder/table upper bound is hard-capped at HK$200,000/month (annual comp caps and open-ended '+' bands removed). The estimator was running ~30% too high in production; this is a deliberate, conservative recalibration.",
     "merge_script": "scripts/build_merged_salary_anchors.py (rerun after editing source JSONs)",
-    "grade_ladder_note": "Banking roles use Analyst/Associate/VP/Director/MD rows (PERSOLKELLY year bands: 0-3/3-7/7-10/10+/15+). Insurance roles use Officer-Senior Analyst / AsstMgr-Manager / SrMgr-SrDirector / Head. Roles only covered by one source carry that source's own row labels."
+    "grade_ladder_note": "Banking roles use Analyst/Associate/VP/Director/MD rows (PERSOLKELLY year bands: 0-3/3-7/7-10/10+/15+). Insurance roles use Officer-Senior Analyst / AsstMgr-Manager / SrMgr-SrDirector / Head. Roles only covered by one source carry that source's own row labels.",
+    "granularity_expansion_2026-08-21": "Opus-assisted pass against 2,007 real unresolved live titles (GitHub Actions run 32403056801, 2026-08-20) plus persolkelly_2025.json/adecco_2026.json. 8 items are exact copies of already-published PERSOLKELLY/Adecco cells that were never wired into tables_monthly_hkd (annual->monthly converted where needed, nearest HK$500). The rest are grade rows interpolated from the SAME role's own adjacent wired rows (mostly: AVP sits between Associate and VP, Manager=AVP, Senior Manager=VP, Head of Department=Director, per title_grade_bands_monthly_hkd's own bank equivalences and the pattern 4 roles already had — trade_support and collateral_management match it exactly, risk_credit partially, risk_market not well, so treat these as a reasoned extrapolation, not a fifth published source). 3 low-confidence proposed NEW roles (sales_business_development, strategy_planning, cards_unsecured_lending) were found but deliberately NOT applied — no real source, held back pending one."
   },
   "tier_order_low_to_high": [
     "back_office_operations",
@@ -193,6 +194,18 @@
           "MD": [
             174000,
             200000
+          ],
+          "AVP": [
+            81000,
+            134000
+          ],
+          "Associate Director": [
+            107500,
+            171000
+          ],
+          "Head of Department": [
+            110000,
+            178000
           ]
         },
         "financial_markets_sales": {
@@ -365,6 +378,18 @@
           "MD": [
             164500,
             188000
+          ],
+          "AVP": [
+            83000,
+            121000
+          ],
+          "Associate Director": [
+            99500,
+            156000
+          ],
+          "Head of Department": [
+            129500,
+            164500
           ]
         },
         "assistant_private_banker": {
@@ -438,6 +463,32 @@
             160000,
             200000
           ]
+        },
+        "quantitative_analytics": {
+          "Analyst": [
+            40000,
+            70000
+          ],
+          "Associate": [
+            65000,
+            110000
+          ],
+          "AVP": [
+            100000,
+            120000
+          ],
+          "VP": [
+            110000,
+            170000
+          ],
+          "Director": [
+            150000,
+            200000
+          ],
+          "MD": [
+            180000,
+            200000
+          ]
         }
       }
     },
@@ -464,6 +515,34 @@
           "MD": [
             150000,
             176500
+          ],
+          "Officer": [
+            21500,
+            37000
+          ],
+          "Assistant Manager": [
+            33500,
+            56000
+          ],
+          "AVP": [
+            56000,
+            67000
+          ],
+          "Manager": [
+            56000,
+            67000
+          ],
+          "Senior Manager": [
+            67000,
+            107500
+          ],
+          "Associate Director": [
+            75000,
+            130000
+          ],
+          "Head of Department": [
+            82500,
+            152500
           ]
         },
         "commercial_banking_rm": {
@@ -570,6 +649,30 @@
           "Private Banking Client Services Officer": [
             33500,
             58500
+          ],
+          "Assistant Wealth Manager / Officer": [
+            18000,
+            28000
+          ],
+          "Assistant Manager": [
+            28000,
+            40000
+          ],
+          "Manager": [
+            40000,
+            60000
+          ],
+          "AVP / Senior Wealth Specialist": [
+            50000,
+            70000
+          ],
+          "VP / Team Head": [
+            70000,
+            110000
+          ],
+          "Director / Head of Wealth": [
+            110000,
+            180000
           ]
         }
       }
@@ -588,6 +691,26 @@
           ],
           "Regional / District Manager": [
             100000,
+            200000
+          ],
+          "Branch Service Executive / Teller": [
+            16000,
+            24000
+          ],
+          "Assistant Branch Manager": [
+            35000,
+            50000
+          ],
+          "Branch Sales Manager": [
+            40000,
+            65000
+          ],
+          "Branch Operations Manager": [
+            35000,
+            55000
+          ],
+          "Head of Branch Network / Distribution": [
+            130000,
             200000
           ]
         },
@@ -621,6 +744,26 @@
           "Sales Manager": [
             55000,
             90000
+          ],
+          "Relationship Support Officer": [
+            18000,
+            25000
+          ],
+          "Premier / Treasures RM": [
+            40000,
+            70000
+          ],
+          "AVP / Assistant Manager": [
+            45000,
+            65000
+          ],
+          "VP / Team Head": [
+            65000,
+            100000
+          ],
+          "Head of Personal Banking": [
+            100000,
+            180000
           ]
         },
         "mortgage": {
@@ -688,6 +831,26 @@
           "Head of Department": [
             100000,
             150000
+          ],
+          "Officer": [
+            20000,
+            40000
+          ],
+          "Assistant Manager": [
+            35000,
+            60000
+          ],
+          "Manager": [
+            60000,
+            75000
+          ],
+          "Senior Manager": [
+            75000,
+            100000
+          ],
+          "Associate Director": [
+            87500,
+            150000
           ]
         },
         "risk_market": {
@@ -736,6 +899,34 @@
           "MD": [
             123500,
             169000
+          ],
+          "Officer": [
+            20000,
+            31500
+          ],
+          "Assistant Manager": [
+            31500,
+            49500
+          ],
+          "AVP": [
+            40500,
+            58000
+          ],
+          "Manager": [
+            40500,
+            58000
+          ],
+          "Senior Manager": [
+            49500,
+            67000
+          ],
+          "Associate Director": [
+            65000,
+            94000
+          ],
+          "Head of Department": [
+            81000,
+            121500
           ]
         },
         "risk_climate_modeling_validation": {
@@ -776,6 +967,34 @@
           "MD": [
             155000,
             200000
+          ],
+          "Officer": [
+            21500,
+            35500
+          ],
+          "Assistant Manager": [
+            34500,
+            54000
+          ],
+          "AVP": [
+            44000,
+            69000
+          ],
+          "Manager": [
+            44000,
+            69000
+          ],
+          "Senior Manager": [
+            54000,
+            83500
+          ],
+          "Associate Director": [
+            83000,
+            130000
+          ],
+          "Head of Department": [
+            112000,
+            176500
           ]
         },
         "fcc_aml": {
@@ -798,6 +1017,34 @@
           "MD": [
             108500,
             135500
+          ],
+          "Officer": [
+            20000,
+            31500
+          ],
+          "Assistant Manager": [
+            31500,
+            54000
+          ],
+          "AVP": [
+            43000,
+            73000
+          ],
+          "Manager": [
+            43000,
+            73000
+          ],
+          "Senior Manager": [
+            54000,
+            91500
+          ],
+          "Associate Director": [
+            73000,
+            102000
+          ],
+          "Head of Department": [
+            91500,
+            112500
           ]
         },
         "kyc_cdd_client_onboarding": {
@@ -820,6 +1067,34 @@
           "MD": [
             133500,
             162500
+          ],
+          "Officer": [
+            19000,
+            29000
+          ],
+          "Assistant Manager": [
+            28000,
+            48500
+          ],
+          "AVP": [
+            38000,
+            64000
+          ],
+          "Manager": [
+            38000,
+            64000
+          ],
+          "Senior Manager": [
+            48000,
+            79000
+          ],
+          "Associate Director": [
+            56000,
+            95000
+          ],
+          "Head of Department": [
+            64500,
+            110500
           ]
         },
         "audit_banking": {
@@ -842,6 +1117,34 @@
           "MD": [
             152500,
             191000
+          ],
+          "Officer": [
+            20000,
+            29500
+          ],
+          "Assistant Manager": [
+            33500,
+            48500
+          ],
+          "AVP": [
+            48500,
+            54500
+          ],
+          "Manager": [
+            48500,
+            54500
+          ],
+          "Senior Manager": [
+            54500,
+            77500
+          ],
+          "Associate Director": [
+            72000,
+            97500
+          ],
+          "Head of Department": [
+            90000,
+            117500
           ]
         },
         "trade_support": {
@@ -878,6 +1181,30 @@
           "Manager": [
             50000,
             200000
+          ],
+          "Assistant Manager": [
+            30000,
+            50000
+          ],
+          "AVP": [
+            50000,
+            70000
+          ],
+          "Senior Manager": [
+            70000,
+            85000
+          ],
+          "VP": [
+            70000,
+            100000
+          ],
+          "Director / Head of Product": [
+            100000,
+            160000
+          ],
+          "MD / Global Head of Product": [
+            150000,
+            200000
           ]
         },
         "change_project_management": {
@@ -900,6 +1227,34 @@
           "MD": [
             108000,
             200000
+          ],
+          "Officer": [
+            21500,
+            46500
+          ],
+          "Assistant Manager": [
+            26000,
+            66000
+          ],
+          "AVP": [
+            46000,
+            81000
+          ],
+          "Manager": [
+            46000,
+            81000
+          ],
+          "Senior Manager": [
+            46000,
+            95500
+          ],
+          "Associate Director": [
+            64500,
+            121000
+          ],
+          "Head of Department": [
+            89500,
+            147000
           ]
         },
         "performance_investment_risk": {
@@ -958,6 +1313,42 @@
           "MD": [
             150000,
             187500
+          ],
+          "Assistant Manager": [
+            62000,
+            76500
+          ],
+          "AVP": [
+            76500,
+            80000
+          ],
+          "Manager": [
+            76500,
+            80000
+          ],
+          "Senior Manager": [
+            80000,
+            112000
+          ],
+          "Associate Director": [
+            97000,
+            126500
+          ],
+          "Head of Department": [
+            114500,
+            141000
+          ],
+          "Legal Assistant": [
+            20000,
+            28000
+          ],
+          "Legal Officer / Paralegal": [
+            28000,
+            45000
+          ],
+          "Legal Manager / Contracts Manager": [
+            50000,
+            70000
           ]
         },
         "company_secretarial": {
@@ -1062,6 +1453,26 @@
           "program_manager": [
             75000,
             110000
+          ],
+          "application_development_manager": [
+            45000,
+            75000
+          ],
+          "senior_application_development_manager": [
+            65000,
+            95000
+          ],
+          "business_technology_manager": [
+            55000,
+            90000
+          ],
+          "systems_analyst_manager": [
+            45000,
+            75000
+          ],
+          "technology_risk_manager": [
+            55000,
+            90000
           ]
         },
         "it_governance_risk_compliance": {
@@ -1099,6 +1510,28 @@
             50000,
             90000
           ]
+        },
+        "asset_management_compliance": {
+          "Analyst": [
+            26500,
+            37500
+          ],
+          "Associate": [
+            37500,
+            58500
+          ],
+          "VP": [
+            58500,
+            91500
+          ],
+          "Director": [
+            91500,
+            166500
+          ],
+          "MD": [
+            141500,
+            166500
+          ]
         }
       }
     },
@@ -1125,6 +1558,34 @@
           "MD": [
             77500,
             117500
+          ],
+          "Officer": [
+            14500,
+            18500
+          ],
+          "Assistant Manager": [
+            19500,
+            31000
+          ],
+          "AVP": [
+            25000,
+            39000
+          ],
+          "Manager": [
+            25000,
+            39000
+          ],
+          "Senior Manager": [
+            31000,
+            47500
+          ],
+          "Associate Director": [
+            40000,
+            57000
+          ],
+          "Head of Department": [
+            49500,
+            67000
           ]
         },
         "payment_operation": {
@@ -1147,6 +1608,34 @@
           "MD": [
             72500,
             117500
+          ],
+          "Officer": [
+            15500,
+            20500
+          ],
+          "Assistant Manager": [
+            20500,
+            33000
+          ],
+          "AVP": [
+            33000,
+            33500
+          ],
+          "Manager": [
+            33000,
+            33500
+          ],
+          "Senior Manager": [
+            33500,
+            52000
+          ],
+          "Associate Director": [
+            43000,
+            61000
+          ],
+          "Head of Department": [
+            52000,
+            70500
           ]
         },
         "fund_operations": {
@@ -1169,6 +1658,34 @@
           "MD": [
             68500,
             114000
+          ],
+          "Officer": [
+            19000,
+            23000
+          ],
+          "Assistant Manager": [
+            24000,
+            37000
+          ],
+          "AVP": [
+            30500,
+            48000
+          ],
+          "Manager": [
+            30500,
+            48000
+          ],
+          "Senior Manager": [
+            32500,
+            59000
+          ],
+          "Associate Director": [
+            41000,
+            69000
+          ],
+          "Head of Department": [
+            49000,
+            78500
           ]
         },
         "fund_accounting": {
@@ -1235,6 +1752,34 @@
           "MD": [
             80000,
             83500
+          ],
+          "Officer": [
+            15000,
+            21000
+          ],
+          "Assistant Manager": [
+            23500,
+            39000
+          ],
+          "AVP": [
+            31000,
+            48000
+          ],
+          "Manager": [
+            31000,
+            48000
+          ],
+          "Senior Manager": [
+            39000,
+            57500
+          ],
+          "Associate Director": [
+            48000,
+            69000
+          ],
+          "Head of Department": [
+            57500,
+            80000
           ]
         },
         "trade_services": {
@@ -1257,6 +1802,34 @@
           "MD": [
             83500,
             100000
+          ],
+          "Officer": [
+            15000,
+            22500
+          ],
+          "Assistant Manager": [
+            22500,
+            39000
+          ],
+          "AVP": [
+            31000,
+            48000
+          ],
+          "Manager": [
+            31000,
+            48000
+          ],
+          "Senior Manager": [
+            39000,
+            57500
+          ],
+          "Associate Director": [
+            48000,
+            70500
+          ],
+          "Head of Department": [
+            57500,
+            83500
           ]
         },
         "documentation_operations": {
@@ -1425,6 +1998,30 @@
           "cs_manager": [
             40000,
             60000
+          ],
+          "cs_officer": [
+            16000,
+            22000
+          ],
+          "cs_senior_officer": [
+            22000,
+            28000
+          ],
+          "cs_ambassador": [
+            15000,
+            20000
+          ],
+          "cs_assistant_manager": [
+            30000,
+            42000
+          ],
+          "cs_senior_manager": [
+            55000,
+            80000
+          ],
+          "head_of_customer_service": [
+            80000,
+            130000
           ]
         },
         "marketing_communications": {
@@ -1567,6 +2164,26 @@
           "ai_architect": [
             75000,
             100000
+          ],
+          "lead_engineer": [
+            70000,
+            110000
+          ],
+          "principal_engineer": [
+            90000,
+            140000
+          ],
+          "engineering_manager": [
+            70000,
+            110000
+          ],
+          "head_of_data_ai": [
+            110000,
+            180000
+          ],
+          "quantitative_developer": [
+            60000,
+            120000
           ]
         },
         "it_infrastructure_support": {
@@ -1624,6 +2241,34 @@
           "MD": [
             114500,
             190000
+          ],
+          "Officer": [
+            21000,
+            37000
+          ],
+          "Assistant Manager": [
+            36000,
+            57500
+          ],
+          "AVP": [
+            47000,
+            68000
+          ],
+          "Manager": [
+            47000,
+            68000
+          ],
+          "Senior Manager": [
+            56000,
+            79000
+          ],
+          "Associate Director": [
+            67000,
+            94000
+          ],
+          "Head of Department": [
+            77500,
+            109000
           ]
         },
         "regulatory_reporting": {
@@ -1726,6 +2371,30 @@
           "Tax Director / Head": [
             65000,
             200000
+          ],
+          "Tax Analyst / Associate": [
+            22000,
+            33500
+          ],
+          "Senior Tax Associate": [
+            30000,
+            45000
+          ],
+          "Assistant Tax Manager": [
+            35000,
+            50000
+          ],
+          "Senior Tax Manager": [
+            70000,
+            110000
+          ],
+          "Tax Associate Director": [
+            100000,
+            150000
+          ],
+          "Tax Partner": [
+            150000,
+            300000
           ]
         },
         "shared_service_centre": {
@@ -1784,6 +2453,26 @@
           "Director / Partner": [
             100000,
             200000
+          ],
+          "Analyst / Graduate Associate": [
+            20000,
+            26000
+          ],
+          "Senior Consultant": [
+            35000,
+            50000
+          ],
+          "Assistant Manager": [
+            45000,
+            60000
+          ],
+          "Associate Director": [
+            85000,
+            130000
+          ],
+          "Partner": [
+            150000,
+            300000
           ]
         },
         "corporate_accounting_finance": {
@@ -1814,6 +2503,30 @@
           "CFO": [
             89000,
             200000
+          ],
+          "Accounting Officer": [
+            26000,
+            28000
+          ],
+          "Accountant": [
+            35000,
+            42000
+          ],
+          "Senior Accountant": [
+            38000,
+            50000
+          ],
+          "Accounting Manager": [
+            50000,
+            70000
+          ],
+          "Finance Assistant / Officer": [
+            25000,
+            28000
+          ],
+          "Finance Admin Clerk": [
+            22000,
+            26000
           ]
         },
         "audit_internal_control_corporate": {
@@ -1828,6 +2541,18 @@
           "Head of Audit": [
             86000,
             138500
+          ],
+          "Audit Junior / Auditor": [
+            18000,
+            25000
+          ],
+          "Audit Senior": [
+            28000,
+            38000
+          ],
+          "Assistant Audit Manager": [
+            40000,
+            50000
           ]
         },
         "fpa_corporate": {
@@ -1851,6 +2576,20 @@
             70000,
             83500
           ]
+        },
+        "treasury_corporate": {
+          "Treasury Specialist": [
+            30000,
+            60000
+          ],
+          "Treasury Accountant": [
+            46000,
+            54000
+          ],
+          "Head of Treasury": [
+            83500,
+            200000
+          ]
         }
       }
     },
@@ -1873,6 +2612,54 @@
           "Head": [
             119000,
             164500
+          ],
+          "Officer": [
+            20000,
+            37500
+          ],
+          "Senior Analyst": [
+            20000,
+            37500
+          ],
+          "Assistant Manager": [
+            37500,
+            52000
+          ],
+          "Manager": [
+            40500,
+            63000
+          ],
+          "Senior Manager": [
+            73000,
+            109000
+          ],
+          "Associate Director": [
+            96000,
+            137000
+          ],
+          "Director": [
+            119000,
+            164500
+          ],
+          "AVP": [
+            40500,
+            63000
+          ],
+          "VP": [
+            73000,
+            109000
+          ],
+          "Specialist": [
+            20000,
+            37500
+          ],
+          "Consultant": [
+            40500,
+            63000
+          ],
+          "Actuarial Trainee / Student": [
+            21000,
+            35000
           ]
         },
         "actuarial_pricing": {
@@ -1939,6 +2726,50 @@
           "Head": [
             73500,
             144000
+          ],
+          "Officer": [
+            23500,
+            37000
+          ],
+          "Senior Analyst": [
+            23500,
+            37000
+          ],
+          "Assistant Manager": [
+            37000,
+            45000
+          ],
+          "Manager": [
+            38000,
+            52000
+          ],
+          "Senior Manager": [
+            53000,
+            70000
+          ],
+          "Associate Director": [
+            63000,
+            107000
+          ],
+          "Director": [
+            73500,
+            144000
+          ],
+          "AVP": [
+            38000,
+            52000
+          ],
+          "VP": [
+            53000,
+            70000
+          ],
+          "Specialist": [
+            23500,
+            37000
+          ],
+          "Consultant": [
+            38000,
+            52000
           ]
         },
         "claims": {
@@ -1957,6 +2788,50 @@
           "Head": [
             82500,
             116500
+          ],
+          "Officer": [
+            22000,
+            37000
+          ],
+          "Senior Analyst": [
+            22000,
+            37000
+          ],
+          "Assistant Manager": [
+            37000,
+            46000
+          ],
+          "Manager": [
+            38500,
+            53000
+          ],
+          "Senior Manager": [
+            66000,
+            82500
+          ],
+          "Associate Director": [
+            74000,
+            99500
+          ],
+          "Director": [
+            82500,
+            116500
+          ],
+          "AVP": [
+            38500,
+            53000
+          ],
+          "VP": [
+            66000,
+            82500
+          ],
+          "Specialist": [
+            22000,
+            37000
+          ],
+          "Consultant": [
+            38500,
+            53000
           ]
         },
         "agency_distribution": {
@@ -1975,6 +2850,50 @@
           "Head": [
             81000,
             127500
+          ],
+          "Officer": [
+            16500,
+            30500
+          ],
+          "Senior Analyst": [
+            16500,
+            30500
+          ],
+          "Assistant Manager": [
+            30500,
+            37000
+          ],
+          "Manager": [
+            30500,
+            43000
+          ],
+          "Senior Manager": [
+            59000,
+            80000
+          ],
+          "Associate Director": [
+            70000,
+            104000
+          ],
+          "Director": [
+            81000,
+            127500
+          ],
+          "AVP": [
+            30500,
+            43000
+          ],
+          "VP": [
+            59000,
+            80000
+          ],
+          "Specialist": [
+            16500,
+            30500
+          ],
+          "Consultant": [
+            30500,
+            43000
           ]
         },
         "bancassurance_distribution": {
@@ -1993,6 +2912,50 @@
           "Head": [
             102500,
             176500
+          ],
+          "Officer": [
+            19500,
+            32000
+          ],
+          "Senior Analyst": [
+            19500,
+            32000
+          ],
+          "Assistant Manager": [
+            32000,
+            53500
+          ],
+          "Manager": [
+            40500,
+            66500
+          ],
+          "Senior Manager": [
+            63000,
+            89500
+          ],
+          "Associate Director": [
+            83000,
+            133000
+          ],
+          "Director": [
+            102500,
+            176500
+          ],
+          "AVP": [
+            40500,
+            66500
+          ],
+          "VP": [
+            63000,
+            89500
+          ],
+          "Specialist": [
+            19500,
+            32000
+          ],
+          "Consultant": [
+            40500,
+            66500
           ]
         },
         "brokerage_distribution": {
@@ -2252,6 +3215,42 @@
           ],
           "Department Head": [
             100000,
+            166500
+          ]
+        },
+        "insurance_management_reporting": {
+          "Officer / Senior Analyst": [
+            17500,
+            39000
+          ],
+          "Assistant Manager / Manager": [
+            38000,
+            60000
+          ],
+          "Senior Manager / Senior Director": [
+            70000,
+            133500
+          ],
+          "Head": [
+            133500,
+            166500
+          ]
+        },
+        "insurance_finance_operations": {
+          "Officer / Senior Analyst": [
+            16500,
+            34000
+          ],
+          "Assistant Manager / Manager": [
+            35000,
+            55000
+          ],
+          "Senior Manager / Senior Director": [
+            60000,
+            83500
+          ],
+          "Head": [
+            83500,
             166500
           ]
         }
