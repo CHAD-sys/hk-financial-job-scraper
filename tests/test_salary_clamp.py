@@ -1,12 +1,14 @@
 """Tests for the deterministic salary clamp (hk_jobs.salary_clamp)."""
 from hk_jobs.salary_clamp import (
+    _LADDERS,
+    _TABLES,
     BOUTIQUE_SALARY_MULTIPLIER,
     GLOBAL_MAX_MONTHLY_HKD,
     INTERNSHIP_MAX_MONTHLY_HKD,
-    _LADDERS,
-    _TABLES,
     clamp_salary,
+    employer_salary_overlay,
     fix_salary_magnitude,
+    manager_grade_floor,
     price_from_coordinate,
 )
 
@@ -141,12 +143,12 @@ def test_bank_director_capped_at_160k_even_if_role_band_is_higher():
     assert out[1] == 150_000
 
 
-def test_bank_plain_manager_title_treated_as_avp_grade():
+def test_bank_relationship_manager_title_is_not_treated_as_the_avp_grade():
     out = clamp_salary(
         "middle_office", "senior", 30_000, 150_000,
         company_slug="standard-chartered-hk", title="Relationship Manager",
     )
-    assert out[1] == 70_000
+    assert out == (30_000, 150_000)
 
 
 def test_non_bank_company_is_not_subject_to_bank_title_caps():
@@ -266,6 +268,129 @@ def test_boutique_discount_applies_after_other_ceilings():
 
 def test_boutique_none_estimates_pass_through():
     assert clamp_salary("front_office", "lead", None, None, source_tier="boutique") == (None, None)
+
+
+# ── employer-specific salary overlays ─────────────────────────────────────────
+
+_AM_SLUG = "alvarez-marsal-corporate-finance-limited"
+_AM_PROJECT_MANAGER = (
+    "Manager - Project Delivery and Operations "
+    "(Infrastructure & Capital Projects)"
+)
+
+
+def test_employer_overlay_replaces_the_boutique_discount_for_the_confirmed_role():
+    """The reported A&M manager case must become HK$45k-60k, not HK$17.5k-35k."""
+    out = clamp_salary(
+        "corporate_finance_accounting", "mid", 17_500, 35_000,
+        role="professional_practice_advisory", grade=None,
+        company_slug=_AM_SLUG, title=_AM_PROJECT_MANAGER, source_tier="boutique",
+    )
+    assert out == (45_000, 60_000)
+
+
+def test_employer_overlay_uses_scraped_title_not_model_coordinate():
+    """A blank/misclassified model coordinate cannot evade a title-specific correction."""
+    assert employer_salary_overlay(_AM_SLUG, _AM_PROJECT_MANAGER) == (
+        45_000, 60_000, "am_infrastructure_capital_projects_manager",
+    )
+
+
+def test_employer_overlay_does_not_spread_to_other_managers_or_employers():
+    unrelated_am = clamp_salary(
+        "corporate_finance_accounting", "mid", 17_500, 35_000,
+        company_slug=_AM_SLUG, title="Manager (Financial Services – M&A / Deals)",
+        source_tier="boutique",
+    )
+    other_employer = clamp_salary(
+        "corporate_finance_accounting", "mid", 17_500, 35_000,
+        company_slug="another-advisory-firm", title=_AM_PROJECT_MANAGER,
+        source_tier="boutique",
+    )
+    senior_manager = clamp_salary(
+        "corporate_finance_accounting", "senior", 49_000, 63_000,
+        company_slug=_AM_SLUG,
+        title="Senior Manager - Project Delivery and Operations (Infrastructure & Capital Projects)",
+        source_tier="boutique",
+    )
+    assert unrelated_am == other_employer == (12_250, 24_500)
+    assert senior_manager == (34_300, 44_100)
+
+
+# ── Morris's Manager-grade floors ─────────────────────────────────────────────
+
+def test_smaller_firm_finance_manager_gets_the_40k_to_50k_floor_after_discount():
+    out = clamp_salary(
+        "back_office_operations", "mid", 25_000, 39_000,
+        role="operations_general", company_slug="smaller-firm",
+        title="Manager, Treasury Operations", source_tier="boutique",
+    )
+    assert out == (40_000, 50_000)
+
+
+def test_large_finance_employer_manager_starts_at_50k():
+    out = clamp_salary(
+        "middle_office", "mid", 35_000, 48_000,
+        role="risk_credit", company_slug="hsbc-hk", title="Manager, Credit Risk",
+    )
+    assert out == (50_000, 60_000)
+
+
+def test_big_four_is_explicitly_large_even_though_source_tier_is_not_used():
+    assert manager_grade_floor(
+        "corporate_finance_accounting", "professional_practice_advisory", "kpmg",
+        "Manager, Transaction Advisory",
+    ) == (50_000, 60_000, "large_employer")
+
+
+def test_manager_floor_excludes_assistant_and_service_titles():
+    assistant = clamp_salary(
+        "back_office_operations", "mid", 25_000, 39_000,
+        role="operations_general", company_slug="smaller-firm",
+        title="Assistant Manager, Treasury Operations",
+    )
+    service = clamp_salary(
+        "back_office_operations", "mid", 11_500, 23_000,
+        role="customer_service", company_slug="hsbc-hk",
+        title="Customer Service Manager",
+    )
+    # The existing role ceiling still applies; the Manager-grade floor does not.
+    assert assistant == (25_000, 31_000)
+    assert service == (11_500, 23_000)
+
+
+def test_manager_floor_leaves_relationship_manager_on_its_own_calibrated_bands():
+    assert manager_grade_floor(
+        "commercial_corporate_banking", "commercial_banking_rm", "hsbc-hk",
+        "Relationship Manager, Corporate Banking",
+    ) is None
+
+
+def test_manager_floor_excludes_sales_and_business_development_titles():
+    assert manager_grade_floor(
+        "insurance", "agency_distribution", "smaller-firm",
+        "Business Development Manager, Insurance Partnership",
+    ) is None
+
+
+def test_manager_floor_needs_a_recognised_finance_coordinate():
+    assert manager_grade_floor(None, None, "smaller-firm", "Manager, Treasury Operations") is None
+
+
+def test_manager_floor_excludes_abbreviated_assistant_manager_titles():
+    assert manager_grade_floor(
+        "insurance", "commercial_insurance", "ping-an",
+        "Sr Acc Executive/Ass. Manager - Large Corporate",
+    ) is None
+
+
+def test_specific_employer_overlay_wins_over_the_generic_manager_floor():
+    out = clamp_salary(
+        "corporate_finance_accounting", "mid", 17_500, 35_000,
+        role="professional_practice_advisory", company_slug=_AM_SLUG,
+        title=_AM_PROJECT_MANAGER, source_tier="boutique",
+    )
+    assert out == (45_000, 60_000)
 
 
 # ── never emit a single-value range ─────────────────────────────────────────────

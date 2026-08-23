@@ -141,6 +141,52 @@ LEFT JOIN job_enrichments e
 #: sides of a search.
 _TOKEN = re.compile(r"[^\w一-鿿]+", re.UNICODE)
 
+# Common market shorthand for employer groups.  The key is a sequence rather
+# than a raw string so the normal tokenizer treats "Big 4", "Big Four", and
+# "Big4" equivalently without opening an alternate, less-safe query parser.
+# Each value is a set of ANDed FTS terms; alternatives are ORed.  Full legal
+# names are included because the board's company field comes from many source
+# sites and is not normalised to one display convention.
+_COMPANY_GROUP_ALIASES: dict[tuple[str, ...], tuple[tuple[str, ...], ...]] = {
+    ("big", "four"): (
+        ("kpmg",),
+        ("deloitte",),
+        ("pwc",),
+        ("pricewaterhousecoopers",),
+        ("pricewaterhouse", "coopers"),
+        ("ey",),
+        ("ernst", "young"),
+    ),
+    ("big", "4"): (
+        ("kpmg",),
+        ("deloitte",),
+        ("pwc",),
+        ("pricewaterhousecoopers",),
+        ("pricewaterhouse", "coopers"),
+        ("ey",),
+        ("ernst", "young"),
+    ),
+    ("big4",): (
+        ("kpmg",),
+        ("deloitte",),
+        ("pwc",),
+        ("pricewaterhousecoopers",),
+        ("pricewaterhouse", "coopers"),
+        ("ey",),
+        ("ernst", "young"),
+    ),
+    ("mbb",): (
+        ("mckinsey",),
+        ("bain",),
+        ("bcg",),
+        ("boston", "consulting", "group"),
+    ),
+    # Explicit because this is a widespread spelling in casual job searches;
+    # keeping it here means it still works even if the current vocabulary has
+    # no McKinsey listing for the ordinary typo-correction path to learn from.
+    ("mckensey",): (("mckinsey",),),
+}
+
 
 def rebuild_search_index(conn: sqlite3.Connection) -> int:
     """
@@ -308,10 +354,41 @@ def to_match_query(conn: sqlite3.Connection, query: str) -> str:
     if not tokens:
         return ""
 
-    corrected = [_correct_token(conn, t) for t in tokens]
-    quoted = [f'"{t}"' for t in corrected[:-1]]
-    quoted.append(f'"{corrected[-1]}"*')
-    return " AND ".join(quoted)
+    # Check the longest aliases first. This makes a future alias which shares
+    # a first word with a shorter one deterministic, and leaves every ordinary
+    # word on the established typo-correction path.
+    alias_lengths = sorted({len(key) for key in _COMPANY_GROUP_ALIASES}, reverse=True)
+    clauses: list[str] = []
+    i = 0
+    while i < len(tokens):
+        alternatives = None
+        consumed = 0
+        for size in alias_lengths:
+            candidate = tuple(tokens[i : i + size])
+            if len(candidate) == size and candidate in _COMPANY_GROUP_ALIASES:
+                alternatives = _COMPANY_GROUP_ALIASES[candidate]
+                consumed = size
+                break
+
+        if alternatives is not None:
+            # Use literals even inside the internally generated OR expression:
+            # only this fixed registry can introduce FTS operators. A prefix
+            # retains the forgiving, half-typed-search behaviour of normal
+            # queries while matching common legal-name variants.
+            options = [
+                "(" + " AND ".join(f'\"{term}\"*' for term in option) + ")"
+                for option in alternatives
+            ]
+            clauses.append("(" + " OR ".join(options) + ")")
+            i += consumed
+            continue
+
+        token = _correct_token(conn, tokens[i])
+        suffix = "*" if i == len(tokens) - 1 else ""
+        clauses.append(f'"{token}"{suffix}')
+        i += 1
+
+    return " AND ".join(clauses)
 
 
 def matching_rowids(conn: sqlite3.Connection, query: str, *, limit: int = 20000) -> list[int]:

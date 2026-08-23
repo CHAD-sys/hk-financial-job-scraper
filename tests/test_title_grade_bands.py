@@ -88,7 +88,7 @@ def test_non_bank_non_insurer_is_untouched_by_the_grade_bands():
 @pytest.mark.parametrize(
     "title,expected",
     [
-        ("Assistant Vice President, Underwriting", (150_000, 200_000)),
+        ("Assistant Vice President, Underwriting", (100_000, 150_000)),
         ("Director, Claims", (120_000, 150_000)),
         ("Senior Director, Actuarial", (120_000, 150_000)),
         ("Associate Director, Product", (80_000, 120_000)),
@@ -373,3 +373,93 @@ def test_a_bare_GM_abbreviation_is_never_matched():
         source_tier="mainstream",
     )
     assert (lo, hi) != (100_000, 150_000)
+
+
+# ── Relationship management reference (2026-08-21) ──────────────────────────
+
+@pytest.mark.parametrize(
+    "tier,role,grade,title,expected",
+    [
+        (
+            "commercial_corporate_banking", "commercial_banking_rm", "Assistant RM",
+            "Assistant Relationship Manager, Commercial Banking", (55_000, 70_000),
+        ),
+        (
+            "commercial_corporate_banking", "corporate_banking_rm", "Senior RM",
+            "Senior Relationship Manager, Corporate Banking", (90_000, 150_000),
+        ),
+        (
+            "commercial_corporate_banking", "sme_banking_rm", "RM",
+            "Relationship Manager, SME Banking", (56_000, 72_000),
+        ),
+        (
+            "retail_banking", "relationship_management", "Senior RM",
+            "Senior Relationship Manager, Retail Banking", (72_000, 120_000),
+        ),
+    ],
+)
+def test_relationship_manager_coordinates_apply_the_bank_reference_and_sme_retail_discount(
+    tier, role, grade, title, expected,
+):
+    """Plain RM titles are functional roles, not the bank AVP "manager" grade."""
+    assert clamp_salary(
+        tier, "senior", 10_000, 200_000, role=role, grade=grade,
+        company_slug="hsbc-hk", title=title, source_tier="mainstream",
+    ) == expected
+
+
+def test_an_explicit_avp_relationship_manager_still_uses_the_avp_grade():
+    """The RM exception is for functional titles only, never a named HR grade."""
+    assert clamp_salary(
+        "commercial_corporate_banking", "mid", 20_000, 150_000,
+        company_slug="hsbc-hk", title="AVP, Relationship Manager, Commercial Banking",
+        source_tier="mainstream",
+    ) == (50_000, 70_000)
+
+
+# ── Morris's Pricing Test corrections (2026-08-21) ──────────────────────────
+
+@pytest.mark.parametrize(
+    "tier,role,grade,title,expected",
+    [
+        (
+            "middle_office", "private_banking_business_management", "Manager",
+            "E-Banking Business Manager, Private Banking Department", (50_000, 70_000),
+        ),
+        (
+            "corporate_finance_accounting", "strategy_business_consulting", "Senior Consultant",
+            "Senior Consultant, Strategy & Business Design (Public Sector)", (45_000, 65_000),
+        ),
+        (
+            "back_office_operations", "exchange_clearing_operations", "AVP",
+            "AVP - Derivatives Trading Operations (Morning Shift) - Operations", (50_000, 80_000),
+        ),
+        (
+            "insurance", "underwriting", "Underwriter",
+            "Underwriter - Healthcare Professional Liability", (60_000, 90_000),
+        ),
+    ],
+)
+def test_pricing_test_coordinate_corrections(tier, role, grade, title, expected):
+    assert clamp_salary(
+        tier, "senior", 10_000, 200_000, role=role, grade=grade,
+        company_slug="not-a-bank-or-insurer", title=title, source_tier="mainstream",
+    ) == expected
+
+
+@pytest.mark.parametrize(
+    "company_slug,tier,title,expected",
+    [
+        ("bochk", "retail_banking", "Team Head, Mortgage Services", (50_000, 80_000)),
+        ("everbright-bank", "front_office", "Senior Manager, Investment Management", (70_000, 90_000)),
+        ("za-bank", "back_office_operations", "Senior Manager, Investment Operations", (65_000, 80_000)),
+        ("sun-life-hk", "insurance", "Director, Agency Recruitment", (80_000, 100_000)),
+        ("sun-life-hk", "insurance", "Assistant Vice President, Control & Governance", (100_000, 150_000)),
+    ],
+)
+def test_pricing_test_title_specific_corrections(company_slug, tier, title, expected):
+    assert clamp_salary(
+        tier,
+        "senior", 10_000, 200_000, company_slug=company_slug, title=title,
+        source_tier="mainstream",
+    ) == expected

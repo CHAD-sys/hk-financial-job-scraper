@@ -517,6 +517,50 @@ def test_search_matches_company(client):
     assert _ids(_get(client, search="BlackRock")) == ["AM"]
 
 
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        ("Big4", {"KPMG_ALIAS", "EY_ALIAS", "DELOITTE_ALIAS", "PWC_ALIAS"}),
+        ("MBB", {"MCKINSEY_ALIAS", "BAIN_ALIAS", "BCG_ALIAS"}),
+        ("mckensey", {"MCKINSEY_ALIAS"}),
+    ],
+)
+def test_company_group_aliases_work_through_the_public_api(tmp_path, query, expected):
+    """The deployable backend copy, not just the scraper-side index, expands aliases."""
+    db = tmp_path / "aliases.db"
+    make_jobs_db(
+        db,
+        jobs=[
+            job(source="jobsdb", source_id="KPMG_ALIAS", company="KPMG", title="Audit Associate"),
+            job(source="jobsdb", source_id="EY_ALIAS", company="EY", title="Tax Consultant"),
+            job(
+                source="jobsdb", source_id="DELOITTE_ALIAS", company="Deloitte",
+                title="Risk Analyst",
+            ),
+            job(source="jobsdb", source_id="PWC_ALIAS", company="PwC", title="Deals Associate"),
+            job(
+                source="jobsdb", source_id="MCKINSEY_ALIAS", company="McKinsey & Company",
+                title="Business Analyst",
+            ),
+            job(
+                source="jobsdb", source_id="BAIN_ALIAS", company="Bain & Company",
+                title="Associate Consultant",
+            ),
+            job(
+                source="jobsdb", source_id="BCG_ALIAS", company="Boston Consulting Group",
+                title="Consultant",
+            ),
+        ],
+    )
+    dist = tmp_path / "dist"
+    make_bundle(dist)
+    alias_client = TestClient(make_app(db, dist, tmp_path, cookie_secure=False))
+
+    response = alias_client.get("/api/jobs", params={"search": query, "page_size": 100})
+    assert response.status_code == 200, response.text
+    assert set(_ids(response.json())) == expected
+
+
 def test_company_filter(client):
     assert _ids(_get(client, companies=[IB])) == ["IB"]
 

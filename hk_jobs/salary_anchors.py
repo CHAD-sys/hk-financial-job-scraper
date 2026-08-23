@@ -34,7 +34,10 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-ANCHORS_PATH = Path(__file__).resolve().parent.parent / "salary_guidlines" / "hk_salary_anchors.json"
+ANCHORS_PATH = (
+    Path(__file__).resolve().parent.parent / "salary_guidlines" / "hk_salary_anchors.json"
+)
+PROVENANCE_PATH = ANCHORS_PATH.with_name("hk_salary_anchor_provenance.json")
 
 #: Used only when the anchors file cannot be read. It is the value the file
 #: carries, restated here so a corrupt file degrades to a conservative ceiling
@@ -50,12 +53,26 @@ def _load() -> dict:
     except Exception as exc:  # missing file, bad JSON, schema drift
         logger.warning(
             "Salary anchors unavailable (%s); tier/role/grade clamps disabled and the "
-            "global ceiling falls back to HK$%s/month.", exc, f"{_FALLBACK_GLOBAL_MAX:,}",
+            "global ceiling falls back to HK$%s/month.",
+            exc,
+            f"{_FALLBACK_GLOBAL_MAX:,}",
         )
         return {}
 
 
 ANCHORS: dict = _load()
+
+
+def _load_provenance() -> dict:
+    """Load the audit-only cell ledger without ever disabling salary pricing."""
+    try:
+        return json.loads(PROVENANCE_PATH.read_text(encoding="utf-8"))
+    except Exception as exc:  # provenance is useful, never a production dependency
+        logger.warning("Salary-anchor provenance unavailable (%s); pricing remains enabled.", exc)
+        return {}
+
+
+ANCHOR_PROVENANCE: dict = _load_provenance()
 
 META: dict = ANCHORS.get("meta", {})
 LADDERS: dict = ANCHORS.get("ladders_monthly_hkd", {})
@@ -74,13 +91,33 @@ GRADE_BANDS: dict = ANCHORS.get("title_grade_bands_monthly_hkd", {})
 BANK_BANDS: dict = GRADE_BANDS.get("bank", {}).get("bands_monthly_hkd", {})
 INSURANCE_BANDS: dict = GRADE_BANDS.get("insurance", {}).get("bands_monthly_hkd", {})
 
+# A tiny set of role-and-title-specific corrections that must win over the
+# broader corporate-grade bands above. Kept separate so a sentence in the
+# notes cannot accidentally become an estimator rule.
+TITLE_FUNCTION_BANDS: dict = ANCHORS.get("title_function_bands_monthly_hkd", {})
+BANK_FUNCTION_BANDS: dict = TITLE_FUNCTION_BANDS.get("bank", {})
+INSURANCE_FUNCTION_BANDS: dict = TITLE_FUNCTION_BANDS.get("insurance", {})
+
+# Employer overlays are intentionally separate from general anchors and title-grade
+# bands.  Each one is a narrowly evidenced exception for a named employer and
+# function-bearing title; it must never quietly become a rule for every employer
+# that happens to use the same grade word.
+EMPLOYER_SALARY_OVERLAYS: tuple[dict, ...] = tuple(
+    ANCHORS.get("employer_salary_overlays_monthly_hkd", {}).get("rules", ())
+)
+
+# Morris's Manager-grade floor is separate from the anchor cells: it is a
+# cross-function protection applied only after a title has passed the clamp's
+# finance-grade classifier. The JSON owns the numbers and explicit additional
+# large-employer registry; bank/insurer membership remains in the clamp because
+# those existing allowlists are the project's source of truth for those groups.
+MANAGER_GRADE_FLOORS: dict = ANCHORS.get("manager_grade_floors_monthly_hkd", {})
+
 #: Grades allowed past `GLOBAL_MAX_MONTHLY_HKD` on a deterministic title match.
 BANK_EXCEEDS_GLOBAL_MAX: bool = bool(GRADE_BANDS.get("bank", {}).get("exceeds_global_max"))
 
 #: Chinese banks, where "General Manager"/"Deputy GM" is a Director-grade title.
-CHINESE_BANK_SLUGS: frozenset = frozenset(
-    GRADE_BANDS.get("bank", {}).get("chinese_bank_slugs", ())
-)
+CHINESE_BANK_SLUGS: frozenset = frozenset(GRADE_BANDS.get("bank", {}).get("chinese_bank_slugs", ()))
 
 #: Morris's Tier 1 insurers — the only ones his index applies to at face value.
 INSURANCE_TIER_1_SLUGS: frozenset = frozenset(
@@ -96,8 +133,13 @@ GLOBAL_MAX_MONTHLY_HKD: int = int(META.get("global_max_monthly_hkd") or _FALLBAC
 
 #: Canonical tier keys, in the file's own low-to-high order.
 TIER_KEYS: tuple[str, ...] = tuple(LADDERS.keys()) or (
-    "front_office", "commercial_corporate_banking", "corporate_finance_accounting",
-    "middle_office", "insurance", "retail_banking", "back_office_operations",
+    "front_office",
+    "commercial_corporate_banking",
+    "corporate_finance_accounting",
+    "middle_office",
+    "insurance",
+    "retail_banking",
+    "back_office_operations",
 )
 
 
@@ -141,6 +183,13 @@ def blinded_vocabulary() -> dict:
     }
 
 
+def provenance_for(tier: str | None, role: str | None, grade: str | None) -> dict | None:
+    """Audit lineage for one exact anchor coordinate, never used to price it."""
+    if not tier or not role or not grade:
+        return None
+    return ANCHOR_PROVENANCE.get("cells", {}).get(f"{tier}/{role}/{grade}")
+
+
 def fingerprint() -> str:
     """
     A short digest of the anchor data that actually affects an estimate.
@@ -152,8 +201,13 @@ def fingerprint() -> str:
     import hashlib
 
     payload = json.dumps(
-        {"ladders": LADDERS, "tables": TABLES, "caps": GRADE_CAPS,
-         "global_max": GLOBAL_MAX_MONTHLY_HKD},
-        sort_keys=True, separators=(",", ":"),
+        {
+            "ladders": LADDERS,
+            "tables": TABLES,
+            "caps": GRADE_CAPS,
+            "global_max": GLOBAL_MAX_MONTHLY_HKD,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
     )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:8]

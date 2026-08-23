@@ -140,9 +140,11 @@ def test_max_tokens_is_allocated_per_task(sent):
     assert with_description == MAX_TOKENS_WITH_DESCRIPTION
     assert title_only == MAX_TOKENS_TITLE_ONLY
     assert title_only < with_description
-    # Observed consumption under thinking was ~7,000 output tokens per role; a
-    # budget at or below that truncates the answer, which is exactly the v11 bug.
-    assert with_description > 7_000
+    # The 2026-08-22 evaluation exposed a long tail: 88/400 description-backed
+    # calls exhausted 10,000 tokens. 16,000 keeps room for a full trace and the
+    # final JSON, without removing the cost ceiling altogether.
+    assert with_description == 16_000
+    assert title_only == 8_000
 
 
 # ── truncation must never be silent again ────────────────────────────────────
@@ -151,6 +153,18 @@ def test_a_truncated_answer_raises_a_named_error(sent):
     """RED at v11: this surfaced as json.JSONDecodeError, indistinguishable from a
     transient fault, and was retried three times before being dropped."""
     sent["_reply"] = _payload('{"seniority": "mi', finish_reason="length")
+    with pytest.raises(TruncatedAnswer):
+        _enricher().enrich_single("Risk Analyst", "A Bank", description="Do risk things.")
+
+
+def test_started_but_server_capped_answer_is_never_accepted(sent):
+    """A non-empty reply is still incomplete when DeepSeek reports `length`.
+
+    The client is non-streaming, so it cannot remove the server's cap after
+    generation has begun. Persisting this started response would turn an
+    incomplete model answer into a false salary estimate.
+    """
+    sent["_reply"] = _payload(json.dumps(_ANSWER), finish_reason="length")
     with pytest.raises(TruncatedAnswer):
         _enricher().enrich_single("Risk Analyst", "A Bank", description="Do risk things.")
 

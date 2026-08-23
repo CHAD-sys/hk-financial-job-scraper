@@ -126,7 +126,7 @@ _API_URL = "https://api.deepseek.com/chat/completions"
 _MODEL = "deepseek-v4-flash"
 _DESC_MAX_CHARS = 2_000   # cap to keep prompt tight; descriptions are typically 1–4 KB
 
-# ── Per-task output budgets (v12) ────────────────────────────────────────────
+# ── Per-task output budgets (v13) ────────────────────────────────────────────
 #
 # With thinking on, `max_tokens` must cover the reasoning trace AND the answer.
 # These are sized from the usage ledger, not from a guess: under thinking the
@@ -143,8 +143,20 @@ _DESC_MAX_CHARS = 2_000   # cap to keep prompt tight; descriptions are typically
 # writes a summary. The title-only branch has no posting to reason over and no
 # `description_summary` to produce, so it gets a smaller budget rather than the
 # same one — that is the "per task" part, which the pre-v11 blanket never did.
-MAX_TOKENS_WITH_DESCRIPTION = 10_000
-MAX_TOKENS_TITLE_ONLY = 5_000
+#
+# v13 raises those allocations after the 2026-08-22 salary-evaluation pilot:
+# 88 of 400 description-backed calls ended at the 10,000-token server cap.
+# `max_tokens` is enforced by DeepSeek *while* it generates; this non-streaming
+# client receives the answer only after generation ends, so it cannot lift the
+# cap after a response has started. The safe rule is therefore: reserve enough
+# room for the complete reasoning trace plus final JSON, and reject every
+# `finish_reason="length"` result rather than persisting a partial answer.
+#
+# 16,000 leaves roughly 5,800 tokens above the highest earlier observed trace
+# while keeping a firm, auditable cost ceiling. Title-only work is cheaper but
+# still needs room for thinking, so it is raised proportionally to 8,000.
+MAX_TOKENS_WITH_DESCRIPTION = 16_000
+MAX_TOKENS_TITLE_ONLY = 8_000
 
 
 class TruncatedAnswer(RuntimeError):

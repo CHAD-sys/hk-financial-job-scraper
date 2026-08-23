@@ -41,6 +41,46 @@ _BM25_WEIGHTS = (10.0, 8.0, 4.0, 3.0, 1.0)
 
 _TOKEN = re.compile(r"[^\w一-鿿]+", re.UNICODE)
 
+# Must match hk_jobs/search_index.py. These are employer-group abbreviations
+# people use in the market; each value is a set of ANDed FTS terms, with the
+# alternatives ORed together.
+_COMPANY_GROUP_ALIASES: dict[tuple[str, ...], tuple[tuple[str, ...], ...]] = {
+    ("big", "four"): (
+        ("kpmg",),
+        ("deloitte",),
+        ("pwc",),
+        ("pricewaterhousecoopers",),
+        ("pricewaterhouse", "coopers"),
+        ("ey",),
+        ("ernst", "young"),
+    ),
+    ("big", "4"): (
+        ("kpmg",),
+        ("deloitte",),
+        ("pwc",),
+        ("pricewaterhousecoopers",),
+        ("pricewaterhouse", "coopers"),
+        ("ey",),
+        ("ernst", "young"),
+    ),
+    ("big4",): (
+        ("kpmg",),
+        ("deloitte",),
+        ("pwc",),
+        ("pricewaterhousecoopers",),
+        ("pricewaterhouse", "coopers"),
+        ("ey",),
+        ("ernst", "young"),
+    ),
+    ("mbb",): (
+        ("mckinsey",),
+        ("bain",),
+        ("bcg",),
+        ("boston", "consulting", "group"),
+    ),
+    ("mckensey",): (("mckinsey",),),
+}
+
 _MIN_CORRECTABLE_LEN = 4
 _MAX_EDITS_SHORT = 1  # words of length 4-5
 _MAX_EDITS_LONG = 2   # words of length 6+
@@ -113,10 +153,34 @@ def to_match_query(conn: sqlite3.Connection, query: str) -> str:
     if not tokens:
         return ""
 
-    corrected = [_correct_token(conn, t) for t in tokens]
-    quoted = [f'"{t}"' for t in corrected[:-1]]
-    quoted.append(f'"{corrected[-1]}"*')
-    return " AND ".join(quoted)
+    alias_lengths = sorted({len(key) for key in _COMPANY_GROUP_ALIASES}, reverse=True)
+    clauses: list[str] = []
+    i = 0
+    while i < len(tokens):
+        alternatives = None
+        consumed = 0
+        for size in alias_lengths:
+            candidate = tuple(tokens[i : i + size])
+            if len(candidate) == size and candidate in _COMPANY_GROUP_ALIASES:
+                alternatives = _COMPANY_GROUP_ALIASES[candidate]
+                consumed = size
+                break
+
+        if alternatives is not None:
+            options = [
+                "(" + " AND ".join(f'\"{term}\"*' for term in option) + ")"
+                for option in alternatives
+            ]
+            clauses.append("(" + " OR ".join(options) + ")")
+            i += consumed
+            continue
+
+        token = _correct_token(conn, tokens[i])
+        suffix = "*" if i == len(tokens) - 1 else ""
+        clauses.append(f'"{token}"{suffix}')
+        i += 1
+
+    return " AND ".join(clauses)
 
 
 def matching_rowids(conn: sqlite3.Connection, query: str, *, limit: int = 20000) -> list[int]:

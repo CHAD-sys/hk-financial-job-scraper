@@ -63,6 +63,24 @@ def conn(tmp_path) -> sqlite3.Connection:
             # edit-distance correction — not the stemmer — can bridge it.
             job(source="jobsdb", source_id="ACT", company="Manulife",
                 title="Actuarial Analyst"),
+            # Employer names used by the organisation-group search aliases.
+            # None of their titles mention the group, so this verifies that a
+            # group query expands to its constituent firms rather than merely
+            # looking for the literal abbreviation in a posting.
+            job(source="jobsdb", source_id="KPMG", company="KPMG",
+                title="Audit Associate"),
+            job(source="jobsdb", source_id="EY", company="EY",
+                title="Tax Consultant"),
+            job(source="jobsdb", source_id="DELOITTE", company="Deloitte",
+                title="Risk Advisory Analyst"),
+            job(source="jobsdb", source_id="PWC", company="PwC",
+                title="Deals Associate"),
+            job(source="jobsdb", source_id="MCKINSEY", company="McKinsey & Company",
+                title="Business Analyst"),
+            job(source="jobsdb", source_id="BAIN", company="Bain & Company",
+                title="Associate Consultant"),
+            job(source="jobsdb", source_id="BCG", company="Boston Consulting Group",
+                title="Consultant"),
         ],
         enrichments=[
             enrichment(source="workday", source_id="QUANT",
@@ -122,6 +140,19 @@ def test_all_the_words_match_without_being_adjacent(conn):
 def test_word_order_does_not_decide_the_match(conn):
     """RED before FTS: 'management risk' matched nothing at all."""
     assert "SRRMA" in _hits(conn, "management risk")
+
+
+# ── Organisation group aliases ──────────────────────────────────────────────
+
+@pytest.mark.parametrize("query", ["big four", "Big4", "big 4"])
+def test_big_four_aliases_reach_each_constituent_firm(conn, query):
+    """A group name is a useful employer search, not literal posting text."""
+    assert _hits(conn, query) == {"KPMG", "EY", "DELOITTE", "PWC"}
+
+
+def test_mbb_and_the_common_mckensey_misspelling_reach_the_right_firms(conn):
+    assert _hits(conn, "MBB") == {"MCKINSEY", "BAIN", "BCG"}
+    assert _hits(conn, "mckensey") == {"MCKINSEY"}
 
 
 def test_a_query_does_not_match_inside_a_longer_word(conn):

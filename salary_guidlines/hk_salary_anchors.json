@@ -10,6 +10,24 @@
     "merge_script": "scripts/build_merged_salary_anchors.py (rerun after editing source JSONs)",
     "grade_ladder_note": "Banking roles use Analyst/Associate/VP/Director/MD rows (PERSOLKELLY year bands: 0-3/3-7/7-10/10+/15+). Insurance roles use Officer-Senior Analyst / AsstMgr-Manager / SrMgr-SrDirector / Head. Roles only covered by one source carry that source's own row labels.",
     "granularity_expansion_2026-08-21": "Opus-assisted pass against 2,007 real unresolved live titles (GitHub Actions run 32403056801, 2026-08-20) plus persolkelly_2025.json/adecco_2026.json. 8 items are exact copies of already-published PERSOLKELLY/Adecco cells that were never wired into tables_monthly_hkd (annual->monthly converted where needed, nearest HK$500). The rest are grade rows interpolated from the SAME role's own adjacent wired rows (mostly: AVP sits between Associate and VP, Manager=AVP, Senior Manager=VP, Head of Department=Director, per title_grade_bands_monthly_hkd's own bank equivalences and the pattern 4 roles already had — trade_support and collateral_management match it exactly, risk_credit partially, risk_market not well, so treat these as a reasoned extrapolation, not a fifth published source). 3 low-confidence proposed NEW roles (sales_business_development, strategy_planning, cards_unsecured_lending) were found but deliberately NOT applied — no real source, held back pending one.",
+    "relationship_manager_reference_2026_08_21": "Owner-provided banking calibration: in Commercial or Corporate Banking, Assistant Relationship Manager = HK$55,000-70,000/month, Relationship Manager = HK$70,000-90,000, Senior Relationship Manager = HK$90,000-150,000. SME and Retail Banking Relationship Manager roles use the same named grades at a 20% discount (HK$44,000-56,000; HK$56,000-72,000; HK$72,000-120,000 respectively). These functional RM titles are not the generic bank Manager/AVP grade.",
+    "pricing_test_corrections_2026_08_21": "Narrow calibrations from Morris H.'s WhatsApp review of the Pricing Test: private-banking business manager, mortgage team head, investment-management and investment-operations senior manager, strategy/business-design consulting, HKEx exchange operations AVP, insurance underwriting, agency-recruitment director, and insurance AVP.",
+    "post_hays_only_overrides": {
+      "2026-08-21_relationship_management": [
+        "commercial_corporate_banking/commercial_banking_rm/Assistant RM",
+        "commercial_corporate_banking/commercial_banking_rm/RM",
+        "commercial_corporate_banking/commercial_banking_rm/Senior RM",
+        "commercial_corporate_banking/sme_banking_rm/Assistant RM",
+        "commercial_corporate_banking/sme_banking_rm/RM",
+        "commercial_corporate_banking/sme_banking_rm/Senior RM",
+        "retail_banking/relationship_management/Assistant RM",
+        "retail_banking/relationship_management/RM",
+        "retail_banking/relationship_management/Senior RM"
+      ],
+      "2026-08-21_pricing_test": [
+        "retail_banking/mortgage/Team Head"
+      ]
+    },
     "temporary_hays_only_package_divisor": {
       "applied_at": "2026-08-21T19:00:47+01:00",
       "target_cells": 136,
@@ -279,6 +297,12 @@
             171500
           ]
         },
+        "investment_management": {
+          "Senior Manager": [
+            70000,
+            90000
+          ]
+        },
         "hedge_fund_investment": {
           "Analyst": [
             35500,
@@ -502,7 +526,7 @@
       }
     },
     "commercial_corporate_banking": {
-      "_desc": "Corporate / commercial / SME / FI relationship managers, transaction banking, wealth management. Mid pay.",
+      "_desc": "Corporate / commercial / SME / FI relationship managers, transaction banking, wealth management. Commercial and corporate RM roles use the owner-provided 2026-08-21 bands; SME RM roles use their 20%-discounted counterparts.",
       "roles": {
         "corporate_banking_rm": {
           "Analyst": [
@@ -524,6 +548,18 @@
           "MD": [
             150000,
             176500
+          ],
+          "Assistant RM": [
+            55000,
+            70000
+          ],
+          "RM": [
+            70000,
+            90000
+          ],
+          "Senior RM": [
+            90000,
+            150000
           ],
           "Officer": [
             21500,
@@ -556,16 +592,16 @@
         },
         "commercial_banking_rm": {
           "Assistant RM": [
-            17000,
-            23500
+            55000,
+            70000
           ],
           "RM": [
-            25500,
-            43000
+            70000,
+            90000
           ],
           "Senior RM": [
-            43000,
-            60000
+            90000,
+            150000
           ],
           "Team Head": [
             53500,
@@ -578,16 +614,16 @@
         },
         "sme_banking_rm": {
           "Assistant RM": [
-            17000,
-            25500
+            44000,
+            56000
           ],
           "RM": [
-            21500,
-            38500
+            56000,
+            72000
           ],
           "Senior RM": [
-            38500,
-            51500
+            72000,
+            120000
           ],
           "Team Head": [
             50000,
@@ -687,7 +723,7 @@
       }
     },
     "retail_banking": {
-      "_desc": "Branch, retail relationship management, mortgage, insurance/investment specialists, tellers. Mid-to-low pay.",
+      "_desc": "Branch, retail relationship management, mortgage, insurance/investment specialists, tellers. Retail RM roles use the owner-provided Commercial/Corporate RM reference less 20%.",
       "roles": {
         "branch_management": {
           "Sub Branch Manager": [
@@ -739,16 +775,16 @@
         },
         "relationship_management": {
           "Assistant RM": [
-            21500,
-            30000
+            44000,
+            56000
           ],
           "RM": [
-            30000,
-            47000
+            56000,
+            72000
           ],
           "Senior RM": [
-            47000,
-            77000
+            72000,
+            120000
           ],
           "Sales Manager": [
             47000,
@@ -785,8 +821,8 @@
             38500
           ],
           "Team Head": [
-            38500,
-            55500
+            50000,
+            80000
           ],
           "Region Head": [
             68500,
@@ -1216,6 +1252,12 @@
             200000
           ]
         },
+        "private_banking_business_management": {
+          "Manager": [
+            50000,
+            70000
+          ]
+        },
         "change_project_management": {
           "Analyst": [
             21500,
@@ -1597,6 +1639,12 @@
             67000
           ]
         },
+        "exchange_clearing_operations": {
+          "AVP": [
+            50000,
+            80000
+          ]
+        },
         "payment_operation": {
           "Analyst": [
             15500,
@@ -1695,6 +1743,12 @@
           "Head of Department": [
             49000,
             78500
+          ]
+        },
+        "investment_operations": {
+          "Senior Manager": [
+            65000,
+            80000
           ]
         },
         "fund_accounting": {
@@ -2230,6 +2284,20 @@
     "corporate_finance_accounting": {
       "_desc": "In-house FP&A, controllers, finance managers, tax, treasury, accounting support (commerce & industry + banking-industry finance). Use the modest ladder.",
       "roles": {
+        "strategy_business_consulting": {
+          "Consultant": [
+            45000,
+            65000
+          ],
+          "Senior Consultant": [
+            45000,
+            65000
+          ],
+          "Senior Associate": [
+            45000,
+            65000
+          ]
+        },
         "banking_industry_finance": {
           "Analyst": [
             21000,
@@ -2744,6 +2812,10 @@
             23500,
             37000
           ],
+          "Underwriter": [
+            60000,
+            90000
+          ],
           "Assistant Manager": [
             37000,
             45000
@@ -2885,8 +2957,8 @@
             104000
           ],
           "Director": [
-            81000,
-            127500
+            80000,
+            100000
           ],
           "AVP": [
             30500,
@@ -3419,8 +3491,8 @@
       ],
       "bands_monthly_hkd": {
         "assistant_vice_president": [
-          150000,
-          200000
+          100000,
+          150000
         ],
         "director": [
           120000,
@@ -3479,5 +3551,74 @@
       ],
       "tier_2_note": "None of Morris's six Tier 2 insurers is currently in companies.yaml, so the 15% discount is inert today. The list is recorded in full so it activates the moment any of them is added."
     }
+  },
+  "title_function_bands_monthly_hkd": {
+    "_desc": "Narrow title-and-function corrections from Morris H.'s 2026-08-21 Pricing Test review. Applied before broader bank or insurance corporate-grade bands because these functions have materially different pay from their generic grade.",
+    "bank": {
+      "mortgage_team_head": [
+        50000,
+        80000
+      ],
+      "investment_management_senior_manager": [
+        70000,
+        90000
+      ],
+      "investment_operations_senior_manager": [
+        65000,
+        80000
+      ]
+    },
+    "insurance": {
+      "agency_recruitment_director": [
+        80000,
+        100000
+      ]
+    }
+  },
+  "employer_salary_overlays_monthly_hkd": {
+    "_desc": "Evidence-backed employer-and-title salary bands. These are deliberately narrower than the general anchor table: a rule needs an exact company slug plus a title pattern, and overrides the generic boutique multiplier only for that confirmed role. Add a rule only with a documented employer-specific correction; never turn a single correction into a company-wide or title-wide assumption.",
+    "rules": [
+      {
+        "key": "am_infrastructure_capital_projects_manager",
+        "company_slug": "alvarez-marsal-corporate-finance-limited",
+        "title_pattern": "(?=.*(?<!senior )\\bmanager\\b)(?=.*\\b(?:project delivery|business case|deal advisory)\\b)(?=.*\\binfrastructure\\b)(?=.*\\bcapital projects\\b)",
+        "band_monthly_hkd": [
+          45000,
+          60000
+        ],
+        "evidence": "Owner correction, 2026-08-21: Manager-grade roles should not fall below HK$45,000/month. Scoped to A&M's Infrastructure & Capital Projects advisory-manager postings after Project Delivery and Operations was stored at HK$17,500-35,000 solely because the generic boutique multiplier reduced the HK$43,000-60,000 advisory Manager anchor.",
+        "scope": "Employer + manager title + Infrastructure & Capital Projects function only. It does not apply to other Alvarez & Marsal managers, other boutique employers, or generic Manager titles."
+      }
+    ]
+  },
+  "manager_grade_floors_monthly_hkd": {
+    "_desc": "Morris H., 2026-08-22: finance Manager-grade roles start at HK$40,000/month at smaller or unclassified firms (HK$40,000-50,000 when the existing estimate is entirely below the floor), and at HK$50,000/month at large employers. This is a floor, not a universal Manager-title band: any title that also names a lower/alternate grade (Assistant, Deputy, Associate, Consultant, Analyst, Officer, Trainee, etc.), Relationship Manager, or service/support/HR/marketing/administration function is excluded because it does not establish the unambiguous finance Manager grade Morris described. Relationship Manager has its own owner-provided Commercial/Corporate and SME/Retail bands. The floor applies to recognised finance salary coordinates only; unknown classifications fail open rather than guessing a promotion.",
+    "smaller_or_unclassified": {
+      "minimum_monthly_hkd": 40000,
+      "fallback_maximum_monthly_hkd": 50000
+    },
+    "large_employer": {
+      "minimum_monthly_hkd": 50000,
+      "fallback_maximum_monthly_hkd": 60000,
+      "additional_slugs": [
+        "hkex",
+        "blackrock-hk",
+        "fidelity-international-hk",
+        "ubs-am-hk",
+        "state-street",
+        "kpmg",
+        "pwc",
+        "deloitte",
+        "ey"
+      ],
+      "membership_note": "All configured banks and insurers are also treated as large employers in hk_jobs.salary_clamp.py. This short list records the additional large asset managers, HKEx and Big Four firms; source_tier is deliberately not used because it describes the scraper route, not employer size."
+    },
+    "excluded_salary_roles": [
+      "human_resources",
+      "secretarial_admin",
+      "customer_service",
+      "insurance_customer_service",
+      "marketing_communications"
+    ]
   }
 }

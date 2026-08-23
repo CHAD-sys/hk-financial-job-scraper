@@ -5,7 +5,8 @@ The DeepSeek enricher returns a Hong Kong monthly BASE salary estimate that is o
 at lead level (an ambiguous role mis-tiered as front office jumps toward the ceiling).
 
 This module clips the model's estimate DOWN through four independent, ever-tightening
-ceilings, then applies one final scale-down for boutique employers:
+ceilings, then applies a final scale-down for boutique employers. A documented
+employer-and-title overlay may then replace that result for the one role it evidences:
 1. The (tier, seniority) coarse ladder ceiling — as before.
 2. The specific named role's own ceiling, if the model matched one (tables_monthly_hkd) —
    almost always tighter than its whole tier's general band.
@@ -30,7 +31,13 @@ ceilings, then applies one final scale-down for boutique employers:
    model's raw estimate was HK$11,200-14,400 — below the very row it matched. Down-only
    clamping has no way to catch an under-shoot like that, so this step adds a narrow,
    evidence-bounded exception: raise only up to a band we already trust for the ceiling.
-7. A final check that the range never comes out as a single value. Steps 1-4 only ever
+7. An employer-specific overlay, if an exact company slug and a narrowly functional
+   title pattern match. This is the exception to the generic boutique multiplier: it
+   uses a documented role-specific band and is deliberately not a company-wide rule.
+8. Morris's Manager-grade floor for a recognised finance coordinate: HK$40,000 at a
+   smaller/unclassified firm, HK$50,000 at an explicitly large employer. Assistant,
+   service/support and non-finance Manager titles are excluded before this can apply.
+9. A final check that the range never comes out as a single value. Steps 1-4 only ever
    lower `est_max`, so if the model's own `est_min` sat above the newly-capped ceiling (or
    the two simply end up equal — e.g. an anchor band already collapsed to a flat number),
    the naive fix is to snap min down to max, which produces a literal "200k-200k" range.
@@ -208,6 +215,18 @@ _JUNIOR_PRODUCT_MANAGER = re.compile(
     re.I,
 )
 
+# Relationship Manager is a banking function, not a corporate-grade word. It
+# deliberately bypasses only the legacy bare-"Manager" ceiling below: an
+# explicit AVP/VP/Director in the same title still wins through the higher
+# priority grade patterns. The exact RM bands live in the anchor table, with a
+# 20% lower set for SME and Retail Banking (owner calibration, 2026-08-21).
+_RELATIONSHIP_MANAGER = re.compile(r"\b(?:assistant\s+|senior\s+)?relationship manager\b", re.I)
+_EXPLICIT_AVP_GRADE = re.compile(
+    r"\bassistant vice president\b|\bassistant\s+V\.?P\.?\b|\bass?t\.?\s+V\.?P\.?\b|\bAVP\b"
+    r"|\bassistant manager\b",
+    re.I,
+)
+
 # Insurance: the hierarchy INVERTS. VP and AVP are the top grades here, not the
 # middle ones — the old caps table already knew this for FWD/Sun Life/Manulife;
 # Morris states it as the general rule for insurers. `vice_president` is matched
@@ -227,12 +246,43 @@ _INSURANCE_BAND_PATTERNS: tuple[tuple[str, re.Pattern, bool], ...] = (
     ("manager", re.compile(r"\bmanager\b", re.I), True),
 )
 
+# These are deliberately narrower than title-grade bands. Each combines a
+# corporate grade with the function that Morris corrected in the Pricing Test;
+# without the function, applying its range across an entire bank or insurer
+# would create a new class of pricing error.
+_BANK_FUNCTION_BAND_PATTERNS: tuple[tuple[str, re.Pattern], ...] = (
+    ("mortgage_team_head", re.compile(r"(?=.*\bteam head\b)(?=.*\bmortgage\b)", re.I)),
+    ("investment_management_senior_manager", re.compile(r"(?=.*\bsenior manager\b)(?=.*\binvestment management\b)", re.I)),
+    ("investment_operations_senior_manager", re.compile(r"(?=.*\bsenior manager\b)(?=.*\binvestment operations\b)", re.I)),
+)
+_INSURANCE_FUNCTION_BAND_PATTERNS: tuple[tuple[str, re.Pattern], ...] = (
+    ("agency_recruitment_director", re.compile(r"(?=.*\bdirector\b)(?=.*\bagency recruitment\b)", re.I)),
+)
+
 _BANK_BANDS = salary_anchors.BANK_BANDS
 _INSURANCE_BANDS = salary_anchors.INSURANCE_BANDS
+_BANK_FUNCTION_BANDS = salary_anchors.BANK_FUNCTION_BANDS
+_INSURANCE_FUNCTION_BANDS = salary_anchors.INSURANCE_FUNCTION_BANDS
 _INSURANCE_TIER_1 = salary_anchors.INSURANCE_TIER_1_SLUGS
 _INSURANCE_TIER_2_DISCOUNT = salary_anchors.INSURANCE_TIER_2_DISCOUNT
 _BANK_EXCEEDS_GLOBAL_MAX = salary_anchors.BANK_EXCEEDS_GLOBAL_MAX
 _CHINESE_BANK_SLUGS = salary_anchors.CHINESE_BANK_SLUGS
+_EMPLOYER_SALARY_OVERLAYS = salary_anchors.EMPLOYER_SALARY_OVERLAYS
+_MANAGER_GRADE_FLOORS = salary_anchors.MANAGER_GRADE_FLOORS
+
+_MANAGER_GRADE_TITLE = re.compile(r"\b(?:senior\s+)?manager\b", re.I)
+_NON_MANAGER_GRADE_TITLE = re.compile(
+    # A mixed-grade title ("Assistant/Senior Manager", "Consultant/Manager",
+    # "Relationship Manager Trainee") is not proof that THIS post is priced at
+    # the Manager grade. Treating each slash-separated possibility as the most
+    # senior one was the exact broadening the first dry-run revealed.
+    r"\b(?:assistant|associate|deputy|consultant|analyst|officer|trainee|intern|graduate|specialist)\b"
+    r"|\b(?:asst|ass)\.?\s*/?\s*(?:senior\s+)?manager\b"
+    r"|\b(?:relationship|customer|client|account|service|support|facilities|office|"
+    r"human resources|people|learning|training|marketing|events|agency|sales|distribution|"
+    r"business development|vendor|case|zone|software|technology|developer|engineer)\b",
+    re.I,
+)
 
 
 # An internship is never paid on the ladder its desk sits on. The enricher's prompt says
@@ -496,6 +546,118 @@ def title_grade_band(
     return None
 
 
+def title_function_band(
+    company_slug: str | None, title: str | None
+) -> tuple[int, int, str] | None:
+    """Return a narrow Morris Pricing-Test band for a bank/insurer title.
+
+    Unlike a normal grade band this is specific to BOTH title and function, so
+    it safely applies even to a front-office role.  The conventional broad
+    grade bands remain disabled there because front-office compensation has a
+    separate ladder.
+    """
+    if not title:
+        return None
+    category = _company_category(company_slug)
+    if category == "bank":
+        patterns, bands = _BANK_FUNCTION_BAND_PATTERNS, _BANK_FUNCTION_BANDS
+    elif category == "insurance":
+        patterns, bands = _INSURANCE_FUNCTION_BAND_PATTERNS, _INSURANCE_FUNCTION_BANDS
+    else:
+        return None
+
+    for key, pattern in patterns:
+        if pattern.search(title):
+            band = bands.get(key)
+            if band:
+                return int(band[0]), int(band[1]), key
+    return None
+
+
+def employer_salary_overlay(
+    company_slug: str | None, title: str | None
+) -> tuple[int, int, str] | None:
+    """Return a documented employer-and-title band, if one exactly applies.
+
+    The title comes from the scraped role, rather than the model's inferred
+    tier/role/grade. That makes the overlay resilient to the very classification
+    miss it is intended to correct. A malformed future rule fails closed: it is
+    logged and cannot affect an unrelated salary.
+    """
+    if not company_slug or not title:
+        return None
+
+    for rule in _EMPLOYER_SALARY_OVERLAYS:
+        if rule.get("company_slug") != company_slug:
+            continue
+        try:
+            pattern = rule["title_pattern"]
+            band = rule["band_monthly_hkd"]
+            if not isinstance(band, list) or len(band) != 2:
+                raise ValueError("band must contain exactly two endpoints")
+            if not re.search(pattern, title, re.I):
+                continue
+            lo, hi = int(band[0]), int(band[1])
+            if lo <= 0 or hi < lo:
+                raise ValueError("band must be positive and ascending")
+            return lo, hi, str(rule["key"])
+        except (KeyError, TypeError, ValueError, re.error) as exc:
+            logger.warning("Ignoring malformed employer salary overlay %r: %s", rule, exc)
+    return None
+
+
+def manager_grade_floor(
+    tier: str | None, role: str | None, company_slug: str | None, title: str | None
+) -> tuple[int, int, str] | None:
+    """Return Morris's Manager-grade floor when title and finance coordinate agree.
+
+    A bare word "Manager" is not enough. The role must already be a recognised
+    finance coordinate and must not be one of the explicitly non-manager-grade
+    support functions. Employer size comes from durable company allowlists, not
+    ``source_tier`` — which only identifies the scraper route.
+    """
+    if not tier or not role or not title or tier not in salary_anchors.TIER_KEYS:
+        return None
+    if role in set(_MANAGER_GRADE_FLOORS.get("excluded_salary_roles", ())):
+        return None
+    if not _MANAGER_GRADE_TITLE.search(title) or _NON_MANAGER_GRADE_TITLE.search(title):
+        return None
+
+    large = _MANAGER_GRADE_FLOORS.get("large_employer", {})
+    additional_large = frozenset(large.get("additional_slugs", ()))
+    is_large = company_slug in (_BANK_SLUGS | _INSURANCE_SLUGS | additional_large)
+    group = large if is_large else _MANAGER_GRADE_FLOORS.get("smaller_or_unclassified", {})
+    try:
+        floor = int(group["minimum_monthly_hkd"])
+        fallback_max = int(group["fallback_maximum_monthly_hkd"])
+    except (KeyError, TypeError, ValueError):
+        logger.warning("Manager-grade floor configuration is malformed; floor skipped.")
+        return None
+    if floor <= 0 or fallback_max <= floor:
+        logger.warning("Manager-grade floor configuration is not an ascending positive band; floor skipped.")
+        return None
+    return floor, fallback_max, "large_employer" if is_large else "smaller_or_unclassified"
+
+
+def apply_manager_grade_floor(
+    est_min: int | None, est_max: int | None, floor_band: tuple[int, int, str] | None
+) -> tuple[int | None, int | None]:
+    """Apply one Manager-grade floor without re-running any other clamp rule.
+
+    This tiny transform is public so the historical backfill can reproduce the
+    new policy exactly without accidentally applying the boutique multiplier or
+    a role ceiling for a second time to an estimate that is already final.
+    """
+    if floor_band is None:
+        return est_min, est_max
+    floor, fallback_max, _ = floor_band
+    if est_max is None or est_max < floor:
+        return floor, fallback_max
+    if est_min is None or est_min < floor:
+        return floor, est_max
+    return est_min, est_max
+
+
 def _title_grade_ceiling(company_slug: str | None, title: str | None) -> int | None:
     """Bank/insurance management-grade cap for this title, or None if not applicable."""
     if not title:
@@ -503,6 +665,12 @@ def _title_grade_ceiling(company_slug: str | None, title: str | None) -> int | N
     category = _company_category(company_slug)
     if category == "bank":
         grade = _detect_grade(title, _BANK_GRADE_PATTERNS)
+        if (
+            grade == "assistant_vice_president"
+            and _RELATIONSHIP_MANAGER.search(title)
+            and not _EXPLICIT_AVP_GRADE.search(title)
+        ):
+            return None
         return _BANK_CAPS.get(grade) if grade else None
     if category == "insurance":
         grade = _detect_grade(title, _INSURANCE_GRADE_PATTERNS)
@@ -629,11 +797,9 @@ def clamp_salary(
     #   - internships, because the whole internship failure mode is a genuine
     #     intern matching a real full-time band, so a band that merely competed
     #     with the cap would win and undo it.
-    grade_band = (
-        None
-        if (internship or tier == FRONT_OFFICE_TIER)
-        else title_grade_band(company_slug, title)
-    )
+    grade_band = None if internship else title_function_band(company_slug, title)
+    if grade_band is None and not internship and tier != FRONT_OFFICE_TIER:
+        grade_band = title_grade_band(company_slug, title)
     if grade_band is not None:
         lo, hi, grade_key = grade_band
         new_min, new_max = lo, hi
@@ -656,6 +822,24 @@ def clamp_salary(
             new_min = round(new_min * BOUTIQUE_SALARY_MULTIPLIER)
         if new_max is not None:
             new_max = round(new_max * BOUTIQUE_SALARY_MULTIPLIER)
+
+    # This runs after the generic boutique multiplier on purpose. An overlay is
+    # evidence for one employer's one function-bearing title, so applying the
+    # multiplier again would recreate the error it exists to correct. The global
+    # maximum remains a hard safety boundary for every path.
+    overlay = employer_salary_overlay(company_slug, title)
+    if overlay is not None and not internship:
+        new_min, new_max, _ = overlay
+        new_max = min(new_max, GLOBAL_MAX_MONTHLY_HKD)
+        new_min = min(new_min, new_max)
+
+    # The generic Manager-grade protection runs after the boutique multiplier,
+    # otherwise a valid HK$40k floor would immediately become HK$28k. A narrower
+    # employer overlay is still authoritative and has already won above.
+    manager_floor = None if overlay is not None or internship else manager_grade_floor(
+        tier, role, company_slug, title
+    )
+    new_min, new_max = apply_manager_grade_floor(new_min, new_max, manager_floor)
 
     # Final safety net: never emit a single-value range. If the endpoints inverted
     # (min above the newly-capped max) or simply landed equal, widen by pulling min

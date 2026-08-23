@@ -31,13 +31,22 @@ def test_temporary_hays_only_divisor_adjusts_exactly_the_original_136_cells() ->
     assert metadata["temporary_divisor"] == 14
     assert "mixed compensation semantics" in anchors["meta"]["source"].lower()
     assert "total annual package / 14" in anchors["meta"]["basis"].lower()
+    override_coordinates = anchors["meta"]["post_hays_only_overrides"]
+    overrides = {
+        tuple(coordinate.split("/", 2))
+        for coordinates in override_coordinates.values()
+        for coordinate in coordinates
+    }
+    assert len(overrides) == 10
 
     cells = adjustment.target_cells(baseline)
     assert len(cells) == 136
+    assert overrides <= set(cells)
     for tier, role, grade in cells:
         before = baseline["tables_monthly_hkd"][tier]["roles"][role][grade]
         actual = anchors["tables_monthly_hkd"][tier]["roles"][role][grade]
-        assert actual == adjustment.adjusted_band(before)
+        if (tier, role, grade) not in overrides:
+            assert actual == adjustment.adjusted_band(before)
 
     # The saved baseline predates the later granularity expansion.  Among the
     # coordinates shared by both files, this adjustment must be the *only*
