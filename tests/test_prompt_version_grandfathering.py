@@ -22,9 +22,11 @@ import sqlite3
 
 import pytest
 
-from hk_jobs import salary
-from hk_jobs.enrichment import EnrichmentPipeline
+from hk_jobs import enrichment as enrichment_module
+from hk_jobs import salary, salary_clamp
+from hk_jobs.enrichers import deepseek
 from hk_jobs.enrichers.deepseek import PROMPT_VERSION
+from hk_jobs.enrichment import EnrichmentPipeline
 
 _SCHEMA = """
 CREATE TABLE jobs (
@@ -60,7 +62,7 @@ def _add(conn, source_id, *, version="__missing__", pinned=None):
 
 
 def _selected(conn, **kwargs):
-    enricher = EnrichmentPipeline.__new__(EnrichmentPipeline)   # no API key needed for selection
+    enricher = EnrichmentPipeline.__new__(EnrichmentPipeline)  # no API key needed for selection
     rows = enricher._fetch_unenriched(conn, limit=None, **kwargs)
     return {row["source_id"] for row in rows}
 
@@ -117,12 +119,28 @@ def test_a_pinned_row_is_excluded_even_under_re_enrich(conn):
     assert "pinned" not in _selected(conn, re_enrich=True)
 
 
+def test_a_deterministic_rule_change_selects_an_old_unpinned_estimate(conn, monkeypatch):
+    """The completed rule fingerprint must reach the real replay selector."""
+    old = PROMPT_VERSION
+    _add(conn, "old-rule-result", version=old)
+    monkeypatch.setattr(salary, "ACCEPTED_PRIOR_VERSIONS", frozenset())
+    monkeypatch.setattr(salary_clamp, "INTERNSHIP_MAX_MONTHLY_HKD", 20_000)
+
+    changed = salary.version(deepseek._MODEL, deepseek._SALARY_INSTRUCTIONS)
+    assert changed != old
+    monkeypatch.setattr(enrichment_module, "PROMPT_VERSION", changed)
+
+    assert "old-rule-result" in _selected(conn)
+
+
 def test_the_shipped_list_grandfathers_the_version_the_board_actually_carries():
     """The live board's 5,885 active enrichments all carry this exact string.
 
     If this ever fails, a prompt edit is about to re-bill the back catalogue —
     which is a decision, not an accident, and should be made deliberately.
     """
-    live = ("2026-07-21-v10-merged-3source-granular-prefix-cached"
-            "+deepseek-v4-flash+pac7b0b6b+adb2136ef+c0bba64e1")
+    live = (
+        "2026-07-21-v10-merged-3source-granular-prefix-cached"
+        "+deepseek-v4-flash+pac7b0b6b+adb2136ef+c0bba64e1"
+    )
     assert live in salary.ACCEPTED_PRIOR_VERSIONS

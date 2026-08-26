@@ -22,12 +22,12 @@ observations into them would corrupt a calibration nobody could then reconstruct
 and one admin's view of one posting is not a salary survey. Corrections sit
 beside the anchors and are offered as evidence; the anchors stay the baseline.
 
-**It does not feed `salary_anchors.fingerprint()`.** That digest feeds
-`salary.version()`, which decides what gets re-enriched. If corrections were in
-it, every hand-correction would mark all ~13,000 stored estimates stale and
-re-pay DeepSeek for the lot — roughly $40 a time at the observed rate, triggered
-by an admin fixing one salary. The same reasoning, and the same conclusion, as
-the GRADE_BANDS note in `salary_anchors.py`.
+**It does not feed `salary_anchors.fingerprint()`.** Published rule tables do
+participate in that digest, because changing a shared rule must create a visible
+staleness decision. Individual corrections remain different: if this live
+database evidence were included, every hand-correction would mark all ~13,000
+stored estimates stale and re-pay DeepSeek for the lot — roughly $40 a time,
+triggered by an admin fixing one salary.
 
 The consequence is deliberate and worth stating plainly: corrections change what
 FUTURE enrichments are told, not what is already stored. A correction already

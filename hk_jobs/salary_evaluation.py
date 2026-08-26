@@ -15,6 +15,69 @@ from pathlib import Path
 from typing import Any
 
 
+def _metrics(rows: list[dict[str, Any]]) -> dict[str, int | float]:
+    """Calculate interval and midpoint accuracy without choosing a fake point truth."""
+    if not rows:
+        return {
+            "n": 0,
+            "range_overlap_rate": 0.0,
+            "truth_midpoint_covered_rate": 0.0,
+            "midpoint_mae_hkd": 0,
+            "midpoint_mape": 0.0,
+            "mean_estimate_width_hkd": 0,
+        }
+    overlap = 0
+    midpoint_covered = 0
+    absolute_errors: list[float] = []
+    percentage_errors: list[float] = []
+    widths: list[int] = []
+    for row in rows:
+        estimate_min = int(row["estimate_min"])
+        estimate_max = int(row["estimate_max"])
+        truth_min = int(row["truth_min"])
+        truth_max = int(row["truth_max"])
+        if estimate_min > estimate_max or truth_min > truth_max:
+            raise ValueError("Salary bands must be ascending")
+        overlap += estimate_max >= truth_min and truth_max >= estimate_min
+        truth_midpoint = (truth_min + truth_max) / 2
+        estimate_midpoint = (estimate_min + estimate_max) / 2
+        midpoint_covered += estimate_min <= truth_midpoint <= estimate_max
+        absolute_errors.append(abs(estimate_midpoint - truth_midpoint))
+        percentage_errors.append(abs(estimate_midpoint - truth_midpoint) / truth_midpoint)
+        widths.append(estimate_max - estimate_min)
+    total = len(rows)
+    return {
+        "n": total,
+        "range_overlap_rate": round(overlap / total, 4),
+        "truth_midpoint_covered_rate": round(midpoint_covered / total, 4),
+        "midpoint_mae_hkd": round(sum(absolute_errors) / total),
+        "midpoint_mape": round(sum(percentage_errors) / total, 4),
+        "mean_estimate_width_hkd": round(sum(widths) / total),
+    }
+
+
+def score_holdout(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Score independently verified salary truth overall and by key market strata.
+
+    Each row must carry estimated and independently verified truth endpoints in
+    monthly HKD. The caller owns provenance validation; keeping this pure allows
+    it to score a frozen JSON holdout as well as a future disclosed-salary feed.
+    """
+    required = {"estimate_min", "estimate_max", "truth_min", "truth_max"}
+    if any(required - set(row) for row in rows):
+        raise ValueError("Each holdout row needs estimated and truth endpoints")
+    by_tier: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    by_cohort: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        by_tier[str(row.get("tier") or "unresolved")].append(row)
+        by_cohort[str(row.get("cohort") or "unclassified")].append(row)
+    return {
+        "overall": _metrics(rows),
+        "by_tier": {key: _metrics(value) for key, value in sorted(by_tier.items())},
+        "by_cohort": {key: _metrics(value) for key, value in sorted(by_cohort.items())},
+    }
+
+
 def prior_sample_keys(path: Path) -> set[tuple[str, str]]:
     """Return the exact source identities used in the earlier 150-role audit."""
     payload = json.loads(path.read_text(encoding="utf-8"))

@@ -114,6 +114,7 @@ class PipelineArgs:
     repair_post_employers: bool = False
     repair_internship_salaries: bool = False
     repair_grade_ceilings: bool = False
+    replay_salary_rules: bool = False
     repair_all_rows: bool = False
     repair_apply: bool = False
 
@@ -393,6 +394,17 @@ def build_parser() -> argparse.ArgumentParser:
             "already lowered. Front-office desks are exempt, exactly as the clamp "
             "exempts them. Deterministic, no model calls, idempotent. Reports what it "
             "would change and does nothing unless --repair-apply is also given."
+        ),
+    )
+    p.add_argument(
+        "--replay-salary-rules",
+        dest="replay_salary_rules",
+        action="store_true",
+        help=(
+            "Re-apply the current deterministic salary clamp to stored estimates, including "
+            "active suppressed cross-post copies, without calling DeepSeek. Employer-disclosed "
+            "figures and Ultimate Admin edits are skipped. Reports what it would change and "
+            "does nothing unless --repair-apply is also given."
         ),
     )
     p.add_argument(
@@ -815,6 +827,29 @@ def _repair_grade_ceilings(args: PipelineArgs) -> None:
         print("Nothing was written. Re-run with --repair-apply to apply.")
 
 
+def _replay_salary_rules(args: PipelineArgs) -> None:
+    from hk_jobs.salary_repair import replay_salary_rules
+
+    summary = replay_salary_rules(
+        args.db,
+        dry_run=not args.repair_apply,
+        active_only=not args.repair_all_rows,
+    )
+    verb = "would rewrite" if not args.repair_apply else "rewrote"
+    print(
+        f"{summary.examined} estimates examined; {verb} {summary.repaired}; "
+        f"aligned {summary.aligned} secondary cross-post copies."
+    )
+    for title, old_max, new_max in summary.examples:
+        print(f"  {old_max:>7,} -> {new_max:>6,}  {title[:60]}")
+    for entry in summary.pinned:
+        print(f"  SKIPPED - hand-corrected by an admin: {entry}")
+    for entry in summary.disclosed:
+        print(f"  SKIPPED - employer stated a figure: {entry}")
+    if summary.repaired and not args.repair_apply:
+        print("Nothing was written. Re-run with --repair-apply to apply.")
+
+
 def _repair_companies(args: PipelineArgs) -> None:
     from hk_jobs.description_fetcher import DescriptionFetcher
 
@@ -853,6 +888,8 @@ MODES: tuple[Mode, ...] = (
          lambda a: a.repair_internship_salaries, _repair_internship_salaries),
     Mode("repair-grade-ceilings",
          lambda a: a.repair_grade_ceilings, _repair_grade_ceilings),
+    Mode("replay-salary-rules",
+         lambda a: a.replay_salary_rules, _replay_salary_rules),
     Mode("repair-companies", lambda a: a.repair_companies, _repair_companies),
 )
 

@@ -36,8 +36,13 @@ estimates on its own.
 
 from __future__ import annotations
 
+import ast
 import hashlib
+import json
 import logging
+import re
+from pathlib import Path
+from typing import Any
 
 from hk_jobs import salary_anchors
 from hk_jobs.salary_clamp import clamp_salary, fix_salary_magnitude
@@ -124,41 +129,158 @@ def lowered(
     )
 
 
-#: Bumped by hand for a change a fingerprint cannot see — a materially different
-#: instruction to the model that happens to leave the prompt the same length, or
-#: a decision to re-estimate everything for its own sake.
+#: Bumped by hand for an external change the fingerprints cannot see, or for a
+#: deliberate full replay whose model/prompt/anchor/clamp inputs are unchanged.
 MANUAL_TAG = "2026-07-21-v10-merged-3source-granular-prefix-cached"
+
+
+_UNSERIALISABLE = object()
+
+
+class _WithoutDocstrings(ast.NodeTransformer):
+    """Remove prose from an AST while retaining executable string constants."""
+
+    @staticmethod
+    def _strip(node: ast.AST) -> ast.AST:
+        body = getattr(node, "body", None)
+        if (
+            isinstance(body, list)
+            and body
+            and isinstance(body[0], ast.Expr)
+            and isinstance(body[0].value, ast.Constant)
+            and isinstance(body[0].value.value, str)
+        ):
+            del body[0]
+        return node
+
+    def visit_Module(self, node: ast.Module) -> ast.AST:  # noqa: N802 - ast API name
+        self.generic_visit(node)
+        return self._strip(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:  # noqa: N802
+        self.generic_visit(node)
+        return self._strip(node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> ast.AST:  # noqa: N802
+        self.generic_visit(node)
+        return self._strip(node)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> ast.AST:  # noqa: N802
+        self.generic_visit(node)
+        return self._strip(node)
+
+
+def _normalised_python_logic(source: str, names: frozenset[str] | None = None) -> str:
+    """A comment/docstring-insensitive representation of executable Python.
+
+    When ``names`` is supplied, only those top-level functions are retained.
+    This lets the salary fingerprint include ``finalise``/``lowered`` without
+    recursively hashing the versioning implementation itself.
+    """
+    tree = ast.parse(source)
+    if names is not None:
+        tree.body = [
+            node
+            for node in tree.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name in names
+        ]
+    tree = _WithoutDocstrings().visit(tree)
+    ast.fix_missing_locations(tree)
+    return ast.dump(tree, annotate_fields=True, include_attributes=False)
+
+
+def _source_text(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError as exc:
+        # Source ships in both the repository and Railway image. Failing closed
+        # here is safer than silently publishing a partial version fingerprint.
+        raise RuntimeError(f"Cannot fingerprint salary logic at {path}: {exc}") from exc
+
+
+def _clamp_logic_fingerprint() -> str:
+    """Digest executable finishing/clamp logic while ignoring prose edits."""
+    from hk_jobs import salary_clamp
+
+    clamp_path = Path(salary_clamp.__file__).resolve()
+    finishing_path = Path(__file__).resolve()
+    payload = "|".join(
+        (
+            _normalised_python_logic(_source_text(clamp_path)),
+            _normalised_python_logic(
+                _source_text(finishing_path), frozenset({"finalise", "lowered"})
+            ),
+        )
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:8]
+
+
+def _canonical_rule_value(value: Any) -> Any:
+    """Convert one clamp-rule value to stable JSON, or mark it unsupported."""
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    if isinstance(value, re.Pattern):
+        return {"pattern": value.pattern, "flags": int(value.flags)}
+    if isinstance(value, dict):
+        converted: dict[str, Any] = {}
+        for key, item in value.items():
+            name = str(key).lower()
+            if name in {"_desc", "_source", "note"} or name.endswith("_note"):
+                continue
+            canonical = _canonical_rule_value(item)
+            if canonical is _UNSERIALISABLE:
+                return _UNSERIALISABLE
+            converted[str(key)] = canonical
+        return converted
+    if isinstance(value, (list, tuple)):
+        converted_items = [_canonical_rule_value(item) for item in value]
+        if any(item is _UNSERIALISABLE for item in converted_items):
+            return _UNSERIALISABLE
+        return converted_items
+    if isinstance(value, (set, frozenset)):
+        converted_items = [_canonical_rule_value(item) for item in value]
+        if any(item is _UNSERIALISABLE for item in converted_items):
+            return _UNSERIALISABLE
+        return sorted(
+            converted_items,
+            key=lambda item: json.dumps(item, sort_keys=True, separators=(",", ":")),
+        )
+    return _UNSERIALISABLE
+
+
+def _clamp_rule_state() -> dict[str, Any]:
+    """Every serialisable uppercase global that can parameterise the clamp."""
+    from hk_jobs import salary_clamp
+
+    state: dict[str, Any] = {}
+    for name, value in vars(salary_clamp).items():
+        if not name.lstrip("_").isupper():
+            continue
+        canonical = _canonical_rule_value(value)
+        if canonical is not _UNSERIALISABLE:
+            state[name] = canonical
+    return state
 
 
 def _clamp_fingerprint() -> str:
     """
-    A digest of the clamp's behaviour-defining constants.
+    A digest of every clamp rule value and its executable control flow.
 
-    Constants, deliberately, not the module's source text. Hashing the file
-    would make a typo in a comment invalidate every stored estimate and re-pay
-    for 13,000 model calls — which would teach everyone to stop touching the
-    file, the opposite of what this is for.
-
-    The trade is explicit: a change to the *logic* that does not move any of
-    these values will not be caught, and needs MANUAL_TAG. Every past incident
-    was a constant change, which is what this closes.
+    The prior hand-maintained allowlist missed the internship ceiling, magnitude
+    repair, regexes and every employer/title rule added later. Runtime rule
+    state is now discovered by convention (uppercase globals); executable logic
+    is normalised through Python's AST so comments and docstrings remain free to
+    edit while a real branch/order/formula change invalidates the version.
     """
-    from hk_jobs import salary_clamp
-
-    # Read through the module, not through names imported at the top of this
-    # file: `from salary_clamp import BOUTIQUE_SALARY_MULTIPLIER` binds the
-    # VALUE once, so the fingerprint would keep reporting whatever the constant
-    # was when this module was first imported.
-    payload = "|".join(str(x) for x in (
-        salary_clamp.GLOBAL_MAX_MONTHLY_HKD,
-        salary_clamp.BOUTIQUE_SALARY_MULTIPLIER,
-        salary_clamp.SINGLE_VALUE_MIN_FRACTION,
-        sorted(salary_clamp._BANK_SLUGS),
-        sorted(salary_clamp._INSURANCE_SLUGS),
-        [name for name, _ in salary_clamp._BANK_GRADE_PATTERNS],
-        [name for name, _ in salary_clamp._INSURANCE_GRADE_PATTERNS],
-        sorted(salary_clamp._GRADE_ROW_NAMES.items()),
-    ))
+    payload = json.dumps(
+        {
+            "logic": _clamp_logic_fingerprint(),
+            "rules": _clamp_rule_state(),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:8]
 
 
@@ -207,6 +329,13 @@ ACCEPTED_PRIOR_VERSIONS: frozenset[str] = frozenset({
     # recalibration and a real bill — make it a decision, not an accident.
     "2026-07-21-v10-merged-3source-granular-prefix-cached"
     "+deepseek-v4-flash+pc9d76b29+adb2136ef+c0bba64e1",
+    # 2026-08-23 — Contract duration stopped applying an unsupported 10%-20%
+    # discount to monthly base salary. Grandfathered because CMB Wing Lung's
+    # reviewed Manager band is enforced deterministically by salary_clamp, while
+    # re-running the whole catalogue for this prompt clarification would repay
+    # thousands of unrelated Roles. New enrichments receive the corrected rule.
+    "2026-07-21-v10-merged-3source-granular-prefix-cached"
+    "+deepseek-v4-flash+p159f1d34+a75bfc99b+c0bba64e1",
 })
 
 

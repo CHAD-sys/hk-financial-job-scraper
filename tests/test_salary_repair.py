@@ -196,6 +196,81 @@ def test_an_ordinary_estimated_internship_is_still_capped(tmp_path):
 
 # ── the title-grade ceiling, re-applied to published rows ─────────────────────
 from hk_jobs.salary_repair import repair_grade_ceiling_salaries  # noqa: E402
+from hk_jobs.salary_repair import replay_salary_rules  # noqa: E402
+
+
+def _replay_db(tmp_path, rows):
+    """rows: source_id, primary, title, slug, mn, mx, confidence, disclosed, pinned."""
+    path = tmp_path / "replay.db"
+    conn = sqlite3.connect(path)
+    conn.executescript(
+        """
+        CREATE TABLE jobs (
+            source TEXT, source_id TEXT, title TEXT, company_slug TEXT, source_tier TEXT,
+            is_active INTEGER, is_primary INTEGER, cross_posted INTEGER, apply_url TEXT
+        );
+        CREATE TABLE job_enrichments (
+            source TEXT, source_id TEXT, seniority TEXT, salary_tier TEXT, salary_role TEXT,
+            salary_grade TEXT, salary_estimated_min INTEGER, salary_estimated_max INTEGER,
+            salary_estimated_confidence TEXT, salary_hkd_max INTEGER, manually_edited_at TEXT
+        );
+        """
+    )
+    for source_id, primary, title, slug, mn, mx, confidence, disclosed, pinned in rows:
+        conn.execute(
+            "INSERT INTO jobs VALUES (?,?,?,?,?,?,?,?,?)",
+            ("jobsdb", source_id, title, slug, "mainstream", 1, primary, 1, "same-role"),
+        )
+        conn.execute(
+            "INSERT INTO job_enrichments VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            ("jobsdb", source_id, "mid", "middle_office", "product_management", "Manager",
+             mn, mx, confidence, disclosed, pinned),
+        )
+    conn.commit(); conn.close()
+    return str(path)
+
+
+def test_full_rule_replay_updates_all_active_cross_post_copies_and_is_idempotent(tmp_path):
+    path = _replay_db(tmp_path, [
+        ("primary", 1, "Cash Product Manager, Transaction Banking", "dbs-hk", 90_000, 140_000, "medium", None, None),
+        ("secondary", 0, "Cash Product Manager, Transaction Banking", "dbs-hk", 20_000, 30_000, "medium", None, None),
+    ])
+    dry = replay_salary_rules(path)
+    assert dry.repaired == 2
+    assert _stored(path) == [(90_000, 140_000), (20_000, 30_000)]
+
+    applied = replay_salary_rules(path, dry_run=False)
+    assert applied.repaired == 2
+    assert _stored(path) == [(35_000, 50_000), (35_000, 50_000)]
+    assert replay_salary_rules(path, dry_run=False).repaired == 0
+
+
+def test_full_rule_replay_respects_disclosed_and_admin_pinned_rows(tmp_path):
+    path = _replay_db(tmp_path, [
+        ("disclosed", 1, "Cash Product Manager, Transaction Banking", "dbs-hk", 90_000, 140_000, "high", 140_000, None),
+        ("pinned", 0, "Cash Product Manager, Transaction Banking", "dbs-hk", 90_000, 140_000, "medium", None, PINNED),
+    ])
+    summary = replay_salary_rules(path, dry_run=False)
+    assert summary.repaired == 0
+    assert len(summary.disclosed) == 1
+    assert len(summary.pinned) == 1
+
+
+def test_full_rule_replay_can_be_limited_to_named_terminal_rules(tmp_path):
+    """A targeted anchor refresh must not replay unrelated terminal rules."""
+    path = _replay_db(tmp_path, [
+        ("cash", 1, "Cash Product Manager, Transaction Banking", "dbs-hk", 90_000, 140_000, "medium", None, None),
+        ("digital", 0, "Digital Product Manager - HK Business", "standard-chartered-hk", 90_000, 140_000, "medium", None, None),
+    ])
+
+    summary = replay_salary_rules(
+        path,
+        dry_run=False,
+        rule_names=frozenset({"bank_ordinary_product_manager"}),
+    )
+
+    assert summary.repaired == 1
+    assert _stored(path) == [(90_000, 140_000), (45_000, 65_000)]
 
 
 def _db2(tmp_path, rows):

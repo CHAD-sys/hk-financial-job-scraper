@@ -119,10 +119,15 @@ treatment remains undisclosed.
 1. Change the source registry/evidence ledger before changing numbers. Record
    `compensation_basis`, `period`, `currency`, `inclusions_exclusions`,
    `aws_13th_month_treatment`, source PDF and page, native role and experience
-   band, and mapping rationale for every imported cell.
+   band, and mapping rationale for every imported cell. **Completed in provenance
+   schema 2 on 2026-08-25; unavailable legacy native mappings are explicitly null
+   rather than inferred. See ADR 0025.**
 2. Mark all Hays-derived values as `annual_total_package_hkd` and exclude
    them from any calculation whose target is monthly base. Do not simply
-   relabel or rescale them.
+   relabel or rescale them. **Partially completed on 2026-08-25: Hays is excluded
+   from all 127 direct guide overlaps and survives only as the guide-level fallback.
+   Hays-only cells and legacy post-merge interpolations remain explicitly flagged
+   for replacement. See ADR 0026.**
 3. Preserve PERSOLKELLY's annual-base semantics and only convert its specific
    annual tables to monthly by `/12`; carry its `+` upper bounds as open-ended
    instead of manufacturing a ceiling.

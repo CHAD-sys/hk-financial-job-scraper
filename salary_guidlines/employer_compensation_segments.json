@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "description": "Canonical employer membership for reusable compensation cohorts. Cohorts deliberately overlap: each pricing rule opts into the cohort it needs; they are not a mutually exclusive employer-size taxonomy.",
+  "cohorts": {
+    "big_four": {"slugs": ["deloitte", "ey", "kpmg", "pwc"]},
+    "jpmorgan": {"slugs": ["jpmorgan", "jpmorgan-am-hk", "jpmorgan-chase"]},
+    "hsbc_sized_banks": {"slugs": ["anz", "bank-of-america", "barclays", "bochk", "cicc", "citibank-hk", "dbs-hk", "deutsche-bank", "goldman-sachs", "hang-seng-bank", "hsbc-hk", "jpmorgan", "jpmorgan-am-hk", "jpmorgan-chase", "maybank", "mizuho", "morgan-stanley", "mufg", "ocbc-wing-hang", "smbc", "standard-chartered-hk", "uob"]},
+    "dbs_sized_banks": {"slugs": ["bochk", "citibank-hk", "dbs-hk", "hang-seng-bank"]},
+    "market_infrastructure": {"slugs": ["cme-group", "eurex", "hkex", "ice", "lseg", "nasdaq"]},
+    "icbc_sized_banks": {"slugs": ["agricultural-bank-china", "bank-of-communications", "bochk", "ccb-asia", "china-merchants-bank", "cicc", "citic-bank", "everbright-bank", "icbc-asia", "minsheng-bank", "psbc"]},
+    "fwd_sized_insurers": {"slugs": ["fwd-insurance"]},
+    "deutsche_bank_mixed_director_vp": {"slugs": ["deutsche-bank"]},
+    "smaller_banks": {"slugs": ["cmb-wing-lung"]},
+    "mid_sized_bank_department_heads": {"slugs": ["welab-bank"]},
+    "bea_sized_banks": {"slugs": ["bank-of-east-asia", "the-bank-of-east-asia-bea"]},
+    "sun_life_sized_insurers": {"slugs": ["sun-life", "sun-life-hk", "sun-life-hong-kong"]},
+    "mid_sized_insurers": {"slugs": ["prudential-hk"]},
+    "chinese_banks": {"slugs": ["agricultural-bank-china", "bank-of-communications", "bochk", "ccb-asia", "china-merchants-bank", "cicc", "citic-bank", "cmb-wing-lung", "everbright-bank", "icbc-asia", "minsheng-bank", "psbc"]},
+    "insurance_tier_1": {"slugs": ["aia-hk", "axa-hk", "china-life", "china-taiping", "chubb", "fwd-insurance", "generali-hk", "hsbc-life", "manulife-hk", "prudential-hk", "sun-life-hk", "zurich-hk"]},
+    "insurance_tier_2": {"slugs": []}
+  }
+}

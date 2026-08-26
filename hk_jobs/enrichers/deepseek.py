@@ -290,6 +290,27 @@ def _load_blinded_salary_reference() -> str:
 
 _BLINDED_SALARY_REFERENCE = _load_blinded_salary_reference()
 
+
+def _render_insurance_tier_policy() -> str:
+    """Render the same positive-membership Tier 2 policy the clamp enforces."""
+    tier_2_slugs = sorted(salary_anchors.INSURANCE_TIER_2_SLUGS)
+    discount_percent = round(salary_anchors.INSURANCE_TIER_2_DISCOUNT * 100)
+    if tier_2_slugs:
+        membership = (
+            "Reviewed Tier 2 Employer slugs: " + ", ".join(tier_2_slugs) + "."
+        )
+    else:
+        membership = "No configured insurer is currently classified as Tier 2."
+    return (
+        "- INSURANCE EMPLOYER TIERS. Apply the "
+        f"{discount_percent}% Tier 2 discount only when the Employer is explicitly "
+        "listed in the reviewed Tier 2 registry. Absence from Tier 1 is not evidence "
+        f"of Tier 2. {membership} Unclassified insurers keep the standard insurance band."
+    )
+
+
+_INSURANCE_TIER_POLICY = _render_insurance_tier_policy()
+
 # Salary-estimation instructions, shared by both prompts. Produced in the same
 # call (no extra cost). Estimates HK market monthly pay from role/seniority/
 # company tier/sector — distinct from disclosed salary_hkd_min/max.
@@ -312,8 +333,10 @@ STEP 1 — Detect ROLE TYPE from BOTH the title AND description, and set caps:
   bulge-bracket (Goldman, JPMorgan, HSBC) may reach HK$10,000-15,000/month — never exceed
   HK$15,000/month for an internship/graduate programme.
 - PART-TIME (keywords: part-time, part time, 兼職): cap at HK$8,000-20,000/month.
-- CONTRACT / TEMP (keywords: contract, temporary, temp, fixed-term): apply a 10-20%
-  discount vs the equivalent permanent role.
+- CONTRACT / TEMP (keywords: contract, temporary, temp, fixed-term):
+  do not discount base salary because a Role is contract. Price the same function, grade,
+  and responsibilities on the same monthly base-salary range as the equivalent permanent
+  Role; contract duration is an employment term, not evidence of lower market pay.
 - FULL-TIME PERMANENT: no cap — use the reference table in Step 3.
 
 STEP 2 — Scan the FULL description for an explicitly stated salary. Look for patterns like
@@ -415,9 +438,10 @@ CRITICAL DISAMBIGUATION — "Team Head" / "Team Lead" / "Head of" titles:
   is a DIRECTOR-grade role at a bank — HK$100,000-150,000. The carve-out above is specifically
   about the service/CR variety, which a bank has many of; it is not a rule about every Team Head.
 - "Division Head" is a big role, equal to the MANAGING DIRECTOR grade (HK$180,000-250,000).
-- "Product Manager" / "Senior Product Manager" at a bank is a big and genuinely SENIOR
-  category, similar to DIRECTOR grade (HK$100,000-150,000). "Assistant"/"Junior" Product
-  Manager is not.
+- "Product Manager" / "Senior Product Manager" is a FUNCTION, not automatic Director-grade
+  evidence. Only use a Director-level reading when the responsibilities clearly establish
+  Director scope; ordinary mobile, digital and general product Roles should remain in the
+  normal product-management range. "Assistant"/"Junior" Product Manager is not Director grade.
 - Chinese banks favour "General Manager" and "Deputy GM"; both are DIRECTOR / "Head of"
   grade there (HK$100,000-150,000) and are senior roles, not middle management.
 
@@ -468,13 +492,51 @@ raise it, and they override every band above:
     Principal / Senior Manager:                       HK$65,000-80,000
     Manager:                                          HK$50,000-60,000
     Assistant Manager:                                HK$35,000-45,000
-  These figures are for TIER 1 insurers: AIA Hong Kong, HSBC Life, Prudential Hong Kong, AXA
-  Hong Kong, Manulife Hong Kong, China Life (Overseas), BOC Group Life, Sun Life Hong Kong, FWD
-  Insurance, China Taiping (HK), Zurich (HK), Chubb (HK), YF Life, Generali (HK). For ANY OTHER
-  insurer — including Hang Seng Insurance, Bupa, Cigna, MSIG, AIG, Bowtie — apply a 15% discount
-  to both endpoints of the band.
+  Reviewed size exception: at a Prudential-sized insurer, Senior Manager and Senior Group
+  Manager are both HK$55,000-80,000. This applies to the reviewed group/functional titles,
+  including IFRS, agency performance and partnership distribution.
+  Compound-title exception: when a title combines competing labels such as Senior Consultant,
+  Manager and Associate Director, keep the range broad at HK$55,000-80,000 rather than letting
+  the highest-sounding token dictate the estimate.
+  Big Four grade calibration: at EY, KPMG, Deloitte and PwC, Manager is HK$50,000-60,000,
+  Associate Director is HK$85,000-120,000, and Forensics + Senior roles are HK$40,000-55,000.
+  Associate Director wins when both labels appear; explicit Director/Partner/Head/VP titles
+  also retain their higher grade rather than using the functional forensics band.
+  Deloitte-specific calibration: ordinary Manager roles remain HK$50,000-60,000, Manager in
+  M&A is HK$50,000-90,000, and Senior Consultant is HK$40,000-55,000. Explicit higher grades
+  retain their higher band.
+  JPMorgan calibration: Vice President at JPMorgan is HK$85,000-120,000 in Hong Kong, including
+  Wealth Management Solutions. Do not use the generic HK$150,000+ estimate for this grade.
+  HSBC-scale bank calibration: Lead Product Owner, Lead Product Manager and equivalent product-
+  lead titles at HSBC-scale banks are HK$75,000-100,000. This does not apply to ordinary Product
+  Manager titles. At DBS-scale comparable banks, Cash Product Manager and Relationship Manager are
+  HK$35,000-50,000, while Senior Product Manager is HK$80,000-110,000; these narrower title
+  bands override the broader lead-product band when matched.
+  Spread Products Banker at VP level at Citi and comparable HSBC-scale banks is HK$100,000-125,000.
+  JPMorgan remains on its separate HK$85,000-120,000 VP calibration.
+  Market-infrastructure calibration: at HKEX and comparable exchange/clearing firms, Vice
+  President is HK$80,000-120,000 and Assistant Vice President is HK$50,000-90,000.
+  ICBC-scale bank calibration: senior Digital/Solutions/Application/Technology Product Manager
+  roles at ICBC-comparable Chinese banks are HK$70,000-85,000. This is a senior functional band,
+  not the generic Product Manager = Director rule; CMB Wing Lung remains separately calibrated.
+  At the same banks, Global Markets Sales and Global Markets Senior Sales are HK$45,000-55,000,
+  while Investment Consultant is HK$57,000-70,000.
+  FWD-sized insurer calibration: Director is HK$80,000-110,000, Underwriter is HK$70,000-100,000,
+  and Assistant Vice President is HK$90,000-150,000. Sun Life and Prudential use their own reviewed
+  insurer-size bands.
+  Deutsche Bank mixed-grade calibration: titles combining Director and VP use HK$70,000-120,000.
+  Standalone Director and VP titles are not changed by this exception.
+{insurance_tier_policy}
 - SMALLER / MEDIUM EMPLOYERS. The bands above assume a listed multinational bank or insurer.
   For a smaller or mid-sized firm, apply a 30% discount to both endpoints.
+- CMB WING LUNG — REVIEWED SMALLER-BANK CALIBRATION. CMB Wing Lung Bank Limited is a
+  smaller bank even though its Listings arrive through a mainstream source. For all other
+  estimated bands apply a 20% discount and round endpoints to normal HK$5,000 band steps.
+  Two function/grade bands have been reviewed directly and OVERRIDE the generic bank rules:
+    Product Manager and Team Lead: HK$45,000-60,000
+    AVP and unambiguous Manager grade: HK$40,000-55,000
+  "Product Manager" here is a function, not automatic Director-grade evidence. An explicit
+  corporate grade in the same title still outranks the function.
 - FRONT OFFICE IS EXEMPT from all of the title-grade bands above. A trading, investment-banking,
   private-equity, hedge-fund, asset-management or private-banking-RM desk runs its own, much
   higher ladder: a markets Vice President is not an operations Vice President. Use the
@@ -497,7 +559,9 @@ salary_estimated_confidence:
 - "low"    = not stated, and function tier or seniority is ambiguous (when low, bias to the
              BOTTOM of the band)""".replace(
     "{blinded_salary_reference}", _BLINDED_SALARY_REFERENCE
-).replace("{salary_reference}", _SALARY_REFERENCE)
+).replace("{salary_reference}", _SALARY_REFERENCE).replace(
+    "{insurance_tier_policy}", _INSURANCE_TIER_POLICY
+)
 
 
 # The version this enricher stamps on every row it writes.
@@ -509,10 +573,10 @@ salary_estimated_confidence:
 # fixes silently skipped ~200 already-"fresh"-marked rows until a one-off manual
 # patch caught them.
 #
-# Derived from the model, the prompt text, the anchor calibration and the
-# clamp's constants, so a change to any of them re-estimates the affected rows
-# on its own. hk_jobs.salary.MANUAL_TAG remains for a change none of those can
-# see.
+# Derived from the model, prompt text, every shared anchor rule and the clamp's
+# executable behaviour, so a change to any of them creates an explicit replay
+# decision. hk_jobs.salary.MANUAL_TAG remains for an external change none of
+# those can see.
 PROMPT_VERSION = salary.version(_MODEL, _SALARY_INSTRUCTIONS)
 
 # Translation instructions. Many boutique/"Exclusive" HK postings are written in

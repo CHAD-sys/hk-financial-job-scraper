@@ -12,4 +12,9 @@ RUN python -m pip install --upgrade pip \
 
 COPY . ./
 
+# Railway receives webapp/backend as its entire build context. Fail the image
+# build instead of silently running with only the emergency HK$200k ceiling if
+# deployment staging forgot the salary table or copied an incomplete package.
+RUN python -c "from hk_jobs import salary_anchors; assert salary_anchors.TABLES and salary_anchors.LADDERS, 'salary anchor runtime missing from deployment'"
+
 CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]

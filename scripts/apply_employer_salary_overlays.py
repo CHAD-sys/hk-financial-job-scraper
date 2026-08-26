@@ -28,14 +28,16 @@ from hk_jobs.salary_clamp import clamp_salary, employer_salary_overlay  # noqa: 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--db", default="data/jobs.db", help="SQLite board database")
+    parser.add_argument("--company-slug", help="limit the backfill to one employer slug")
     parser.add_argument("--apply", action="store_true", help="write the listed corrections")
     parser.add_argument("--no-backup", action="store_true", help="do not copy the database first")
     args = parser.parse_args()
 
     conn = sqlite3.connect(args.db)
     conn.row_factory = sqlite3.Row
+    employer_filter = "AND j.company_slug = ?" if args.company_slug else ""
     rows = conn.execute(
-        """
+        f"""
         SELECT j.source, j.source_id, j.company, j.company_slug, j.title, j.source_tier,
                e.salary_estimated_min AS old_min, e.salary_estimated_max AS old_max,
                e.manually_edited_at AS pinned_at
@@ -43,7 +45,9 @@ def main() -> None:
           JOIN job_enrichments AS e
             ON e.source = j.source AND e.source_id = j.source_id
          WHERE j.is_active = 1 AND e.salary_estimated_max IS NOT NULL
+           {employer_filter}
         """
+        , (args.company_slug,) if args.company_slug else (),
     ).fetchall()
 
     changes: list[tuple[sqlite3.Row, int, int, str]] = []

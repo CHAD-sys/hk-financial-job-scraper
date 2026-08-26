@@ -154,6 +154,26 @@ def test_manually_edited_row_is_excluded_even_in_full_mode(conn):
     assert salary_audit._select_outliers(conn, full=True) == []
 
 
+def test_documented_employer_anchor_is_never_sent_to_the_ai_auditor(conn):
+    conn.execute(
+        "UPDATE jobs SET company_slug = 'cmb-wing-lung', "
+        "title = 'Sanctions Advisor, Team Head role (AML Centre)' WHERE source_id = 'J-1'"
+    )
+    conn.commit()
+
+    assert salary_audit._select_outliers(conn) == []
+    assert salary_audit._select_outliers(conn, full=True) == []
+
+
+def test_unanchored_employer_salary_is_still_eligible_for_audit(conn):
+    conn.execute(
+        "UPDATE jobs SET title = 'Different Team Head' WHERE source_id = 'J-1'"
+    )
+    conn.commit()
+
+    assert [row["source_id"] for row in salary_audit._select_outliers(conn)] == ["J-1"]
+
+
 def test_run_audit_logs_ok_verdict_and_next_selection_skips_it(conn, db_path, monkeypatch):
     monkeypatch.setattr(
         salary_audit,

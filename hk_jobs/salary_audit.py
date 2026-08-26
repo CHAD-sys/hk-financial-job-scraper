@@ -41,8 +41,9 @@ import statistics
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 
-from hk_jobs.enrichers.deepseek import DeepSeekEnricher, _SALARY_REFERENCE
 from hk_jobs import salary
+from hk_jobs.enrichers.deepseek import DeepSeekEnricher, _SALARY_REFERENCE
+from hk_jobs.salary_clamp import salary_rule_resolution
 
 logger = logging.getLogger(__name__)
 
@@ -76,8 +77,9 @@ marking them down would undo a deliberate correction every night:
   DIRECTOR-grade role (HK$100,000-150,000 at a bank). Only the service/CR/support variety
   above is manager-grade.
 - "Division Head" is a MANAGING DIRECTOR-grade role (HK$180,000-250,000).
-- "Product Manager" and "Senior Product Manager" are DIRECTOR-grade (HK$100,000-150,000);
-  it is a big and genuinely senior category. "Assistant/Junior Product Manager" is not.
+- "Product Manager" and "Senior Product Manager" are functional labels, not automatic
+  DIRECTOR-grade evidence. Keep ordinary mobile, digital and general product Roles in their
+  normal product-management range unless the posting clearly establishes Director scope.
 - At a CHINESE bank, "General Manager" and "Deputy GM" are DIRECTOR/Head-of grade
   (HK$100,000-150,000).
 
@@ -138,6 +140,18 @@ def _select_outliers(
           AND e.manually_edited_at IS NULL
           AND (:full OR a.last_audited_at IS NULL OR a.last_audited_at < e.enriched_at)
     """, {"full": full}).fetchall()
+
+    # A documented whole-band rule is stronger evidence than the audit model. Ask
+    # the same resolver the clamp uses rather than duplicating its growing rule
+    # registry here; otherwise a newly added anchor can be billed to the judge or
+    # silently omitted from this protection.
+    rows = [
+        row
+        for row in rows
+        if salary_rule_resolution(
+            row["company_slug"], row["title"], role=row["salary_role"]
+        ).winner is None
+    ]
 
     if full:
         # Whole-dataset review (2026-07-22): cheap enough now (small dataset, prefix

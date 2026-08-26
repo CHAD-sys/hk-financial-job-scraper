@@ -24,6 +24,7 @@ import json
 
 import pytest
 
+from hk_jobs.enrichers import deepseek
 from hk_jobs.enrichers.deepseek import (
     MAX_TOKENS_TITLE_ONLY,
     MAX_TOKENS_WITH_DESCRIPTION,
@@ -94,6 +95,29 @@ def sent(monkeypatch):
 
 def _enricher() -> DeepSeekEnricher:
     return DeepSeekEnricher(api_key="test-key")
+
+
+def test_insurance_tier_prompt_requires_explicit_tier_2_membership():
+    """The model must not recreate the blanket discount removed from runtime."""
+    prompt = deepseek._SALARY_INSTRUCTIONS
+
+    assert "ANY OTHER" not in prompt
+    assert "Absence from Tier 1 is not evidence of Tier 2" in prompt
+    assert "No configured insurer is currently classified as Tier 2" in prompt
+
+
+def test_insurance_tier_prompt_renders_the_anchor_registry(monkeypatch):
+    monkeypatch.setattr(
+        deepseek.salary_anchors,
+        "INSURANCE_TIER_2_SLUGS",
+        frozenset({"bupa-hk", "hang-seng-insurance"}),
+    )
+
+    policy = deepseek._render_insurance_tier_policy()
+
+    assert "bupa-hk, hang-seng-insurance" in policy
+    assert "15% Tier 2 discount" in policy
+    assert "No configured insurer" not in policy
 
 
 # ── the switch that sets the bill ────────────────────────────────────────────
@@ -204,6 +228,31 @@ def test_usage_is_still_accumulated_for_the_cost_ledger(sent):
 
 def _prompt(sent) -> str:
     return sent["messages"][0]["content"]
+
+
+def test_contract_duration_does_not_discount_the_base_salary(sent):
+    """Equivalent permanent and fixed-term Roles use the same base-pay calibration."""
+    _enricher().enrich_single(
+        "Manager, Accounting (6 months contract)",
+        "CMB Wing Lung Bank",
+        description="Manage accounting for retail finance and credit cards.",
+    )
+    prompt = _prompt(sent)
+    assert "do not discount base salary because a Role is contract" in prompt
+    assert "apply a 10-20% discount vs the equivalent permanent role" not in prompt
+
+
+def test_cmb_smaller_bank_calibration_reaches_the_model(sent):
+    """The standalone evaluator sees the same CMB policy as the final clamp."""
+    _enricher().enrich_single(
+        "Mobile App Product Manager, Digital Banking Department",
+        "CMB Wing Lung Bank Limited",
+        description="Own the bank's mobile application roadmap and releases.",
+    )
+    prompt = _prompt(sent)
+    assert "CMB Wing Lung" in prompt
+    assert "Product Manager and Team Lead: HK$45,000-60,000" in prompt
+    assert "AVP and unambiguous Manager grade: HK$40,000-55,000" in prompt
 
 
 #: The evidence block's own lead-in. NOT the bare words "HUMAN CORRECTIONS":

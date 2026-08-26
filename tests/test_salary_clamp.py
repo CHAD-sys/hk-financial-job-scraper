@@ -1,15 +1,27 @@
 """Tests for the deterministic salary clamp (hk_jobs.salary_clamp)."""
+import pytest
+
 from hk_jobs.salary_clamp import (
     _LADDERS,
     _TABLES,
     BOUTIQUE_SALARY_MULTIPLIER,
+    bank_ordinary_product_manager_band,
+    big_four_grade_band,
     GLOBAL_MAX_MONTHLY_HKD,
     INTERNSHIP_MAX_MONTHLY_HKD,
+    SalaryRuleMatch,
+    SalaryRulePriority,
+    ambiguous_multi_grade_title_band,
     clamp_salary,
     employer_salary_overlay,
+    bea_sized_bank_assistant_manager_band,
+    sun_life_sized_insurer_grade_band,
+    mid_sized_bank_department_head_band,
     fix_salary_magnitude,
     manager_grade_floor,
     price_from_coordinate,
+    resolve_salary_rule_matches,
+    salary_rule_resolution,
 )
 
 
@@ -74,6 +86,22 @@ def test_named_grade_rows_map_directly_not_by_fraction():
     from hk_jobs.salary_clamp import _TABLES, _role_ceiling
     vp_ceiling = _TABLES["middle_office"]["roles"]["compliance_banking"]["VP"][1]
     assert _role_ceiling("middle_office", "compliance_banking", "senior") == vp_ceiling
+
+
+def test_role_ceiling_never_drops_when_seniority_rises():
+    """A role table must never price a higher seniority below a lower one."""
+    from hk_jobs.salary_clamp import _role_ceiling
+
+    levels = ("junior", "mid", "senior", "lead")
+    violations = []
+    for tier, tier_data in _TABLES.items():
+        for role in tier_data.get("roles", {}):
+            ceilings = [_role_ceiling(tier, role, level) for level in levels]
+            resolved = [ceiling for ceiling in ceilings if ceiling is not None]
+            if resolved != sorted(resolved):
+                violations.append((tier, role, ceilings))
+
+    assert violations == []
 
 
 # ── global absolute ceiling ─────────────────────────────────────────────────────
@@ -183,7 +211,7 @@ def test_insurance_associate_director_capped_at_150k():
     assert out[1] == 120_000
 
 
-def test_insurance_director_capped_at_200k_global():
+def test_fwd_insurer_director_uses_reviewed_80k_110k_band():
     # The insurance "director" grade cap and the absolute global ceiling are both
     # 200k post-recalibration, so this mainly regression-tests that an extreme
     # over-estimate still lands at 200k rather than passing through untouched.
@@ -191,12 +219,7 @@ def test_insurance_director_capped_at_200k_global():
         "insurance", "lead", 100_000, 500_000,
         company_slug="fwd-insurance", title="Director, Distribution",
     )
-    # SUPERSEDED 2026-08-19 by Morris H.'s title_grade_bands_monthly_hkd: the old
-    # management_grade_caps table was a CEILING; the band is a range and is
-    # authoritative for both endpoints. See tests/test_title_grade_bands.py.
-    # Insurance Director is now 120k-150k; the extreme over-estimate is still
-    # pulled down, which is what this test actually guards.
-    assert out[1] == 150_000
+    assert out == (80_000, 110_000)
 
 
 def test_insurance_vp_at_fwd_falls_back_to_global_cap_only():
@@ -251,6 +274,14 @@ def test_mainstream_tier_is_not_discounted():
     assert out == (40_000, 60_000)
 
 
+def test_smaller_bank_discount_rounds_half_up_to_normal_5k_band_steps():
+    out = clamp_salary(
+        None, None, 65_625, 71_875,
+        company_slug="cmb-wing-lung", source_tier="mainstream",
+    )
+    assert out == (55_000, 60_000)
+
+
 def test_missing_source_tier_is_not_discounted():
     out = clamp_salary("middle_office", "mid", 40_000, 60_000)
     assert out == (40_000, 60_000)
@@ -294,6 +325,86 @@ def test_employer_overlay_uses_scraped_title_not_model_coordinate():
     assert employer_salary_overlay(_AM_SLUG, _AM_PROJECT_MANAGER) == (
         45_000, 60_000, "am_infrastructure_capital_projects_manager",
     )
+
+
+def test_cmb_disclosed_salary_overlays_are_exact_employer_title_anchors():
+    """Two live CMB disclosures must beat generic Team Head and manager rules."""
+    assert employer_salary_overlay(
+        "cmb-wing-lung", "Sanctions Advisor, Team Head role (AML Centre)"
+    ) == (50_000, 75_000, "cmb_sanctions_advisor_team_head_disclosed")
+    assert employer_salary_overlay(
+        "cmb-wing-lung",
+        "Assistant Relationship Manager (Private Banking & Wealth Management Department)",
+    ) == (25_000, 35_000, "cmb_private_banking_assistant_rm_disclosed")
+    assert clamp_salary(
+        "middle_office", "senior", 54_000, 80_000,
+        company_slug="cmb-wing-lung", title="Sanctions Advisor, Team Head role (AML Centre)",
+    ) == (50_000, 75_000)
+
+
+def test_welab_large_department_head_uses_the_reviewed_director_band():
+    """A WeLab Head of Finance & Treasury is a department-head, not a mid role."""
+    assert clamp_salary(
+        "corporate_finance_accounting", "mid", 70_000, 105_000,
+        company_slug="welab-bank", title="WeLab Bank - Head of Finance & Treasury",
+        source_tier="mainstream",
+    ) == (80_000, 120_000)
+    # CMB is deliberately excluded: its separate smaller-bank calibration is lower.
+    assert mid_sized_bank_department_head_band(
+        "cmb-wing-lung", "Head of Finance & Treasury"
+    ) is None
+    assert employer_salary_overlay(
+        "welab-bank", "WeLab Bank - Head of Finance & Treasury"
+    ) is None
+
+
+def test_welab_small_service_team_head_is_not_caught_by_the_department_head_anchor():
+    assert employer_salary_overlay(
+        "welab-bank", "WeLab Bank - Head of Customer Service"
+    ) is None
+
+
+def test_bea_sized_bank_functional_assistant_manager_uses_its_reviewed_band():
+    assert clamp_salary(
+        "back_office_operations", "mid", 18_000, 22_000,
+        company_slug="bank-of-east-asia",
+        title="Assistant MPF Business Manager - MPF Department",
+        source_tier="mainstream",
+    ) == (24_000, 40_000)
+    assert bea_sized_bank_assistant_manager_band(
+        "the-bank-of-east-asia-bea", "Assistant Fund Settlement Manager"
+    ) == (24_000, 40_000, "bea_sized_bank_functional_assistant_manager")
+
+
+def test_bea_sized_bank_anchor_excludes_plain_assistant_manager_and_other_sizes():
+    assert bea_sized_bank_assistant_manager_band(
+        "bank-of-east-asia", "Assistant Manager, Retail Banking"
+    ) is None
+    assert bea_sized_bank_assistant_manager_band(
+        "cmb-wing-lung", "Assistant Fund Settlement Manager"
+    ) is None
+
+
+def test_sun_life_sized_insurer_sets_uniform_ad_and_avp_bands():
+    assert clamp_salary(
+        "insurance", "senior", 100_000, 140_000,
+        company_slug="sun-life-hk", title="Associate Director / Senior Manager, Data & BI",
+        source_tier="mainstream",
+    ) == (60_000, 80_000)
+    assert clamp_salary(
+        "insurance", "senior", 113_000, 176_500,
+        company_slug="sun-life-hk", title="AVP, Head of Internal Audit Hong Kong",
+        source_tier="mainstream",
+    ) == (120_000, 150_000)
+    assert sun_life_sized_insurer_grade_band(
+        "sun-life", "Assistant Vice President, Control & Governance"
+    ) == (120_000, 150_000, "sun_life_sized_insurer_assistant_vice_president")
+
+
+def test_sun_life_sized_insurer_band_does_not_spread_to_other_insurer_sizes():
+    assert sun_life_sized_insurer_grade_band(
+        "aia-hk", "Associate Director, Data Governance"
+    ) is None
 
 
 def test_employer_overlay_does_not_spread_to_other_managers_or_employers():
@@ -343,6 +454,52 @@ def test_big_four_is_explicitly_large_even_though_source_tier_is_not_used():
     ) == (50_000, 60_000, "large_employer")
 
 
+@pytest.mark.parametrize("company_slug", ("ey", "kpmg", "deloitte", "pwc"))
+def test_big_four_shared_professional_services_bands_apply_to_every_firm(company_slug):
+    """A rule learned at one Big Four firm must not remain Deloitte-only."""
+    assert big_four_grade_band(
+        company_slug, "Senior Consultant, Technology Consulting", professional_practice=True
+    ) == (
+        40_000, 55_000, "big_four_senior_consultant",
+    )
+    assert big_four_grade_band(company_slug, "Manager, M&A Transaction Services") == (
+        50_000, 90_000, "big_four_manager_ma",
+    )
+    assert big_four_grade_band(
+        company_slug, "Senior Manager, Risk Consulting", professional_practice=True
+    ) == (
+        70_000, 85_000, "big_four_senior_manager",
+    )
+
+
+def test_big_four_lower_grade_bands_do_not_use_hays_as_a_blanket_divisor():
+    assert big_four_grade_band(
+        "ey", "Consultant, Transformation", professional_practice=True
+    ) == (
+        20_000, 33_000, "big_four_consultant_or_associate",
+    )
+    assert big_four_grade_band(
+        "pwc", "Senior Associate, Audit", professional_practice=True
+    ) == (
+        30_000, 45_000, "big_four_senior_associate_or_assistant_manager",
+    )
+    assert big_four_grade_band("ey", "Senior Consultant, Recruitment") == (
+        40_000, 55_000, "big_four_senior_consultant",
+    )
+
+
+def test_big_four_single_grade_bands_do_not_create_false_precision_for_grade_menus():
+    assert big_four_grade_band(
+        "deloitte", "Consultant / Senior Consultant / Manager, Strategy", professional_practice=True
+    ) is None
+    assert big_four_grade_band(
+        "pwc", "Analyst / Assistant Manager, Deal Advisory", professional_practice=True
+    ) is None
+    assert big_four_grade_band(
+        "ey", "Forensics, Staff & Senior Accountant", professional_practice=True
+    ) is None
+
+
 def test_manager_floor_excludes_assistant_and_service_titles():
     assistant = clamp_salary(
         "back_office_operations", "mid", 25_000, 39_000,
@@ -355,7 +512,10 @@ def test_manager_floor_excludes_assistant_and_service_titles():
         title="Customer Service Manager",
     )
     # The existing role ceiling still applies; the Manager-grade floor does not.
-    assert assistant == (25_000, 31_000)
+    associate_ceiling = _TABLES["back_office_operations"]["roles"][
+        "operations_general"
+    ]["Associate"][1]
+    assert assistant == (25_000, associate_ceiling)
     assert service == (11_500, 23_000)
 
 
@@ -363,6 +523,135 @@ def test_manager_floor_leaves_relationship_manager_on_its_own_calibrated_bands()
     assert manager_grade_floor(
         "commercial_corporate_banking", "commercial_banking_rm", "hsbc-hk",
         "Relationship Manager, Corporate Banking",
+    ) is None
+
+
+def test_functional_relationship_manager_is_not_a_second_corporate_grade():
+    """Associate Director + the RM function is one grade, not an ambiguous title."""
+    title = "Associate Director, Relationship Manager"
+
+    assert ambiguous_multi_grade_title_band(title) is None
+    assert clamp_salary(
+        "middle_office", "senior", 80_000, 120_000,
+        company_slug="hsbc-hk", title=title, source_tier="mainstream",
+    ) == (80_000, 100_000)
+
+
+def test_rule_resolution_exposes_the_winner_and_competing_bands():
+    title = "Senior Consultant / Manager / Associate Director, HR Transformation Consulting"
+
+    resolution = salary_rule_resolution("kpmg", title)
+
+    assert resolution.winner is not None
+    assert resolution.winner.rule == "ambiguous_multi_grade"
+    assert resolution.winner.band == (55_000, 80_000)
+    assert {match.rule for match in resolution.matches} == {
+        "big_four_grade",
+        "ambiguous_multi_grade",
+    }
+    assert [match.rule for match in resolution.conflicts] == ["big_four_grade"]
+
+
+def test_rule_priority_not_match_order_decides_the_winner():
+    low = SalaryRuleMatch(
+        "generic", (80_000, 100_000), "generic_ad", SalaryRulePriority.BASE_TITLE_GRADE,
+    )
+    high = SalaryRuleMatch(
+        "specific", (60_000, 80_000), "specific_ad", SalaryRulePriority.REVIEWED_EMPLOYER_SIZE,
+    )
+
+    assert resolve_salary_rule_matches([low, high]).winner == high
+    assert resolve_salary_rule_matches([high, low]).winner == high
+
+
+def test_equal_priority_disagreement_is_visible_and_warned(caplog):
+    first = SalaryRuleMatch(
+        "alpha", (60_000, 80_000), "alpha_band", SalaryRulePriority.REVIEWED_EMPLOYER_ROLE,
+    )
+    second = SalaryRuleMatch(
+        "beta", (70_000, 90_000), "beta_band", SalaryRulePriority.REVIEWED_EMPLOYER_ROLE,
+    )
+
+    resolution = resolve_salary_rule_matches([second, first])
+
+    assert resolution.has_top_priority_conflict is True
+    assert {match.rule for match in resolution.conflicts} == {"alpha"}
+    assert "Conflicting salary rules" in caplog.text
+
+
+def test_exact_cash_product_manager_band_is_not_distorted_by_manager_floor():
+    assert clamp_salary(
+        "middle_office", "mid", 70_000, 100_000,
+        role="product_management", company_slug="dbs-hk",
+        title="Cash Product Manager, Transaction Banking", source_tier="mainstream",
+    ) == (35_000, 50_000)
+
+
+def test_ordinary_bank_product_manager_uses_evidence_bounded_band():
+    assert clamp_salary(
+        "middle_office", "mid", 100_000, 171_500,
+        role="product_management", grade="Manager", company_slug="standard-chartered-hk",
+        title="Digital Product Manager - HK Business", source_tier="mainstream",
+    ) == (45_000, 65_000)
+
+
+def test_ordinary_product_manager_rule_excludes_higher_grades_and_specialisms():
+    assert bank_ordinary_product_manager_band(
+        "standard-chartered-hk", "Director, Trade Product Manager",
+        product_management=True,
+    ) is None
+    assert bank_ordinary_product_manager_band(
+        "standard-chartered-hk", "Senior Product Manager, Global Payments",
+        product_management=True,
+    ) is None
+    assert bank_ordinary_product_manager_band(
+        "ccb-asia", "Global / Direct Custody Product Manager",
+        product_management=True,
+    ) is None
+    assert bank_ordinary_product_manager_band(
+        "standard-chartered-hk", "Digital Product Manager",
+        product_management=False,
+    ) is None
+
+
+@pytest.mark.parametrize(
+    ("title", "expected"),
+    [
+        ("Digital Product Manager - HK Business", (45_000, 65_000)),
+        ("Credit Card Product Manager", (45_000, 65_000)),
+        ("Cash Product Manager", (45_000, 75_000)),
+        ("Trade Finance Product Manager", (50_000, 75_000)),
+        ("Wealth Management Product Manager", (55_000, 80_000)),
+        ("Product Management Professional, Custody & Securities Services", (55_000, 80_000)),
+        ("Product Governance Manager", (50_000, 75_000)),
+        ("Corporate Banking Product Manager", (45_000, 85_000)),
+        # The classifier may identify the product function even where the
+        # employer uses a business-manager title rather than "Product Manager".
+        ("Credit Card Business Manager", (45_000, 65_000)),
+        ("E-Banking Business Manager", (45_000, 65_000)),
+        ("Innovation Manager", (50_000, 75_000)),
+        ("贸易融资产品经理", (50_000, 75_000)),
+        ("零售产品经理（财富管理）", (55_000, 80_000)),
+        ("金融科技应用，零售产品经理（证券业务）", (55_000, 80_000)),
+        ("Product Owner, Finance Tech", (45_000, 65_000)),
+    ],
+)
+def test_bank_product_manager_default_is_selected_by_product_domain(title, expected):
+    result = bank_ordinary_product_manager_band(
+        "standard-chartered-hk", title, product_management=True,
+    )
+    assert result is not None
+    assert result[:2] == expected
+
+
+def test_senior_and_explicit_grade_product_titles_stay_outside_domain_defaults():
+    assert bank_ordinary_product_manager_band(
+        "standard-chartered-hk", "Senior Product Manager, Wealth Solutions",
+        product_management=True,
+    ) is None
+    assert bank_ordinary_product_manager_band(
+        "standard-chartered-hk", "VP, Cash Product Management",
+        product_management=True,
     ) is None
 
 
@@ -374,7 +663,19 @@ def test_manager_floor_excludes_sales_and_business_development_titles():
 
 
 def test_manager_floor_needs_a_recognised_finance_coordinate():
-    assert manager_grade_floor(None, None, "smaller-firm", "Manager, Treasury Operations") is None
+    title = "Manager, Treasury Operations"
+
+    assert manager_grade_floor(None, None, "smaller-firm", title) is None
+    assert manager_grade_floor(
+        "middle_office", "made_up_role", "hsbc-hk", title
+    ) is None
+    # ``treasury`` is real, but only under corporate_finance_accounting. A role
+    # name from another table is not a valid middle_office coordinate.
+    assert manager_grade_floor("middle_office", "treasury", "hsbc-hk", title) is None
+    assert clamp_salary(
+        "middle_office", "mid", 25_000, 39_000,
+        role="made_up_role", company_slug="hsbc-hk", title=title,
+    ) == (25_000, 39_000)
 
 
 def test_manager_floor_excludes_abbreviated_assistant_manager_titles():
@@ -411,12 +712,13 @@ def test_widened_range_is_never_flat_even_after_boutique_discount():
 # ── floor raise: the one down-only exception ────────────────────────────────────
 
 def test_undershoot_below_matched_band_is_raised_to_the_band():
-    # Real production case: "Account Opening Officer, Commercial Banking" matched
-    # back_office_operations/operations_general/junior (Analyst row) but the model's raw
-    # estimate (11200-14400) undershot that row's own floor (14500-18500).
+    # A raw estimate entirely below the matched Analyst row must be raised to that
+    # row. Derive the fixture from the live anchor so a reviewed guide update does
+    # not silently turn this into an overlap test.
     lo, hi = _TABLES["back_office_operations"]["roles"]["operations_general"]["Analyst"]
     out = clamp_salary(
-        "back_office_operations", "junior", 11_200, 14_400, role="operations_general",
+        "back_office_operations", "junior", lo - 3_000, lo - 1_000,
+        role="operations_general",
     )
     assert out == (lo, hi)
 

@@ -158,11 +158,16 @@ def test_version_changes_with_the_prompt():
     assert salary.version(MODEL, PROMPT) != salary.version(MODEL, PROMPT + " conservatively")
 
 
-@pytest.mark.parametrize("constant,new_value", [
-    ("BOUTIQUE_SALARY_MULTIPLIER", 0.65),
-    ("SINGLE_VALUE_MIN_FRACTION", 0.6),
-    ("GLOBAL_MAX_MONTHLY_HKD", 180_000),
-])
+@pytest.mark.parametrize(
+    "constant,new_value",
+    [
+        ("BOUTIQUE_SALARY_MULTIPLIER", 0.65),
+        ("SINGLE_VALUE_MIN_FRACTION", 0.6),
+        ("GLOBAL_MAX_MONTHLY_HKD", 180_000),
+        ("INTERNSHIP_MAX_MONTHLY_HKD", 20_000),
+        ("MAGNITUDE_GLITCH_CEILING", 4_000),
+    ],
+)
 def test_version_changes_when_a_clamp_constant_changes(monkeypatch, constant, new_value):
     """
     THE regression this module exists for. Each of these moves a stored number,
@@ -172,6 +177,78 @@ def test_version_changes_when_a_clamp_constant_changes(monkeypatch, constant, ne
     before = _version()
     monkeypatch.setattr(salary_clamp, constant, new_value)
     assert _version() != before
+
+
+@pytest.mark.parametrize(
+    ("rule_name", "changed_value"),
+    [
+        ("_BANK_BANDS", {"assistant_vice_president": [51_000, 81_000]}),
+        ("_BANK_FUNCTION_BANDS", {"private_banking_business_manager": [61_000, 91_000]}),
+        ("_BIG_FOUR_BANDS", {"manager": [51_000, 61_000]}),
+        (
+            "_EMPLOYER_SALARY_OVERLAYS",
+            (
+                {
+                    "key": "probe",
+                    "company_slug": "probe",
+                    "title_pattern": "probe",
+                    "band_monthly_hkd": [1, 2],
+                },
+            ),
+        ),
+        (
+            "_MANAGER_GRADE_FLOORS",
+            {
+                "smaller_or_unclassified": {
+                    "minimum_monthly_hkd": 41_000,
+                    "fallback_maximum_monthly_hkd": 56_000,
+                }
+            },
+        ),
+    ],
+)
+def test_version_changes_when_any_deterministic_rule_table_changes(
+    monkeypatch, rule_name, changed_value
+):
+    """Every table read by ``clamp_salary`` must participate in staleness.
+
+    These rule families were added after the original fingerprint and changed
+    published estimates without changing ``prompt_version``. The Daily Run then
+    had no signal that an older estimate needed to be reconsidered.
+    """
+    before = _version()
+    monkeypatch.setattr(salary_clamp, rule_name, changed_value)
+    assert _version() != before
+
+
+def test_version_changes_when_a_title_matching_rule_changes(monkeypatch):
+    """Regexes are salary rules too; changing who matches must change the version."""
+    before = _version()
+    pattern = salary_clamp._INTERNSHIP_PATTERN
+    monkeypatch.setattr(
+        salary_clamp,
+        "_INTERNSHIP_PATTERN",
+        salary_clamp.re.compile(pattern.pattern + r"|\bapprentice\b", pattern.flags),
+    )
+    assert _version() != before
+
+
+def test_version_changes_when_the_clamp_control_flow_changes(monkeypatch):
+    """A logic edit with unchanged constants must not rely on a manual version bump."""
+    before = _version()
+    monkeypatch.setattr(salary, "_clamp_logic_fingerprint", lambda: "changed-logic")
+    assert _version() != before
+
+
+def test_logic_fingerprint_ignores_comments_but_not_executable_changes():
+    original = "def rule(value):\n    return min(value, 10)\n"
+    comment_only = "# clearer wording\ndef rule(value):\n    return min(value, 10)\n"
+    changed = "def rule(value):\n    return min(value, 20)\n"
+
+    assert salary._normalised_python_logic(original) == salary._normalised_python_logic(
+        comment_only
+    )
+    assert salary._normalised_python_logic(original) != salary._normalised_python_logic(changed)
 
 
 def test_version_changes_when_the_employer_allowlists_change(monkeypatch):
@@ -188,6 +265,29 @@ def test_version_changes_when_the_anchor_calibration_changes(monkeypatch):
     assert _version() != before
 
 
+def test_version_changes_when_a_new_anchor_rule_section_is_added(monkeypatch):
+    """Future rule sections are covered automatically, not by another allowlist."""
+    before = _version()
+    monkeypatch.setattr(
+        salary_anchors,
+        "ANCHORS",
+        {**salary_anchors.ANCHORS, "future_salary_rule": {"band": [12_345, 23_456]}},
+    )
+    assert _version() != before
+
+
+def test_version_changes_when_role_table_semantics_change(monkeypatch):
+    """Changing catalogue-versus-ladder behaviour must make old estimates stale."""
+    before = _version()
+    changed = json.loads(json.dumps(salary_anchors.ANCHORS))
+    changed["role_table_semantics"]["tiers"]["middle_office"]["risk_credit"] = {
+        "kind": "title_catalog"
+    }
+    monkeypatch.setattr(salary_anchors, "ANCHORS", changed)
+
+    assert _version() != before
+
+
 def test_version_ignores_prose_in_the_anchors_file(monkeypatch):
     """
     Re-wording `meta.source` must NOT invalidate 13,000 estimates and re-pay for
@@ -195,6 +295,10 @@ def test_version_ignores_prose_in_the_anchors_file(monkeypatch):
     whole file — a deliberate line, so that editing documentation stays free.
     """
     before = _version()
+    changed = json.loads(json.dumps(salary_anchors.ANCHORS))
+    changed["tables_monthly_hkd"]["front_office"]["_desc"] = "clearer table wording"
+    changed["title_grade_bands_monthly_hkd"]["bank"]["note"] = "clearer rule note"
+    monkeypatch.setattr(salary_anchors, "ANCHORS", changed)
     monkeypatch.setattr(salary_anchors, "META",
                         {**salary_anchors.META, "source": "reworded for clarity"})
     assert _version() == before

@@ -27,7 +27,7 @@ from pathlib import Path
 
 from hk_jobs.cli import PipelineArgs
 from hk_jobs.config import CompanyConfig
-from hk_jobs.migrations import migrate_to_phase_10, migrate_to_phase_11
+from hk_jobs.migrations import migrate
 from hk_jobs.pipeline import COMPANY_TIMEOUT_SECS, run
 from hk_jobs.schema import Job
 from hk_jobs.storage import JobStore
@@ -68,8 +68,7 @@ def _db(tmp_path: Path) -> str:
     application never sees.
     """
     path = str(tmp_path / "jobs.db")
-    migrate_to_phase_10(path)   # the jobs table — phase 11's tables sit beside it
-    migrate_to_phase_11(path)
+    migrate(path)
     return path
 
 

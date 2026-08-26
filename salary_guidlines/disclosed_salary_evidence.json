@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "description": "Employer-disclosed salary facts that may support narrowly scoped salary overlays. A record is evidence, not a generic market benchmark.",
+  "records": [
+    {
+      "key": "cmb_sanctions_advisor_team_head_disclosed",
+      "company_slug": "cmb-wing-lung",
+      "title": "Sanctions Advisor, Team Head role (AML Centre)",
+      "band_monthly_hkd": [50000, 75000],
+      "currency": "HKD",
+      "period": "monthly",
+      "source": "eFinancialCareers employer listing",
+      "captured_on": "2026-08-23",
+      "evidence_type": "employer_disclosed_listing_salary",
+      "scope": "Exact employer and title only; do not generalize this fact into a company-wide salary band."
+    },
+    {
+      "key": "cmb_private_banking_assistant_rm_disclosed",
+      "company_slug": "cmb-wing-lung",
+      "title": "Assistant Relationship Manager (Private Banking & Wealth Management Department)",
+      "band_monthly_hkd": [25000, 35000],
+      "currency": "HKD",
+      "period": "monthly",
+      "source": "eFinancialCareers employer listing",
+      "captured_on": "2026-08-23",
+      "evidence_type": "employer_disclosed_listing_salary",
+      "scope": "Exact employer and title only; do not generalize this fact into a company-wide salary band."
+    }
+  ]
+}

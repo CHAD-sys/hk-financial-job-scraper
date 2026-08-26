@@ -1,0 +1,1693 @@
+{
+  "schema_version": 1,
+  "description": "Priority queue for independently sourced replacement evidence. Current bands remain unchanged until market evidence is reviewed and an explicit overlay is added.",
+  "summary": {
+    "market_gaps": 112,
+    "critical": 23,
+    "high": 46,
+    "medium": 32,
+    "low": 11
+  },
+  "entries": [
+    {
+      "coordinate": "insurance/strategic_operations/COO",
+      "tier": "insurance",
+      "role": "strategic_operations",
+      "grade": "COO",
+      "current_band_monthly_hkd": [
+        128500,
+        171500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 67,
+      "exact_grade_active_primary_listings": 3,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "front_office/corporate_finance_ma_ecm_dcm/Analyst",
+      "tier": "front_office",
+      "role": "corporate_finance_ma_ecm_dcm",
+      "grade": "Analyst",
+      "current_band_monthly_hkd": [
+        35500,
+        71500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 41,
+      "exact_grade_active_primary_listings": 3,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "front_office/corporate_finance_ma_ecm_dcm/Associate",
+      "tier": "front_office",
+      "role": "corporate_finance_ma_ecm_dcm",
+      "grade": "Associate",
+      "current_band_monthly_hkd": [
+        71500,
+        107000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 41,
+      "exact_grade_active_primary_listings": 3,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "front_office/corporate_finance_ma_ecm_dcm/Director",
+      "tier": "front_office",
+      "role": "corporate_finance_ma_ecm_dcm",
+      "grade": "Director",
+      "current_band_monthly_hkd": [
+        142500,
+        171500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 41,
+      "exact_grade_active_primary_listings": 3,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "front_office/corporate_finance_ma_ecm_dcm/MD",
+      "tier": "front_office",
+      "role": "corporate_finance_ma_ecm_dcm",
+      "grade": "MD",
+      "current_band_monthly_hkd": [
+        142500,
+        171500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 41,
+      "exact_grade_active_primary_listings": 3,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "front_office/corporate_finance_ma_ecm_dcm/VP",
+      "tier": "front_office",
+      "role": "corporate_finance_ma_ecm_dcm",
+      "grade": "VP",
+      "current_band_monthly_hkd": [
+        107000,
+        142500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 41,
+      "exact_grade_active_primary_listings": 3,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "commercial_corporate_banking/transaction_banking_rm/Assistant RM",
+      "tier": "commercial_corporate_banking",
+      "role": "transaction_banking_rm",
+      "grade": "Assistant RM",
+      "current_band_monthly_hkd": [
+        21500,
+        34500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 27,
+      "exact_grade_active_primary_listings": 2,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "commercial_corporate_banking/transaction_banking_rm/Department Head",
+      "tier": "commercial_corporate_banking",
+      "role": "transaction_banking_rm",
+      "grade": "Department Head",
+      "current_band_monthly_hkd": [
+        114500,
+        171500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 27,
+      "exact_grade_active_primary_listings": 2,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "commercial_corporate_banking/transaction_banking_rm/RM",
+      "tier": "commercial_corporate_banking",
+      "role": "transaction_banking_rm",
+      "grade": "RM",
+      "current_band_monthly_hkd": [
+        34500,
+        51500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 27,
+      "exact_grade_active_primary_listings": 2,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "commercial_corporate_banking/transaction_banking_rm/Senior RM",
+      "tier": "commercial_corporate_banking",
+      "role": "transaction_banking_rm",
+      "grade": "Senior RM",
+      "current_band_monthly_hkd": [
+        51500,
+        71500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 27,
+      "exact_grade_active_primary_listings": 2,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "commercial_corporate_banking/transaction_banking_rm/Team Head",
+      "tier": "commercial_corporate_banking",
+      "role": "transaction_banking_rm",
+      "grade": "Team Head",
+      "current_band_monthly_hkd": [
+        71500,
+        121500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 27,
+      "exact_grade_active_primary_listings": 2,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "front_office/investment_counsellor/Investment Counsellor / Advisor",
+      "tier": "front_office",
+      "role": "investment_counsellor",
+      "grade": "Investment Counsellor / Advisor",
+      "current_band_monthly_hkd": [
+        57000,
+        142500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 26,
+      "exact_grade_active_primary_listings": 4,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "front_office/investment_counsellor/Senior Investment Counsellor / Advisor",
+      "tier": "front_office",
+      "role": "investment_counsellor",
+      "grade": "Senior Investment Counsellor / Advisor",
+      "current_band_monthly_hkd": [
+        128500,
+        171500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 26,
+      "exact_grade_active_primary_listings": 4,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "insurance/pension_operations/Assistant Manager",
+      "tier": "insurance",
+      "role": "pension_operations",
+      "grade": "Assistant Manager",
+      "current_band_monthly_hkd": [
+        21500,
+        34500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 25,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "insurance/pension_operations/Department Head",
+      "tier": "insurance",
+      "role": "pension_operations",
+      "grade": "Department Head",
+      "current_band_monthly_hkd": [
+        85500,
+        142500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 25,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "insurance/pension_operations/Manager",
+      "tier": "insurance",
+      "role": "pension_operations",
+      "grade": "Manager",
+      "current_band_monthly_hkd": [
+        34500,
+        51500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 25,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "insurance/pension_operations/Officer",
+      "tier": "insurance",
+      "role": "pension_operations",
+      "grade": "Officer",
+      "current_band_monthly_hkd": [
+        13000,
+        21500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 25,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "insurance/pension_operations/Senior Manager",
+      "tier": "insurance",
+      "role": "pension_operations",
+      "grade": "Senior Manager",
+      "current_band_monthly_hkd": [
+        51500,
+        71500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 25,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "middle_office/trade_support/AVP",
+      "tier": "middle_office",
+      "role": "trade_support",
+      "grade": "AVP",
+      "current_band_monthly_hkd": [
+        47000,
+        64500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 25,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "middle_office/trade_support/Analyst",
+      "tier": "middle_office",
+      "role": "trade_support",
+      "grade": "Analyst",
+      "current_band_monthly_hkd": [
+        17000,
+        25500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 25,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "middle_office/trade_support/Associate",
+      "tier": "middle_office",
+      "role": "trade_support",
+      "grade": "Associate",
+      "current_band_monthly_hkd": [
+        25500,
+        47000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 25,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "middle_office/trade_support/Director",
+      "tier": "middle_office",
+      "role": "trade_support",
+      "grade": "Director",
+      "current_band_monthly_hkd": [
+        85500,
+        171500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 25,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "middle_office/trade_support/VP",
+      "tier": "middle_office",
+      "role": "trade_support",
+      "grade": "VP",
+      "current_band_monthly_hkd": [
+        64500,
+        85500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 25,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "critical"
+    },
+    {
+      "coordinate": "commercial_corporate_banking/wealth_management/Assistant Manager",
+      "tier": "commercial_corporate_banking",
+      "role": "wealth_management",
+      "grade": "Assistant Manager",
+      "current_band_monthly_hkd": [
+        28000,
+        40000
+      ],
+      "market_gap_reason": "rebuild_interpolation_from_market_evidence",
+      "semantic_status": "derived_from_total_package_fallback_not_base_compatible",
+      "role_active_primary_listings": 22,
+      "exact_grade_active_primary_listings": 3,
+      "priority": "high"
+    },
+    {
+      "coordinate": "commercial_corporate_banking/wealth_management/Assistant Wealth Manager / Officer",
+      "tier": "commercial_corporate_banking",
+      "role": "wealth_management",
+      "grade": "Assistant Wealth Manager / Officer",
+      "current_band_monthly_hkd": [
+        18000,
+        28000
+      ],
+      "market_gap_reason": "map_or_replace_unattributed_anchor",
+      "semantic_status": "evidence_unmapped",
+      "role_active_primary_listings": 22,
+      "exact_grade_active_primary_listings": 3,
+      "priority": "high"
+    },
+    {
+      "coordinate": "commercial_corporate_banking/wealth_management/Director / Head of Wealth",
+      "tier": "commercial_corporate_banking",
+      "role": "wealth_management",
+      "grade": "Director / Head of Wealth",
+      "current_band_monthly_hkd": [
+        110000,
+        180000
+      ],
+      "market_gap_reason": "map_or_replace_unattributed_anchor",
+      "semantic_status": "evidence_unmapped",
+      "role_active_primary_listings": 22,
+      "exact_grade_active_primary_listings": 3,
+      "priority": "high"
+    },
+    {
+      "coordinate": "commercial_corporate_banking/wealth_management/Premier Banking RM",
+      "tier": "commercial_corporate_banking",
+      "role": "wealth_management",
+      "grade": "Premier Banking RM",
+      "current_band_monthly_hkd": [
+        25500,
+        53500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 22,
+      "exact_grade_active_primary_listings": 3,
+      "priority": "high"
+    },
+    {
+      "coordinate": "commercial_corporate_banking/wealth_management/Private Banking Client Services Officer",
+      "tier": "commercial_corporate_banking",
+      "role": "wealth_management",
+      "grade": "Private Banking Client Services Officer",
+      "current_band_monthly_hkd": [
+        28500,
+        50000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 22,
+      "exact_grade_active_primary_listings": 3,
+      "priority": "high"
+    },
+    {
+      "coordinate": "commercial_corporate_banking/wealth_management/Senior Wealth Manager",
+      "tier": "commercial_corporate_banking",
+      "role": "wealth_management",
+      "grade": "Senior Wealth Manager",
+      "current_band_monthly_hkd": [
+        34500,
+        51500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 22,
+      "exact_grade_active_primary_listings": 3,
+      "priority": "high"
+    },
+    {
+      "coordinate": "commercial_corporate_banking/wealth_management/VP / Team Head",
+      "tier": "commercial_corporate_banking",
+      "role": "wealth_management",
+      "grade": "VP / Team Head",
+      "current_band_monthly_hkd": [
+        70000,
+        110000
+      ],
+      "market_gap_reason": "map_or_replace_unattributed_anchor",
+      "semantic_status": "evidence_unmapped",
+      "role_active_primary_listings": 22,
+      "exact_grade_active_primary_listings": 3,
+      "priority": "high"
+    },
+    {
+      "coordinate": "commercial_corporate_banking/wealth_management/Wealth Manager",
+      "tier": "commercial_corporate_banking",
+      "role": "wealth_management",
+      "grade": "Wealth Manager",
+      "current_band_monthly_hkd": [
+        21500,
+        34500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 22,
+      "exact_grade_active_primary_listings": 3,
+      "priority": "high"
+    },
+    {
+      "coordinate": "commercial_corporate_banking/sme_banking_rm/Department Head",
+      "tier": "commercial_corporate_banking",
+      "role": "sme_banking_rm",
+      "grade": "Department Head",
+      "current_band_monthly_hkd": [
+        85500,
+        171500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 21,
+      "exact_grade_active_primary_listings": 2,
+      "priority": "high"
+    },
+    {
+      "coordinate": "commercial_corporate_banking/sme_banking_rm/Team Head",
+      "tier": "commercial_corporate_banking",
+      "role": "sme_banking_rm",
+      "grade": "Team Head",
+      "current_band_monthly_hkd": [
+        50000,
+        85500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 21,
+      "exact_grade_active_primary_listings": 2,
+      "priority": "high"
+    },
+    {
+      "coordinate": "front_office/hedge_fund_investment/Analyst",
+      "tier": "front_office",
+      "role": "hedge_fund_investment",
+      "grade": "Analyst",
+      "current_band_monthly_hkd": [
+        35500,
+        50000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 18,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "high"
+    },
+    {
+      "coordinate": "front_office/hedge_fund_investment/Assistant Fund Manager",
+      "tier": "front_office",
+      "role": "hedge_fund_investment",
+      "grade": "Assistant Fund Manager",
+      "current_band_monthly_hkd": [
+        85500,
+        107000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 18,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "high"
+    },
+    {
+      "coordinate": "front_office/hedge_fund_investment/Associate",
+      "tier": "front_office",
+      "role": "hedge_fund_investment",
+      "grade": "Associate",
+      "current_band_monthly_hkd": [
+        50000,
+        71500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 18,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "high"
+    },
+    {
+      "coordinate": "front_office/hedge_fund_investment/Fund Manager",
+      "tier": "front_office",
+      "role": "hedge_fund_investment",
+      "grade": "Fund Manager",
+      "current_band_monthly_hkd": [
+        107000,
+        171500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 18,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "high"
+    },
+    {
+      "coordinate": "front_office/hedge_fund_investment/VP",
+      "tier": "front_office",
+      "role": "hedge_fund_investment",
+      "grade": "VP",
+      "current_band_monthly_hkd": [
+        71500,
+        96500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 18,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "high"
+    },
+    {
+      "coordinate": "insurance/investment/Analyst",
+      "tier": "insurance",
+      "role": "investment",
+      "grade": "Analyst",
+      "current_band_monthly_hkd": [
+        34500,
+        43000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 18,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "high"
+    },
+    {
+      "coordinate": "insurance/investment/Fund Manager",
+      "tier": "insurance",
+      "role": "investment",
+      "grade": "Fund Manager",
+      "current_band_monthly_hkd": [
+        55500,
+        68500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 18,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "high"
+    },
+    {
+      "coordinate": "insurance/investment/Head of Investment / CIO",
+      "tier": "insurance",
+      "role": "investment",
+      "grade": "Head of Investment / CIO",
+      "current_band_monthly_hkd": [
+        107000,
+        171500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 18,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "high"
+    },
+    {
+      "coordinate": "insurance/investment/Senior Analyst",
+      "tier": "insurance",
+      "role": "investment",
+      "grade": "Senior Analyst",
+      "current_band_monthly_hkd": [
+        43000,
+        55500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 18,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "high"
+    },
+    {
+      "coordinate": "insurance/investment/Senior Fund Manager",
+      "tier": "insurance",
+      "role": "investment",
+      "grade": "Senior Fund Manager",
+      "current_band_monthly_hkd": [
+        68500,
+        85500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 18,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "high"
+    },
+    {
+      "coordinate": "retail_banking/branch_operation/Operations Manager",
+      "tier": "retail_banking",
+      "role": "branch_operation",
+      "grade": "Operations Manager",
+      "current_band_monthly_hkd": [
+        34500,
+        171500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 18,
+      "exact_grade_active_primary_listings": 4,
+      "priority": "high"
+    },
+    {
+      "coordinate": "retail_banking/branch_operation/Supervisor",
+      "tier": "retail_banking",
+      "role": "branch_operation",
+      "grade": "Supervisor",
+      "current_band_monthly_hkd": [
+        25500,
+        34500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 18,
+      "exact_grade_active_primary_listings": 4,
+      "priority": "high"
+    },
+    {
+      "coordinate": "retail_banking/branch_operation/Teller",
+      "tier": "retail_banking",
+      "role": "branch_operation",
+      "grade": "Teller",
+      "current_band_monthly_hkd": [
+        13500,
+        24000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 18,
+      "exact_grade_active_primary_listings": 4,
+      "priority": "high"
+    },
+    {
+      "coordinate": "commercial_corporate_banking/commercial_banking_rm/Department Head",
+      "tier": "commercial_corporate_banking",
+      "role": "commercial_banking_rm",
+      "grade": "Department Head",
+      "current_band_monthly_hkd": [
+        114500,
+        171500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 16,
+      "exact_grade_active_primary_listings": 2,
+      "priority": "high"
+    },
+    {
+      "coordinate": "commercial_corporate_banking/commercial_banking_rm/Team Head",
+      "tier": "commercial_corporate_banking",
+      "role": "commercial_banking_rm",
+      "grade": "Team Head",
+      "current_band_monthly_hkd": [
+        53500,
+        85500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 16,
+      "exact_grade_active_primary_listings": 2,
+      "priority": "high"
+    },
+    {
+      "coordinate": "commercial_corporate_banking/fi_banking_rm/Assistant RM",
+      "tier": "commercial_corporate_banking",
+      "role": "fi_banking_rm",
+      "grade": "Assistant RM",
+      "current_band_monthly_hkd": [
+        16500,
+        28500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 15,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "high"
+    },
+    {
+      "coordinate": "commercial_corporate_banking/fi_banking_rm/Department Head",
+      "tier": "commercial_corporate_banking",
+      "role": "fi_banking_rm",
+      "grade": "Department Head",
+      "current_band_monthly_hkd": [
+        114500,
+        171500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 15,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "high"
+    },
+    {
+      "coordinate": "commercial_corporate_banking/fi_banking_rm/RM",
+      "tier": "commercial_corporate_banking",
+      "role": "fi_banking_rm",
+      "grade": "RM",
+      "current_band_monthly_hkd": [
+        21500,
+        43000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 15,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "high"
+    },
+    {
+      "coordinate": "commercial_corporate_banking/fi_banking_rm/Senior RM",
+      "tier": "commercial_corporate_banking",
+      "role": "fi_banking_rm",
+      "grade": "Senior RM",
+      "current_band_monthly_hkd": [
+        43000,
+        85500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 15,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "high"
+    },
+    {
+      "coordinate": "commercial_corporate_banking/fi_banking_rm/Team Head",
+      "tier": "commercial_corporate_banking",
+      "role": "fi_banking_rm",
+      "grade": "Team Head",
+      "current_band_monthly_hkd": [
+        85500,
+        114500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 15,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "high"
+    },
+    {
+      "coordinate": "middle_office/risk_market/AVP",
+      "tier": "middle_office",
+      "role": "risk_market",
+      "grade": "AVP",
+      "current_band_monthly_hkd": [
+        34500,
+        47000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 13,
+      "exact_grade_active_primary_listings": 2,
+      "priority": "high"
+    },
+    {
+      "coordinate": "middle_office/risk_market/Analyst",
+      "tier": "middle_office",
+      "role": "risk_market",
+      "grade": "Analyst",
+      "current_band_monthly_hkd": [
+        17000,
+        30000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 13,
+      "exact_grade_active_primary_listings": 2,
+      "priority": "high"
+    },
+    {
+      "coordinate": "middle_office/risk_market/Associate",
+      "tier": "middle_office",
+      "role": "risk_market",
+      "grade": "Associate",
+      "current_band_monthly_hkd": [
+        30000,
+        43000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 13,
+      "exact_grade_active_primary_listings": 2,
+      "priority": "high"
+    },
+    {
+      "coordinate": "middle_office/risk_market/Director",
+      "tier": "middle_office",
+      "role": "risk_market",
+      "grade": "Director",
+      "current_band_monthly_hkd": [
+        77000,
+        171500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 13,
+      "exact_grade_active_primary_listings": 2,
+      "priority": "high"
+    },
+    {
+      "coordinate": "middle_office/risk_market/Head of Department",
+      "tier": "middle_office",
+      "role": "risk_market",
+      "grade": "Head of Department",
+      "current_band_monthly_hkd": [
+        103000,
+        171500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 13,
+      "exact_grade_active_primary_listings": 2,
+      "priority": "high"
+    },
+    {
+      "coordinate": "middle_office/risk_market/VP",
+      "tier": "middle_office",
+      "role": "risk_market",
+      "grade": "VP",
+      "current_band_monthly_hkd": [
+        60000,
+        71500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 13,
+      "exact_grade_active_primary_listings": 2,
+      "priority": "high"
+    },
+    {
+      "coordinate": "corporate_finance_accounting/tax/Senior Tax Manager",
+      "tier": "corporate_finance_accounting",
+      "role": "tax",
+      "grade": "Senior Tax Manager",
+      "current_band_monthly_hkd": [
+        70000,
+        110000
+      ],
+      "market_gap_reason": "rebuild_interpolation_from_market_evidence",
+      "semantic_status": "derived_from_total_package_fallback_not_base_compatible",
+      "role_active_primary_listings": 12,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "high"
+    },
+    {
+      "coordinate": "corporate_finance_accounting/tax/Tax Accountant",
+      "tier": "corporate_finance_accounting",
+      "role": "tax",
+      "grade": "Tax Accountant",
+      "current_band_monthly_hkd": [
+        28500,
+        55500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 12,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "high"
+    },
+    {
+      "coordinate": "corporate_finance_accounting/tax/Tax Analyst / Associate",
+      "tier": "corporate_finance_accounting",
+      "role": "tax",
+      "grade": "Tax Analyst / Associate",
+      "current_band_monthly_hkd": [
+        22000,
+        33500
+      ],
+      "market_gap_reason": "map_or_replace_unattributed_anchor",
+      "semantic_status": "evidence_unmapped",
+      "role_active_primary_listings": 12,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "high"
+    },
+    {
+      "coordinate": "corporate_finance_accounting/tax/Tax Director / Head",
+      "tier": "corporate_finance_accounting",
+      "role": "tax",
+      "grade": "Tax Director / Head",
+      "current_band_monthly_hkd": [
+        55500,
+        171500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 12,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "high"
+    },
+    {
+      "coordinate": "corporate_finance_accounting/tax/Tax Manager",
+      "tier": "corporate_finance_accounting",
+      "role": "tax",
+      "grade": "Tax Manager",
+      "current_band_monthly_hkd": [
+        34500,
+        77000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 12,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "high"
+    },
+    {
+      "coordinate": "corporate_finance_accounting/tax/Tax Partner",
+      "tier": "corporate_finance_accounting",
+      "role": "tax",
+      "grade": "Tax Partner",
+      "current_band_monthly_hkd": [
+        150000,
+        300000
+      ],
+      "market_gap_reason": "rebuild_interpolation_from_market_evidence",
+      "semantic_status": "derived_from_total_package_fallback_not_base_compatible",
+      "role_active_primary_listings": 12,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "high"
+    },
+    {
+      "coordinate": "retail_banking/insurance_investment/Region Head",
+      "tier": "retail_banking",
+      "role": "insurance_investment",
+      "grade": "Region Head",
+      "current_band_monthly_hkd": [
+        47000,
+        77000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 12,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "high"
+    },
+    {
+      "coordinate": "retail_banking/insurance_investment/Senior Specialist",
+      "tier": "retail_banking",
+      "role": "insurance_investment",
+      "grade": "Senior Specialist",
+      "current_band_monthly_hkd": [
+        30000,
+        47000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 12,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "high"
+    },
+    {
+      "coordinate": "retail_banking/insurance_investment/Specialist",
+      "tier": "retail_banking",
+      "role": "insurance_investment",
+      "grade": "Specialist",
+      "current_band_monthly_hkd": [
+        21500,
+        30000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 12,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "high"
+    },
+    {
+      "coordinate": "retail_banking/insurance_investment/Team Head",
+      "tier": "retail_banking",
+      "role": "insurance_investment",
+      "grade": "Team Head",
+      "current_band_monthly_hkd": [
+        47000,
+        77000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 12,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "high"
+    },
+    {
+      "coordinate": "retail_banking/branch_management/Branch Manager",
+      "tier": "retail_banking",
+      "role": "branch_management",
+      "grade": "Branch Manager",
+      "current_band_monthly_hkd": [
+        51500,
+        85500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 9,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "retail_banking/branch_management/Branch Service Executive / Teller",
+      "tier": "retail_banking",
+      "role": "branch_management",
+      "grade": "Branch Service Executive / Teller",
+      "current_band_monthly_hkd": [
+        16000,
+        24000
+      ],
+      "market_gap_reason": "map_or_replace_unattributed_anchor",
+      "semantic_status": "evidence_unmapped",
+      "role_active_primary_listings": 9,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "retail_banking/branch_management/Head of Branch Network / Distribution",
+      "tier": "retail_banking",
+      "role": "branch_management",
+      "grade": "Head of Branch Network / Distribution",
+      "current_band_monthly_hkd": [
+        130000,
+        200000
+      ],
+      "market_gap_reason": "map_or_replace_unattributed_anchor",
+      "semantic_status": "evidence_unmapped",
+      "role_active_primary_listings": 9,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "retail_banking/branch_management/Regional / District Manager",
+      "tier": "retail_banking",
+      "role": "branch_management",
+      "grade": "Regional / District Manager",
+      "current_band_monthly_hkd": [
+        85500,
+        171500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 9,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "retail_banking/branch_management/Sub Branch Manager",
+      "tier": "retail_banking",
+      "role": "branch_management",
+      "grade": "Sub Branch Manager",
+      "current_band_monthly_hkd": [
+        43000,
+        51500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 9,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "retail_banking/mortgage/Region Head",
+      "tier": "retail_banking",
+      "role": "mortgage",
+      "grade": "Region Head",
+      "current_band_monthly_hkd": [
+        68500,
+        77000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 9,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "retail_banking/mortgage/Senior Specialist",
+      "tier": "retail_banking",
+      "role": "mortgage",
+      "grade": "Senior Specialist",
+      "current_band_monthly_hkd": [
+        25500,
+        38500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 9,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "retail_banking/mortgage/Specialist",
+      "tier": "retail_banking",
+      "role": "mortgage",
+      "grade": "Specialist",
+      "current_band_monthly_hkd": [
+        17000,
+        25500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 9,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "insurance/actuarial_pricing/Assistant Manager",
+      "tier": "insurance",
+      "role": "actuarial_pricing",
+      "grade": "Assistant Manager",
+      "current_band_monthly_hkd": [
+        25500,
+        43000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 6,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "insurance/actuarial_pricing/Associate Director",
+      "tier": "insurance",
+      "role": "actuarial_pricing",
+      "grade": "Associate Director",
+      "current_band_monthly_hkd": [
+        68500,
+        120000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 6,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "insurance/actuarial_pricing/Director",
+      "tier": "insurance",
+      "role": "actuarial_pricing",
+      "grade": "Director",
+      "current_band_monthly_hkd": [
+        103000,
+        154500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 6,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "insurance/actuarial_pricing/Head of Pricing",
+      "tier": "insurance",
+      "role": "actuarial_pricing",
+      "grade": "Head of Pricing",
+      "current_band_monthly_hkd": [
+        107000,
+        171500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 6,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "insurance/actuarial_pricing/Manager",
+      "tier": "insurance",
+      "role": "actuarial_pricing",
+      "grade": "Manager",
+      "current_band_monthly_hkd": [
+        34500,
+        51500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 6,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "insurance/actuarial_pricing/Senior Manager",
+      "tier": "insurance",
+      "role": "actuarial_pricing",
+      "grade": "Senior Manager",
+      "current_band_monthly_hkd": [
+        51500,
+        85500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 6,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "back_office_operations/collateral_management/AVP",
+      "tier": "back_office_operations",
+      "role": "collateral_management",
+      "grade": "AVP",
+      "current_band_monthly_hkd": [
+        35500,
+        50000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 5,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "back_office_operations/collateral_management/Analyst",
+      "tier": "back_office_operations",
+      "role": "collateral_management",
+      "grade": "Analyst",
+      "current_band_monthly_hkd": [
+        10500,
+        21500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 5,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "back_office_operations/collateral_management/Associate",
+      "tier": "back_office_operations",
+      "role": "collateral_management",
+      "grade": "Associate",
+      "current_band_monthly_hkd": [
+        21500,
+        35500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 5,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "back_office_operations/collateral_management/Director",
+      "tier": "back_office_operations",
+      "role": "collateral_management",
+      "grade": "Director",
+      "current_band_monthly_hkd": [
+        64500,
+        171500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 5,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "back_office_operations/collateral_management/VP",
+      "tier": "back_office_operations",
+      "role": "collateral_management",
+      "grade": "VP",
+      "current_band_monthly_hkd": [
+        50000,
+        64500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 5,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "corporate_finance_accounting/accounting_support/Accounts Receivable / Payable",
+      "tier": "corporate_finance_accounting",
+      "role": "accounting_support",
+      "grade": "Accounts Receivable / Payable",
+      "current_band_monthly_hkd": [
+        13500,
+        21500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 5,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "corporate_finance_accounting/accounting_support/Assistant Accountant",
+      "tier": "corporate_finance_accounting",
+      "role": "accounting_support",
+      "grade": "Assistant Accountant",
+      "current_band_monthly_hkd": [
+        13000,
+        15500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 5,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "corporate_finance_accounting/accounting_support/Credit Control",
+      "tier": "corporate_finance_accounting",
+      "role": "accounting_support",
+      "grade": "Credit Control",
+      "current_band_monthly_hkd": [
+        17000,
+        30000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 5,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "corporate_finance_accounting/accounting_support/Graduate Accountant",
+      "tier": "corporate_finance_accounting",
+      "role": "accounting_support",
+      "grade": "Graduate Accountant",
+      "current_band_monthly_hkd": [
+        13500,
+        19000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 5,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "corporate_finance_accounting/shared_service_centre/Head of SSC",
+      "tier": "corporate_finance_accounting",
+      "role": "shared_service_centre",
+      "grade": "Head of SSC",
+      "current_band_monthly_hkd": [
+        71500,
+        107000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 3,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "corporate_finance_accounting/shared_service_centre/Manager",
+      "tier": "corporate_finance_accounting",
+      "role": "shared_service_centre",
+      "grade": "Manager",
+      "current_band_monthly_hkd": [
+        37500,
+        47000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 3,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "corporate_finance_accounting/shared_service_centre/Senior Manager",
+      "tier": "corporate_finance_accounting",
+      "role": "shared_service_centre",
+      "grade": "Senior Manager",
+      "current_band_monthly_hkd": [
+        47000,
+        68500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 3,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "corporate_finance_accounting/shared_service_centre/Team Lead",
+      "tier": "corporate_finance_accounting",
+      "role": "shared_service_centre",
+      "grade": "Team Lead",
+      "current_band_monthly_hkd": [
+        25500,
+        37500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 3,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "front_office/private_equity/Analyst",
+      "tier": "front_office",
+      "role": "private_equity",
+      "grade": "Analyst",
+      "current_band_monthly_hkd": [
+        34500,
+        43000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 3,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "front_office/private_equity/Associate",
+      "tier": "front_office",
+      "role": "private_equity",
+      "grade": "Associate",
+      "current_band_monthly_hkd": [
+        47000,
+        107000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 3,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "front_office/private_equity/Director",
+      "tier": "front_office",
+      "role": "private_equity",
+      "grade": "Director",
+      "current_band_monthly_hkd": [
+        100000,
+        142500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 3,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "front_office/private_equity/MD",
+      "tier": "front_office",
+      "role": "private_equity",
+      "grade": "MD",
+      "current_band_monthly_hkd": [
+        142500,
+        171500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 3,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "front_office/private_equity/VP",
+      "tier": "front_office",
+      "role": "private_equity",
+      "grade": "VP",
+      "current_band_monthly_hkd": [
+        85500,
+        128500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 3,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "medium"
+    },
+    {
+      "coordinate": "front_office/quantitative_analytics/AVP",
+      "tier": "front_office",
+      "role": "quantitative_analytics",
+      "grade": "AVP",
+      "current_band_monthly_hkd": [
+        100000,
+        120000
+      ],
+      "market_gap_reason": "map_or_replace_unattributed_anchor",
+      "semantic_status": "evidence_unmapped",
+      "role_active_primary_listings": 1,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "low"
+    },
+    {
+      "coordinate": "front_office/quantitative_analytics/Associate",
+      "tier": "front_office",
+      "role": "quantitative_analytics",
+      "grade": "Associate",
+      "current_band_monthly_hkd": [
+        65000,
+        110000
+      ],
+      "market_gap_reason": "map_or_replace_unattributed_anchor",
+      "semantic_status": "evidence_unmapped",
+      "role_active_primary_listings": 1,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "low"
+    },
+    {
+      "coordinate": "front_office/quantitative_analytics/MD",
+      "tier": "front_office",
+      "role": "quantitative_analytics",
+      "grade": "MD",
+      "current_band_monthly_hkd": [
+        180000,
+        200000
+      ],
+      "market_gap_reason": "map_or_replace_unattributed_anchor",
+      "semantic_status": "evidence_unmapped",
+      "role_active_primary_listings": 1,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "low"
+    },
+    {
+      "coordinate": "front_office/quantitative_analytics/VP",
+      "tier": "front_office",
+      "role": "quantitative_analytics",
+      "grade": "VP",
+      "current_band_monthly_hkd": [
+        110000,
+        170000
+      ],
+      "market_gap_reason": "map_or_replace_unattributed_anchor",
+      "semantic_status": "evidence_unmapped",
+      "role_active_primary_listings": 1,
+      "exact_grade_active_primary_listings": 1,
+      "priority": "low"
+    },
+    {
+      "coordinate": "middle_office/performance_investment_risk/AVP",
+      "tier": "middle_office",
+      "role": "performance_investment_risk",
+      "grade": "AVP",
+      "current_band_monthly_hkd": [
+        25500,
+        55500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 0,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "low"
+    },
+    {
+      "coordinate": "middle_office/performance_investment_risk/Head",
+      "tier": "middle_office",
+      "role": "performance_investment_risk",
+      "grade": "Head",
+      "current_band_monthly_hkd": [
+        85500,
+        171500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 0,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "low"
+    },
+    {
+      "coordinate": "middle_office/performance_investment_risk/VP",
+      "tier": "middle_office",
+      "role": "performance_investment_risk",
+      "grade": "VP",
+      "current_band_monthly_hkd": [
+        51500,
+        85500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 0,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "low"
+    },
+    {
+      "coordinate": "middle_office/risk_climate_modeling_validation/Head of Department",
+      "tier": "middle_office",
+      "role": "risk_climate_modeling_validation",
+      "grade": "Head of Department",
+      "current_band_monthly_hkd": [
+        103000,
+        128500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 0,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "low"
+    },
+    {
+      "coordinate": "middle_office/risk_climate_modeling_validation/Manager",
+      "tier": "middle_office",
+      "role": "risk_climate_modeling_validation",
+      "grade": "Manager",
+      "current_band_monthly_hkd": [
+        35500,
+        60000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 0,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "low"
+    },
+    {
+      "coordinate": "middle_office/risk_climate_modeling_validation/Senior Exec to Assistant Manager",
+      "tier": "middle_office",
+      "role": "risk_climate_modeling_validation",
+      "grade": "Senior Exec to Assistant Manager",
+      "current_band_monthly_hkd": [
+        25500,
+        38500
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 0,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "low"
+    },
+    {
+      "coordinate": "middle_office/risk_climate_modeling_validation/Senior Manager",
+      "tier": "middle_office",
+      "role": "risk_climate_modeling_validation",
+      "grade": "Senior Manager",
+      "current_band_monthly_hkd": [
+        60000,
+        103000
+      ],
+      "market_gap_reason": "replace_hays_package_proxy",
+      "semantic_status": "total_package_proxy_not_base_compatible",
+      "role_active_primary_listings": 0,
+      "exact_grade_active_primary_listings": 0,
+      "priority": "low"
+    }
+  ]
+}

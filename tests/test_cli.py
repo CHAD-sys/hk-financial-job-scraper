@@ -45,6 +45,7 @@ DOCUMENTED_INVOCATIONS = [
     ["--fetch-posts-backfill"],
     ["--deactivate-stale-posts"],
     ["--repair-companies"],
+    ["--replay-salary-rules"],
     ["--posts-pilot-report"],
 ]
 
@@ -157,6 +158,7 @@ def test_no_mode_flag_means_scrape():
     (["--deactivate-stale-posts"], "deactivate-stale-posts"),
     (["--check-ghost-jobs"], "check-ghost-jobs"),
     (["--repair-companies"], "repair-companies"),
+    (["--replay-salary-rules"], "replay-salary-rules"),
 ])
 def test_each_flag_selects_its_mode(argv, expected):
     mode = select_mode(parse_args(argv))

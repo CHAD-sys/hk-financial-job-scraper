@@ -1,10 +1,10 @@
 """Deterministic repairs to salary estimates already in the database.
 
-A clamp change only affects estimates written *after* it. That is deliberate — the
-alternative, folding every clamp constant into `salary.version()`, marks ~13,000 stored
-rows stale and re-pays DeepSeek for all of them (see `salary.py`'s own reasoning about
-what the fingerprint deliberately does and does not cover). But it leaves the rows already
-published carrying the number the old clamp allowed.
+A clamp change creates a new `salary.version()`, making the replay decision visible. An
+operator may deliberately grandfather the prior version to avoid re-paying DeepSeek for
+the whole catalogue when the affected rows can be recomputed exactly. That choice leaves
+already-published rows carrying the number the old clamp allowed until a deterministic
+repair is applied.
 
 This module closes that gap for repairs that need no model call: the answer is a pure
 function of the row, so it can be recomputed for free, as many times as you like.
@@ -29,7 +29,9 @@ from hk_jobs.salary_clamp import (
     INTERNSHIP_MAX_MONTHLY_HKD,
     SINGLE_VALUE_MIN_FRACTION,
     _title_grade_ceiling,
+    clamp_salary,
     is_internship,
+    salary_rule_resolution,
 )
 
 logger = logging.getLogger(__name__)
@@ -55,6 +57,8 @@ class RepairSummary:
     pinned: list[str] = field(default_factory=list)
     #: (title, old_max, new_max), largest reduction first — for the run log.
     examples: list[tuple[str, int, int]] = field(default_factory=list)
+    #: Secondary copies brought into line with their primary listing during a full replay.
+    aligned: int = 0
 
 
 def _capped(est_min: int | None, est_max: int | None) -> tuple[int | None, int | None]:
@@ -276,6 +280,128 @@ def repair_grade_ceiling_salaries(
                     pending,
                 )
             logger.info("Repaired %d grade-ceiling salary estimates", summary.repaired)
+    finally:
+        conn.close()
+    return summary
+
+
+def replay_salary_rules(
+    db_path: str,
+    *,
+    dry_run: bool = True,
+    active_only: bool = True,
+    rule_names: frozenset[str] | None = None,
+) -> RepairSummary:
+    """Re-apply the current deterministic clamp to stored estimates for free.
+
+    This is deliberately different from a new model enrichment. The pre-clamp model
+    output is not stored, so it only replays a *terminal*, employer/title-specific rule
+    that can safely replace a previously finalised range. Re-running coordinate floors
+    against an already-clamped figure would manufacture promotions on a second pass.
+    It neither calls DeepSeek nor changes ``prompt_version``. ``rule_names``
+    makes a replay deliberately narrow when a newly reviewed anchor should be
+    applied without also replaying every other terminal rule.
+    Employer-disclosed figures and Ultimate Admin edits remain untouchable.
+
+    Active cross-post copies are included, not hidden behind ``is_primary``. Once their
+    primary listing has a safe deterministic result, unprotected secondary estimates are
+    aligned to it so a later source-priority change cannot resurrect a stale range.
+    """
+    summary = RepairSummary()
+    active = "AND j.is_active = 1" if active_only else ""
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            f"""SELECT j.title, j.company_slug, j.source_tier, j.is_primary,
+                       j.cross_posted, j.apply_url, e.source, e.source_id,
+                       e.seniority, e.salary_tier, e.salary_role, e.salary_grade,
+                       e.salary_estimated_min AS mn, e.salary_estimated_max AS mx,
+                       e.salary_estimated_confidence AS conf,
+                       e.salary_hkd_max AS disclosed_max,
+                       e.manually_edited_at AS pinned_at
+                  FROM jobs j JOIN job_enrichments e
+                    ON j.source = e.source AND j.source_id = e.source_id
+                 WHERE e.salary_estimated_max IS NOT NULL {active}"""
+        ).fetchall()
+        summary.examined = len(rows)
+
+        targets: dict[tuple[str, str], tuple[int | None, int | None]] = {}
+        protected: set[tuple[str, str]] = set()
+        rows_by_key = {(row["source"], row["source_id"]): row for row in rows}
+        for row in rows:
+            key = (row["source"], row["source_id"])
+            if row["pinned_at"] is not None:
+                protected.add(key)
+                summary.pinned.append(f"[pinned] {row['title']}")
+                continue
+            if row["disclosed_max"] is not None or row["conf"] == "high":
+                protected.add(key)
+                summary.disclosed.append(f"[disclosed] {row['title']}")
+                continue
+            # Require an explicit terminal rule. The standard coordinate ladder is an
+            # enrichment-time transform: replaying it against the stored final result
+            # is not mathematically idempotent (a source-tier multiplier may already
+            # have been applied). Exact employer/title rules are safe because they own
+            # both endpoints and deliberately supersede the prior range.
+            terminal = salary_rule_resolution(
+                row["company_slug"],
+                row["title"],
+                role=row["salary_role"],
+                internship=is_internship(row["title"]),
+            ).winner
+            if terminal is None:
+                continue
+            if rule_names is not None and terminal.rule not in rule_names:
+                continue
+            summary.matched += 1
+            targets[key] = clamp_salary(
+                row["salary_tier"], row["seniority"], row["mn"], row["mx"],
+                role=row["salary_role"], grade=row["salary_grade"],
+                company_slug=row["company_slug"], title=row["title"],
+                source_tier=row["source_tier"],
+            )
+
+        groups: dict[str, list[sqlite3.Row]] = {}
+        for row in rows:
+            if row["cross_posted"] and row["apply_url"]:
+                groups.setdefault(row["apply_url"], []).append(row)
+        for members in groups.values():
+            primary = next((row for row in members if row["is_primary"]), None)
+            if primary is None:
+                continue
+            primary_key = (primary["source"], primary["source_id"])
+            if primary_key in protected or primary_key not in targets:
+                continue
+            canonical = targets[primary_key]
+            for row in members:
+                key = (row["source"], row["source_id"])
+                if key == primary_key or key in protected:
+                    continue
+                if targets.get(key) != canonical:
+                    targets[key] = canonical
+                    summary.aligned += 1
+
+        pending: list[tuple[int | None, int | None, str, str]] = []
+        for key, target in targets.items():
+            row = rows_by_key[key]
+            before = (row["mn"], row["mx"])
+            if target == before:
+                continue
+            pending.append((target[0], target[1], *key))
+            summary.examples.append((row["title"], row["mx"], target[1] or 0))
+        summary.repaired = len(pending)
+        summary.examples.sort(key=lambda example: abs(example[1] - example[2]), reverse=True)
+        del summary.examples[10:]
+
+        if pending and not dry_run:
+            with conn:
+                conn.executemany(
+                    """UPDATE job_enrichments
+                          SET salary_estimated_min = ?, salary_estimated_max = ?
+                        WHERE source = ? AND source_id = ?""",
+                    pending,
+                )
     finally:
         conn.close()
     return summary
