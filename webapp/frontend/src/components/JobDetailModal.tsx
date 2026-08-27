@@ -318,7 +318,9 @@ function MetaGrid({ d }: { d: Job | JobDetail }) {
       {[
         { icon: MapPin, label: 'Location', val: shortLocation(d.locations) },
         { icon: Briefcase, label: 'Work type', val: formatRemoteType(d.remote_type) || '—' },
-        { icon: Tag, label: 'Seniority', val: d.seniority ?? '—' },
+        // Omitted entirely (not '—') when null: hidden from non-admins, same
+        // as SeniorityBadge above and JobCard's meta row.
+        ...(d.seniority ? [{ icon: Tag, label: 'Seniority', val: d.seniority }] : []),
         { icon: Tag, label: 'Category', val: d.job_category ?? '—' },
         { icon: GraduationCap, label: 'Experience', val: d.years_experience_required != null ? `${d.years_experience_required}+ yrs` : '—' },
         { icon: Calendar, label: 'Posted', val: timeAgo(d.posted_at) },

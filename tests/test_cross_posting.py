@@ -17,12 +17,12 @@ from hk_jobs.storage import JobStore
 
 
 def _job(source: str, source_id: str, *, slug="man-group-hk", title="Quant Researcher",
-         loc="Hong Kong", url=None, **overrides) -> Job:
+         loc="Hong Kong", url=None, company="Man Group", **overrides) -> Job:
     overrides.setdefault("fetched_at", datetime.now(UTC))
     return Job(
         source=source,
         source_id=source_id,
-        company="Man Group",
+        company=company,
         company_slug=slug,
         url=url or f"https://{source}.example/{source_id}",
         title=title,
@@ -114,6 +114,46 @@ def test_reconcile_matches_despite_different_location_strings(store):
     assert groups == 1
     rows = store._conn.execute("SELECT apply_url, cross_posted FROM jobs").fetchall()
     assert all(r["cross_posted"] == 1 and r["apply_url"] == "https://efc.hk/x.id1" for r in rows)
+
+
+# ── Named-district guard (ADR 0028, 2026-08-27) ─────────────────────────────────
+# A fuzzy-matching title at two DIFFERENT named branches is two real openings,
+# not one cross-posted vacancy — the failure mode the "location-independent"
+# design above reopened for multi-branch employers.
+
+
+def test_reconcile_refuses_same_title_at_different_named_districts(store):
+    """Same fuzzy title, different named branches: two real openings, not one."""
+    central = _job("efinancialcareers", "1", title="Relationship Manager",
+                   loc="Central, Hong Kong", url="https://efc.hk/x.id1")
+    kwun_tong = _job("jobsdb", "2", title="Relationship Manager",
+                     loc="Kwun Tong, Kowloon East, Hong Kong")
+    store.upsert_many([central, kwun_tong])
+
+    groups, _ = store.reconcile_cross_posted()
+    assert groups == 0
+    rows = store._conn.execute("SELECT is_primary FROM jobs").fetchall()
+    assert all(r["is_primary"] == 1 for r in rows)  # both stay visible
+
+
+def test_reconcile_still_matches_same_named_district(store):
+    """Sanity check: agreeing on the SAME named district must still merge."""
+    a = _job("efinancialcareers", "1", title="Relationship Manager",
+             loc="Central, Hong Kong", url="https://efc.hk/x.id1")
+    b = _job("jobsdb", "2", title="Relationship Manager", loc="Central, Hong Kong Island")
+    store.upsert_many([a, b])
+    groups, _ = store.reconcile_cross_posted()
+    assert groups == 1
+
+
+def test_reconcile_matches_when_only_one_side_names_a_district(store):
+    """One side generic ('Hong Kong'), the other specific: no signal to refuse on."""
+    a = _job("efinancialcareers", "1", title="Relationship Manager",
+             loc="Hong Kong", url="https://efc.hk/x.id1")
+    b = _job("jobsdb", "2", title="Relationship Manager", loc="Central, Hong Kong")
+    store.upsert_many([a, b])
+    groups, _ = store.reconcile_cross_posted()
+    assert groups == 1
 
 
 def test_reconcile_matches_despite_punctuation_and_case(store):
@@ -236,3 +276,74 @@ def test_mark_inactive_is_source_scoped(store):
     assert active["jobsdb"] == 0            # stale JobsDB row deactivated
     assert active["efinancialcareers"] == 1  # eFC row left active
     assert deactivated == 1
+
+
+# ── Cross-slug matching (ADR 0027, 2026-08-27) ─────────────────────────────────
+# Two companies.yaml/companies_longtail.yaml entries for the SAME employer, given
+# different slugs because nobody paired them. Grouping used to be by raw
+# company_slug alone, so these got zero cross-source matching, invisibly.
+
+
+def test_reconcile_matches_across_slugs_for_the_same_employer(store):
+    """A longtail slug and a JobsDB slug for the same company must still merge."""
+    longtail = _job("longtail", "1", slug="man-group-boutique", company="Man Group",
+                     url="https://man.example/careers/1")
+    jobsdb = _job("jobsdb", "2", slug="man-group-hk-jobsdb", company="Man Group",
+                  url="https://hk.jobsdb.com/job/2")
+    store.upsert_many([longtail, jobsdb])
+
+    groups, _ = store.reconcile_cross_posted()
+    assert groups == 1
+    rows = store._conn.execute(
+        "SELECT source, cross_posted, is_primary FROM jobs"
+    ).fetchall()
+    assert all(r["cross_posted"] == 1 for r in rows)
+    assert sum(r["is_primary"] for r in rows) == 1  # exactly one card shown
+
+
+def test_reconcile_ignores_legal_suffix_noise_across_slugs(store):
+    """'Man Group' vs 'Man Group (Hong Kong) Limited' are the same employer."""
+    a = _job("longtail", "1", slug="slug-a", company="Man Group",
+             url="https://man.example/1")
+    b = _job("jobsdb", "2", slug="slug-b", company="Man Group (Hong Kong) Limited",
+             url="https://hk.jobsdb.com/job/2")
+    store.upsert_many([a, b])
+    groups, _ = store.reconcile_cross_posted()
+    assert groups == 1
+
+
+def test_reconcile_does_not_merge_genuinely_different_companies(store):
+    """Two unrelated employers with different slugs must never collapse."""
+    a = _job("longtail", "1", slug="slug-a", company="Man Group",
+             url="https://man.example/1")
+    b = _job("jobsdb", "2", slug="slug-b", company="Deutsche Bank",
+             url="https://hk.jobsdb.com/job/2")
+    store.upsert_many([a, b])
+    groups, _ = store.reconcile_cross_posted()
+    assert groups == 0
+    rows = store._conn.execute("SELECT is_primary FROM jobs").fetchall()
+    assert all(r["is_primary"] == 1 for r in rows)  # both stay visible
+
+
+def test_scoped_reelection_sees_the_sibling_slug(store):
+    """
+    A scoped reconcile touching only ONE of two slugs sharing a company name
+    must still see the OTHER slug's rows, or it wrongly concludes the group is
+    single-slug/single-source and resets routing set by the full pass.
+    """
+    longtail = _job("longtail", "1", slug="man-group-boutique", company="Man Group",
+                     url="https://man.example/1")
+    jobsdb = _job("jobsdb", "2", slug="man-group-hk-jobsdb", company="Man Group",
+                  url="https://hk.jobsdb.com/job/2")
+    store.upsert_many([longtail, jobsdb])
+    store.reconcile_cross_posted()  # full pass establishes the cross-post
+
+    # Scoped call naming only ONE of the two slugs — as mark_inactive_for_run
+    # does after a deactivation confined to that slug's source.
+    groups, _ = store.reconcile_cross_posted(company_slugs=["man-group-boutique"])
+    assert groups == 1
+    rows = store._conn.execute(
+        "SELECT source, cross_posted, is_primary FROM jobs"
+    ).fetchall()
+    assert all(r["cross_posted"] == 1 for r in rows)
+    assert sum(r["is_primary"] for r in rows) == 1

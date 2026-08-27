@@ -334,6 +334,39 @@ def test_salary_estimate_gate_also_applies_to_the_detail_endpoint(client):
     assert admin_detail.json()["salary_estimated_min"] == 80_000
 
 
+# ── Seniority label visibility ──────────────────────────────────────────────
+# Same fail-safe-default gate as the AI salary estimate above, on the same
+# "IB" row (seniority="senior").
+
+
+def test_seniority_is_hidden_from_an_anonymous_visitor(client):
+    ib = _job(_get(client, page_size=100), "IB")
+    assert ib["seniority"] is None
+
+
+def test_seniority_is_hidden_from_a_signed_in_seeker(client):
+    _register_member(client)
+    ib = _job(_get(client, page_size=100), "IB")
+    assert ib["seniority"] is None
+
+
+def test_seniority_is_visible_to_an_admin(client):
+    _register_admin(client)
+    ib = _job(_get(client, page_size=100), "IB")
+    assert ib["seniority"] == "senior"
+
+
+def test_seniority_gate_also_applies_to_the_detail_endpoint(client):
+    anon_detail = _detail(client, "workday", "IB")
+    assert anon_detail.status_code == 200
+    assert anon_detail.json()["seniority"] is None
+
+    _register_admin(client)
+    admin_detail = _detail(client, "workday", "IB")
+    assert admin_detail.status_code == 200
+    assert admin_detail.json()["seniority"] == "senior"
+
+
 def test_ultimate_admin_alone_may_browse_with_no_query(client):
     """is_super_admin without is_admin still counts as staff — the two bits are
     independent columns, and create_admin.py setting both is a convention, not a

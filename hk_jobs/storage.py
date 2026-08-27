@@ -206,14 +206,103 @@ def _title_tokens(title: str) -> frozenset[str]:
     return frozenset(t for t in _TITLE_NOISE_RE.sub(" ", title.lower()).split() if t)
 
 
+# Specific HK district/area names. When BOTH sides of a title match name a
+# specific district and those sets are disjoint, that's a real signal of two
+# different branch openings (e.g. "Relationship Manager" in Central AND in
+# Kwun Tong the same week — common among multi-branch banks/insurers) and the
+# match is refused even though the titles are identical. Deliberately NOT
+# exhaustive and NOT used to REQUIRE agreement: a location this list doesn't
+# recognise, or a generic HK-wide phrasing ("Hong Kong", "Hong Kong SAR") on
+# either side, falls back to the pre-existing title-only match — matching
+# despite differently-phrased generic locations is itself a fix for a real
+# false-negative (see test_reconcile_matches_despite_different_location_strings).
+_HK_DISTRICTS = frozenset({
+    # Hong Kong Island
+    "central", "admiralty", "wan chai", "causeway bay", "north point",
+    "quarry bay", "taikoo", "sheung wan", "kennedy town", "aberdeen",
+    "wong chuk hang", "chai wan", "shau kei wan", "happy valley",
+    "tin hau", "fortress hill", "sai ying pun", "mid levels",
+    # Kowloon
+    "tsim sha tsui", "yau ma tei", "mong kok", "prince edward",
+    "sham shui po", "cheung sha wan", "kowloon bay", "kwun tong",
+    "kowloon east", "kowloon city", "to kwa wan", "hung hom",
+    "san po kong", "diamond hill", "wong tai sin", "lok fu",
+    "ngau tau kok", "kai tak",
+    # New Territories
+    "sha tin", "tai po", "fanling", "sheung shui", "tuen mun",
+    "yuen long", "tin shui wai", "tsuen wan", "kwai chung",
+    "tsing yi", "sai kung", "tseung kwan o", "ma on shan",
+    "cyberport", "science park",
+    # Outlying islands
+    "lantau", "tung chung", "discovery bay",
+})
+
+
+def _location_districts(locations: list[str]) -> frozenset[str]:
+    """Specific HK district tokens named across a row's locations, if any."""
+    found: set[str] = set()
+    for loc in locations:
+        lowered = (loc or "").lower()
+        for district in _HK_DISTRICTS:
+            if district in lowered:
+                found.add(district)
+    return frozenset(found)
+
+
+def _parse_locations(raw: str | None) -> list[str]:
+    try:
+        value = json.loads(raw) if raw else []
+        return value if isinstance(value, list) else []
+    except (json.JSONDecodeError, TypeError):
+        return []
+
+
 def _titles_match(a: frozenset[str], b: frozenset[str], a_lvl: frozenset[str],
-                  b_lvl: frozenset[str]) -> bool:
+                  b_lvl: frozenset[str], a_districts: frozenset[str] = frozenset(),
+                  b_districts: frozenset[str] = frozenset()) -> bool:
     """True if two token sets are the same vacancy: same seniority + enough overlap."""
     if not a or not b:
         return a == b
     if a_lvl != b_lvl:               # different seniority → different role
         return False
+    if a_districts and b_districts and a_districts.isdisjoint(b_districts):
+        return False                 # named, non-overlapping branches → different role
     return len(a & b) / len(a | b) >= _FUZZY_TITLE_THRESHOLD
+
+
+_COMPANY_NOISE_RE = re.compile(r"[^a-z0-9]+")
+# Legal-entity/formatting noise only — never a partial or fuzzy company match.
+# Merging two DIFFERENT employers would hide one of them's entire board, not
+# just one listing, so this stays deliberately conservative: strip known
+# corporate suffixes and punctuation, then require the two names to be
+# EXACTLY equal afterwards (see _company_group_key's length guard below for
+# the case where that strips a name down to nothing useful).
+_COMPANY_SUFFIX_RE = re.compile(
+    r"\b(?:limited|ltd|holdings?|group|corporation|corp|plc|inc|incorporated|"
+    r"hong kong|hk|pte|pvt|llp|llc)\b"
+)
+
+
+def _normalize_company_name(name: str) -> str:
+    """Same employer name, minus legal-suffix/formatting noise, for grouping."""
+    cleaned = _COMPANY_NOISE_RE.sub(" ", (name or "").lower())
+    cleaned = " ".join(cleaned.split())
+    cleaned = _COMPANY_SUFFIX_RE.sub(" ", cleaned)
+    return " ".join(cleaned.split())
+
+
+def _company_group_key(company_slug: str, company: str) -> str:
+    """
+    The key `reconcile_cross_posted` clusters on — normally the normalized
+    company NAME (so two `companies.yaml` entries for the same employer under
+    different slugs, e.g. a JobsDB entry and an unrelated longtail entry that
+    nobody thought to pair, are still recognised as one vacancy pool), falling
+    back to the raw slug when normalization leaves too little to safely match
+    on (empty, or under 3 characters — avoids two unrelated employers whose
+    names both strip down to something generic colliding into one group).
+    """
+    normalized = _normalize_company_name(company)
+    return normalized if len(normalized) >= 3 else f"slug:{company_slug}"
 
 
 def _cluster_by_title(members: list[sqlite3.Row]) -> list[list[sqlite3.Row]]:
@@ -228,6 +317,7 @@ def _cluster_by_title(members: list[sqlite3.Row]) -> list[list[sqlite3.Row]]:
     n = len(members)
     toks = [_title_tokens(m["title"]) for m in members]
     lvls = [t & _LEVEL_TOKENS for t in toks]
+    districts = [_location_districts(_parse_locations(m["locations"])) for m in members]
     parent = list(range(n))
 
     def find(x: int) -> int:
@@ -240,7 +330,8 @@ def _cluster_by_title(members: list[sqlite3.Row]) -> list[list[sqlite3.Row]]:
         if not toks[i]:
             continue
         for j in range(i + 1, n):
-            if _titles_match(toks[i], toks[j], lvls[i], lvls[j]):
+            if _titles_match(toks[i], toks[j], lvls[i], lvls[j],
+                             districts[i], districts[j]):
                 ri, rj = find(i), find(j)
                 if ri != rj:
                     parent[ri] = rj
@@ -582,10 +673,11 @@ class JobStore:
         Detect vacancies that appear on more than one source and set apply_url.
 
         The same role is often posted on several sites (e.g. eFinancialCareers
-        AND JobsDB). This pass groups a company's ACTIVE jobs into vacancies by
-        FUZZY title match (_cluster_by_title — word-overlap with a seniority guard,
-        location-independent) and, for any cluster spanning more than one distinct
-        source:
+        AND JobsDB). This pass groups ACTIVE jobs for the same employer into
+        vacancies by FUZZY title match (_cluster_by_title — word-overlap with a
+        seniority guard, generic-location-independent but district-aware: see
+        _location_districts) and, for any cluster spanning more than one
+        distinct source:
 
           - sets cross_posted = 1 on every copy, and
           - sets apply_url on every copy to the highest-priority source's URL
@@ -602,6 +694,17 @@ class JobStore:
         to share a normalised title are both left visible (they are usually
         distinct roles, not a cross-post).
 
+        "Same employer" is normally "same company_slug", but grouping is actually
+        keyed by _company_group_key (normalized company NAME), not the raw slug —
+        two `companies.yaml`/`companies_longtail.yaml` entries for the same real
+        employer under DIFFERENT slugs (nobody thought to pair them, e.g. a
+        longtail entry added before a JobsDB entry for the same company existed)
+        used to get zero cross-source matching at all, invisibly: two boards, two
+        cards, forever. See docs/adr/0027 (cross-slug candidate audit, 2026-08-27).
+        The name match is deliberately conservative — legal-suffix/punctuation
+        noise only, never fuzzy overlap — since collapsing two DIFFERENT employers
+        together would hide one of their entire boards, not just one listing.
+
         Groups on a single source are reset to (apply_url='', cross_posted=0,
         is_primary=1) so the pass is fully idempotent: if a role stops being
         cross-posted (its eFC copy disappears), the leftover routing is cleared on
@@ -612,13 +715,13 @@ class JobStore:
         from collections import defaultdict
 
         # company_slugs scopes the pass to the companies whose Listings just
-        # changed. Clustering is per-company and O(n^2) within one, so a full pass
+        # changed. Clustering is per-group and O(n^2) within one, so a full pass
         # costs ~22s over 5,000 active rows — too slow to run after every
         # deactivation, and unnecessary: a company nobody touched cannot have
         # changed its election.
         sql = (
-            "SELECT rowid, company_slug, title, source, url, apply_url, "
-            "cross_posted, is_primary FROM jobs WHERE is_active = 1"
+            "SELECT rowid, company_slug, company, title, locations, source, url, "
+            "apply_url, cross_posted, is_primary FROM jobs WHERE is_active = 1"
         )
         if company_slugs is None:
             rows = self._conn.execute(sql).fetchall()
@@ -626,6 +729,26 @@ class JobStore:
             slugs = list(company_slugs)
             if not slugs:
                 return 0, 0
+            # Expand to sibling slugs sharing a normalized company identity.
+            # Without this, a scoped re-election touching only ONE of two slugs
+            # that are really the same employer would see only that slug's rows,
+            # wrongly conclude the group is single-slug/single-source, and reset
+            # cross_posted/is_primary — flapping the election on every incremental
+            # call instead of just on the full nightly pass that sees everything.
+            slug_company = self._conn.execute(
+                "SELECT DISTINCT company_slug, company FROM jobs WHERE is_active = 1"
+            ).fetchall()
+            slugs_by_key: dict[str, set[str]] = defaultdict(set)
+            key_by_slug: dict[str, str] = {}
+            for r in slug_company:
+                key = _company_group_key(r["company_slug"], r["company"])
+                key_by_slug[r["company_slug"]] = key
+                slugs_by_key[key].add(r["company_slug"])
+            expanded: set[str] = set()
+            for s in slugs:
+                expanded |= slugs_by_key.get(key_by_slug.get(s, f"slug:{s}"), {s})
+            slugs = sorted(expanded)
+
             rows = []
             for i in range(0, len(slugs), _REF_CHUNK):
                 chunk = slugs[i:i + _REF_CHUNK]
@@ -634,14 +757,14 @@ class JobStore:
                     f"{sql} AND company_slug IN ({ph})", chunk
                 ).fetchall()
 
-        by_company: dict[str, list[sqlite3.Row]] = defaultdict(list)
+        by_group: dict[str, list[sqlite3.Row]] = defaultdict(list)
         for r in rows:
-            by_company[r["company_slug"]].append(r)
+            by_group[_company_group_key(r["company_slug"], r["company"])].append(r)
 
         # (apply_url, cross_posted, is_primary, rowid)
         updates: list[tuple[str, int, int, int]] = []
         cross_groups = 0
-        for company_rows in by_company.values():
+        for company_rows in by_group.values():
             # Fast path: a company scraped from a single source can't cross-post;
             # skip the O(n^2) title clustering and just reset routing to defaults.
             if len({m["source"] for m in company_rows}) <= 1:

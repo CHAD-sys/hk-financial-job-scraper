@@ -879,6 +879,10 @@ def _to_summary(row: sqlite3.Row, *, is_admin: bool = False) -> JobSummary:
     est_min = row["salary_estimated_min"] if is_admin else None
     est_max = row["salary_estimated_max"] if is_admin else None
     est_confidence = row["salary_estimated_confidence"] if is_admin else None
+    # Seniority label hidden from non-admins, same fail-safe-default gating as
+    # the AI salary estimate above. `is_admin` defaults to False — every call
+    # site must opt IN, not opt out.
+    seniority = row["seniority"] if is_admin else None
     return JobSummary(
         source=row["source"],
         source_id=row["source_id"],
@@ -888,7 +892,7 @@ def _to_summary(row: sqlite3.Row, *, is_admin: bool = False) -> JobSummary:
         title_en=row["title_en"],
         source_tier=row["source_tier"] or "mainstream",
         locations=_parse_json_list(row["locations"]),
-        seniority=row["seniority"],
+        seniority=seniority,
         job_category=row["job_category"],
         remote_type=row["remote_type"],
         required_skills=_parse_json_list(row["required_skills"]),

@@ -30,8 +30,12 @@ from hk_jobs.storage import JobStore
 
 def job(source: str, source_id: str, *, title: str = "Data Engineer",
         slug: str = "testco", fetched_at: datetime | None = None) -> Job:
+    # Company name defaults to the slug itself (not a shared literal like "Test
+    # Co") — reconcile_cross_posted now groups by normalized company NAME, not
+    # slug (ADR 0027), so two DIFFERENT slugs in these scoping tests need
+    # genuinely different names or they'd collide into one group.
     return Job(
-        source=source, source_id=source_id, company="Test Co", company_slug=slug,
+        source=source, source_id=source_id, company=slug, company_slug=slug,
         url=f"https://example.com/{source}/{source_id}", title=title,
         locations=["Hong Kong"], fetched_at=fetched_at or datetime.now(UTC),
     )
