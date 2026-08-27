@@ -112,6 +112,7 @@ from typing import Any
 import httpx
 
 from hk_jobs import salary, salary_anchors, salary_corrections
+from hk_jobs.salary_context import build_salary_context
 from hk_jobs.ai_budget import BudgetExceeded, RunBudget
 from hk_jobs.salary_corrections import Correction
 
@@ -253,7 +254,11 @@ def _load_salary_reference() -> str:
         return _SALARY_REFERENCE_FALLBACK
 
 
-_SALARY_REFERENCE = _load_salary_reference()
+# v14 sends only per-posting candidates.  Keeping the full 729-cell catalogue
+# in every request both encouraged salary-led grade picking and consumed most
+# of the prompt.  The renderer remains as an emergency diagnostic helper, but
+# it is intentionally not inserted into production requests.
+_SALARY_REFERENCE = ""
 
 
 def _load_blinded_salary_reference() -> str:
@@ -288,7 +293,7 @@ def _load_blinded_salary_reference() -> str:
         return ""
 
 
-_BLINDED_SALARY_REFERENCE = _load_blinded_salary_reference()
+_BLINDED_SALARY_REFERENCE = ""
 
 
 def _render_insurance_tier_policy() -> str:
@@ -557,7 +562,16 @@ salary_estimated_confidence:
 - "high"   = salary explicitly stated in the description (exact figures found in Step 2)
 - "medium" = not stated, but function tier + seniority + company are clear
 - "low"    = not stated, and function tier or seniority is ambiguous (when low, bias to the
-             BOTTOM of the band)""".replace(
+             BOTTOM of the band)
+
+CLASSIFICATION-FIRST OVERRIDE (v14): the per-job ANCHOR CANDIDATES block after the
+posting is authoritative. Choose salary_tier, salary_role and salary_grade ONLY from
+that short list; do not invent a coordinate and do not select from the broad reference
+catalogue above. The runtime, not you, supplies the estimated salary endpoints from a
+valid coordinate. Therefore, whenever no explicit salary is disclosed, return null for
+salary_estimated_min and salary_estimated_max. If no candidate is clearly correct,
+return null for all three coordinate fields and leave the estimate null. A safe review
+fallback is better than a plausible but untraceable number.""".replace(
     "{blinded_salary_reference}", _BLINDED_SALARY_REFERENCE
 ).replace("{salary_reference}", _SALARY_REFERENCE).replace(
     "{insurance_tier_policy}", _INSURANCE_TIER_POLICY
@@ -660,7 +674,10 @@ List each as a short phrase. Do NOT pad with vague generics (e.g. "strong commun
 Company: {company}
 Title: {title}
 Description:
-{description}"""
+{description}
+
+======== ANCHOR CANDIDATES (classification only) ========
+{salary_context}"""
 
 _PROMPT_TITLE_ONLY = """\
 You extract structured data from Hong Kong job postings at financial firms. The posting
@@ -695,7 +712,10 @@ write or invent one.
 
 ======== THE JOB POSTING TO EXTRACT ========
 Company: {company}
-Title: {title}"""
+Title: {title}
+
+======== ANCHOR CANDIDATES (classification only) ========
+{salary_context}"""
 
 
 class DeepSeekEnricher:
@@ -782,6 +802,7 @@ class DeepSeekEnricher:
         company: str = "",
         description: str = "",
         seniority: str | None = None,
+        company_slug: str | None = None,
     ) -> dict[str, Any]:
         """Single API call. Raises on error."""
         company = company or "(unknown)"
@@ -796,6 +817,11 @@ class DeepSeekEnricher:
         salary_instructions = _SALARY_INSTRUCTIONS + salary_corrections.evidence_for(
             self.salary_corrections, title=title, seniority=seniority,
         )
+        salary_context = build_salary_context(
+            title=title,
+            description=description,
+            company_slug=company_slug,
+        ).render()
         if description.strip():
             desc_text = description.strip()[:_DESC_MAX_CHARS]
             prompt = _PROMPT_WITH_DESC.format(
@@ -803,6 +829,7 @@ class DeepSeekEnricher:
                 translation_instructions=_TRANSLATION_INSTRUCTIONS,
                 salary_instructions=salary_instructions,
                 summary_instructions=_SUMMARY_INSTRUCTIONS,
+                salary_context=salary_context,
             )
             max_tokens = MAX_TOKENS_WITH_DESCRIPTION
         else:
@@ -810,6 +837,7 @@ class DeepSeekEnricher:
                 company=company, title=title,
                 translation_instructions=_TRANSLATION_INSTRUCTIONS,
                 salary_instructions=salary_instructions,
+                salary_context=salary_context,
             )
             max_tokens = MAX_TOKENS_TITLE_ONLY
 
@@ -912,10 +940,13 @@ class DeepSeekEnricher:
     def _enrich_with_retry(
         self, title: str, company: str = "", description: str = "", max_retries: int = 3,
         seniority: str | None = None,
+        company_slug: str | None = None,
     ) -> dict[str, Any] | None:
         for attempt in range(max_retries):
             try:
-                return self.enrich_single(title, company, description, seniority=seniority)
+                return self.enrich_single(
+                    title, company, description, seniority=seniority, company_slug=company_slug,
+                )
             except TruncatedAnswer as exc:
                 # Not retried. A budget that is too small is deterministic: the next
                 # two attempts fail identically and simply triple the bill, which is

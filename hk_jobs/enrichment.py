@@ -166,6 +166,7 @@ class EnrichmentPipeline:
                             enricher._enrich_with_retry,
                             row["title"], row["company"], row["description_clean"] or "",
                             seniority=row["seniority"] if "seniority" in row.keys() else None,
+                            company_slug=row["company_slug"],
                         ): row
                         for row in batch
                     }
@@ -200,6 +201,7 @@ class EnrichmentPipeline:
                                 company_slug=row["company_slug"],
                                 title=row["title"],
                                 source_tier=row["source_tier"],
+                                coordinate_only=True,
                             )
                             est_confidence = data.get("salary_estimated_confidence")
                             # Recruiter posts used to have their estimate discarded here —

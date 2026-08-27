@@ -144,6 +144,23 @@ def test_sampling_params_are_not_sent_under_thinking(sent):
     assert "top_p" not in sent
 
 
+def test_salary_prompt_uses_short_per_job_candidates_not_the_full_anchor_catalog(sent):
+    _enricher().enrich_single(
+        "Senior Product Manager, Wealth and Investments",
+        "DBS Bank",
+        description="Own the wealth product roadmap and investment proposition.",
+        company_slug="dbs-hk",
+    )
+
+    prompt = sent["messages"][0]["content"]
+    assert "ANCHOR CANDIDATES (classification only)" in prompt
+    assert "middle_office / product_management" in prompt
+    assert "Employer cohorts: dbs_sized_banks" in prompt
+    # The old request embedded every role and band (~54k chars). v14 has only
+    # the candidate list, keeping the static instruction well below that size.
+    assert len(prompt) < 35_000
+
+
 # ── the allocation that broke it ─────────────────────────────────────────────
 
 def test_max_tokens_is_allocated_per_task(sent):

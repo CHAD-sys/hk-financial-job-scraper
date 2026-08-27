@@ -78,6 +78,18 @@ def test_finalise_passes_none_through():
     assert salary.finalise(None, None, tier="middle_office", seniority="mid") == (None, None)
 
 
+def test_coordinate_only_finalise_refuses_a_free_form_model_estimate():
+    assert salary.finalise(
+        40_000, 60_000, tier="middle_office", seniority="mid", coordinate_only=True,
+    ) == (None, None)
+
+    assert salary.finalise(
+        None, None,
+        tier="middle_office", role="product_management", grade="Analyst",
+        seniority="junior", coordinate_only=True,
+    ) == (25_000, 40_000)
+
+
 def test_finalise_never_returns_a_flat_point():
     """A range that collapses to min == max reads as a precise figure it is not."""
     lo, hi = salary.finalise(200_000, 200_000, tier="front_office", seniority="lead")

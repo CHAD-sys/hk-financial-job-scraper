@@ -45,7 +45,7 @@ from pathlib import Path
 from typing import Any
 
 from hk_jobs import salary_anchors
-from hk_jobs.salary_clamp import clamp_salary, fix_salary_magnitude
+from hk_jobs.salary_clamp import clamp_salary, fix_salary_magnitude, price_from_coordinate
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +61,7 @@ def finalise(
     company_slug: str | None = None,
     title: str | None = None,
     source_tier: str | None = None,
+    coordinate_only: bool = False,
 ) -> tuple[int | None, int | None]:
     """
     Turn a raw model answer into the number that gets stored.
@@ -75,6 +76,14 @@ def finalise(
     through here, so there is one answer to "what happened to this number
     between the model and the database".
     """
+    # New enrichment is classification-first: it can publish an AI estimate only
+    # when the model selected an exact, valid table coordinate.  A missing or
+    # invalid coordinate is a review fallback, never permission to preserve the
+    # model's free-form amount. Historical repair/audit callers retain the
+    # previous behaviour unless they opt in explicitly.
+    if coordinate_only and price_from_coordinate(tier, role, grade) is None:
+        return None, None
+
     fixed_min, fixed_max = fix_salary_magnitude(raw_min, raw_max)
     return clamp_salary(
         tier, seniority, fixed_min, fixed_max,
@@ -304,39 +313,11 @@ def _clamp_fingerprint() -> str:
 #: rows keep saying which prompt actually produced them; this list only says
 #: "and that is fine".
 #:
-#: `--re-enrich` still overrides everything here, so a genuine recalibration
-#: remains shippable.
-ACCEPTED_PRIOR_VERSIONS: frozenset[str] = frozenset({
-    # 2026-08-20 — Morris H.'s bank/insurance grade ladders were added to the
-    # DeepSeek prompt. Grandfathered by owner decision: the ladders are enforced
-    # deterministically by hk_jobs/salary_clamp.py on every row regardless of
-    # which prompt produced it, so re-running the model over the back catalogue
-    # would buy nothing the clamp does not already deliver for free.
-    "2026-07-21-v10-merged-3source-granular-prefix-cached"
-    "+deepseek-v4-flash+pac7b0b6b+adb2136ef+c0bba64e1",
-    # 2026-08-20 — Step 6 was added to the salary prompt: how to treat the
-    # "HUMAN CORRECTIONS" block that hk_jobs/salary_corrections.py appends when
-    # an admin has already priced a similar Role by hand.
-    #
-    # Grandfathered because the instruction is INERT without that block, and the
-    # block is per-job and did not exist when these rows were written. Re-running
-    # the back catalogue would cost ~$40 (6,188 active Roles at the observed
-    # $0.0065) to hand most of them a rule with nothing to apply it to.
-    #
-    # To propagate deliberately once enough corrections have accumulated, delete
-    # this entry: every stored row becomes stale on the next run and is
-    # re-estimated with the corrections in front of the model. That is a real
-    # recalibration and a real bill — make it a decision, not an accident.
-    "2026-07-21-v10-merged-3source-granular-prefix-cached"
-    "+deepseek-v4-flash+pc9d76b29+adb2136ef+c0bba64e1",
-    # 2026-08-23 — Contract duration stopped applying an unsupported 10%-20%
-    # discount to monthly base salary. Grandfathered because CMB Wing Lung's
-    # reviewed Manager band is enforced deterministically by salary_clamp, while
-    # re-running the whole catalogue for this prompt clarification would repay
-    # thousands of unrelated Roles. New enrichments receive the corrected rule.
-    "2026-07-21-v10-merged-3source-granular-prefix-cached"
-    "+deepseek-v4-flash+p159f1d34+a75bfc99b+c0bba64e1",
-})
+#: `--re-enrich` still overrides everything here.  v14 intentionally has no
+#: grandfathered version: candidate classification changes the *selection* of
+#: the 729 cells, so leaving the old free-form estimates accepted would prevent
+#: the redesign from ever reaching the active board.
+ACCEPTED_PRIOR_VERSIONS: frozenset[str] = frozenset()
 
 
 def version(model: str, prompt: str) -> str:

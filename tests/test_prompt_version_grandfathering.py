@@ -133,14 +133,6 @@ def test_a_deterministic_rule_change_selects_an_old_unpinned_estimate(conn, monk
     assert "old-rule-result" in _selected(conn)
 
 
-def test_the_shipped_list_grandfathers_the_version_the_board_actually_carries():
-    """The live board's 5,885 active enrichments all carry this exact string.
-
-    If this ever fails, a prompt edit is about to re-bill the back catalogue —
-    which is a decision, not an accident, and should be made deliberately.
-    """
-    live = (
-        "2026-07-21-v10-merged-3source-granular-prefix-cached"
-        "+deepseek-v4-flash+pac7b0b6b+adb2136ef+c0bba64e1"
-    )
-    assert live in salary.ACCEPTED_PRIOR_VERSIONS
+def test_classification_recalibration_does_not_grandfather_legacy_estimates():
+    """v14 must reach old active Roles; it changes coordinate selection itself."""
+    assert salary.ACCEPTED_PRIOR_VERSIONS == frozenset()
