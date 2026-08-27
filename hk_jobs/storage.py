@@ -171,9 +171,39 @@ def ensure_schema(db_path: str) -> None:
 # apply order.
 
 
+def _richness(row: sqlite3.Row) -> tuple[int, int]:
+    """(has_description, has_disclosed_salary) — a per-ROW check, standing in
+    for what DISPLAY_ORDER otherwise only assumes about a whole source."""
+    has_desc = 1 if (row["description_clean"] or "").strip() else 0
+    has_salary = 1 if row["salary_min"] is not None else 0
+    return has_desc, has_salary
+
+
 def _primary_rowid(members: list[sqlite3.Row]) -> int:
-    """rowid of the copy to display (highest display priority) among a group."""
-    return min(members, key=lambda row: display_rank(row["source"]))["rowid"]
+    """
+    rowid of the copy to display: the highest-DISPLAY_ORDER-priority source,
+    UNLESS that specific copy is materially thinner (no description, or no
+    disclosed salary where another copy has one) than another copy in the
+    same cluster.
+
+    DISPLAY_ORDER encodes a statistical prior — "JobsDB rows are usually
+    richest" — not a per-row guarantee (see docs/adr/0029). A stale or
+    listing-only copy from the usually-richest source must not win the
+    display slot over a genuinely fuller copy just because of where it was
+    scraped from; the fuller copy's content would otherwise be silently
+    unreachable, since only the elected primary's own columns are read.
+    Ties on richness keep the DISPLAY_ORDER default, so this only ever moves
+    the election when there's a real, checkable reason to.
+    """
+    default = min(members, key=lambda row: display_rank(row["source"]))
+    best, best_richness = default, _richness(default)
+    for row in members:
+        if row["rowid"] == default["rowid"]:
+            continue
+        richness = _richness(row)
+        if richness > best_richness:
+            best, best_richness = row, richness
+    return best["rowid"]
 
 
 _TITLE_NOISE_RE = re.compile(r"[^a-z0-9]+")
@@ -309,8 +339,18 @@ def _cluster_by_title(members: list[sqlite3.Row]) -> list[list[sqlite3.Row]]:
     """
     Group a company's rows into vacancies by fuzzy title match (union-find).
 
-    Two rows join a cluster when _titles_match. Only called for companies whose
-    rows span more than one source, so the O(n^2) comparison stays cheap.
+    Two rows join a cluster when _titles_match. Comparisons are BLOCKED by
+    shared title tokens (an inverted index: token -> rows containing it) rather
+    than a plain pairwise scan over every (i, j) — lossless, not an approximation:
+    _titles_match requires word-overlap >= _FUZZY_TITLE_THRESHOLD (0.85), and two
+    token sets with ZERO tokens in common have overlap 0, so a true match always
+    shares at least one token and can never be skipped by this blocking. What it
+    skips is exactly the pairs that could never have matched anyway.
+
+    This was a real, not theoretical, cost: one company (bochk, 587 active rows)
+    was 34% of a measured 1,002,066-pair full pass, and grouping now spans
+    multiple company_slugs for the same employer (ADR 0027), which can only grow
+    a single company's row count further.
     """
     from collections import defaultdict
 
@@ -326,15 +366,26 @@ def _cluster_by_title(members: list[sqlite3.Row]) -> list[list[sqlite3.Row]]:
             x = parent[x]
         return x
 
-    for i in range(n):
-        if not toks[i]:
-            continue
-        for j in range(i + 1, n):
-            if _titles_match(toks[i], toks[j], lvls[i], lvls[j],
-                             districts[i], districts[j]):
-                ri, rj = find(i), find(j)
-                if ri != rj:
-                    parent[ri] = rj
+    buckets: dict[str, list[int]] = defaultdict(list)
+    for i, tok_set in enumerate(toks):
+        for token in tok_set:
+            buckets[token].append(i)
+
+    compared: set[tuple[int, int]] = set()
+    for candidates in buckets.values():
+        for a in range(len(candidates)):
+            i = candidates[a]
+            for b in range(a + 1, len(candidates)):
+                j = candidates[b]
+                pair = (i, j) if i < j else (j, i)
+                if pair in compared:
+                    continue
+                compared.add(pair)
+                if _titles_match(toks[i], toks[j], lvls[i], lvls[j],
+                                 districts[i], districts[j]):
+                    ri, rj = find(i), find(j)
+                    if ri != rj:
+                        parent[ri] = rj
 
     clusters: dict[int, list[sqlite3.Row]] = defaultdict(list)
     for i, m in enumerate(members):
@@ -686,13 +737,16 @@ class JobStore:
             that the role was found on multiple boards.
 
         It also sets is_primary for display de-duplication: within a cross-posted
-        group exactly one copy — the richest source (see sources.DISPLAY_ORDER, JobsDB
-        first: it carries the description AND the DeepSeek enrichment) — keeps
-        is_primary=1 and the other copies get 0, so the web app shows one card per
-        vacancy (with apply_url still pointing at eFinancialCareers). De-dup only
-        applies across DIFFERENT sources; two rows from the SAME source that happen
-        to share a normalised title are both left visible (they are usually
-        distinct roles, not a cross-post).
+        group exactly one copy keeps is_primary=1 and the other copies get 0, so
+        the web app shows one card per vacancy (with apply_url still pointing at
+        eFinancialCareers). The copy chosen is normally the richest SOURCE (see
+        sources.DISPLAY_ORDER, JobsDB first: it usually carries the description
+        AND the DeepSeek enrichment) — but _primary_rowid checks the specific
+        ROW too, and picks a genuinely fuller copy over a thin one from the
+        usually-richest source (see docs/adr/0029). De-dup only applies across
+        DIFFERENT sources; two rows from the SAME source that happen to share a
+        normalised title are both left visible (they are usually distinct roles,
+        not a cross-post).
 
         "Same employer" is normally "same company_slug", but grouping is actually
         keyed by _company_group_key (normalized company NAME), not the raw slug —
@@ -721,7 +775,8 @@ class JobStore:
         # changed its election.
         sql = (
             "SELECT rowid, company_slug, company, title, locations, source, url, "
-            "apply_url, cross_posted, is_primary FROM jobs WHERE is_active = 1"
+            "apply_url, cross_posted, is_primary, description_clean, salary_min "
+            "FROM jobs WHERE is_active = 1"
         )
         if company_slugs is None:
             rows = self._conn.execute(sql).fetchall()

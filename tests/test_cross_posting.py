@@ -207,6 +207,56 @@ def test_cross_posted_display_prefers_jobsdb_as_primary(store):
     assert prim["efinancialcareers"] == 0  # hidden duplicate
 
 
+# ── Richness overrides a thin default (ADR 0029, 2026-08-27) ────────────────────
+
+
+def test_a_thin_jobsdb_copy_loses_primary_to_a_fuller_efc_copy(store):
+    """JobsDB usually wins display, but not when THIS JobsDB row is empty."""
+    efc = _job("efinancialcareers", "1", url="https://efc.hk/x.id1",
+               description_clean="Full role description here.", salary_min=40_000)
+    jobsdb = _job("jobsdb", "2", url="https://hk.jobsdb.com/job/2",
+                  description_clean="")  # listing-only scrape, no description
+    store.upsert_many([efc, jobsdb])
+    store.reconcile_cross_posted()
+    prim = {
+        r["source"]: r["is_primary"]
+        for r in store._conn.execute("SELECT source, is_primary FROM jobs")
+    }
+    assert prim["efinancialcareers"] == 1  # richer copy wins despite lower priority
+    assert prim["jobsdb"] == 0
+
+
+def test_jobsdb_keeps_primary_when_both_copies_are_rich(store):
+    """Richness is a tie (both have a description) — DISPLAY_ORDER default stands."""
+    efc = _job("efinancialcareers", "1", url="https://efc.hk/x.id1",
+               description_clean="Also has a description.")
+    jobsdb = _job("jobsdb", "2", url="https://hk.jobsdb.com/job/2",
+                  description_clean="Full role description here.")
+    store.upsert_many([efc, jobsdb])
+    store.reconcile_cross_posted()
+    prim = {
+        r["source"]: r["is_primary"]
+        for r in store._conn.execute("SELECT source, is_primary FROM jobs")
+    }
+    assert prim["jobsdb"] == 1
+    assert prim["efinancialcareers"] == 0
+
+
+def test_jobsdb_keeps_primary_when_it_is_also_the_richer_copy(store):
+    """The common case: JobsDB is both the priority default AND the richer row."""
+    efc = _job("efinancialcareers", "1", url="https://efc.hk/x.id1", description_clean="")
+    jobsdb = _job("jobsdb", "2", url="https://hk.jobsdb.com/job/2",
+                  description_clean="Full role description here.", salary_min=40_000)
+    store.upsert_many([efc, jobsdb])
+    store.reconcile_cross_posted()
+    prim = {
+        r["source"]: r["is_primary"]
+        for r in store._conn.execute("SELECT source, is_primary FROM jobs")
+    }
+    assert prim["jobsdb"] == 1
+    assert prim["efinancialcareers"] == 0
+
+
 def test_single_source_stays_primary(store):
     """A role on only one board is always displayed."""
     store.upsert_many([_job("efinancialcareers", "1")])
