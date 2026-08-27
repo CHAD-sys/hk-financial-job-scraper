@@ -77,10 +77,26 @@ salary_guidlines/*.pdf
 # Editor / agent config
 **/.claude/
 .claude/
+.agents/
+.codex/
 
-# Backup files (editor / manual snapshots — never source)
+# Recovery scratch from a specific incident (.wip-recovery/README.md) — compiled
+# .pyc + disassembly notes, not source. Kept on disk, never committed.
+.wip-recovery/
+
+# Backup files (editor / manual snapshots — never source). The plain suffix and
+# the timestamped form scripts actually write (`name.json.bak-20260826-201800`)
+# both need a pattern — `*.bak` alone never matched the latter.
 *.bak
+*.bak-*
 
 # Large generated artifacts (regenerated on demand; not source of truth)
 jobs_export.csv
 pb_boss_bundle.zip
+
+# Stray local database / scratch dirs (belt-and-suspenders alongside data/*.db —
+# these have shown up at the repo root, not just under data/)
+/jobs.db
+/tmp/
+/output/
+hk_jobs/daily_run/graphify-out/

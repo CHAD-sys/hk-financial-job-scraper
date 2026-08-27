@@ -38,7 +38,11 @@ CREATE TABLE job_enrichments (
 """
 
 # A plausible mid-office answer: high enough to survive the magnitude fix, and
-# carrying the tier/role/seniority the clamp needs to keep it.
+# carrying the tier/role/grade the coordinate-first clamp needs to price it at
+# all (salary.finalise(..., coordinate_only=True) returns (None, None) with no
+# exact (tier, role, grade) hit — see hk_jobs/salary_clamp.price_from_coordinate).
+# role/grade chosen to match a real cell in the anchor table for this tier and
+# this title: middle_office -> compliance_banking -> Manager.
 _MODEL_ANSWER = {
     "title_en": "Compliance Manager",
     "seniority": "mid",
@@ -52,8 +56,8 @@ _MODEL_ANSWER = {
     "salary_estimated_max": 720_000,
     "salary_estimated_confidence": "medium",
     "salary_tier": "middle_office",
-    "salary_role": None,
-    "salary_grade": None,
+    "salary_role": "compliance_banking",
+    "salary_grade": "Manager",
     "description_summary": "A compliance role.",
 }
 
@@ -68,7 +72,8 @@ class _StubEnricher:
     # keyword and all. A **kwargs catch-all here would let production's arguments
     # drift away from what the suite exercises without one test going red — the
     # failure CLAUDE.md's "one typed object over a silent default" rule is about.
-    def _enrich_with_retry(self, _title, _company, _description, seniority=None):
+    def _enrich_with_retry(self, _title, _company, _description, seniority=None,
+                            company_slug=None):
         return dict(_MODEL_ANSWER)
 
 
