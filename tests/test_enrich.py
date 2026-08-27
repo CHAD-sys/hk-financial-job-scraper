@@ -152,6 +152,27 @@ def test_years_none_when_absent():
     assert job.years_experience_min is None
 
 
+def test_years_range_takes_the_low_end():
+    """
+    RED before the fix: "8-10 years experience" only matched starting at "10"
+    — a bare `\\d+` can't be preceded by "-\\d" and still match at that
+    position — so the range's ceiling was reported as the minimum required,
+    the opposite of what "at least 8-10 years" means.
+    """
+    job = enrich(_job(description_clean="At least 8-10 years experience in investment advisory."))
+    assert job.years_experience_min == 8
+
+
+def test_years_range_with_en_dash_and_plus():
+    job = enrich(_job(description_clean="8 – 12+ years relevant experience required."))
+    assert job.years_experience_min == 8
+
+
+def test_years_range_with_spaces_around_dash():
+    job = enrich(_job(description_clean="8 - 12 years experience in the field."))
+    assert job.years_experience_min == 8
+
+
 # ── Skills ────────────────────────────────────────────────────────────────────
 
 def test_skills_single_word():
@@ -182,6 +203,34 @@ def test_skills_no_false_positive_r():
 
 def test_skills_r_matches_standalone():
     job = enrich(_job(description_clean="Programming in R and Python."))
+    assert "r" in job.skills_required
+
+
+def test_skills_no_false_positive_r_and_d():
+    """
+    RED before the fix: "R&D" satisfies `\\br\\b` the same way "Python, R" does
+    — "&" is a non-word character, same as a space — so a job that only
+    mentions Research & Development got tagged as requiring the R language.
+    """
+    job = enrich(_job(description_clean="Head of International Research & Development (R&D)."))
+    assert "r" not in job.skills_required
+
+
+def test_skills_no_false_positive_other_two_letter_acronyms():
+    # R&S (Routing & Switching) and R & R (rights & responsibilities) share the
+    # same shape as R&D — general exclusion, not a name-"D"-specifically one.
+    job = enrich(_job(description_clean="Certifications: CCIE R&S or equivalent desired."))
+    assert "r" not in job.skills_required
+
+    job = enrich(_job(description_clean="Treat Customer Fairly, R & R of handling sales."))
+    assert "r" not in job.skills_required
+
+
+def test_skills_r_still_matches_alongside_an_rd_mention():
+    """A job can genuinely need R AND separately mention R&D — the language must still count."""
+    job = enrich(_job(
+        description_clean="Proficiency in Python and R required. Exposure to our R&D team a plus."
+    ))
     assert "r" in job.skills_required
 
 

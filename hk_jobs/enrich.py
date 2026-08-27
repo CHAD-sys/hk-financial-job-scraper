@@ -105,8 +105,16 @@ _SENIORITY_RES = [(re.compile(p, re.IGNORECASE), level) for p, level in _SENIORI
 # Years of experience — allows up to 2 adjective words between "years of" and
 # "experience" (e.g. "5 years of actuarial experience", "3+ years of relevant work
 # experience") without matching unrelated uses like "5 years ago... experience".
+#
+# The optional `(?:[-–]\s*\d+)?` right after the captured number absorbs an
+# explicit range ("8-10 years experience", "8 – 12+ years") without capturing
+# its high end — group(1) is always the LOW number. Without it, "8-10 years
+# experience" only matched starting at "10" (a bare number can't be preceded
+# by "-\d" and still match `\d+` at that position), so `_detect_years` reported
+# the top of the range as the minimum required — the opposite of what "at
+# least 8-10 years" means.
 _YEARS_RE = re.compile(
-    r"(\d+)\+?\s*(?:or more\s*)?years?(?:\s+of)?(?:\s+\w+){0,2}\s*experience",
+    r"(\d+)\s*(?:[-–]\s*\d+)?\+?\s*(?:or more\s*)?years?(?:\s+of)?(?:\s+\w+){0,2}\s*experience",
     re.IGNORECASE,
 )
 
@@ -225,6 +233,27 @@ def _detect_years(text: str) -> int | None:
     return min(matches) if matches else None
 
 
+#: "R&D", "R&S" (Routing & Switching), "R & R" (rights & responsibilities) —
+#: a bare `\br\b` word-boundary match cannot rule any of these out on its own,
+#: because "&" is a non-word character, same as the space either side of a
+#: genuine "Python, R" mention. Matches ANY two-letter "X&Y" acronym rather
+#: than naming "D" specifically, and from either side — "R & R" has an R on
+#: BOTH sides of the "&", so a check that only looks forward from "R&" misses
+#: the second one. Every "r" occurrence has to clear this before the token
+#: counts, so a job that ALSO genuinely mentions R elsewhere (e.g. "Python/R"
+#: earlier in the same posting) still gets tagged correctly.
+_TWO_LETTER_ACRONYM_RE = re.compile(r"\b([a-z])\s*&\s*([a-z])\b", re.IGNORECASE)
+
+
+def _mentions_r_language(lower_text: str) -> bool:
+    """Whether "r" appears as the language, not inside an "X&Y" acronym."""
+    excluded = [m.span() for m in _TWO_LETTER_ACRONYM_RE.finditer(lower_text)]
+    for m in re.finditer(r"\br\b", lower_text):
+        if not any(start <= m.start() < end for start, end in excluded):
+            return True
+    return False
+
+
 def _detect_skills(text: str) -> list[str]:
     """
     Match ALL_SKILLS entries against text using whole-word / whole-phrase
@@ -240,6 +269,9 @@ def _detect_skills(text: str) -> list[str]:
         if " " in skill:
             # Phrase match — just substring; spaces act as natural boundaries
             if skill in lower:
+                found.add(skill)
+        elif skill == "r":
+            if _mentions_r_language(lower):
                 found.add(skill)
         else:
             # Single-token: require word boundaries
