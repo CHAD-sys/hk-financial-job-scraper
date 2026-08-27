@@ -3,7 +3,8 @@ Reading Roles out of jobs.db.
 
 WHY THIS MODULE EXISTS
 ----------------------
-The catalogue-row rule for browsing — `is_active = 1 AND is_primary = 1` —
+The catalogue-row rule for browsing — active, primary and posted within one
+calendar month —
 used to live inside one filter-building function in main.py, and two of the three
 read paths never called it. `get_job` applied half of it; `list_saved` applied
 none, so a Saved Role that had closed months ago came back looking live, which is
@@ -28,13 +29,15 @@ the callers genuinely differ:
 
     browsing is filtered, addressing is not.
 
-`Visibility.BOARD` is for browsing: active and primary, so a cross-posted vacancy
-appears once rather than once per source. `Visibility.ADDRESSABLE` is for anything
+`Visibility.BOARD` is for browsing: active, primary and no more than one calendar
+month old, so a cross-posted vacancy appears once rather than once per source and
+stale postings do not drown the board. `Visibility.ADDRESSABLE` is for anything
 that names a specific `(source, source_id)` — a deep link, a Saved Role — and
 returns the row whatever state it is in, with `closed` telling you which. Requiring
 `is_primary` when addressing would 404 a link whose copy stopped being primary at
-the last reconciliation; requiring `is_active` would hide a Saved Role that closed,
-which is the thing a Seeker most needs to be told.
+the last reconciliation; requiring `is_active` or a recent posting date would hide
+a Saved Role that closed or aged out, which is the thing a Seeker most needs to be
+told.
 
 NO FASTAPI IN HERE
 ------------------
@@ -107,11 +110,20 @@ class CatalogueAudience(str, Enum):
     MEMBER = "member"
 
 
+#: A Role stays discoverable for one calendar month from the Employer's posting
+#: date. This is catalogue visibility, not deletion: the Listing remains stored
+#: and addressable so Saved Roles and deep links keep their history. A missing
+#: posting date fails closed because its age cannot be verified.
+BOARD_POSTING_WINDOW_SQL = "date(j.posted_at) >= date('now', '-1 month')"
+
 #: The SQL each rule contributes to the WHERE clause. `None` means "no predicate",
 #: which is a deliberate value rather than an oversight: addressing a Role by
 #: reference is unfiltered by design.
 _VISIBILITY_SQL: dict[Visibility, Optional[str]] = {
-    Visibility.BOARD: "j.is_active = 1 AND j.is_primary = 1",
+    Visibility.BOARD: (
+        "j.is_active = 1 AND j.is_primary = 1 AND "
+        f"{BOARD_POSTING_WINDOW_SQL}"
+    ),
     Visibility.ADDRESSABLE: None,
 }
 

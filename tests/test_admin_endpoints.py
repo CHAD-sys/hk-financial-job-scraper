@@ -227,11 +227,11 @@ def migrated_jobs_db(tmp_path):
         INSERT INTO jobs (
             source, source_id, company, company_slug, url, dedup_hash, title,
             description_clean, locations, employment_type, apply_url,
-            fetched_at, is_active
+            posted_at, fetched_at, is_active
         ) VALUES (
             'workday', 'W1', 'HSBC', 'hsbc', 'https://x.test/w1', 'abc123', 'Credit Analyst',
             'Analyse credit risk.', '["Hong Kong"]', 'Full-time', 'https://x.test/apply',
-            '2026-08-06T00:00:00+00:00', 1
+            date('now', '-1 day'), '2026-08-06T00:00:00+00:00', 1
         )
         """
     )

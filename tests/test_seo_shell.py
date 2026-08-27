@@ -36,7 +36,7 @@ def _q(label: str) -> str:
 import pytest
 from fastapi.testclient import TestClient
 
-from .support import enrichment, job, make_app, make_bundle, make_jobs_db
+from .support import days_ago, enrichment, job, make_app, make_bundle, make_jobs_db
 
 _INDEXABLE = ["/", "/about", "/jobs", "/learning", "/get-started", "/post-a-role",
               "/privacy"]
@@ -46,23 +46,23 @@ _INDEXABLE = ["/", "/about", "/jobs", "/learning", "/get-started", "/post-a-role
 def client(tmp_path):
     jobs = [
         job(source="workday", source_id="MAIN", company="HSBC",
-            title="Risk Management Officer", posted_at="2026-07-01",
+            title="Risk Management Officer", posted_at=days_ago(1),
             description_clean="SECRET FULL DESCRIPTION mainstream."),
         # Enough HSBC Roles to clear _MIN_ROLES_FOR_A_LANDING_PAGE. An employer
         # below that threshold deliberately gets no page — see the thin-content
         # test — so the fixture has to be over it for the page to exist at all.
         *[
             job(source="workday", source_id=f"HSBC{n}", company="HSBC",
-                title=f"Banking Operations Officer {n}", posted_at="2026-07-04")
+                title=f"Banking Operations Officer {n}", posted_at=days_ago(4))
             for n in range(1, 6)
         ],
         # The two tiers an anonymous visitor must never be served (ADR 0018).
         # They exist here so the server-rendered block can be shown NOT to leak
         # them, which is the whole risk of writing Roles into public HTML.
         job(source="longtail", source_id="BOUT", company="Harbour Capital",
-            title="Treasury Analyst", source_tier="boutique", posted_at="2026-07-02"),
+            title="Treasury Analyst", source_tier="boutique", posted_at=days_ago(2)),
         job(source="linkedin_posts", source_id="SOC", company="Confidential",
-            title="Risk Manager", source_tier="social", posted_at="2026-07-03"),
+            title="Risk Manager", source_tier="social", posted_at=days_ago(3)),
     ]
     enrichments = [
         enrichment(source="workday", source_id="MAIN",

@@ -29,7 +29,7 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
-from .support import enrichment, job, make_app, make_bundle, make_jobs_db, signals
+from .support import days_ago, enrichment, job, make_app, make_bundle, make_jobs_db, signals
 
 # Companies chosen so SECTOR_SQL puts each in a different bucket.
 BANKING = "HSBC"
@@ -55,20 +55,20 @@ def _seed():
     jobs = [
         # Ordinary visible rows, one per sector.
         job(source="workday", source_id="BANK", company=BANKING,
-            title="Credit Risk Analyst", posted_at="2026-07-01",
+            title="Credit Risk Analyst", posted_at=days_ago(1),
             description_clean="Analyse credit risk."),
         job(source="workday", source_id="IB", company=IB,
-            title="Equity Research Associate", posted_at="2026-06-01"),
+            title="Equity Research Associate", posted_at=days_ago(2)),
         job(source="eightfold", source_id="INS", company=INSURANCE,
-            title="Actuarial Manager", posted_at="2026-05-01"),
+            title="Actuarial Manager", posted_at=days_ago(3)),
         job(source="jobsdb", source_id="AM", company=ASSET_MGMT,
-            title="Portfolio Analyst", posted_at="2026-04-01"),
+            title="Portfolio Analyst", posted_at=days_ago(4)),
 
         # Must never appear in the board listing.
         job(source="workday", source_id="CLOSED", company=BANKING,
-            title="Closed Role", is_active=0, posted_at="2026-07-02"),
+            title="Closed Role", is_active=0, posted_at=days_ago(1)),
         job(source="workday", source_id="SECONDARY", company=BANKING,
-            title="Secondary Copy", is_primary=0, posted_at="2026-07-03"),
+            title="Secondary Copy", is_primary=0, posted_at=days_ago(1)),
 
         # A posted_at in the future is bad data, not "newest" — it must sink.
         job(source="workday", source_id="FUTURE", company=BANKING,
@@ -80,31 +80,31 @@ def _seed():
         # Cross-posted pair sharing an apply_url. PRIMARY is the displayed card;
         # HIDDEN is never listed but its signals must reach the card.
         job(source="jobsdb", source_id="XPOST", company=BANKING,
-            title="Cross Posted Role", posted_at="2026-03-01",
+            title="Cross Posted Role", posted_at=days_ago(5),
             cross_posted=1, apply_url="https://apply.test/shared",
             board_signals=signals(applicant_count=4)),
         job(source="indeed", source_id="XPOST_HIDDEN", company=BANKING,
-            title="Cross Posted Role", posted_at="2026-03-01", is_primary=0,
+            title="Cross Posted Role", posted_at=days_ago(5), is_primary=0,
             cross_posted=1, apply_url="https://apply.test/shared",
             board_signals=signals(urgently_hiring=True)),
 
         # Internship word-boundary behaviour: one true, one deliberate near-miss.
         job(source="workday", source_id="INTERN", company=PRO_SERVICES,
-            title="Summer Intern, Audit", posted_at="2026-02-01"),
+            title="Summer Intern, Audit", posted_at=days_ago(6)),
         job(source="workday", source_id="INTERNAL", company=PRO_SERVICES,
-            title="Internal Audit Manager", posted_at="2026-02-02"),
+            title="Internal Audit Manager", posted_at=days_ago(7)),
 
         # A long description, to pin excerpt truncation.
         job(source="workday", source_id="LONGDESC", company=BANKING,
-            title="Long Description Role", posted_at="2026-01-01",
+            title="Long Description Role", posted_at=days_ago(8),
             description_clean="x" * 500),
 
         # Member-only discovery tiers. They share the research term below but
         # must never enter an anonymous result, facet or direct detail read.
         job(source="longtail", source_id="MEDIUM", company="Harbour Capital",
-            title="Treasury Analyst", source_tier="boutique", posted_at="2026-01-03"),
+            title="Treasury Analyst", source_tier="boutique", posted_at=days_ago(9)),
         job(source="linkedin_posts", source_id="RECRUITER", company="Confidential",
-            title="Risk Manager", source_tier="social", posted_at="2026-01-02"),
+            title="Risk Manager", source_tier="social", posted_at=days_ago(10)),
     ]
     enrichments = [
         # Salary sorts read COALESCE(disclosed, estimated).
@@ -424,13 +424,14 @@ def test_total_respects_filters(client):
 
 # ── Sorting ───────────────────────────────────────────────────────────────────
 
-def test_newest_sinks_future_dates_and_nulls(client):
+def test_newest_sinks_future_dates_and_hides_unverifiable_null_dates(client):
     """A posted_at beyond tomorrow is a source's date-parsing bug. It must not
-    dominate the top of the board, and neither must a missing date."""
+    dominate the top of the board. A missing date cannot prove the Role is inside
+    the one-month window, so catalogue visibility fails closed for that row."""
     ids = _ids(_get(client, sort="newest", page_size=100))
     assert ids[0] == "BANK"
     assert ids.index("FUTURE") > ids.index("AM")
-    assert ids.index("NODATE") > ids.index("AM")
+    assert "NODATE" not in ids
 
 
 def test_salary_high_sorts_desc_and_sinks_missing(client):

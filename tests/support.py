@@ -23,12 +23,18 @@ from __future__ import annotations
 import json
 import sqlite3
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Iterable
 
 BACKEND = Path(__file__).resolve().parent.parent / "webapp" / "backend"
 
 INDEX_MARKER = "<!-- test index.html -->"
+
+
+def days_ago(days: int) -> str:
+    """A stable live-posting date for tests whose subject is not expiry."""
+    return (date.today() - timedelta(days=days)).isoformat()
 
 # The one row every pre-existing test asserts on. Kept as the default seed so
 # `make_jobs_db(path)` with no arguments behaves exactly as the old `_make_db`.
@@ -40,7 +46,7 @@ DEFAULT_JOB: dict[str, Any] = {
     "title": "Credit Risk Analyst",
     "description_clean": "Analyse credit risk.",
     "locations": '["Hong Kong"]',
-    "posted_at": "2026-07-01T00:00:00+00:00",
+    "posted_at": days_ago(7),
 }
 
 # Column defaults for a jobs row, so a test only states what it cares about.
@@ -52,7 +58,7 @@ _JOB_DEFAULTS: dict[str, Any] = {
     "title": "Analyst",
     "description_clean": "",
     "locations": "[]",
-    "posted_at": None,
+    "posted_at": days_ago(7),
     "is_active": 1,
     "closed_at": None,
     "is_primary": 1,

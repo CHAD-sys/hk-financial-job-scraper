@@ -16,11 +16,10 @@ from __future__ import annotations
 
 import sqlite3
 import sys
-from pathlib import Path
 
 import pytest
 
-from .support import BACKEND, enrichment, job, make_jobs_db, signals
+from .support import BACKEND, days_ago, enrichment, job, make_jobs_db, signals
 
 sys.path.insert(0, str(BACKEND))
 
@@ -49,13 +48,13 @@ def conn(tmp_path) -> sqlite3.Connection:
         db,
         jobs=[
             job(source="workday", source_id="LIVE", company="HSBC",
-                title="Credit Risk Analyst", posted_at="2026-07-01"),
+                title="Credit Risk Analyst", posted_at=days_ago(1)),
             job(source="workday", source_id="CLOSED", company="HSBC",
                 title="Closed Role", posted_at="2026-06-01", is_active=0),
             job(source="workday", source_id="SECONDARY", company="HSBC",
                 title="Secondary Copy", posted_at="2026-05-01", is_primary=0),
             job(source="jobsdb", source_id="XPOST", company="DBS",
-                title="Shared Role", posted_at="2026-04-01",
+                title="Shared Role", posted_at=days_ago(4),
                 cross_posted=1, apply_url="https://apply.test/x",
                 board_signals=signals(applicant_count=3)),
             job(source="indeed", source_id="XPOST_HIDDEN", company="DBS",
@@ -95,6 +94,40 @@ def test_addressable_listing_sees_everything(conn):
     ids = _ids(list_jobs(conn, JobFilters(), page_size=100,
                          visibility=Visibility.ADDRESSABLE).jobs)
     assert set(ids) == {"LIVE", "CLOSED", "SECONDARY", "XPOST", "XPOST_HIDDEN"}
+
+
+def test_board_hides_roles_posted_more_than_one_calendar_month_ago(tmp_path):
+    db = tmp_path / "posting-age.db"
+    clock = sqlite3.connect(":memory:")
+    boundary, stale, fresh = clock.execute(
+        "SELECT date('now', '-1 month'), date('now', '-1 month', '-1 day'), "
+        "date('now', '-7 days')"
+    ).fetchone()
+    clock.close()
+    make_jobs_db(
+        db,
+        jobs=[
+            job(source_id="BOUNDARY", posted_at=boundary),
+            job(source_id="STALE", posted_at=stale),
+            job(source_id="FRESH", posted_at=fresh),
+        ],
+    )
+    connection = prepare(sqlite3.connect(db))
+    try:
+        board_ids = _ids(list_jobs(connection, JobFilters(), page_size=100).jobs)
+        addressed_ids = _ids(
+            list_jobs(
+                connection,
+                JobFilters(),
+                page_size=100,
+                visibility=Visibility.ADDRESSABLE,
+            ).jobs
+        )
+    finally:
+        connection.close()
+
+    assert set(board_ids) == {"BOUNDARY", "FRESH"}
+    assert set(addressed_ids) == {"BOUNDARY", "STALE", "FRESH"}
 
 
 # ── Visibility: addressing is not ─────────────────────────────────────────────
@@ -367,12 +400,12 @@ def boost_conn(tmp_path) -> sqlite3.Connection:
     db = tmp_path / "boost.db"
     mainstream = [
         job(source="jobsdb", source_id=f"M{i}", company="HSBC",
-            title=f"Role M{i}", posted_at=f"2026-07-{10 - i:02d}")
+            title=f"Role M{i}", posted_at=days_ago(i))
         for i in range(1, 10)
     ]
     social = [
         job(source="linkedin_posts", source_id=f"S{i}", company="Recruiter",
-            title=f"Role S{i}", source_tier="social", posted_at=f"2026-06-{4 - i:02d}")
+            title=f"Role S{i}", source_tier="social", posted_at=days_ago(15 + i))
         for i in range(1, 4)
     ]
     make_jobs_db(db, jobs=mainstream + social)
@@ -459,16 +492,16 @@ def employer_conn(tmp_path) -> sqlite3.Connection:
         db,
         jobs=[
             job(source="workday", source_id="REAL", company="HSBC",
-                title="Credit Analyst finexscope", posted_at="2026-07-01"),
+                title="Credit Analyst finexscope", posted_at=days_ago(1)),
             job(source="linkedin_posts", source_id="CONF", source_tier="social",
                 company="Confidential via Janice Wong",
-                title="Credit Analyst finexscope", posted_at="2026-07-02"),
+                title="Credit Analyst finexscope", posted_at=days_ago(2)),
             job(source="linkedin_posts", source_id="FRAGMENT", source_tier="social",
                 company="business leaders to",
-                title="Credit Analyst finexscope", posted_at="2026-07-03"),
+                title="Credit Analyst finexscope", posted_at=days_ago(3)),
             job(source="linkedin_posts", source_id="COLLIDES", source_tier="social",
                 company="HSBC",
-                title="Credit Analyst finexscope", posted_at="2026-07-04"),
+                title="Credit Analyst finexscope", posted_at=days_ago(4)),
         ],
     )
     c = prepare(sqlite3.connect(db))
@@ -549,12 +582,12 @@ def description_conn(tmp_path) -> sqlite3.Connection:
         db,
         jobs=[
             job(source="workday", source_id="SUMMARISED", company="HKEX",
-                title="IAM Analyst finexscope", posted_at="2026-07-02",
+                title="IAM Analyst finexscope", posted_at=days_ago(2),
                 description_clean="Company Introduction: We're home to Asia's most "
                                   "dynamic and vibrant capital markets. Connecting "
                                   "capital, ideas, inspiration and innovation."),
             job(source="workday", source_id="BARE", company="FWD Insurance",
-                title="MI Planning Manager finexscope", posted_at="2026-07-01",
+                title="MI Planning Manager finexscope", posted_at=days_ago(1),
                 description_clean="KEY ACCOUNTABILITIES Develop and execute "
                                   "Management Information, Planning & Analysis "
                                   "strategy and policies for FWD Malaysia."),

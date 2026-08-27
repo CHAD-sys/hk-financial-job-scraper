@@ -21,21 +21,21 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from .support import enrichment, job, make_app, make_bundle, make_jobs_db
+from .support import days_ago, enrichment, job, make_app, make_bundle, make_jobs_db
 
 
 @pytest.fixture()
 def client(tmp_path):
     jobs = [
         job(source="workday", source_id="MAIN", company="HSBC",
-            title="Credit Risk Analyst", posted_at="2026-07-01",
+            title="Credit Risk Analyst", posted_at=days_ago(1),
             description_clean="SECRET FULL DESCRIPTION mainstream."),
         job(source="longtail", source_id="BOUT", company="Harbour Capital",
             title="Treasury Analyst", source_tier="boutique",
-            posted_at="2026-07-02", description_clean="SECRET FULL DESCRIPTION boutique."),
+            posted_at=days_ago(2), description_clean="SECRET FULL DESCRIPTION boutique."),
         job(source="linkedin_posts", source_id="SOC", company="Confidential",
             title="Risk Manager", source_tier="social",
-            posted_at="2026-07-03", description_clean="SECRET FULL DESCRIPTION social."),
+            posted_at=days_ago(3), description_clean="SECRET FULL DESCRIPTION social."),
         job(source="workday", source_id="GONE", company="HSBC",
             title="Closed Role", is_active=0, posted_at="2026-06-01"),
         job(source="workday", source_id="HIDDEN", company="HSBC",

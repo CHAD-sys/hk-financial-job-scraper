@@ -30,9 +30,9 @@ def _migrated(path: Path, jobs: list[tuple[str, str, str, int]]) -> Path:
                 """
                 INSERT INTO jobs (
                     source, source_id, company, company_slug, url, dedup_hash,
-                    title, description_clean, locations, fetched_at, is_active,
+                    title, description_clean, locations, posted_at, fetched_at, is_active,
                     is_primary
-                ) VALUES (?, ?, 'HSBC', 'hsbc', ?, ?, ?, ?, '["Hong Kong"]', ?, ?, 1)
+                ) VALUES (?, ?, 'HSBC', 'hsbc', ?, ?, ?, ?, '["Hong Kong"]', ?, ?, ?, 1)
                 """,
                 (
                     source,
@@ -41,6 +41,7 @@ def _migrated(path: Path, jobs: list[tuple[str, str, str, int]]) -> Path:
                     f"hash-{source_id}",
                     title,
                     f"Description for {title}",
+                    today,
                     f"{today}T00:00:00+08:00",
                     active,
                 ),

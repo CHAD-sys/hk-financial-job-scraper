@@ -15,7 +15,7 @@ import sys
 import pytest
 from fastapi.testclient import TestClient
 
-from .support import BACKEND, job, make_app, make_bundle, make_jobs_db
+from .support import BACKEND, days_ago, job, make_app, make_bundle, make_jobs_db
 
 if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
@@ -26,7 +26,7 @@ from settings import Settings  # noqa: E402
 def _db(tmp_path, name: str, company: str):
     path = tmp_path / f"{name}.db"
     make_jobs_db(path, jobs=[job(source="workday", source_id=name, company=company,
-                                 title=f"{name} Role", posted_at="2026-07-01")])
+                                 title=f"{name} Role", posted_at=days_ago(1))])
     return path
 
 
