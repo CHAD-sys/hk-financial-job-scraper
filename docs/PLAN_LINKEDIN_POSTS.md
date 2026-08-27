@@ -20,7 +20,7 @@ This is the *content feed*: posts authored by people.
 | # | Decision | Choice |
 |---|----------|--------|
 | 1 | Ingestion philosophy | Capture ALL job-bearing posts; dedupe downstream. "Hidden" is a computed flag, not an ingestion filter |
-| 2 | Discovery | Hybrid: watchlist polling **one pipeline run in three** (was daily — ADR 0012) + weekly keyword post-search that feeds NEW recruiters into the watchlist (+ $0 Google-index side channel experiment) |
+| 2 | Discovery | Hybrid: watchlist polling **every pipeline run** (was daily, then one run in three per ADR 0012, now daily again per ADR 0031) + weekly keyword post-search that feeds NEW recruiters into the watchlist (+ $0 Google-index side channel experiment) |
 | 3 | Watchlist tiers | Agency recruiters, independent headhunters, agency company pages. NO in-house TA (duplicate signal vs own-ATS scraping) |
 | 4 | Bootstrap | Three-way: (a) search-driven harvest of active posters from first runs, (b) manual list enumerated on the boss's side, (c) known agency headhunters |
 | 5 | Vendor | **DECIDED (LP-0 complete, 2026-07-19): Apify/HarvestAPI.** `linkedin-profile-posts` for watchlist polling, `linkedin-post-search` for discovery, both $2/1k results. Piloterr disqualified — its live endpoint catalog has no post-discovery endpoint (`post/info` only enriches a known post ID). See `docs/BAKEOFF_RESULTS.md`. Total bake-off cost: $0.21 |
@@ -33,10 +33,12 @@ This is the *content feed*: posts authored by people.
 | 12 | Metrics permanence | The same 3 metrics are computed on EVERY daily run forever (see §7); the v1 decision still uses only the pilot window |
 
 Defaults taken (owner did not object):
-- Cadence: **one pipeline run in three**, gated inside `--fetch-posts`
+- Cadence: **every pipeline run**, gated inside `--fetch-posts`
   (`hk_jobs/posts/cadence.py`), not in `daily_run.sh` — a hand-run poll spends the same
-  money. Was daily; see ADR 0012 for the measured spend that changed it, and for why the
-  48h catch-up floor had to be derived from the interval rather than left alone.
+  money. Ran one pipeline run in three for a while (ADR 0012, on measured spend that
+  turned out close to cadence-invariant); back to every run per ADR 0031, for latency.
+  See ADR 0012 for why the 48h catch-up floor has to be derived from the interval
+  rather than left alone.
 - Posts rank LOWEST in `_SOURCE_PRIORITY` — apply-routing always prefers a real ATS/board listing when the same vacancy exists there
 - Config file `recruiters.yaml` mirrors the `companies.yaml` convention
 

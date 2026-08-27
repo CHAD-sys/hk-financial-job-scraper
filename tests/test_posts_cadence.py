@@ -1,21 +1,26 @@
 """
-One pipeline run in three calls Apify.
+The watchlist poll's cadence: every pipeline run today, and the general
+one-run-in-N algorithm that made "every run" a one-line change from "one run
+in three" (ADR 0031 supersedes ADR 0012).
 
-THE RULE, AND THE OFF-BY-ONE IT IS EASY TO GET WRONG
-----------------------------------------------------
-The watchlist poll runs on the 1st, 4th, 7th run — one run in every three, with
-two skipped between. The tempting mistake is "skip three, then run", which is one
-in four: 25% cheaper than asked for and 33% staler. `test_it_is_one_in_three_not_one_in_four`
-is the test that tells them apart, and it is the reason this file exists.
+THE ALGORITHM, PINNED AT interval=3 REGARDLESS OF TODAY'S DEFAULT
+-------------------------------------------------------------------
+`claim_run` still takes an arbitrary interval — `POSTS_RUN_INTERVAL == 1` is a
+choice about THIS job, not a constraint the module enforces. The off-by-one
+worth naming stays real for any interval above 1: "skip three, then run" is one
+in four, not one in three — 25% cheaper than asked for and 33% staler.
+`test_it_is_one_in_three_not_one_in_four` passes `interval=3` explicitly so it
+keeps proving the algorithm is right, whatever the deployed default is.
 
 THE SECOND HALF, WHICH IS NOT ABOUT MONEY
 -----------------------------------------
 Slowing the poll down silently breaks it unless the catch-up floor moves too.
 Each recruiter is fetched `since = max(last_fetched_at, now - CATCHUP_FLOOR_HOURS)`.
-At 48h — right for a daily poll — a three-run cadence leaves the watermark ~72h
-old, `max` picks the floor, and the poll asks for two days of a three-day gap.
-A day of recruiter posts would go missing every cycle, and the only trace would
-be the routine "capping lookback" line the fetcher already logs on purpose.
+At a fixed 48h — right for a daily poll — a three-run cadence would leave the
+watermark ~72h old, `max` picks the floor, and the poll asks for two days of a
+three-day gap. A day of recruiter posts would go missing every cycle, and the
+only trace would be the routine "capping lookback" line the fetcher already
+logs on purpose.
 
 So the floor is derived from the interval, and
 `test_the_catchup_floor_covers_the_whole_gap_the_cadence_creates` fails if anyone
@@ -64,13 +69,14 @@ def test_the_first_run_polls(db: str):
 
 def test_it_is_one_in_three_not_one_in_four(db: str):
     """
-    THE test. Both plausible readings of "every 3 runs" produce a pattern; only
-    one of them is what was asked for.
+    THE test, at interval=3 explicitly — this is about the algorithm, not
+    today's deployed default. Both plausible readings of "every 3 runs"
+    produce a pattern; only one of them is what "one in three" means.
 
         one in three (this):  poll . . poll . . poll     <- 3 polls in 9 runs
         one in four  (wrong): poll . . . poll . . . poll <- 3 polls in 12 runs
     """
-    assert run_pattern(db, 9) == [
+    assert run_pattern(db, 9, interval=3) == [
         True, False, False,
         True, False, False,
         True, False, False,
@@ -78,8 +84,8 @@ def test_it_is_one_in_three_not_one_in_four(db: str):
 
 
 def test_exactly_one_run_in_three_polls_over_a_long_stretch(db: str):
-    """A month of nightly runs. The ratio is the whole point, so state it."""
-    pattern = run_pattern(db, 30)
+    """A month of nightly runs at interval=3. The ratio is the whole point, so state it."""
+    pattern = run_pattern(db, 30, interval=3)
     assert sum(pattern) == 10
     assert len(pattern) == 30
 
@@ -90,13 +96,16 @@ def test_the_gap_between_polls_is_always_the_interval(db: str):
     assert gaps == {POSTS_RUN_INTERVAL}
 
 
-def test_the_interval_is_three(db: str):
+def test_the_interval_is_one(db: str):
     """
-    Pinned deliberately. The number was chosen against measured spend — the
-    watchlist was 91% of vendor cost and the month landed at ~86% of Apify's free
-    credit — so changing it is a decision, not a tweak, and should break a test.
+    Pinned deliberately. ADR 0031: freshness (a post can now be at most one
+    pipeline run old, not three) was worth more than the actor-run reduction
+    "one in three" bought, once measurement showed that reduction saved close
+    to nothing in dollars (ADR 0012 — billing is per result and the poll is
+    watermarked). Changing this back is a decision, not a tweak, and should
+    break a test.
     """
-    assert POSTS_RUN_INTERVAL == 3
+    assert POSTS_RUN_INTERVAL == 1
 
 
 # ── The counter ───────────────────────────────────────────────────────────────
@@ -115,19 +124,22 @@ def test_the_counter_survives_the_process(db: str):
     It has to live in the database. `--fetch-posts` is a separate process per
     nightly run, so anything in memory starts over at run 0 every night and polls
     every time — the exact thing this is supposed to stop.
+
+    interval=3 explicit: this is testing persistence across calls, not today's
+    deployed cadence, and needs a run that is genuinely not due to prove it.
     """
-    assert claim_run(db).due is True
-    assert claim_run(db).due is False
+    assert claim_run(db, interval=3).due is True
+    assert claim_run(db, interval=3).due is False
     # A brand-new connection, as the next night's process would have.
-    assert claim_run(db).due is False
-    assert claim_run(db).due is True
+    assert claim_run(db, interval=3).due is False
+    assert claim_run(db, interval=3).due is True
 
 
 def test_a_poll_and_a_skip_are_told_apart_in_the_record(db: str):
     """`last_due_at` answers "when did we last poll", not "when did we last look"."""
-    claim_run(db)
+    claim_run(db, interval=3)
     after_poll = peek(db)
-    claim_run(db)
+    claim_run(db, interval=3)
     after_skip = peek(db)
 
     assert after_skip["last_run_at"] != after_poll["last_run_at"], "every run is seen"
@@ -142,11 +154,11 @@ def test_two_jobs_keep_separate_counters(db: str):
 
 
 def test_peek_does_not_advance_anything(db: str):
-    claim_run(db)
+    claim_run(db, interval=3)
     peek(db)
     peek(db)
     assert peek(db)["runs"] == 1
-    assert claim_run(db).due is False, "peeking must not have burned a run"
+    assert claim_run(db, interval=3).due is False, "peeking must not have burned a run"
 
 
 def test_peek_on_a_counter_that_has_never_run(db: str):
@@ -157,9 +169,9 @@ def test_peek_on_a_counter_that_has_never_run(db: str):
 # ── Forcing ───────────────────────────────────────────────────────────────────
 
 def test_force_polls_on_a_run_that_is_not_due(db: str):
-    claim_run(db)
-    assert claim_run(db).due is False
-    assert claim_run(db, force=True).due is True
+    claim_run(db, interval=3)
+    assert claim_run(db, interval=3).due is False
+    assert claim_run(db, interval=3, force=True).due is True
 
 
 def test_forcing_still_counts_as_a_run(db: str):
@@ -177,14 +189,16 @@ def test_a_forced_run_says_it_was_forced(db: str):
     `forced` distinguishes "we overrode the cadence" from "--posts-force was
     passed on a run that was going to poll anyway". Only the first is worth
     seeing in a log when you are working out where the money went.
+
+    interval=3 explicit: needs a real not-naturally-due run to override.
     """
-    claim_run(db)                                  # run 0 — its turn
-    forced = claim_run(db, force=True)             # run 1 — overridden
+    claim_run(db, interval=3)                                  # run 0 — its turn
+    forced = claim_run(db, interval=3, force=True)             # run 1 — overridden
     assert forced.forced is True
     assert "forced" in forced.describe()
 
-    claim_run(db)                                  # run 2 — skipped
-    earned = claim_run(db, force=True)             # run 3 — its turn regardless
+    claim_run(db, interval=3)                                  # run 2 — skipped
+    earned = claim_run(db, interval=3, force=True)             # run 3 — its turn regardless
     assert earned.due is True
     assert earned.forced is False, "the flag changed nothing on this run"
 
@@ -289,24 +303,28 @@ def _run_fetch_posts(db: str, monkeypatch, **over) -> list[str]:
     return polls
 
 
-def test_the_mode_polls_on_one_run_in_three(db: str, monkeypatch):
+def test_the_mode_polls_on_every_run(db: str, monkeypatch):
+    """At the deployed interval (1), nothing is ever due to skip."""
     polls = []
     for _ in range(6):
         polls.append(bool(_run_fetch_posts(db, monkeypatch)))
-    assert polls == [True, False, False, True, False, False]
+    assert polls == [True, True, True, True, True, True]
 
 
 def test_a_skipped_run_is_not_an_error(db: str, monkeypatch):
     """
-    daily_run.sh treats a non-zero exit from this phase as a WARNING it logs.
-    Skipping is the expected outcome two runs in three, so raising here would
-    put a false alarm in the log more often than not.
+    daily_run.sh treats a non-zero exit from this phase as a WARNING it logs,
+    so a skip must never raise. The deployed interval (1) never skips, so this
+    forces interval=3 to actually reach that path — `_fetch_posts` reads
+    `cadence.POSTS_RUN_INTERVAL` at call time for exactly this reason.
     """
+    monkeypatch.setattr(cadence, "POSTS_RUN_INTERVAL", 3)
     _run_fetch_posts(db, monkeypatch)                      # run 0 — polls
     assert _run_fetch_posts(db, monkeypatch) == []         # run 1 — skips, no raise
 
 
 def test_posts_force_reaches_the_vendor_on_a_skipped_run(db: str, monkeypatch):
+    monkeypatch.setattr(cadence, "POSTS_RUN_INTERVAL", 3)
     _run_fetch_posts(db, monkeypatch)
     assert _run_fetch_posts(db, monkeypatch, posts_force=True) != []
 

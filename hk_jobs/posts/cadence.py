@@ -1,64 +1,65 @@
 """
 How often the watchlist poll actually calls Apify.
 
-WHY THIS EXISTS, AND WHAT IT ACTUALLY SAVES
--------------------------------------------
-The watchlist poll is the only thing in this repo that calls a paid vendor on
-every nightly run, and the owner asked for it to run one night in three to stay
-inside Apify's free plan. It does that. But measuring it afterwards showed the
-saving is not the one you would assume, and it is worth knowing which:
+WHY THIS IS DAILY, AND WHAT THAT ACTUALLY COSTS
+-------------------------------------------------
+The watchlist poll used to run one pipeline run in three (ADR 0012), to hold
+Apify spend inside the free plan. Measuring it showed that premise was wrong —
+the poll is now every pipeline run (ADR 0031) because the thing "one in three"
+was bought with (fresher posts, sooner) was worth more than what it saved,
+which turned out to be close to nothing:
 
   Apify bills per RESULT, not per call — `VendorResult.cost_usd` is
   `len(items) * $0.002`, and a call returning nothing is not even logged. The
   poll is also watermarked rather than windowed: each recruiter is fetched
-  `since` their own `last_fetched_at`, so a three-day poll returns the three
-  days of posts that three daily polls would have returned between them.
+  `since` their own `last_fetched_at`, so a poll's total take over a month is
+  the same however it is sliced into individual runs.
 
-Same posts, same results, **same bill**. What this cuts by 3x is the number of
-actor RUNS — about 59 a night, one per enabled recruiter — which our ledger
-prices at zero. Keep that in mind before reaching for a bigger interval to save
-money; it will not.
+Same posts, same results, **same bill** — daily or one-in-three. What DOES
+change with the interval is the number of actor RUNS (about 59 a night, one
+per enabled recruiter, which our ledger prices at zero) and latency: at
+one-in-three a post could sit unpromoted for up to three days; daily, at most
+one.
 
-The measured spend, for scale: steady state is $0.024/day, about $0.71/month,
-or 14% of the $5 free credit. The $4.29 that July looks like is 95% one-off
-backfill (2026-07-22, 1,849 posts in a single deep pull) and does not recur.
-See docs/adr/0012.
+The measured steady-state spend (ADR 0012, 2026-08-04): $0.024/day, about
+$0.71/month, or 14% of the $5 free credit — comfortably inside the free tier
+at either cadence. See docs/adr/0012 and docs/adr/0031.
 
-What this DOES cost is latency: a post can be three days old before it is
-promoted, where it used to be one.
-
-ONE IN THREE, NOT ONE IN FOUR
------------------------------
-`run_index % interval == 0`, with `run_index` counted from zero, so the poll
-runs on the 1st, 4th, 7th run: exactly one run in every three, with two skipped
-between. The off-by-one worth naming is "skip three then run", which is one in
-four and 25% cheaper than asked for — and 33% staler.
+THE OFF-BY-ONE THIS MODULE STILL HAS TO GET RIGHT FOR ANY INTERVAL
+--------------------------------------------------------------------
+`run_index % interval == 0`, with `run_index` counted from zero, so an
+interval of 3 polls on the 1st, 4th, 7th run — one run in every three, two
+skipped between. The off-by-one worth naming is "skip three then run", which
+is one in four. `POSTS_RUN_INTERVAL == 1` makes this moot in production today
+(every run satisfies `run_index % 1 == 0`), but `claim_run` still takes an
+arbitrary `interval`, and `tests/test_posts_cadence.py` pins the general
+algorithm at interval=3 regardless of what the deployed default is — a future
+cadenced job, or a reason to slow this one back down, gets a correct interval
+for free.
 
 THE FLOOR HAS TO COVER THE CADENCE
 ----------------------------------
 `CATCHUP_FLOOR_HOURS` caps how far back a poll will ask, so a stale watermark
-cannot turn into a full-history pull. It lived in `store.py` at 48 hours, which
-is right for a daily poll and silently wrong for any slower one: at a three-run
-cadence the watermark is ~72h old, `max(last_fetched_at, now - 48h)` picks the
-FLOOR, and the poll asks for two days of a three-day gap. A day of recruiter
-posts would go missing every cycle, with nothing in the logs but the routine
-"capping lookback" line.
+cannot turn into a full-history pull. At interval=1 it is 48 hours: a day of
+margin over the 24-hour gap a daily poll actually leaves, enough slack for one
+late or missed run without truncating the lookback.
 
-So the floor is derived here from the interval rather than written down next to
-it. Changing the cadence moves the floor with it; that is the whole reason both
-constants live in this module.
+So the floor is derived here from the interval rather than written down next
+to it. Changing the cadence moves the floor with it; that is the whole reason
+both constants live in this module.
 
 WHAT A RUN IS
 -------------
-An invocation of `--fetch-posts`. `daily_run.sh` calls it exactly once per
-nightly run, so "one run in three" is one nightly pipeline in three.
+An invocation of `--fetch-posts`. `daily_run.sh` — and the hosted GitHub
+Actions workflow — call it exactly once per nightly pipeline, so at the
+current interval every nightly run polls.
 
 A run that comes up due consumes its turn whether or not the poll then
 succeeded — a vendor outage or a hit budget cap does not earn a retry on the
 next run. That is the simpler rule and it costs nothing: the watermark does not
 advance on a failed poll, so the next successful one covers the whole gap. The
-alternative makes "one in three" depend on vendor health, and has no clean
-answer when a poll half-succeeds across ~30 recruiters.
+alternative makes the cadence depend on vendor health, and has no clean answer
+when a poll half-succeeds across ~30 recruiters.
 """
 
 from __future__ import annotations
@@ -70,13 +71,13 @@ from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
-#: Run the watchlist poll on one pipeline run in this many.
+#: Run the watchlist poll on one pipeline run in this many. 1 = every run.
 #:
 #: Raising it does NOT reduce the bill — see the module docstring; billing is per
 #: result and the poll is watermarked, so fewer polls each return proportionally
-#: more posts. It reduces actor runs and increases how stale a post can be before
-#: it is promoted. Three is the owner's decision (2026-08-04).
-POSTS_RUN_INTERVAL = 3
+#: more posts. It only trades actor-run count against staleness. One is the
+#: owner's decision (2026-08-27, ADR 0031, supersedes the three from ADR 0012).
+POSTS_RUN_INTERVAL = 1
 
 #: How far back a poll will ask when the watermark is older than this. Must
 #: cover the whole gap the cadence creates, plus a day of slack for a late or

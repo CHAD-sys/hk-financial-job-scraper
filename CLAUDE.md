@@ -180,15 +180,18 @@ escalation risk, anti-bot arms race — see the plan's §3 for the full posture)
 - **Hard cap: $30/month**, self-enforced by `hk_jobs/posts/budget.py` against
   a running `vendor_costs` ledger — new Apify calls are refused once the
   month-to-date spend hits the cap, not just logged as a warning.
-- **The watchlist poll runs one pipeline run in three**, not nightly
-  (`hk_jobs/posts/cadence.py`, ADR 0012). Read that ADR before touching the
-  interval: Apify bills per RESULT and the poll is watermarked, so polling less
-  often returns proportionally more posts per poll and **does not reduce the
-  bill**. Steady-state spend is ~$0.71/month, 14% of the $5 free credit; the
-  scary-looking $4.29 July figure is 95% one-off backfill. The interval and the
-  poll's catch-up floor both live in `cadence.py`, and the floor is DERIVED from
-  the interval — at a fixed 48h it silently truncated the lookback to two days
-  of a three-day gap.
+- **The watchlist poll runs every pipeline run** — daily, not one run in three
+  (`hk_jobs/posts/cadence.py`, ADR 0031, supersedes ADR 0012's three). Read
+  ADR 0012 before touching the interval again: Apify bills per RESULT and the
+  poll is watermarked, so polling less often returns proportionally more posts
+  per poll and **does not reduce the bill**. Steady-state spend is
+  ~$0.71/month, 14% of the $5 free credit, unchanged by cadence; the
+  scary-looking $4.29 July figure is 95% one-off backfill. Daily was chosen to
+  cut latency (a post is now at most one pipeline run stale, not three) at the
+  cost of the actor-run reduction the slower cadence bought (ADR 0031). The
+  interval and the poll's catch-up floor both live in `cadence.py`, and the
+  floor is DERIVED from the interval — a fixed 48h floor is only safe for a
+  daily poll; it silently truncates the lookback for any slower cadence.
 - This exception applies ONLY to `hk_jobs/posts/`. Every other source in this
   repo stays on the no-paid-services line.
 - Same "no login, no credentials, no authwall" posture as the JobsDB/Indeed/

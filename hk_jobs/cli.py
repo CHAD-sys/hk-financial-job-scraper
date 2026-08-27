@@ -461,8 +461,9 @@ def build_parser() -> argparse.ArgumentParser:
             "LinkedIn posts via Apify (raw ingestion only — no jobs/PocketBase yet, "
             "see docs/PLAN_LINKEDIN_POSTS.md). Requires APIFY_API_TOKEN. "
             "Self-enforces the $30/mo budget cap (hk_jobs.posts.budget). "
-            "Runs on ONE pipeline run in POSTS_RUN_INTERVAL (3) — a skipped run is "
-            "a success, not an error; use --posts-force to poll anyway."
+            "Runs on one pipeline run in hk_jobs.posts.cadence.POSTS_RUN_INTERVAL "
+            "(currently every run) — a skipped run is a success, not an error; "
+            "use --posts-force to poll anyway."
         ),
     )
     p.add_argument(
@@ -678,21 +679,29 @@ def _fetch_descriptions(args: PipelineArgs) -> None:
 
 def _fetch_posts(args: PipelineArgs) -> None:
     """
-    The watchlist poll, on one pipeline run in `POSTS_RUN_INTERVAL`.
+    The watchlist poll, on one pipeline run in `cadence.POSTS_RUN_INTERVAL`.
 
     The gate is here rather than in `daily_run.sh` because the cost is a property
     of the poll, not of one caller's crontab: a hand-run `--fetch-posts` spends
     the same money as the nightly one, and a shell-side check would not have
     covered it.
 
-    A skipped run exits 0. It is the expected outcome two runs in three, and
-    `daily_run.sh` already treats a non-zero exit from this phase as a warning to
-    surface — so failing here would put a false alarm in the log every other day.
+    A skipped run exits 0 whenever the interval leaves one to skip — it is not
+    an error, and `daily_run.sh` already treats a non-zero exit from this phase
+    as a warning to surface, so failing here would put a false alarm in the log.
+    At the current interval (1: every run) nothing is ever skipped, but the gate
+    stays in case that changes again.
     """
     from hk_jobs.posts import cadence
     from hk_jobs.posts.fetcher import fetch_watchlist
 
-    decision = cadence.claim_run(args.db, force=args.posts_force)
+    # `interval=` explicit rather than relying on claim_run's own default: a
+    # Python default is bound once, at import time, so a test (or a future
+    # caller) that wants to override `cadence.POSTS_RUN_INTERVAL` after import
+    # needs this read to happen at CALL time to see it.
+    decision = cadence.claim_run(
+        args.db, force=args.posts_force, interval=cadence.POSTS_RUN_INTERVAL
+    )
     if not decision.due:
         logger.info(
             "Watchlist poll skipped — %s. Nothing is lost: the next poll is scoped "
