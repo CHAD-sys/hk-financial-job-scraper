@@ -98,12 +98,12 @@ def _enricher() -> DeepSeekEnricher:
 
 
 def test_insurance_tier_prompt_requires_explicit_tier_2_membership():
-    """The model must not recreate the blanket discount removed from runtime."""
+    """v14 delegates insurer tiers to the one deterministic runtime policy."""
     prompt = deepseek._SALARY_INSTRUCTIONS
 
     assert "ANY OTHER" not in prompt
-    assert "Absence from Tier 1 is not evidence of Tier 2" in prompt
-    assert "No configured insurer is currently classified as Tier 2" in prompt
+    assert "deterministic runtime" in prompt
+    assert "Tier 2 discount" not in prompt
 
 
 def test_insurance_tier_prompt_renders_the_anchor_registry(monkeypatch):
@@ -156,9 +156,9 @@ def test_salary_prompt_uses_short_per_job_candidates_not_the_full_anchor_catalog
     assert "ANCHOR CANDIDATES (classification only)" in prompt
     assert "middle_office / product_management" in prompt
     assert "Employer cohorts: dbs_sized_banks" in prompt
-    # The old request embedded every role and band (~54k chars). v14 has only
-    # the candidate list, keeping the static instruction well below that size.
-    assert len(prompt) < 35_000
+    # The old request embedded every role, band, and hand-maintained policy
+    # (~54k chars). v14 sends only an execution policy plus candidates.
+    assert len(prompt) < 12_000
 
 
 # ── the allocation that broke it ─────────────────────────────────────────────
@@ -255,21 +255,22 @@ def test_contract_duration_does_not_discount_the_base_salary(sent):
         description="Manage accounting for retail finance and credit cards.",
     )
     prompt = _prompt(sent)
-    assert "do not discount base salary because a Role is contract" in prompt
+    assert "Contract status does not lower base pay" in prompt
     assert "apply a 10-20% discount vs the equivalent permanent role" not in prompt
 
 
-def test_cmb_smaller_bank_calibration_reaches_the_model(sent):
-    """The standalone evaluator sees the same CMB policy as the final clamp."""
+def test_cmb_smaller_bank_context_reaches_the_model_without_copying_the_band(sent):
+    """The model sees the cohort; the deterministic clamp owns its salary band."""
     _enricher().enrich_single(
         "Mobile App Product Manager, Digital Banking Department",
         "CMB Wing Lung Bank Limited",
         description="Own the bank's mobile application roadmap and releases.",
+        company_slug="cmb-wing-lung",
     )
     prompt = _prompt(sent)
     assert "CMB Wing Lung" in prompt
-    assert "Product Manager and Team Lead: HK$45,000-60,000" in prompt
-    assert "AVP and unambiguous Manager grade: HK$40,000-55,000" in prompt
+    assert "smaller_banks" in prompt
+    assert "Product Manager and Team Lead: HK$45,000-60,000" not in prompt
 
 
 #: The evidence block's own lead-in. NOT the bare words "HUMAN CORRECTIONS":

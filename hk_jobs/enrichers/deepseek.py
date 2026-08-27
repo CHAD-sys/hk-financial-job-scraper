@@ -577,6 +577,38 @@ fallback is better than a plausible but untraceable number.""".replace(
     "{insurance_tier_policy}", _INSURANCE_TIER_POLICY
 )
 
+# v14's execution policy.  The preceding v13 text is retained temporarily as
+# migration history; this smaller policy is what reaches the model. Salary
+# bands, employer exceptions and caps live only in the typed anchors/clamp that
+# actually prices a listing, never in a second prose copy that can drift.
+_SALARY_INSTRUCTIONS = """\
+SALARY CLASSIFICATION (v14)
+
+The board estimates Hong Kong monthly BASE salary. Do not infer or return an
+AI salary amount: salary_estimated_min and salary_estimated_max must be null
+unless an explicit base-salary range is disclosed in the posting. The runtime
+derives any estimate deterministically from your selected coordinate.
+
+1. Extract a disclosed monthly BASE salary into salary_hkd_min/max only when it
+is genuinely base pay. Never treat commission, bonus, OTE, package/total
+compensation, or an "up to" earnings claim as base salary. For an upper-bound-
+only disclosure, set salary_hkd_min to null and salary_hkd_max to the stated cap.
+2. Read the posting and the ANCHOR CANDIDATES block after it. Select exactly one
+salary_tier / salary_role / salary_grade combination from that block only when
+the function and grade clearly fit responsibilities, scope and experience.
+Return the grade spelling exactly as shown. Do not invent a coordinate.
+3. If the role is ambiguous, has no suitable candidate, or offers a menu of
+possible grades, return null for salary_tier, salary_role, salary_grade,
+salary_estimated_min and salary_estimated_max. This is a review fallback, not a
+reason to guess. Keep salary_estimated_confidence low or null.
+4. If a coordinate is selected and no salary is disclosed, leave both
+salary_estimated_* endpoints null and use medium confidence. The deterministic
+pricing layer owns every endpoint, employer cohort adjustment and cap.
+5. Contract status does not lower base pay. Intern/trainee, part-time and all
+title-grade exceptions are enforced by the deterministic runtime after the
+coordinate is selected.
+"""
+
 
 # The version this enricher stamps on every row it writes.
 #
