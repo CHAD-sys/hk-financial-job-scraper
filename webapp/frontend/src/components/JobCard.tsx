@@ -128,6 +128,8 @@ export default function JobCard({ job, saved, onToggleSave, onClick, onEdit }: P
           </button>
         </h3>
 
+        {job.match_reason && <MatchReason reason={job.match_reason} />}
+
         <MetaRow job={job} />
       </div>
 
@@ -145,6 +147,30 @@ export default function JobCard({ job, saved, onToggleSave, onClick, onEdit }: P
 
       <CardFooter job={job} />
     </article>
+  )
+}
+
+function MatchReason({ reason }: { reason: NonNullable<Job['match_reason']> }) {
+  const label = {
+    exact_title: 'Exact title match',
+    title: 'Title match',
+    title_en: 'English title match',
+    company: 'Employer match',
+    skills: 'Skills match',
+    description: 'Related mention',
+  }[reason]
+
+  return (
+    <span
+      className="inline-flex w-fit rounded-sm px-1.5 py-0.5 text-xs font-medium"
+      style={{
+        color: 'var(--color-ink-muted)',
+        backgroundColor: 'var(--color-surface-2)',
+        border: '1px solid var(--color-border)',
+      }}
+    >
+      {label}
+    </span>
   )
 }
 

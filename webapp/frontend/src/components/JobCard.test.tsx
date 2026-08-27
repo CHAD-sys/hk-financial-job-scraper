@@ -65,6 +65,18 @@ describe('JobCard', () => {
     expect(screen.getByText('JobsDB')).toBeTruthy()
   })
 
+  it('explains why a searched Role matched', () => {
+    render(
+      <JobCard
+        job={{ ...base, match_reason: 'title' }}
+        saved={false}
+        onToggleSave={noop}
+        onClick={noop}
+      />,
+    )
+    expect(screen.getByText('Title match')).toBeTruthy()
+  })
+
   it('calls an own-site source the company site, never the ATS vendor', () => {
     render(<JobCard job={{ ...base, source: 'workday' }} saved={false} onToggleSave={noop} onClick={noop} />)
     expect(screen.getByText('Company site')).toBeTruthy()

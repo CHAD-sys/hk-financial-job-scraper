@@ -102,6 +102,8 @@ export interface Job {
   url: string
   is_internship: boolean
   description_excerpt: string
+  /** Why this card appears in the current search; absent outside search results. */
+  match_reason?: 'exact_title' | 'title' | 'title_en' | 'company' | 'skills' | 'description' | null
   /**
    * The vacancy is no longer open.
    *

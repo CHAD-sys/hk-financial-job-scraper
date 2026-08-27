@@ -34,7 +34,7 @@ import AdminJobEditDrawer from '../components/AdminJobEditDrawer'
 
 const PAGE_SIZE = 24
 const SORT_OPTIONS = [
-  { value: 'relevance', label: 'Best match' },
+  { value: 'relevance', label: 'Most relevant' },
   { value: 'newest', label: 'Newest first' },
   { value: 'salary_high', label: 'Salary: High → Low' },
   { value: 'salary_low', label: 'Salary: Low → High' },

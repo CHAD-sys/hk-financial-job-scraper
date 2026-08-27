@@ -253,6 +253,7 @@ _FROM = """
 #: — split out so `_boosted_rows_sql` can add a window-function column to the
 #: same SELECT list rather than duplicating it.
 _SELECT_COLUMNS = f"""
+    j.rowid AS search_rowid,
     j.source,
     j.source_id,
     j.company,
@@ -335,6 +336,9 @@ class JobSummary(BaseModel):
     url: str
     is_internship: bool = False
     description_excerpt: str = ""
+    #: Why this Role appears in the current free-text search.  Absent outside
+    #: search results so a card never claims a relevance judgment it did not make.
+    match_reason: Literal["exact_title", "title", "title_en", "company", "skills", "description"] | None = None
     #: The vacancy is no longer open. Only ever true for a Role reached by
     #: reference (a Saved Role, a deep link) — the board never returns one.
     #: The domain word is "closed"; `is_active` is a storage detail and stays
@@ -877,7 +881,9 @@ def _own_signals(row: sqlite3.Row) -> dict[str, dict]:
     return {row["source"]: sig} if sig else {}
 
 
-def _to_summary(row: sqlite3.Row, *, is_admin: bool = False) -> JobSummary:
+def _to_summary(
+    row: sqlite3.Row, *, is_admin: bool = False, match_reason: str | None = None
+) -> JobSummary:
     # From the AI summary, never `description_clean` — see PUBLISHABLE_DESCRIPTION.
     # This used to be the first 200 characters of the employer's own description,
     # on every row of every list response including anonymous ones.
@@ -920,6 +926,7 @@ def _to_summary(row: sqlite3.Row, *, is_admin: bool = False) -> JobSummary:
         url=row["url"],
         is_internship=bool(row["is_internship"]),
         description_excerpt=excerpt,
+        match_reason=match_reason,
         closed=not row["is_active"],
         board_signals=_own_signals(row),
     )
@@ -1025,7 +1032,17 @@ def list_jobs(
         params + [page_size, offset],
     ).fetchall()
 
-    summaries = [_to_summary(r, is_admin=is_admin) for r in rows]
+    summaries = [
+        _to_summary(
+            row,
+            is_admin=is_admin,
+            match_reason=(
+                search_index.match_reason(conn, int(row["search_rowid"]), filters.search)
+                if filters.search else None
+            ),
+        )
+        for row in rows
+    ]
     _attach_group_signals(conn, rows, summaries)
 
     return JobListResponse(

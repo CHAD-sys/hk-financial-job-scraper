@@ -167,8 +167,11 @@ def to_match_query(conn: sqlite3.Connection, query: str) -> str:
                 break
 
         if alternatives is not None:
+            # Employer-group aliases must match the company field exactly.
+            # Searching every field with a prefix made ``EY`` match ordinary
+            # prose such as "eye-opening" in unrelated roles.
             options = [
-                "(" + " AND ".join(f'\"{term}\"*' for term in option) + ")"
+                "(" + " AND ".join(f'company : \"{term}\"' for term in option) + ")"
                 for option in alternatives
             ]
             clauses.append("(" + " OR ".join(options) + ")")
@@ -181,6 +184,118 @@ def to_match_query(conn: sqlite3.Connection, query: str) -> str:
         i += 1
 
     return " AND ".join(clauses)
+
+
+_PRIMARY_SEARCH_COLUMNS = ("title", "title_en", "company")
+_SKILLS_SEARCH_COLUMN = "skills"
+
+
+def _has_company_group_alias(tokens: list[str]) -> bool:
+    """Whether tokens contain a configured employer-group alias."""
+    for key in _COMPANY_GROUP_ALIASES:
+        size = len(key)
+        if any(tuple(tokens[i : i + size]) == key for i in range(len(tokens) - size + 1)):
+            return True
+    return False
+
+
+def _primary_match_query(conn: sqlite3.Connection, query: str, match: str) -> str:
+    """Prefer a cohesive title, translated-title, or employer match for a role query."""
+    tokens = [t for t in _TOKEN.split((query or "").lower()) if t]
+    if len(tokens) < 2 or _has_company_group_alias(tokens):
+        return ""
+    return " OR ".join(f"{column} : ({match})" for column in _PRIMARY_SEARCH_COLUMNS)
+
+
+def _skills_match_query(conn: sqlite3.Connection, query: str, match: str) -> str:
+    """Restrict an ordinary multi-word fallback to declared required skills."""
+    tokens = [t for t in _TOKEN.split((query or "").lower()) if t]
+    if len(tokens) < 2 or _has_company_group_alias(tokens):
+        return ""
+    return f"{_SKILLS_SEARCH_COLUMN} : ({match})"
+
+
+def _exact_title_rowids(conn: sqlite3.Connection, query: str) -> set[int]:
+    """Rows whose title is exactly an ordinary multi-word query."""
+    tokens = [t for t in _TOKEN.split((query or "").lower()) if t]
+    if len(tokens) < 2 or _has_company_group_alias(tokens):
+        return set()
+    phrase = " ".join(_correct_token(conn, token) for token in tokens)
+    rows = conn.execute(
+        "SELECT rowid FROM jobs_fts "
+        "WHERE lower(trim(title)) = ? OR lower(trim(title_en)) = ?",
+        (phrase, phrase),
+    ).fetchall()
+    return {row[0] for row in rows}
+
+
+def _promote_exact_title_matches(
+    conn: sqlite3.Connection, query: str, rowids: list[int]
+) -> list[int]:
+    """Move exact-title matches ahead of the existing BM25-ranked candidates."""
+    exact = _exact_title_rowids(conn, query)
+    if not exact:
+        return rowids
+    return [rowid for rowid in rowids if rowid in exact] + [
+        rowid for rowid in rowids if rowid not in exact
+    ]
+
+
+def _exclude_opposite_title_matches(
+    conn: sqlite3.Connection, query: str, rowids: list[int]
+) -> list[int]:
+    """Remove title-level semantic opposites of an unqualified role query."""
+    tokens = [t for t in _TOKEN.split((query or "").lower()) if t]
+    if "financial" not in tokens or "non" in tokens:
+        return rowids
+    rows = conn.execute(
+        "SELECT rowid FROM jobs_fts WHERE jobs_fts MATCH ?",
+        ('title : "non financial" OR title_en : "non financial"',),
+    ).fetchall()
+    opposites = {row[0] for row in rows}
+    return [rowid for rowid in rowids if rowid not in opposites]
+
+
+def match_reason(conn: sqlite3.Connection, rowid: int, query: str) -> str | None:
+    """The strongest indexed field that makes one returned Role relevant."""
+    match = to_match_query(conn, query)
+    if not match:
+        return None
+    if rowid in _exact_title_rowids(conn, query):
+        return "exact_title"
+
+    tokens = [t for t in _TOKEN.split((query or "").lower()) if t]
+    if _has_company_group_alias(tokens):
+        return "company"
+
+    for reason, column in (
+        ("title", "title"),
+        ("title_en", "title_en"),
+        ("company", "company"),
+        ("skills", "skills"),
+        ("description", "description"),
+    ):
+        field_match = f"{column} : ({match})"
+        row = conn.execute(
+            "SELECT 1 FROM jobs_fts WHERE rowid = ? AND jobs_fts MATCH ?",
+            (rowid, field_match),
+        ).fetchone()
+        if row is not None:
+            return reason
+    return None
+
+
+def _matching_rowids_for_match(
+    conn: sqlite3.Connection, match: str, *, limit: int
+) -> list[int]:
+    """Run one safe FTS expression in BM25 order."""
+    weights = ", ".join(str(w) for w in _BM25_WEIGHTS)
+    rows = conn.execute(
+        f"SELECT rowid FROM jobs_fts WHERE jobs_fts MATCH ?"
+        f" ORDER BY bm25(jobs_fts, {weights}) LIMIT ?",
+        (match, limit),
+    ).fetchall()
+    return [r[0] for r in rows]
 
 
 def matching_rowids(conn: sqlite3.Connection, query: str, *, limit: int = 20000) -> list[int]:
@@ -201,15 +316,20 @@ def matching_rowids(conn: sqlite3.Connection, query: str, *, limit: int = 20000)
     if not match:
         return []
 
-    weights = ", ".join(str(w) for w in _BM25_WEIGHTS)
     try:
-        rows = conn.execute(
-            f"SELECT rowid FROM jobs_fts WHERE jobs_fts MATCH ?"
-            f" ORDER BY bm25(jobs_fts, {weights}) LIMIT ?",
-            (match, limit),
-        ).fetchall()
+        primary_match = _primary_match_query(conn, query, match)
+        if primary_match and (rows := _matching_rowids_for_match(conn, primary_match, limit=limit)):
+            return _exclude_opposite_title_matches(
+                conn, query, _promote_exact_title_matches(conn, query, rows)
+            )
+        skills_match = _skills_match_query(conn, query, match)
+        if skills_match and (rows := _matching_rowids_for_match(conn, skills_match, limit=limit)):
+            return rows
+        rows = _matching_rowids_for_match(conn, match, limit=limit)
     except sqlite3.OperationalError:
         logger.warning("Search index unavailable; query %r returned nothing.", query)
         return []
 
-    return [r[0] for r in rows]
+    return _exclude_opposite_title_matches(
+        conn, query, _promote_exact_title_matches(conn, query, rows)
+    )

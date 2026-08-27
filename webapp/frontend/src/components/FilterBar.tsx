@@ -170,7 +170,7 @@ function SearchInput({ value, onChange }: { value: string; onChange: (v: string)
   return (
     <div className="relative flex-1 max-w-md">
       <label htmlFor="filter-bar-search" className="sr-only">
-        Search roles, companies
+        Search job titles, employers, and skills
       </label>
       <Search
         size={15}
@@ -182,7 +182,7 @@ function SearchInput({ value, onChange }: { value: string; onChange: (v: string)
         type="search"
         value={value}
         onChange={e => onChange(e.target.value)}
-        placeholder="Search roles, companies…"
+        placeholder="Job title, employer, or skill…"
         className="w-full rounded-md pl-9 pr-3 py-2 text-sm outline-none transition-[background-color,border-color,box-shadow] duration-150"
         style={{
           backgroundColor: 'var(--color-surface-2)',
