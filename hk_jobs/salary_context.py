@@ -25,14 +25,19 @@ _GENERIC = frozenset({
 # remaining row is still discoverable from its role key below; this is a boost,
 # not a second hidden taxonomy.
 _ROLE_TERMS: dict[str, tuple[str, ...]] = {
-    "product_management": ("product manager", "product owner", "product management"),
-    "private_banking_rm": ("private banking", "wealth management", "relationship manager"),
-    "commercial_banking_rm": ("relationship manager", "commercial banking"),
+    "product_management": (
+        "product manager", "product owner", "product management", "产品经理", "產品經理",
+    ),
+    "private_banking_rm": (
+        "private banking", "wealth management", "relationship manager", "私人财富", "私人財富",
+        "财富管理", "財富管理",
+    ),
+    "commercial_banking_rm": ("relationship manager", "commercial banking", "客户经理", "客戶經理"),
     "sme_banking_rm": ("relationship manager", "sme banking"),
     "relationship_management": ("relationship manager", "retail relationship"),
     "financial_markets_sales": ("global markets sales", "markets sales", "sales trading"),
-    "risk_credit": ("credit risk", "counterparty risk", "credit approval"),
-    "risk_market": ("market risk", "var", "value at risk"),
+    "risk_credit": ("credit risk", "counterparty risk", "credit approval", "信用风险", "信用風險"),
+    "risk_market": ("market risk", "var", "value at risk", "市场风险", "市場風險"),
     "risk_operational": ("operational risk", "non-financial risk"),
     "compliance_banking": ("compliance", "aml", "financial crime", "sanctions"),
     "audit_banking": ("internal audit", "audit"),
@@ -44,7 +49,7 @@ _ROLE_TERMS: dict[str, tuple[str, ...]] = {
     "corporate_finance_ma_ecm_dcm": ("m&a", "mergers", "acquisitions", "ecm", "dcm"),
     "global_markets_trading": ("trader", "trading", "rates", "fx", "equities"),
     "trade_support": ("trade support", "middle office"),
-    "payment_operation": ("payment operations", "payments", "remittance"),
+    "payment_operation": ("payment operations", "payments", "remittance", "支付", "付款", "汇款", "匯款"),
     "fund_operations": ("fund operations", "fund administration"),
     "human_resources": ("human resources", "people", "talent acquisition"),
     "software_data_engineering": ("software engineer", "data engineer", "developer"),
@@ -122,7 +127,10 @@ def build_salary_context(
         for role, ladder in (table.get("roles") or {}).items():
             terms = _role_terms(role)
             phrase_hits = sum(
-                1 for term in terms if " " in term and (term in title_text or term in description_text)
+                1
+                for term in terms
+                if (" " in term or any(ord(character) > 127 for character in term))
+                and (term in title_text or term in description_text)
             )
             token_terms = frozenset(token for term in terms for token in _tokens(term) if token not in _GENERIC)
             title_hits = len(token_terms & title_tokens)

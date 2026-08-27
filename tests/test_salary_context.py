@@ -38,3 +38,9 @@ def test_context_never_returns_a_coordinate_outside_the_published_table():
     assert ("front_office", "financial_markets_sales") in _coordinates(context)
     for candidate in context.candidates:
         assert candidate.grades
+
+
+def test_common_chinese_product_title_gets_a_valid_candidate_without_translation():
+    context = build_salary_context(title="贸易融资产品经理 - 公司银行市场规划部")
+
+    assert ("middle_office", "product_management") in _coordinates(context)
