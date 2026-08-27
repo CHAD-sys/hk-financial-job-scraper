@@ -86,7 +86,6 @@ from hk_jobs.migrations import migrate  # noqa: E402
 from hk_jobs.sources import BY_NAME as SOURCES_BY_NAME  # noqa: E402
 from hk_jobs.sources import SOURCE_NAMES  # noqa: E402
 from job_read import (  # noqa: E402
-    BOARD_WHERE,
     INTERNSHIP_COND,
     MEMBER_ONLY_TIERS,
     SECTOR_SQL,
@@ -377,7 +376,7 @@ def list_jobs(
     # roles nobody would think to search for. This lifts the QUERY requirement
     # only: Visibility.BOARD below still hides closed and duplicate rows, so an
     # admin sees every live Role once, not the raw table.
-    if len(research_query) < 2 and not _is_admin_session(seeker):
+    if not job_read.has_research_scope(research_query) and not _is_admin_session(seeker):
         raise HTTPException(
             status_code=422,
             detail="Start with a specific search of at least two characters.",
@@ -496,7 +495,7 @@ def record_discovery(payload: DiscoveryIn, request: Request):
     research_query = payload.search_query.strip()
     if not research_query and not filters:
         return Response(status_code=204)
-    if len(research_query) < 2:
+    if not job_read.has_research_scope(research_query):
         raise HTTPException(
             status_code=422,
             detail="Filters can only be saved inside a specific Role search.",
@@ -1244,10 +1243,10 @@ def _landing_pages(request: Request) -> dict[str, tuple[str, str, int]]:
     if cached and cached[0] > time.time():
         return cached[1]
 
-    audience_where = f"{BOARD_WHERE} AND {job_read.PUBLIC_AUDIENCE_WHERE}"
     pages: dict[str, tuple[str, str, int]] = {}
     try:
         with get_db(request) as conn:
+            audience_where = job_read.scope_where(conn, audience=CatalogueAudience.PUBLIC)
             employers = [
                 (company, count)
                 for company, count in conn.execute(
@@ -1554,9 +1553,9 @@ def _hub_body(request: Request) -> str:
     audience. Both go in the document rather than arriving by XHR, so the page
     reads the same to a crawler as to a person.
     """
-    audience_where = f"{BOARD_WHERE} AND {job_read.PUBLIC_AUDIENCE_WHERE}"
     try:
         with get_db(request) as conn:
+            audience_where = job_read.scope_where(conn, audience=CatalogueAudience.PUBLIC)
             total = conn.execute(
                 f"SELECT COUNT(*) FROM jobs j WHERE {audience_where}"
             ).fetchone()[0]
@@ -1819,8 +1818,8 @@ def get_filters(
     """
     research_query = search.strip()
     seeker = _current_seeker(request)
-    admin_browsing = len(research_query) < 2 and _is_admin_session(seeker)
-    if len(research_query) < 2 and not admin_browsing:
+    admin_browsing = not job_read.has_research_scope(research_query) and _is_admin_session(seeker)
+    if not job_read.has_research_scope(research_query) and not admin_browsing:
         raise HTTPException(
             status_code=422,
             detail="Start with a specific search of at least two characters.",
@@ -1838,10 +1837,13 @@ def get_filters(
 
 @router.get("/api/stats", response_model=StatsResponse, tags=["meta"])
 def get_stats(request: Request):
-    audience_where = BOARD_WHERE
-    if _current_seeker(request) is None:
-        audience_where = f"{BOARD_WHERE} AND {job_read.PUBLIC_AUDIENCE_WHERE}"
+    audience = (
+        CatalogueAudience.PUBLIC
+        if _current_seeker(request) is None
+        else CatalogueAudience.MEMBER
+    )
     with get_db(request) as conn:
+        audience_where = job_read.scope_where(conn, audience=audience)
         total = conn.execute(
             f"SELECT COUNT(*) FROM jobs j WHERE {audience_where}"
         ).fetchone()[0]

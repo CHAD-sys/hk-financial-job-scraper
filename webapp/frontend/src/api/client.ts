@@ -397,6 +397,16 @@ export interface LinkedInPostSignals {
   not_a_ghost_job?: boolean
 }
 
+// The shortest text a Seeker or visitor may submit to establish a Research
+// Scope (ADR 0018: a query gates the catalogue; filters alone may never open
+// it). Mirrors `job_read.MIN_RESEARCH_QUERY_LENGTH` on the backend — a
+// contract test (client.test.ts) fails if the two numbers ever drift apart.
+export const MIN_RESEARCH_QUERY_LENGTH = 2
+
+export function hasResearchScope(query: string): boolean {
+  return query.trim().length >= MIN_RESEARCH_QUERY_LENGTH
+}
+
 export interface JobFilters {
   tier: TierTab
   search: string
@@ -416,6 +426,42 @@ export interface JobFilters {
   max_applicants: number | null
   hidden_only: boolean
   verified_only: boolean
+}
+
+// One name per field, per wire format `fetchJobs` and the URL serializer
+// below actually use. Those two used to each spell every field's name out by
+// hand — `sector` vs `sectors`, `q` vs `search` were already two live copies
+// of the same field disagreeing with each other. This table is now the one
+// place a field's name lives; `fetchJobs`, `filtersToSearchParams` and
+// `searchParamsToFilters` only decide ENCODING (comma-joined vs repeated
+// params, `'true'` vs `'1'`), never naming — a renamed param can no longer
+// drift between the function that writes it and the one that reads it back.
+//
+// `tier` and `salary_disclosed_only` are deliberately absent: `tier` has no
+// URL representation at all (shared links collapse to the combined research
+// stream, see `searchParamsToFilters`), and `salary_disclosed_only` has no
+// API param of its own — it folds into `salary_min` instead (see the comment
+// on that in `fetchJobs`).
+const FILTER_PARAM_NAMES: Record<
+  Exclude<keyof JobFilters, 'tier' | 'salary_disclosed_only'>,
+  { api: string; url: string }
+> = {
+  search: { api: 'search', url: 'q' },
+  sectors: { api: 'sectors', url: 'sector' },
+  companies: { api: 'companies', url: 'company' },
+  seniority: { api: 'seniority', url: 'seniority' },
+  remote_type: { api: 'remote_type', url: 'remote' },
+  skills: { api: 'skills', url: 'skill' },
+  salary_min: { api: 'salary_min', url: 'sal_min' },
+  salary_max: { api: 'salary_max', url: 'sal_max' },
+  exp_min: { api: 'exp_min', url: 'exp_min' },
+  exp_max: { api: 'exp_max', url: 'exp_max' },
+  is_internship: { api: 'is_internship', url: 'intern' },
+  is_new: { api: 'is_new', url: 'new' },
+  urgently_hiring: { api: 'urgently_hiring', url: 'urgent' },
+  max_applicants: { api: 'max_applicants', url: 'max_appl' },
+  hidden_only: { api: 'hidden_only', url: 'hidden' },
+  verified_only: { api: 'verified_only', url: 'verified' },
 }
 
 export const DEFAULT_FILTERS: JobFilters = {
@@ -450,30 +496,35 @@ export async function fetchJobs(
   const p = new URLSearchParams()
 
   if (filters.tier !== 'all') p.set('tier', filters.tier)
-  if (filters.search) p.set('search', filters.search)
-  filters.sectors.forEach(s => p.append('sectors', s))
-  filters.companies.forEach(c => p.append('companies', c))
-  filters.seniority.forEach(s => p.append('seniority', s))
-  filters.remote_type.forEach(r => p.append('remote_type', r))
-  filters.skills.forEach(s => p.append('skills', s))
+  if (filters.search) p.set(FILTER_PARAM_NAMES.search.api, filters.search)
+  filters.sectors.forEach(s => p.append(FILTER_PARAM_NAMES.sectors.api, s))
+  filters.companies.forEach(c => p.append(FILTER_PARAM_NAMES.companies.api, c))
+  filters.seniority.forEach(s => p.append(FILTER_PARAM_NAMES.seniority.api, s))
+  filters.remote_type.forEach(r => p.append(FILTER_PARAM_NAMES.remote_type.api, r))
+  filters.skills.forEach(s => p.append(FILTER_PARAM_NAMES.skills.api, s))
 
+  // salary_disclosed_only has no API param of its own — it raises the salary
+  // floor to 1 instead. NOTE: this doesn't actually restrict to disclosed
+  // salaries — job_read._where's salary_min condition also matches AI-
+  // estimated figures, so this filter is weaker than its label claims. A
+  // real fix needs a dedicated backend param; flagged, not fixed here.
   if (filters.salary_disclosed_only) {
-    p.set('salary_min', String(filters.salary_min ?? 1))
+    p.set(FILTER_PARAM_NAMES.salary_min.api, String(filters.salary_min ?? 1))
   } else if (filters.salary_min !== null) {
-    p.set('salary_min', String(filters.salary_min))
+    p.set(FILTER_PARAM_NAMES.salary_min.api, String(filters.salary_min))
   }
   if (filters.salary_max !== null) {
-    p.set('salary_max', String(filters.salary_max))
+    p.set(FILTER_PARAM_NAMES.salary_max.api, String(filters.salary_max))
   }
 
-  if (filters.exp_min !== null) p.set('exp_min', String(filters.exp_min))
-  if (filters.exp_max !== null) p.set('exp_max', String(filters.exp_max))
-  if (filters.is_internship !== null) p.set('is_internship', String(filters.is_internship))
-  if (filters.is_new) p.set('is_new', 'true')
-  if (filters.urgently_hiring) p.set('urgently_hiring', 'true')
-  if (filters.max_applicants !== null) p.set('max_applicants', String(filters.max_applicants))
-  if (filters.hidden_only) p.set('hidden_only', 'true')
-  if (filters.verified_only) p.set('verified_only', 'true')
+  if (filters.exp_min !== null) p.set(FILTER_PARAM_NAMES.exp_min.api, String(filters.exp_min))
+  if (filters.exp_max !== null) p.set(FILTER_PARAM_NAMES.exp_max.api, String(filters.exp_max))
+  if (filters.is_internship !== null) p.set(FILTER_PARAM_NAMES.is_internship.api, String(filters.is_internship))
+  if (filters.is_new) p.set(FILTER_PARAM_NAMES.is_new.api, 'true')
+  if (filters.urgently_hiring) p.set(FILTER_PARAM_NAMES.urgently_hiring.api, 'true')
+  if (filters.max_applicants !== null) p.set(FILTER_PARAM_NAMES.max_applicants.api, String(filters.max_applicants))
+  if (filters.hidden_only) p.set(FILTER_PARAM_NAMES.hidden_only.api, 'true')
+  if (filters.verified_only) p.set(FILTER_PARAM_NAMES.verified_only.api, 'true')
 
   p.set('sort', sort)
   p.set('page', String(page))
@@ -1441,23 +1492,23 @@ export function filtersToSearchParams(
   page: number,
 ): URLSearchParams {
   const p = new URLSearchParams()
-  if (filters.search) p.set('q', filters.search)
-  filters.sectors.forEach(s => p.append('sector', s))
-  filters.companies.forEach(c => p.append('company', c))
-  filters.seniority.forEach(s => p.append('seniority', s))
-  filters.remote_type.forEach(r => p.append('remote', r))
-  filters.skills.forEach(s => p.append('skill', s))
+  if (filters.search) p.set(FILTER_PARAM_NAMES.search.url, filters.search)
+  filters.sectors.forEach(s => p.append(FILTER_PARAM_NAMES.sectors.url, s))
+  filters.companies.forEach(c => p.append(FILTER_PARAM_NAMES.companies.url, c))
+  filters.seniority.forEach(s => p.append(FILTER_PARAM_NAMES.seniority.url, s))
+  filters.remote_type.forEach(r => p.append(FILTER_PARAM_NAMES.remote_type.url, r))
+  filters.skills.forEach(s => p.append(FILTER_PARAM_NAMES.skills.url, s))
   if (filters.salary_disclosed_only) p.set('sal_disclosed', '1')
-  if (filters.salary_min !== null) p.set('sal_min', String(filters.salary_min))
-  if (filters.salary_max !== null) p.set('sal_max', String(filters.salary_max))
-  if (filters.exp_min !== null) p.set('exp_min', String(filters.exp_min))
-  if (filters.exp_max !== null) p.set('exp_max', String(filters.exp_max))
-  if (filters.is_internship) p.set('intern', '1')
-  if (filters.is_new) p.set('new', '1')
-  if (filters.urgently_hiring) p.set('urgent', '1')
-  if (filters.max_applicants !== null) p.set('max_appl', String(filters.max_applicants))
-  if (filters.hidden_only) p.set('hidden', '1')
-  if (filters.verified_only) p.set('verified', '1')
+  if (filters.salary_min !== null) p.set(FILTER_PARAM_NAMES.salary_min.url, String(filters.salary_min))
+  if (filters.salary_max !== null) p.set(FILTER_PARAM_NAMES.salary_max.url, String(filters.salary_max))
+  if (filters.exp_min !== null) p.set(FILTER_PARAM_NAMES.exp_min.url, String(filters.exp_min))
+  if (filters.exp_max !== null) p.set(FILTER_PARAM_NAMES.exp_max.url, String(filters.exp_max))
+  if (filters.is_internship) p.set(FILTER_PARAM_NAMES.is_internship.url, '1')
+  if (filters.is_new) p.set(FILTER_PARAM_NAMES.is_new.url, '1')
+  if (filters.urgently_hiring) p.set(FILTER_PARAM_NAMES.urgently_hiring.url, '1')
+  if (filters.max_applicants !== null) p.set(FILTER_PARAM_NAMES.max_applicants.url, String(filters.max_applicants))
+  if (filters.hidden_only) p.set(FILTER_PARAM_NAMES.hidden_only.url, '1')
+  if (filters.verified_only) p.set(FILTER_PARAM_NAMES.verified_only.url, '1')
   if (sort !== 'newest') p.set('sort', sort)
   if (page > 1) p.set('page', String(page))
   return p
@@ -1472,23 +1523,28 @@ export function searchParamsToFilters(
       // mode. Old shared URLs carrying `?tier=` deliberately collapse into the
       // same all-source research stream.
       tier: 'all',
-      search: p.get('q') ?? '',
-      sectors: p.getAll('sector'),
-      companies: p.getAll('company'),
-      seniority: p.getAll('seniority'),
-      remote_type: p.getAll('remote'),
-      skills: p.getAll('skill'),
+      search: p.get(FILTER_PARAM_NAMES.search.url) ?? '',
+      sectors: p.getAll(FILTER_PARAM_NAMES.sectors.url),
+      companies: p.getAll(FILTER_PARAM_NAMES.companies.url),
+      seniority: p.getAll(FILTER_PARAM_NAMES.seniority.url),
+      remote_type: p.getAll(FILTER_PARAM_NAMES.remote_type.url),
+      skills: p.getAll(FILTER_PARAM_NAMES.skills.url),
       salary_disclosed_only: p.get('sal_disclosed') === '1',
-      salary_min: p.has('sal_min') ? Number(p.get('sal_min')) : null,
-      salary_max: p.has('sal_max') ? Number(p.get('sal_max')) : null,
-      exp_min: p.has('exp_min') ? Number(p.get('exp_min')) : null,
-      exp_max: p.has('exp_max') ? Number(p.get('exp_max')) : null,
-      is_internship: p.get('intern') === '1' ? true : null,
-      is_new: p.get('new') === '1',
-      urgently_hiring: p.get('urgent') === '1',
-      max_applicants: p.has('max_appl') ? Number(p.get('max_appl')) : null,
-      hidden_only: p.get('hidden') === '1',
-      verified_only: p.get('verified') === '1',
+      salary_min: p.has(FILTER_PARAM_NAMES.salary_min.url)
+        ? Number(p.get(FILTER_PARAM_NAMES.salary_min.url)) : null,
+      salary_max: p.has(FILTER_PARAM_NAMES.salary_max.url)
+        ? Number(p.get(FILTER_PARAM_NAMES.salary_max.url)) : null,
+      exp_min: p.has(FILTER_PARAM_NAMES.exp_min.url)
+        ? Number(p.get(FILTER_PARAM_NAMES.exp_min.url)) : null,
+      exp_max: p.has(FILTER_PARAM_NAMES.exp_max.url)
+        ? Number(p.get(FILTER_PARAM_NAMES.exp_max.url)) : null,
+      is_internship: p.get(FILTER_PARAM_NAMES.is_internship.url) === '1' ? true : null,
+      is_new: p.get(FILTER_PARAM_NAMES.is_new.url) === '1',
+      urgently_hiring: p.get(FILTER_PARAM_NAMES.urgently_hiring.url) === '1',
+      max_applicants: p.has(FILTER_PARAM_NAMES.max_applicants.url)
+        ? Number(p.get(FILTER_PARAM_NAMES.max_applicants.url)) : null,
+      hidden_only: p.get(FILTER_PARAM_NAMES.hidden_only.url) === '1',
+      verified_only: p.get(FILTER_PARAM_NAMES.verified_only.url) === '1',
     },
     sort: p.get('sort') ?? 'newest',
     page: Number(p.get('page') ?? '1'),

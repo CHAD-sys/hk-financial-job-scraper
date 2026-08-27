@@ -29,10 +29,12 @@ from job_read import (  # noqa: E402
     Sort,
     Visibility,
     get_job,
+    has_research_scope,
     jobs_by_refs,
     list_jobs,
     prepare,
     research_facets,
+    scope_where,
 )
 
 LIVE = ("workday", "LIVE")
@@ -74,6 +76,64 @@ def conn(tmp_path) -> sqlite3.Connection:
 
 def _ids(jobs) -> list[str]:
     return [j.source_id for j in jobs]
+
+
+# ── Research Scope gate (ADR 0018) ──────────────────────────────────────────
+# Used to be a bare `2` retyped at three HTTP routes plus once more in the
+# frontend. These pin the one number every caller now shares.
+
+
+def test_research_scope_requires_the_minimum_length():
+    assert has_research_scope("a") is False
+    assert has_research_scope("ab") is True
+
+
+def test_research_scope_trims_whitespace_before_counting():
+    assert has_research_scope(" a ") is False
+    assert has_research_scope(" ab ") is True
+
+
+def test_research_scope_rejects_empty_and_none():
+    assert has_research_scope("") is False
+    assert has_research_scope(None) is False
+
+
+# ── Catalogue scope (main.py's aggregate routes reuse this) ────────────────
+# get_stats, the hub page and the landing-page index used to each hand-write
+# their own "visible, audience-scoped" WHERE fragment. This is the one
+# predicate all of them share now — pinned here against list_jobs' own count
+# so the aggregate routes and the ordinary listing can never quietly disagree
+# about what a live Role is, the exact failure job_read.py's own module
+# docstring says already happened once.
+
+
+def test_scope_where_unscoped_matches_list_jobs_own_board_count(conn):
+    scoped = scope_where(conn, audience=CatalogueAudience.PUBLIC)
+    total = conn.execute(f"SELECT COUNT(*) FROM jobs j WHERE {scoped}").fetchone()[0]
+    listed = list_jobs(
+        conn, JobFilters(), visibility=Visibility.BOARD,
+        audience=CatalogueAudience.PUBLIC, page_size=100,
+    )
+    assert total == listed.total
+
+
+def test_scope_where_narrows_to_the_query_not_the_whole_scope(conn):
+    scoped = scope_where(conn, audience=CatalogueAudience.PUBLIC, query="credit risk")
+    ids = {
+        r[0] for r in conn.execute(
+            f"SELECT source_id FROM jobs j WHERE {scoped}"
+        ).fetchall()
+    }
+    assert ids == {"LIVE"}  # "Credit Risk Analyst" — the only title carrying both words
+
+
+def test_scope_where_with_an_unmatched_query_excludes_everything(conn):
+    # A query the index matches nothing for must scope to nothing, not to
+    # everything — the same "empty means match nothing, not no filter" rule
+    # `matching_rowids` documents.
+    scoped = scope_where(conn, audience=CatalogueAudience.PUBLIC, query="zzznonexistent")
+    total = conn.execute(f"SELECT COUNT(*) FROM jobs j WHERE {scoped}").fetchone()[0]
+    assert total == 0
 
 
 # ── Visibility: browsing is filtered ──────────────────────────────────────────

@@ -5,8 +5,10 @@ import {
   fetchEmployerMe,
   fetchMe,
   filtersToSearchParams,
+  hasResearchScope,
   searchParamsToFilters,
 } from './client'
+import type { JobFilters } from './client'
 
 /**
  * The 401 fan-out client.ts added when Employer accounts got their own
@@ -27,6 +29,27 @@ function mockFetch(status: number) {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+})
+
+describe('hasResearchScope', () => {
+  // Mirrors job_read.MIN_RESEARCH_QUERY_LENGTH (ADR 0018) — see
+  // tests/test_research_scope_contract.py for the cross-language parity check.
+  it('rejects a one-character query', () => {
+    expect(hasResearchScope('a')).toBe(false)
+  })
+
+  it('accepts a two-character query', () => {
+    expect(hasResearchScope('ab')).toBe(true)
+  })
+
+  it('trims whitespace before counting', () => {
+    expect(hasResearchScope(' a ')).toBe(false)
+    expect(hasResearchScope(' ab ')).toBe(true)
+  })
+
+  it('rejects an empty query', () => {
+    expect(hasResearchScope('')).toBe(false)
+  })
 })
 
 describe('addUnauthorizedHandler', () => {
@@ -119,5 +142,40 @@ describe('public Role research URLs', () => {
 
     expect(parsed.filters.search).toBe('risk')
     expect(parsed.filters.tier).toBe('all')
+  })
+
+  it('round-trips every filter field through the URL and back unchanged', () => {
+    // filtersToSearchParams (write) and searchParamsToFilters (read) used to
+    // each hand-spell every param name independently — this is the test that
+    // would have caught 'q' vs 'search' or 'sector' vs 'sectors' drifting
+    // apart, by exercising every field in JobFilters at once rather than one
+    // at a time.
+    const filters: JobFilters = {
+      tier: 'all',
+      search: 'risk analyst',
+      sectors: ['Banking', 'Insurance'],
+      companies: ['HSBC'],
+      seniority: ['senior'],
+      remote_type: ['hybrid'],
+      skills: ['Python'],
+      salary_min: 30000,
+      salary_max: 80000,
+      salary_disclosed_only: true,
+      exp_min: 2,
+      exp_max: 8,
+      is_internship: true,
+      is_new: true,
+      urgently_hiring: true,
+      max_applicants: 10,
+      hidden_only: true,
+      verified_only: true,
+    }
+
+    const params = filtersToSearchParams(filters, 'relevance', 3)
+    const parsed = searchParamsToFilters(params)
+
+    expect(parsed.filters).toEqual(filters)
+    expect(parsed.sort).toBe('relevance')
+    expect(parsed.page).toBe(3)
   })
 })

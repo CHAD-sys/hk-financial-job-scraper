@@ -110,6 +110,24 @@ class CatalogueAudience(str, Enum):
     MEMBER = "member"
 
 
+#: The shortest text a Seeker or visitor may submit to establish a Research
+#: Scope (ADR 0018: a query gates the catalogue; filters alone may never open
+#: it). This was a bare `2` retyped at three HTTP routes and once more in the
+#: frontend, with nothing to stop the copies drifting apart. One number now.
+MIN_RESEARCH_QUERY_LENGTH = 2
+
+
+def has_research_scope(query: Optional[str]) -> bool:
+    """
+    Whether `query` is long enough to establish a Research Scope on its own.
+
+    A pure length check — the admin "browse with an empty box" exception
+    (ADR 0019) is a session concept this module doesn't know about, so
+    callers compose it themselves: `not has_research_scope(q) and not is_admin`.
+    """
+    return len((query or "").strip()) >= MIN_RESEARCH_QUERY_LENGTH
+
+
 #: A Role stays discoverable for one calendar month from the Employer's posting
 #: date. This is catalogue visibility, not deletion: the Listing remains stored
 #: and addressable so Saved Roles and deep links keep their history. A missing
@@ -141,6 +159,41 @@ MEMBER_ONLY_TIERS = frozenset({"boutique", "social"})
 PUBLIC_AUDIENCE_WHERE = (
     "COALESCE(j.source_tier, 'mainstream') NOT IN ('boutique', 'social')"
 )
+
+
+def scope_where(
+    conn: sqlite3.Connection,
+    *,
+    audience: CatalogueAudience,
+    query: Optional[str] = None,
+) -> str:
+    """
+    The WHERE-clause fragment (`jobs` aliased `j`) for one catalogue scope:
+    BOARD visibility, catalogue-audience, and — when `query` is given — the
+    Research Scope that query establishes.
+
+    `query=None` means the whole live catalogue: /api/stats, the hub page and
+    the landing-page index all read the board's own totals rather than one
+    search's results, which is the one case ADR 0018 exempts. Every other
+    caller must pass a real query — this cannot enforce that refusal itself
+    (it doesn't know who's asking), so the HTTP edge still owns rejecting a
+    too-short query before this ever runs; see `has_research_scope`.
+
+    `research_facets` and `main.py`'s aggregate routes (`get_stats`,
+    `_hub_body`, `_landing_pages`) used to each spell "visible, audience-
+    scoped, optionally search-scoped" out by hand — nine GROUP BYs between
+    them, each re-deriving its own copy. This is the one predicate all of them
+    share now.
+    """
+    audience_sql = (
+        f" AND {PUBLIC_AUDIENCE_WHERE}" if audience == CatalogueAudience.PUBLIC else ""
+    )
+    if query is None:
+        return f"{BOARD_WHERE}{audience_sql}"
+    rowids = search_index.matching_rowids(conn, query)
+    if not rowids:
+        return f"{BOARD_WHERE}{audience_sql} AND 0"
+    return f"{BOARD_WHERE}{audience_sql} AND j.rowid IN ({','.join(str(r) for r in rowids)})"
 
 #: A recruiter is not an employer, so a Recruiter Post is not in the employer
 #: dimension — not offered as a filter choice, and never returned by one.
@@ -1189,20 +1242,7 @@ def research_facets(
     nothing" — that is the refusal the ADR asks for, and it should not become
     "hand back the entire catalogue" through a falsy string.
     """
-    audience_sql = (
-        f" AND {PUBLIC_AUDIENCE_WHERE}"
-        if audience == CatalogueAudience.PUBLIC
-        else ""
-    )
-    if unscoped:
-        research = f"{BOARD_WHERE}{audience_sql}"
-    else:
-        rowids = search_index.matching_rowids(conn, query)
-        research = (
-            f"{BOARD_WHERE}{audience_sql} AND j.rowid IN ({','.join(str(rowid) for rowid in rowids)})"
-            if rowids
-            else f"{BOARD_WHERE}{audience_sql} AND 0"
-        )
+    research = scope_where(conn, audience=audience, query=None if unscoped else query)
 
     total = conn.execute(f"SELECT COUNT(*) FROM jobs j WHERE {research}").fetchone()[0]
     companies = [

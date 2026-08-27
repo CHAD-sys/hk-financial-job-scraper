@@ -10,7 +10,7 @@ import type {
 import {
   DEFAULT_FILTERS, fetchJobs, fetchFilters, fetchStats,
   filtersToSearchParams, searchParamsToFilters,
-  countActiveFilters, recordDiscovery,
+  countActiveFilters, recordDiscovery, hasResearchScope,
 } from '../api/client'
 import type { JobFilters } from '../api/client'
 import { useAuth } from '../auth/useAuth'
@@ -103,7 +103,7 @@ export default function JobBoardPage() {
     [baseFilters, debouncedSearch],
   )
   const filterCount = countActiveFilters({ ...activeFilters, search: '' })
-  const hasResearch = activeFilters.search.trim().length >= 2
+  const hasResearch = hasResearchScope(activeFilters.search)
 
   useEffect(() => {
     // Admin browse has no query, but it still shows the filter bar over a real

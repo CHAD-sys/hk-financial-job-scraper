@@ -161,8 +161,17 @@ def test_the_category_links_use_the_param_the_board_reads():
 
     assert BOARD_QUERY_PARAM == "q"
     assert f"/jobs?{BOARD_QUERY_PARAM}=$" in SEARCH_HERO.read_text(encoding="utf-8")
+
+    # searchParamsToFilters no longer spells 'q' out inline — it reads
+    # FILTER_PARAM_NAMES.search.url, the one place client.ts's read AND write
+    # sides get the search param's name from (see that table's own docstring).
+    # Read the actual value back out of it rather than grepping for a literal
+    # `p.get('q')` that the refactor made this test's own business to track.
     client = ROOT / "webapp" / "frontend" / "src" / "api" / "client.ts"
-    assert f"p.get('{BOARD_QUERY_PARAM}')" in client.read_text(encoding="utf-8")
+    source = client.read_text(encoding="utf-8")
+    match = re.search(r"search:\s*\{\s*api:\s*'[^']*',\s*url:\s*'([^']*)'", source)
+    assert match, "Could not find FILTER_PARAM_NAMES.search.url in client.ts"
+    assert match.group(1) == BOARD_QUERY_PARAM
 
 
 def test_the_discipline_title_rule_is_the_same_on_both_sides():
