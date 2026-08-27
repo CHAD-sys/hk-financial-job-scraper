@@ -754,6 +754,55 @@ class JobStore:
             self.reconcile_cross_posted(company_slugs=slugs)
         return changed
 
+    def reactivate(self, refs: Iterable[tuple[str, str]], *, reason: str) -> int:
+        """
+        Undo a soft-delete. The inverse of `deactivate` — see that docstring for
+        why re-election has to happen here too: bringing a Listing back can
+        change which copy of a cross-posted vacancy ought to be primary just as
+        much as removing one does, and this is the only other place `is_active`
+        is ever written, so it carries the same obligation.
+
+        Only ever reaches rows that ARE currently inactive (`is_active = 0` in
+        the WHERE), so calling this on a ref that was never deactivated, or one
+        some other writer already reactivated, is a no-op rather than a
+        double-count.
+
+        `closed_at` is cleared back to NULL — an active row with a closure date
+        is the "live Role claiming to have closed" shape phase 30's migration
+        exists to prevent (see its docstring), and Saved Roles read `closed_at`
+        to decide what to stop showing (docs/adr/0011).
+        """
+        refs = list(refs)
+        if not refs:
+            return 0
+
+        slugs: set[str] = set()
+        changed = 0
+        with self._conn:
+            for chunk in (refs[i:i + _REF_CHUNK] for i in range(0, len(refs), _REF_CHUNK)):
+                placeholders = ",".join("(?,?)" * 1 for _ in chunk)
+                flat = [x for ref in chunk for x in ref]
+                rows = self._conn.execute(
+                    f"SELECT company_slug FROM jobs "
+                    f"WHERE is_active = 0 AND (source, source_id) IN (VALUES {placeholders})",
+                    flat,
+                ).fetchall()
+                slugs.update(r["company_slug"] for r in rows)
+                cur = self._conn.execute(
+                    f"UPDATE jobs SET is_active = 1, closed_at = NULL "
+                    f"WHERE is_active = 0 AND (source, source_id) IN (VALUES {placeholders})",
+                    flat,
+                )
+                changed += cur.rowcount
+
+        if changed:
+            logger.info(
+                "Reactivated %d listing(s) [%s]; re-electing primaries for %d company slug(s).",
+                changed, reason, len(slugs),
+            )
+            self.reconcile_cross_posted(company_slugs=slugs)
+        return changed
+
     def reconcile_cross_posted(
         self, *, company_slugs: Collection[str] | None = None
     ) -> tuple[int, int]:

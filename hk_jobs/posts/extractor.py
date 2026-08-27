@@ -12,11 +12,9 @@ versus a literal two-call pipeline while still performing the two logical
 stages the plan calls for (classify, then extract).
 
 Does NOT reuse hk_jobs/llm_client.py's `LLMClient` — that client's `chat()`
-has no `response_format`/system-message support, and hk_jobs/tech_filter.py
-already establishes the precedent of rolling a direct httpx call for
-JSON-mode classification in this codebase (tech_filter.py:79-108). Same
-precedent followed here: system+user split, `response_format:
-{"type":"json_object"}`, direct httpx POST.
+has no `response_format`/system-message support, so this rolls a direct
+httpx call for JSON-mode classification instead: system+user split,
+`response_format: {"type":"json_object"}`, direct httpx POST.
 
 ⚠  Model: `deepseek-chat`/`deepseek-reasoner` are scheduled for retirement
    2026-07-24 (see hk_jobs/enrichers/deepseek.py's changelog). This module

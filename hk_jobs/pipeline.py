@@ -176,26 +176,13 @@ def run(args: PipelineArgs) -> list[CompanyResult]:
                     x_groups, x_rows,
                 )
 
-        # Finance-only guard: soft-delete hard tech/IT roles (software/DevOps/data/
-        # cyber/etc.) so they never pollute the board. Uses a persistent title→verdict
-        # cache, so each run only classifies NEW titles via DeepSeek (cheap), and
-        # cached verdicts are enforced even with no API key. Opt out with --no-tech-filter.
-        if not dry_run and not args.no_tech_filter:
-            try:
-                from hk_jobs.tech_filter import run_tech_filter
-                with db_lock:
-                    _classified, _removed = run_tech_filter(args.db)
-            except Exception as exc:  # never let the guard break a run
-                logger.warning("tech-filter step failed (%s) — skipping", exc)
-
         if not dry_run and args.export:
             count = store.export_active_jsonl(args.export)
             logger.info("Exported %d active jobs → %s", count, args.export)
 
-        # Rebuild search AFTER cross-source reconciliation and the tech filter,
-        # so a Role the tech filter just soft-deleted (or whose apply_url the
-        # reconciliation just moved) doesn't get indexed in a state the board
-        # will never show it in. A fresh connection rather than store's own —
+        # Rebuild search AFTER cross-source reconciliation, so a Role whose
+        # apply_url the reconciliation just moved is indexed in the state the
+        # board actually shows it in. A fresh connection rather than store's own —
         # JobStore keeps that private — closed immediately after; this runs
         # once per pipeline run, not on a hot path. Skipped in dry-run for the
         # same reason everything else here is: an in-memory store, nothing to

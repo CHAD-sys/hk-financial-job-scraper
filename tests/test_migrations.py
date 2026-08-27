@@ -400,3 +400,105 @@ def test_phase_35_preserves_rows_written_under_the_old_key(tmp_path: Path):
     ).fetchone()
     conn.close()
     assert tuple(kept) == ("workday", "2026-08-01")
+
+
+# ── Phase 39: undoing the retired tech-role filter ────────────────────────────
+
+def _seed_job(db_path: str, source_id: str, *, title: str, is_active: int) -> None:
+    conn = sqlite3.connect(db_path)
+    with conn:
+        conn.execute(
+            "INSERT INTO jobs (source, source_id, company, company_slug, url,"
+            " dedup_hash, title, fetched_at, is_active) VALUES"
+            " ('jobsdb', ?, 'X', 'x', ?, ?, ?, '2026-08-01T00:00:00+00:00', ?)",
+            (source_id, f"https://e.test/{source_id}", source_id, title, is_active),
+        )
+    conn.close()
+
+
+def _seed_tech_verdict(db_path: str, title: str, is_tech: int) -> None:
+    conn = sqlite3.connect(db_path)
+    with conn:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS tech_title_cache"
+            " (title TEXT PRIMARY KEY, is_tech INTEGER NOT NULL)"
+        )
+        conn.execute(
+            "INSERT OR REPLACE INTO tech_title_cache (title, is_tech) VALUES (?, ?)",
+            (title, is_tech),
+        )
+    conn.close()
+
+
+def test_phase_39_reactivates_a_role_the_filter_removed(tmp_path: Path):
+    db = _db(tmp_path)
+    migrate(db)
+    _seed_job(db, "TECH", title="Data Engineer", is_active=0)
+    _seed_tech_verdict(db, "Data Engineer", is_tech=1)
+
+    migrations.migrate_to_phase_39(db)
+
+    conn = sqlite3.connect(db)
+    row = conn.execute(
+        "SELECT is_active, closed_at FROM jobs WHERE source_id = 'TECH'"
+    ).fetchone()
+    conn.close()
+    assert row == (1, None)
+
+
+def test_phase_39_leaves_a_non_tech_verdict_alone(tmp_path: Path):
+    """The filter kept this title (NOT TECH) — it was never removed, so there's nothing to undo."""
+    db = _db(tmp_path)
+    migrate(db)
+    _seed_job(db, "QUANT", title="Quantitative Analyst", is_active=0)
+    _seed_tech_verdict(db, "Quantitative Analyst", is_tech=0)
+
+    migrations.migrate_to_phase_39(db)
+
+    conn = sqlite3.connect(db)
+    is_active = conn.execute(
+        "SELECT is_active FROM jobs WHERE source_id = 'QUANT'"
+    ).fetchone()[0]
+    conn.close()
+    assert is_active == 0, "not a tech verdict — this migration must not touch it"
+
+
+def test_phase_39_leaves_an_already_active_tech_titled_role_alone(tmp_path: Path):
+    """Only currently-inactive rows are candidates; nothing to reactivate here."""
+    db = _db(tmp_path)
+    migrate(db)
+    _seed_job(db, "LIVE", title="Software Engineer", is_active=1)
+    _seed_tech_verdict(db, "Software Engineer", is_tech=1)
+
+    migrations.migrate_to_phase_39(db)
+
+    conn = sqlite3.connect(db)
+    is_active = conn.execute(
+        "SELECT is_active FROM jobs WHERE source_id = 'LIVE'"
+    ).fetchone()[0]
+    conn.close()
+    assert is_active == 1
+
+
+def test_phase_39_is_a_no_op_with_no_tech_title_cache(tmp_path: Path):
+    """A database the filter never ran on has no cache table at all — must not raise."""
+    db = _db(tmp_path)
+    migrate(db)  # includes phase 39; must not fail on a cache-less database
+    assert "tech_title_cache" not in _tables(db)
+
+
+def test_phase_39_is_idempotent(tmp_path: Path):
+    db = _db(tmp_path)
+    migrate(db)
+    _seed_job(db, "TECH", title="Data Engineer", is_active=0)
+    _seed_tech_verdict(db, "Data Engineer", is_tech=1)
+
+    migrations.migrate_to_phase_39(db)
+    migrations.migrate_to_phase_39(db)  # must not raise or double-count
+
+    conn = sqlite3.connect(db)
+    is_active = conn.execute(
+        "SELECT is_active FROM jobs WHERE source_id = 'TECH'"
+    ).fetchone()[0]
+    conn.close()
+    assert is_active == 1

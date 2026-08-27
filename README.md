@@ -92,8 +92,6 @@ Seven adapters, tried per company in priority order. Every adapter implements th
 
 **Adding a source** means one entry in `hk_jobs/sources.py` — every fact about a source lives there, and `tests/test_sources.py` binds the adapter registry, `companies.yaml` validation and the frontend's "Listed on" tags to it. Getting it half-registered used to be silent; now it fails a test.
 
-**Tech-role filter:** `tech_filter.py` soft-deletes non-finance software roles so the board stays finance-focused.
-
 > ⚠️ **Legal note.** The `jobsdb`, `indeed`, `linkedin`, and `efinancialcareers` adapters call sources whose ToS restrict programmatic access. They are flagged prominently in-code and are for **prototype/verification only** — production requires written permission or a licensed data feed. This posture is documented, never buried.
 
 ---
@@ -376,7 +374,6 @@ hk-job-scraper/
 │   ├── description_fetcher.py   # Description pipeline (GraphQL + REST)
 │   ├── storage.py               # JobStore — upsert, soft-delete, cross-post reconcile
 │   ├── analytics.py             # Trend/velocity reporting + JSONL export
-│   ├── tech_filter.py           # Soft-deletes non-finance tech roles
 │   ├── sync_pocketbase.py       # One-way jobs.db -> PocketBase mirror
 │   ├── notifications.py         # Daily summary + failure-alert email
 │   ├── backup.py                # Rolling DB backups

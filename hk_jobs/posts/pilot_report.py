@@ -12,9 +12,9 @@ Honesty notes, matching the plan's own caveats:
     exactly that manual check instead of fabricating a precision number.
   - Apify cost is real (read from vendor_costs). DeepSeek cost is NOT
     tracked anywhere in this codebase (confirmed: no token/cost logging
-    exists in llm_client.py, enrichers/deepseek.py, or tech_filter.py) — this
-    report states the DeepSeek CALL COUNT, not a dollar figure, rather than
-    inventing a per-token price.
+    exists in llm_client.py or enrichers/deepseek.py) — this report states
+    the DeepSeek CALL COUNT, not a dollar figure, rather than inventing a
+    per-token price.
   - Volume/week is extrapolated from whatever window has actually run so
     far, which may be much shorter than the plan's nominal "3-4 days."
 """

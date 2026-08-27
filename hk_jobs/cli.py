@@ -67,7 +67,6 @@ class PipelineArgs:
     no_longtail: bool = False
     dry_run: bool = False
     no_enrich: bool = False
-    no_tech_filter: bool = False
     parallel_workers: int = 10
     retry_failed: bool = True
     export: str | None = None
@@ -207,11 +206,6 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-enrich",
         action="store_true",
         help="Skip the rule-based enrichment step (faster, but seniority/skills won't be set)",
-    )
-    p.add_argument(
-        "--no-tech-filter",
-        action="store_true",
-        help="Skip the finance-only guard that soft-deletes hard tech/IT roles each run.",
     )
     p.add_argument(
         "--config",

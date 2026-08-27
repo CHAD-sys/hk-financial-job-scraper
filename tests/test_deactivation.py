@@ -1,19 +1,26 @@
 """
-Deactivating a Listing, and the Role it can take with it.
+Deactivating a Listing, and the Role it can take with it — and reactivating
+one, which turned out to carry the identical risk in reverse.
 
 `is_active = 0` had four writers. `JobStore.mark_inactive_for_run` was one;
 `tech_filter.py`, `posts/expiry.py` and `scripts/remove_tech_roles.py` each
 opened their own connection and ran their own UPDATE. All four were right about
-the soft delete and three were wrong about what it costs.
+the soft delete and three were wrong about what it costs. (`tech_filter.py`
+and `remove_tech_roles.py` are gone now — the finance-only tech-role guard
+they implemented was retired; see migrations.py phase 39, which reactivates
+everything they had removed. `posts/expiry.py` remains.)
 
 `reconcile_cross_posted` elects exactly one copy of a cross-posted vacancy as
 `is_primary = 1`, and the board shows only that copy. Deactivate the elected
 copy without re-running the election and every survivor is `is_primary = 0`, so
-the Role disappears while a live Listing still exists. `pipeline.run()` calls
-`run_tech_filter` AFTER `reconcile_cross_posted()`, so that window opened on
-every nightly run and stayed open until the next one.
+the Role disappears while a live Listing still exists. The tech filter used to
+call this AFTER `reconcile_cross_posted()` in `pipeline.run()`, so that window
+opened on every nightly run and stayed open until the next one — and
+`JobStore.reactivate()` (phase 39's undo path) has to get the same thing right
+in reverse: bringing a Listing back can just as easily leave two copies
+`is_primary = 1`, or the reactivated one stranded at `is_primary = 0`.
 
-These are the tests that would have caught it.
+These are the tests that would have caught both.
 """
 
 from __future__ import annotations
@@ -106,6 +113,73 @@ def test_deactivating_every_copy_leaves_nothing_visible(db: str):
         store.deactivate([("jobsdb", "J1"), ("workday", "W1")], reason="hard-tech")
 
     assert visible(db) == 0
+
+
+# ── reactivate(): deactivate's inverse, and the same re-election risk ──────────
+
+def test_reactivating_a_suppressed_copy_does_not_create_two_primaries(db: str):
+    """
+    Both copies live, JobsDB elected. Deactivate JobsDB (Workday becomes
+    primary, per the regression above), then reactivate JobsDB — a raw
+    `is_active=1` on a row whose company_slug is not re-elected would leave
+    BOTH copies `is_primary=1`, and the board would show the Role twice.
+    """
+    with JobStore(db) as store:
+        store.upsert_many([job("jobsdb", "J1"), job("workday", "W1")])
+        store.reconcile_cross_posted()
+        store.deactivate([("jobsdb", "J1")], reason="hard-tech")
+        assert rows(db) == {"jobsdb": (0, 1), "workday": (1, 1)}
+
+        store.reactivate([("jobsdb", "J1")], reason="tech-filter-removed")
+
+    is_primary = [v[1] for v in rows(db).values()]
+    assert sum(is_primary) == 1, "exactly one copy must be primary, not zero or two"
+    assert visible(db) == 1
+
+
+def _closed_at(db: str, source_id: str) -> str | None:
+    conn = sqlite3.connect(db)
+    try:
+        return conn.execute(
+            "SELECT closed_at FROM jobs WHERE source_id = ?", (source_id,)
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+
+def test_reactivate_clears_the_closure_date(db: str):
+    """
+    An active row with a closed_at is the "live Role claiming to have closed"
+    shape phase 30 exists to prevent — Saved Roles read closed_at to decide
+    what to stop showing.
+    """
+    with JobStore(db) as store:
+        store.upsert_many([job("jobsdb", "J1")])
+        store.deactivate([("jobsdb", "J1")], reason="hard-tech")
+        assert _closed_at(db, "J1") is not None
+
+        store.reactivate([("jobsdb", "J1")], reason="tech-filter-removed")
+
+    assert _closed_at(db, "J1") is None
+
+
+def test_reactivate_never_removes_a_row_or_touches_an_active_one(db: str):
+    with JobStore(db) as store:
+        store.upsert_many([job("jobsdb", "J1"), job("workday", "W1")])
+        store.deactivate([("jobsdb", "J1")], reason="hard-tech")
+
+        changed = store.reactivate([("jobsdb", "J1"), ("workday", "W1")], reason="x")
+
+        assert changed == 1, "W1 was already active — reactivate is a no-op on it"
+        assert store.stats()["total"] == 2
+        assert store.stats()["active"] == 2
+
+
+def test_reactivate_returns_zero_for_an_empty_or_already_active_ref_list(db: str):
+    with JobStore(db) as store:
+        store.upsert_many([job("jobsdb", "J1")])
+        assert store.reactivate([], reason="x") == 0
+        assert store.reactivate([("jobsdb", "J1")], reason="x") == 0, "already active"
 
 
 # ── Soft delete ───────────────────────────────────────────────────────────────
@@ -258,47 +332,7 @@ def test_reconcile_unscoped_still_covers_everything(db: str):
         assert groups == 2
 
 
-# ── The other three writers ───────────────────────────────────────────────────
-
-def test_the_tech_filter_re_elects(db: str, monkeypatch):
-    """
-    tech_filter ran a raw UPDATE on its own connection, immediately after the
-    election in `pipeline.run()`. It is the writer that made this bug nightly.
-    """
-    from hk_jobs import tech_filter
-
-    # The two boards spell the title differently in case. `_cluster_by_title`
-    # normalises case so they are one Role, but tech_filter matches on exact
-    # TRIM(title) — so it removes the JobsDB copy and leaves the Workday one.
-    # That partial removal is what strands a Role, and it is why this test uses
-    # two spellings rather than one: with both copies removed, the board is
-    # empty either way and the test would not discriminate.
-    with JobStore(db) as store:
-        store.upsert_many([
-            job("jobsdb", "J1", title="Data Engineer"),
-            job("workday", "W1", title="data engineer"),
-        ])
-        store.reconcile_cross_posted()
-        assert visible(db) == 1
-
-    conn = sqlite3.connect(db)
-    with conn:
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS tech_title_cache (title TEXT PRIMARY KEY, is_tech INTEGER)"
-        )
-        conn.execute(
-            "INSERT OR REPLACE INTO tech_title_cache VALUES ('Data Engineer', 1)"
-        )
-    conn.close()
-    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
-
-    _classified, removed = tech_filter.run_tech_filter(db)
-
-    assert removed == 1, "only the exactly-matching title is hard tech"
-    assert rows(db)["jobsdb"][0] == 0
-    assert rows(db)["workday"] == (1, 1), "the survivor must be re-elected"
-    assert visible(db) == 1, "the Role must not vanish"
-
+# ── The other writer ──────────────────────────────────────────────────────────
 
 def test_expiry_re_elects(db: str):
     """

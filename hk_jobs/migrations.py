@@ -1176,6 +1176,83 @@ def migrate_to_phase_38(db_path: str) -> None:
         conn.close()
 
 
+def migrate_to_phase_39(db_path: str) -> None:
+    """
+    Undo the tech-role filter's soft-deletes. The filter itself is gone —
+    `hk_jobs/tech_filter.py` and `scripts/remove_tech_roles.py` are deleted,
+    and `pipeline.run()` no longer calls either — but a soft-delete is
+    reversible on purpose (CLAUDE.md: never hard-delete), and every job the
+    filter ever removed is still sitting at `is_active = 0` with nothing to
+    bring it back. Stopping the filter only stops it from removing NEW rows;
+    without this, every role it already removed stays invisible forever.
+
+    `tech_title_cache` — the filter's own persistent verdict table — is what
+    it used to decide what to remove, so it is exactly what identifies what
+    to restore: any currently-inactive job whose (trimmed) title the cache
+    marked `is_tech = 1`. Same matching rule the filter itself used
+    (`TRIM(title) IN (...)`), just pointed the other direction.
+
+    This can reactivate a Role that is ALSO inactive for a real reason (gone
+    from its source, expired) — there is no stored reason on `jobs` to tell
+    the two apart. That is self-correcting: the board's own visibility rule
+    only shows Roles posted within the last month regardless of
+    `is_active`, and the next pipeline run's ordinary stale-check
+    (`mark_inactive_for_run`) re-deactivates anything genuinely gone. Through
+    `JobStore.reactivate()`, not a raw UPDATE, so cross-posted primaries get
+    re-elected — the same bug class `deactivate()`'s own docstring documents,
+    in reverse.
+
+    `tech_title_cache` is left in place rather than dropped: it costs nothing
+    idle, and it is the only record of what this migration restored.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        tables = {
+            row[0] for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        if "tech_title_cache" not in tables:
+            logger.debug("Phase 39 migration: no tech_title_cache — nothing to restore.")
+            return
+
+        tech_titles = [
+            row[0] for row in conn.execute(
+                "SELECT title FROM tech_title_cache WHERE is_tech = 1"
+            ).fetchall()
+        ]
+        if not tech_titles:
+            logger.debug("Phase 39 migration: tech_title_cache has no TECH verdicts.")
+            return
+
+        refs: list[tuple[str, str]] = []
+        for i in range(0, len(tech_titles), 200):
+            chunk = tech_titles[i:i + 200]
+            placeholders = ",".join("?" * len(chunk))
+            refs += [
+                (r[0], r[1]) for r in conn.execute(
+                    f"SELECT source, source_id FROM jobs "
+                    f"WHERE is_active = 0 AND TRIM(title) IN ({placeholders})",
+                    chunk,
+                ).fetchall()
+            ]
+    finally:
+        conn.close()
+
+    if not refs:
+        logger.debug("Phase 39 migration: no soft-deleted tech-titled rows found.")
+        return
+
+    from hk_jobs.storage import JobStore
+
+    with JobStore(db_path) as store:
+        restored = store.reactivate(refs, reason="tech-filter-removed")
+    logger.info(
+        "Phase 39 migration: reactivated %d Role(s) soft-deleted by the retired "
+        "tech-role filter.", restored,
+    )
+
+
 #: the whole of registering a new phase.
 #:
 #: Order is load-bearing beyond the obvious: 10 creates `jobs` before the seven
@@ -1213,6 +1290,7 @@ MIGRATIONS: tuple[tuple[int, Callable[[str], None]], ...] = (
     (36, migrate_to_phase_36),
     (37, migrate_to_phase_37),
     (38, migrate_to_phase_38),
+    (39, migrate_to_phase_39),
 )
 
 LATEST_PHASE = MIGRATIONS[-1][0]
