@@ -1140,6 +1140,42 @@ def migrate_to_phase_37(db_path: str) -> None:
         conn.close()
 
 
+def migrate_to_phase_38(db_path: str) -> None:
+    """
+    Add `jobs.vacancy_id`: a stable id for a cross-posted vacancy.
+
+    `reconcile_cross_posted()` recomputes `is_primary` from scratch on every
+    run, by design (docs/adr's storage.py module docstring) — so which exact
+    copy is "the displayed one" can change day to day as sources appear and
+    disappear. That was never a problem for browsing (the board always shows
+    SOME live copy), but it was a latent one for Saved Roles: a reference is
+    (source, source_id) of whichever copy was primary when the Seeker saved
+    it, and if THAT specific copy later closes while the same real vacancy
+    stays open under a sibling source, the Seeker sees "this role has closed"
+    for a role that has not (docs/adr/0030).
+
+    `vacancy_id` gives `job_read._resolve_vacancy_refs` something to look a
+    still-active sibling up by. It is set and kept current by
+    `reconcile_cross_posted()`, not by this migration — existing rows start
+    NULL and get one on the next reconcile pass that clusters them, same as
+    any other reconcile-managed column on a pre-existing database.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+        with conn:
+            if "vacancy_id" not in cols:
+                conn.execute("ALTER TABLE jobs ADD COLUMN vacancy_id TEXT")
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_jobs_vacancy_id ON jobs (vacancy_id)"
+                )
+                logger.info("Phase 38 migration: added jobs.vacancy_id")
+            else:
+                logger.debug("Phase 38 migration: vacancy_id already exists")
+    finally:
+        conn.close()
+
+
 #: the whole of registering a new phase.
 #:
 #: Order is load-bearing beyond the obvious: 10 creates `jobs` before the seven
@@ -1176,6 +1212,7 @@ MIGRATIONS: tuple[tuple[int, Callable[[str], None]], ...] = (
     (35, migrate_to_phase_35),
     (36, migrate_to_phase_36),
     (37, migrate_to_phase_37),
+    (38, migrate_to_phase_38),
 )
 
 LATEST_PHASE = MIGRATIONS[-1][0]

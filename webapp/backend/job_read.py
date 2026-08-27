@@ -1419,6 +1419,64 @@ def saved_roles(
     )
 
 
+def _resolve_vacancy_refs(
+    conn: sqlite3.Connection, pairs: list[tuple[str, str]]
+) -> list[tuple[str, str]]:
+    """
+    Redirect a reference whose exact copy has closed to a still-active sibling
+    sharing the same vacancy_id, if one exists (docs/adr/0030).
+
+    A Saved Role — and any other caller of `_by_refs` — stores (source,
+    source_id) of whichever copy happened to be `is_primary` when it was
+    saved. `reconcile_cross_posted` recomputes `is_primary` from scratch every
+    run, so that exact copy can later close while the same real vacancy stays
+    open under a sibling source. Without this, the Seeker sees "this role has
+    closed" for a role that has not. Runs BEFORE `_by_refs`'s own query, so
+    its retention/visibility SQL is untouched — this only ever changes WHICH
+    reference is looked up, never how the lookup itself behaves.
+
+    Only rewrites refs that need it; an already-active row passes through as-is.
+    """
+    if not pairs:
+        return pairs
+
+    by_key: dict[tuple[str, str], sqlite3.Row] = {}
+    for start in range(0, len(pairs), _REF_CHUNK):
+        chunk = pairs[start:start + _REF_CHUNK]
+        ref_clause = " OR ".join(["(source = ? AND source_id = ?)"] * len(chunk))
+        params = [value for pair in chunk for value in pair]
+        for row in conn.execute(
+            f"SELECT source, source_id, is_active, vacancy_id FROM jobs WHERE ({ref_clause})",
+            params,
+        ).fetchall():
+            by_key[(row["source"], row["source_id"])] = row
+
+    needing_fallback = {
+        row["vacancy_id"] for row in by_key.values()
+        if not row["is_active"] and row["vacancy_id"]
+    }
+    if not needing_fallback:
+        return pairs
+
+    siblings: dict[str, tuple[str, str]] = {}
+    ph = ",".join("?" * len(needing_fallback))
+    for row in conn.execute(
+        "SELECT vacancy_id, source, source_id FROM jobs "
+        f"WHERE is_active = 1 AND vacancy_id IN ({ph}) ORDER BY is_primary DESC",
+        list(needing_fallback),
+    ).fetchall():
+        siblings.setdefault(row["vacancy_id"], (row["source"], row["source_id"]))
+
+    resolved = []
+    for pair in pairs:
+        row = by_key.get(pair)
+        if row and not row["is_active"] and row["vacancy_id"] in siblings:
+            resolved.append(siblings[row["vacancy_id"]])
+        else:
+            resolved.append(pair)
+    return resolved
+
+
 def _by_refs(
     conn: sqlite3.Connection,
     pairs: list[tuple[str, str]],
@@ -1432,6 +1490,7 @@ def _by_refs(
     if not pairs:
         return []
 
+    pairs = _resolve_vacancy_refs(conn, pairs)
     where_sql, base_params = _where(JobFilters(), visibility)
     head_params = list(base_params)
     if extra_sql:

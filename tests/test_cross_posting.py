@@ -297,10 +297,73 @@ def test_reconcile_is_idempotent_and_clears_stale(store):
     groups, _ = store.reconcile_cross_posted()
     assert groups == 0
     row = store._conn.execute(
-        "SELECT apply_url, cross_posted FROM jobs WHERE source='jobsdb'"
+        "SELECT apply_url, cross_posted, vacancy_id FROM jobs WHERE source='jobsdb'"
     ).fetchone()
     assert row["apply_url"] == ""
     assert row["cross_posted"] == 0
+    assert row["vacancy_id"] is None  # cleared once the group stopped being cross-posted
+
+
+# ── Stable vacancy_id (ADR 0030, 2026-08-27) ─────────────────────────────────────
+
+
+def test_a_cross_posted_group_gets_a_vacancy_id(store):
+    efc = _job("efinancialcareers", "1", url="https://efc.hk/x.id1")
+    jobsdb = _job("jobsdb", "2", url="https://hk.jobsdb.com/job/2")
+    store.upsert_many([efc, jobsdb])
+    store.reconcile_cross_posted()
+    ids = {r["vacancy_id"] for r in store._conn.execute("SELECT vacancy_id FROM jobs")}
+    assert len(ids) == 1
+    assert None not in ids
+
+
+def test_vacancy_id_is_stable_across_reconcile_calls(store):
+    """Re-running reconciliation must not mint a new id each time."""
+    efc = _job("efinancialcareers", "1", url="https://efc.hk/x.id1")
+    jobsdb = _job("jobsdb", "2", url="https://hk.jobsdb.com/job/2")
+    store.upsert_many([efc, jobsdb])
+    store.reconcile_cross_posted()
+    first = {r["source"]: r["vacancy_id"]
+             for r in store._conn.execute("SELECT source, vacancy_id FROM jobs")}
+
+    store.reconcile_cross_posted()
+    second = {r["source"]: r["vacancy_id"]
+              for r in store._conn.execute("SELECT source, vacancy_id FROM jobs")}
+    assert first == second
+
+
+def test_a_single_source_role_has_no_vacancy_id(store):
+    store.upsert_many([_job("efinancialcareers", "1")])
+    store.reconcile_cross_posted()
+    row = store._conn.execute("SELECT vacancy_id FROM jobs").fetchone()
+    assert row["vacancy_id"] is None
+
+
+def test_a_bridging_source_merges_two_ids_onto_the_display_winner(store):
+    """
+    Two rows on the same source with the same title stay separate vacancies
+    (each single-source-per-run so far). A new run adds a THIRD source that
+    fuzzy-matches BOTH of them — impossible for two genuinely different roles,
+    but this test cares about the id-merge mechanics: give two rows distinct
+    pre-existing vacancy_ids by hand (as if each had its own prior cross-post
+    history) and confirm a bridging cluster keeps exactly one, chosen by
+    DISPLAY_ORDER.
+    """
+    jobsdb = _job("jobsdb", "1", url="https://hk.jobsdb.com/job/1")
+    efc = _job("efinancialcareers", "2", url="https://efc.hk/x.id2")
+    store.upsert_many([jobsdb, efc])
+    store._conn.execute(
+        "UPDATE jobs SET vacancy_id = 'OLD-JOBSDB' WHERE source = 'jobsdb'"
+    )
+    store._conn.execute(
+        "UPDATE jobs SET vacancy_id = 'OLD-EFC' WHERE source = 'efinancialcareers'"
+    )
+    store._conn.commit()
+
+    store.reconcile_cross_posted()
+    ids = {r["source"]: r["vacancy_id"]
+           for r in store._conn.execute("SELECT source, vacancy_id FROM jobs")}
+    assert ids["jobsdb"] == ids["efinancialcareers"] == "OLD-JOBSDB"  # jobsdb wins display
 
 
 def test_mark_inactive_is_source_scoped(store):

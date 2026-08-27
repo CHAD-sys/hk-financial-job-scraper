@@ -22,6 +22,7 @@ import json
 import logging
 import re
 import sqlite3
+import uuid
 from collections.abc import Collection, Iterable
 from datetime import datetime, timezone
 from pathlib import Path
@@ -119,6 +120,15 @@ CREATE TABLE IF NOT EXISTS jobs (
     -- urgency / reposts / expiry / employer-reputation fields, board-specific.
     board_signals    TEXT NOT NULL DEFAULT '{}',
 
+    -- Phase 38: a stable id for the VACANCY a cross-posted cluster represents,
+    -- persisted across runs (unlike is_primary, which is recomputed from
+    -- scratch every reconcile_cross_posted() call). NULL for a Role that has
+    -- never been cross-posted. Lets a Saved Role whose exact copy has closed
+    -- find a still-active sibling instead of wrongly reading as closed (see
+    -- docs/adr/0030) — it is a lookup key only, never a Saved Role's own
+    -- reference, which stays (source, source_id).
+    vacancy_id       TEXT,
+
     PRIMARY KEY (source, source_id)
 );
 """
@@ -131,6 +141,9 @@ _CREATE_INDEXES = [
     # Phase 19: reconcile_cross_posted() groups active rows by dedup_hash and
     # mark_inactive_for_run() now filters by source as well as company_slug.
     "CREATE INDEX IF NOT EXISTS idx_jobs_source       ON jobs (source);",
+    # Phase 38: job_read._resolve_vacancy_refs looks up active siblings by
+    # vacancy_id for every Saved Roles / jobs_by_refs read.
+    "CREATE INDEX IF NOT EXISTS idx_jobs_vacancy_id   ON jobs (vacancy_id);",
 ]
 
 # ── Cross-source apply priority (Phase 19) ─────────────────────────────────────
@@ -204,6 +217,30 @@ def _primary_rowid(members: list[sqlite3.Row]) -> int:
         if richness > best_richness:
             best, best_richness = row, richness
     return best["rowid"]
+
+
+def _elect_vacancy_id(members: list[sqlite3.Row]) -> str:
+    """
+    Stable id for a cross-posted cluster, persisted across runs (docs/adr/0030)
+    — unlike is_primary, which reconcile_cross_posted recomputes from scratch
+    every call. Lets job_read._resolve_vacancy_refs find a still-active sibling
+    when the exact copy a Saved Role references later closes.
+
+    Adopts the id a member already carries from a previous run when there is
+    exactly one distinct one. Zero existing ids (every member is new to this
+    cluster) mints one. Two or more distinct existing ids means two previously
+    separate vacancies just merged — a bridging source appeared this run — and
+    the id belonging to the DISPLAY_ORDER-preferred row wins; the other id is
+    simply retired, which is safe because vacancy_id is a lookup key only,
+    never a Saved Role's own stored reference.
+    """
+    existing = {m["vacancy_id"] for m in members if m["vacancy_id"]}
+    if len(existing) == 1:
+        return next(iter(existing))
+    if not existing:
+        return uuid.uuid4().hex
+    preferred = min(members, key=lambda row: display_rank(row["source"]))
+    return preferred["vacancy_id"] or next(iter(existing))
 
 
 _TITLE_NOISE_RE = re.compile(r"[^a-z0-9]+")
@@ -775,8 +812,8 @@ class JobStore:
         # changed its election.
         sql = (
             "SELECT rowid, company_slug, company, title, locations, source, url, "
-            "apply_url, cross_posted, is_primary, description_clean, salary_min "
-            "FROM jobs WHERE is_active = 1"
+            "apply_url, cross_posted, is_primary, description_clean, salary_min, "
+            "vacancy_id FROM jobs WHERE is_active = 1"
         )
         if company_slugs is None:
             rows = self._conn.execute(sql).fetchall()
@@ -816,8 +853,8 @@ class JobStore:
         for r in rows:
             by_group[_company_group_key(r["company_slug"], r["company"])].append(r)
 
-        # (apply_url, cross_posted, is_primary, rowid)
-        updates: list[tuple[str, int, int, int]] = []
+        # (apply_url, cross_posted, is_primary, vacancy_id, rowid)
+        updates: list[tuple[str, int, int, str | None, int]] = []
         cross_groups = 0
         for company_rows in by_group.values():
             # Fast path: a company scraped from a single source can't cross-post;
@@ -832,21 +869,24 @@ class JobStore:
                     cross_groups += 1
                     preferred = _preferred_apply_url(members)
                     primary = _primary_rowid(members)
+                    vacancy_id = _elect_vacancy_id(members)
                     for m in members:
                         is_primary = 1 if m["rowid"] == primary else 0
                         if (m["apply_url"] != preferred or m["cross_posted"] != 1
-                                or m["is_primary"] != is_primary):
-                            updates.append((preferred, 1, is_primary, m["rowid"]))
+                                or m["is_primary"] != is_primary
+                                or m["vacancy_id"] != vacancy_id):
+                            updates.append((preferred, 1, is_primary, vacancy_id, m["rowid"]))
                 else:
                     for m in members:
-                        if m["apply_url"] != "" or m["cross_posted"] != 0 or m["is_primary"] != 1:
-                            updates.append(("", 0, 1, m["rowid"]))
+                        if (m["apply_url"] != "" or m["cross_posted"] != 0
+                                or m["is_primary"] != 1 or m["vacancy_id"] is not None):
+                            updates.append(("", 0, 1, None, m["rowid"]))
 
         if updates:
             with self._conn:
                 self._conn.executemany(
-                    "UPDATE jobs SET apply_url = ?, cross_posted = ?, is_primary = ? "
-                    "WHERE rowid = ?",
+                    "UPDATE jobs SET apply_url = ?, cross_posted = ?, is_primary = ?, "
+                    "vacancy_id = ? WHERE rowid = ?",
                     updates,
                 )
         self.refresh_signal_flags()

@@ -222,6 +222,79 @@ def test_no_refs_is_no_query(conn):
     assert jobs_by_refs(conn, []) == []
 
 
+# ── Vacancy-id sibling fallback (ADR 0030) ──────────────────────────────────────
+# A Saved Role references (source, source_id) of whichever copy was primary
+# when saved. reconcile_cross_posted recomputes is_primary from scratch every
+# run, so that exact copy can close while the same real vacancy stays open
+# under a sibling source sharing its vacancy_id — the fallback this section
+# specifies exists so the Seeker is not wrongly told the role has closed.
+
+
+@pytest.fixture()
+def vacancy_conn(tmp_path) -> sqlite3.Connection:
+    db = tmp_path / "vacancy.db"
+    make_jobs_db(
+        db,
+        jobs=[
+            # The exact copy a Seeker saved: was primary, has since closed.
+            job(source="jobsdb", source_id="WAS_PRIMARY", company="DBS",
+                title="Shared Role", posted_at="2026-04-01", is_active=0,
+                is_primary=0, cross_posted=1, vacancy_id="V1"),
+            # Its sibling: same vacancy_id, still open.
+            job(source="indeed", source_id="STILL_OPEN", company="DBS",
+                title="Shared Role", posted_at="2026-04-01", is_active=1,
+                is_primary=1, cross_posted=1, vacancy_id="V1"),
+            # A closed role that was never cross-posted — no sibling to fall
+            # back to, must behave exactly as before this feature existed.
+            job(source="workday", source_id="NEVER_CROSSPOSTED", company="HSBC",
+                title="Solo Role", posted_at="2026-03-01", is_active=0,
+                vacancy_id=None),
+            # A closed role whose sibling is ALSO closed — no active sibling
+            # exists, so it must stay reported as closed too.
+            job(source="jobsdb", source_id="BOTH_CLOSED_A", company="AIA",
+                title="Dead Role", posted_at="2026-02-01", is_active=0,
+                cross_posted=1, vacancy_id="V2"),
+            job(source="indeed", source_id="BOTH_CLOSED_B", company="AIA",
+                title="Dead Role", posted_at="2026-02-01", is_active=0,
+                cross_posted=1, vacancy_id="V2"),
+        ],
+    )
+    c = prepare(sqlite3.connect(db))
+    yield c
+    c.close()
+
+
+def test_saved_role_resolves_to_an_active_sibling_when_its_copy_closes(vacancy_conn):
+    got = jobs_by_refs(vacancy_conn, [("jobsdb", "WAS_PRIMARY")])
+    assert len(got) == 1
+    assert got[0].closed is False
+    assert got[0].source_id == "STILL_OPEN"  # resolved to the sibling, not the closed copy
+
+
+def test_saved_role_with_no_vacancy_id_behaves_exactly_as_before(vacancy_conn):
+    """No sibling to fall back to — the pre-existing 'closed, not hidden' behavior."""
+    got = jobs_by_refs(vacancy_conn, [("workday", "NEVER_CROSSPOSTED")])
+    assert len(got) == 1
+    assert got[0].source_id == "NEVER_CROSSPOSTED"
+    assert got[0].closed is True
+
+
+def test_saved_role_stays_closed_when_its_sibling_is_also_closed(vacancy_conn):
+    got = jobs_by_refs(vacancy_conn, [("jobsdb", "BOTH_CLOSED_A")])
+    assert len(got) == 1
+    assert got[0].source_id == "BOTH_CLOSED_A"
+    assert got[0].closed is True
+
+
+def test_vacancy_fallback_also_applies_to_saved_roles(vacancy_conn):
+    """saved_roles shares _by_refs with jobs_by_refs — same fallback, same result."""
+    from job_read import saved_roles
+    got = saved_roles(vacancy_conn, [("jobsdb", "WAS_PRIMARY")])
+    assert len(got) == 1
+    assert got[0].closed is False
+    assert got[0].source_id == "STILL_OPEN"
+
+
 def test_refs_beyond_sqlites_expression_limit(conn):
     """
     The failure this pins: an OR-chain of ~1000 (source, source_id) pairs exceeds
