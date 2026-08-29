@@ -575,6 +575,7 @@ function AdminModeSwitch({
         })
       }}
       aria-pressed={adminMode}
+      aria-label={label}
       title={adminMode
         ? 'Leave Admin Mode — see the board exactly as a Seeker does'
         : 'Enter Admin Mode — edit Roles and browse the whole catalogue'}
@@ -584,7 +585,15 @@ function AdminModeSwitch({
       style={{ backgroundColor: 'var(--color-gold)', color: '#fff' }}
     >
       <Icon size={14} strokeWidth={2} aria-hidden="true" />
-      {label}
+      {/* Same max-[400px]:hidden treatment as SavedButton's "Saved" label just
+          to its right in the mobile row: below 400px the two full labels plus
+          the wordmark and the hamburger toggle don't fit one row, and the
+          hamburger — the one control that opens every other destination —
+          was the one getting pushed past the visible edge. `display:none`
+          drops this span from the accessibility tree too, which is why
+          `aria-label` above (not just this text) carries the name below
+          400px, same as SavedButton's own explicit aria-label. */}
+      <span className="max-[400px]:hidden">{label}</span>
     </button>
   )
 }
