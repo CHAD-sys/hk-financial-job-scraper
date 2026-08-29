@@ -323,7 +323,14 @@ _SELECT_COLUMNS = f"""
     j.locations,
     j.description_clean,
     j.posted_at,
-    e.seniority,
+    -- Cross-posted copies of the same vacancy are enriched independently,
+    -- and DeepSeek's temperature is not 0 — near-identical description text
+    -- can genuinely produce different seniority answers between copies.
+    -- grp_seniority (JobStore.refresh_seniority_consensus) resolves a real
+    -- disagreement across a cluster by majority vote; NULL for a singleton
+    -- job or an already-consistent cluster, where this row's own value is
+    -- exactly right and nothing needs overriding.
+    COALESCE(j.grp_seniority, e.seniority) AS seniority,
     e.job_category,
     e.remote_type,
     e.required_skills,
@@ -669,7 +676,10 @@ def _where(
 
     if filters.seniority:
         ph = ",".join("?" * len(filters.seniority))
-        conditions.append(f"e.seniority IN ({ph})")
+        # COALESCE(j.grp_seniority, e.seniority): same cross-post consensus
+        # rule as the SELECT column above — a Role must match/miss this
+        # filter the same way it's labelled on its own card.
+        conditions.append(f"COALESCE(j.grp_seniority, e.seniority) IN ({ph})")
         params += list(filters.seniority)
 
     if filters.remote_type:
@@ -1288,9 +1298,10 @@ def research_facets(
     seniority_levels = [
         row[0]
         for row in conn.execute(
-            "SELECT DISTINCT e.seniority FROM job_enrichments e"
+            "SELECT DISTINCT COALESCE(j.grp_seniority, e.seniority) FROM job_enrichments e"
             " JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id"
-            f" WHERE {research} AND e.seniority IS NOT NULL ORDER BY e.seniority"
+            f" WHERE {research} AND e.seniority IS NOT NULL"
+            " ORDER BY COALESCE(j.grp_seniority, e.seniority)"
         ).fetchall()
     ]
     remote_types = [

@@ -243,6 +243,39 @@ def _elect_vacancy_id(members: list[sqlite3.Row]) -> str:
     return preferred["vacancy_id"] or next(iter(existing))
 
 
+#: Ordinal rank for the tie-break in `_seniority_consensus` below. Only the
+#: four levels DeepSeek's live prompt actually returns (`junior|mid|senior|
+#: lead` — see `enrichers/deepseek.py`) are ranked; anything else sorts last,
+#: deterministically, by name — reachable only from a stale row enriched
+#: under a retired prompt version.
+_SENIORITY_RANK = {"junior": 0, "mid": 1, "senior": 2, "lead": 3}
+
+
+def _seniority_consensus(seniorities: list[str], current: str | None) -> str:
+    """
+    The majority `job_enrichments.seniority` value across one cross-posted
+    vacancy's active, enriched copies.
+
+    A tie keeps `current` (the primary row's own value) when it is among the
+    tied candidates — the smallest possible change from what is already
+    shown. An unbroken tie with `current` outside it (the primary's own
+    answer was itself a minority) falls back to the LOWEST-ranked tied
+    value: conservative, same "when unsure, answer the smaller claim"
+    default this codebase already uses elsewhere (search_index's typo
+    correction, the retired tech filter's "when unsure, NOT TECH").
+    """
+    from collections import Counter
+
+    counts = Counter(seniorities)
+    top = max(counts.values())
+    winners = [level for level, n in counts.items() if n == top]
+    if len(winners) == 1:
+        return winners[0]
+    if current in winners:
+        return current
+    return min(winners, key=lambda level: (_SENIORITY_RANK.get(level, 99), level))
+
+
 _TITLE_NOISE_RE = re.compile(r"[^a-z0-9]+")
 
 # How much title-word overlap counts as "the same vacancy on two boards". Fuzzy
@@ -939,6 +972,7 @@ class JobStore:
                     updates,
                 )
         self.refresh_signal_flags()
+        self.refresh_seniority_consensus()
         return cross_groups, len(updates)
 
     def refresh_signal_flags(self) -> None:
@@ -998,6 +1032,89 @@ class JobStore:
                 "    AND json_extract(g.board_signals, '$.applicant_count') IS NOT NULL) "
                 "WHERE is_active = 1 AND is_primary = 1"
             )
+
+    def refresh_seniority_consensus(self) -> int:
+        """
+        Resolve conflicting `job_enrichments.seniority` across a cross-posted
+        vacancy's copies into one canonical `jobs.grp_seniority`.
+
+        WHY THIS EXISTS
+        ----------------
+        Each copy of a cross-posted vacancy is enriched independently, and
+        DeepSeek runs at temperature=0.2 (not 0), so near-identical
+        description text across copies of the SAME real vacancy can
+        genuinely produce different seniority answers — measured on the live
+        board: 14% of cross-posted clusters disagreed across their copies,
+        and roughly half of those had a PRIMARY copy (the only one a Seeker
+        or the seniority filter ever sees) that contradicted every sibling.
+        `_seniority_consensus` settles it by majority vote; see that
+        function's docstring for the tie-break.
+
+        Only writes `grp_seniority` for a cluster where copies actually
+        DISAGREE — an already-consistent cluster, or a singleton job, is
+        left at NULL, and `job_read.py` falls back to the primary's own
+        `e.seniority` for both. That keeps writes proportional to genuine
+        disagreement (a few dozen rows on the live board), not a rewrite of
+        every cross-posted cluster on every reconcile pass.
+
+        Read-only join over `job_enrichments`, so — like `refresh_signal_flags`
+        for `board_signals` — this has to run as its own pass rather than
+        inside `reconcile_cross_posted`'s own single query, and belongs right
+        after it: apply_url/cross_posted/is_primary must already be current
+        for this pass's grouping to mean anything.
+
+        Resets every active row's `grp_seniority` to NULL before recomputing
+        — the same reset `refresh_signal_flags` does for `grp_new`/
+        `grp_urgent`/`grp_applicants`, and for the identical reason: a
+        cluster whose copies later converge (a stale sibling gets
+        re-enriched to match) must not keep serving a PREVIOUS run's
+        now-stale override forever. Without the reset this only ever adds
+        overrides, never removes one whose disagreement has since resolved.
+
+        Never overrides a primary row Ultimate Admin has hand-corrected
+        (`job_enrichments.manually_edited_at IS NOT NULL`, phase 33) — the
+        same unconditional exclusion `_fetch_unenriched` already applies for
+        the ordinary enrichment pass and the salary outlier audit, for the
+        identical reason their docstrings give: a human's deliberate
+        correction is not a vote to be outnumbered by its own siblings, and
+        silently reverting one the next time this pass runs is the exact
+        failure phase 33 exists to prevent.
+        """
+        cols = {r[1] for r in self._conn.execute("PRAGMA table_info(jobs)")}
+        if "grp_seniority" not in cols:
+            return 0
+
+        rows = self._conn.execute(
+            "SELECT j.rowid, j.apply_url, j.is_primary, e.seniority, e.manually_edited_at"
+            "  FROM jobs j"
+            "  JOIN job_enrichments e ON j.source = e.source AND j.source_id = e.source_id"
+            " WHERE j.is_active = 1 AND j.cross_posted = 1 AND e.seniority IS NOT NULL"
+        ).fetchall()
+
+        from collections import defaultdict
+
+        by_group: dict[str, list[sqlite3.Row]] = defaultdict(list)
+        for row in rows:
+            by_group[row["apply_url"]].append(row)
+
+        updates: list[tuple[str, int]] = []
+        for members in by_group.values():
+            seniorities = [m["seniority"] for m in members]
+            if len(set(seniorities)) <= 1:
+                continue  # every copy already agrees — nothing to resolve
+            primary = next((m for m in members if m["is_primary"]), None)
+            if primary is None or primary["manually_edited_at"] is not None:
+                continue
+            consensus = _seniority_consensus(seniorities, primary["seniority"])
+            updates.append((consensus, primary["rowid"]))
+
+        with self._conn:
+            self._conn.execute("UPDATE jobs SET grp_seniority = NULL WHERE is_active = 1")
+            if updates:
+                self._conn.executemany(
+                    "UPDATE jobs SET grp_seniority = ? WHERE rowid = ?", updates
+                )
+        return len(updates)
 
     def stats(self) -> dict[str, Any]:
         """

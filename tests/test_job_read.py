@@ -136,6 +136,92 @@ def test_scope_where_with_an_unmatched_query_excludes_everything(conn):
     assert total == 0
 
 
+# ── Cross-post seniority consensus (jobs.grp_seniority) ────────────────────
+# JobStore.refresh_seniority_consensus (hk_jobs/storage.py) resolves a real
+# disagreement across a cross-posted vacancy's copies — see
+# tests/test_seniority_consensus.py for the voting logic itself. These check
+# only that the READ path (SELECT, filter, facets) actually prefers
+# grp_seniority over the primary row's own possibly-outvoted e.seniority.
+
+def test_list_jobs_prefers_grp_seniority_over_the_primarys_own_value(tmp_path):
+    db = tmp_path / "grp-seniority.db"
+    make_jobs_db(
+        db,
+        jobs=[job(source_id="LIVE", title="Relationship Manager", grp_seniority="senior")],
+        enrichments=[enrichment(source_id="LIVE", seniority="mid")],
+    )
+    connection = prepare(sqlite3.connect(db))
+    try:
+        # is_admin=True: JobSummary.seniority is admin-gated (job_read.py's
+        # _to_summary) — irrelevant to what's under test (the grp_seniority
+        # COALESCE), so opted in explicitly to actually see the field.
+        role = list_jobs(connection, JobFilters(), page_size=100, is_admin=True).jobs[0]
+    finally:
+        connection.close()
+    assert role.seniority == "senior", (
+        "grp_seniority is the resolved cluster consensus — it must win over "
+        "this row's own outvoted e.seniority"
+    )
+
+
+def test_list_jobs_falls_back_to_the_rows_own_seniority_when_grp_seniority_is_null(tmp_path):
+    db = tmp_path / "grp-seniority-null.db"
+    make_jobs_db(
+        db,
+        jobs=[job(source_id="LIVE", grp_seniority=None)],
+        enrichments=[enrichment(source_id="LIVE", seniority="mid")],
+    )
+    connection = prepare(sqlite3.connect(db))
+    try:
+        role = list_jobs(connection, JobFilters(), page_size=100, is_admin=True).jobs[0]
+    finally:
+        connection.close()
+    assert role.seniority == "mid"
+
+
+def test_seniority_filter_matches_on_grp_seniority_not_the_outvoted_own_value(tmp_path):
+    """
+    THE regression this whole consensus mechanism exists for: a Seeker
+    filtering for "senior" must reach a Role whose primary copy's OWN
+    e.seniority says "mid" but whose resolved cluster consensus says
+    "senior" — otherwise the filter silently drops a genuinely senior Role
+    because of which copy happened to win the primary election.
+    """
+    db = tmp_path / "grp-seniority-filter.db"
+    make_jobs_db(
+        db,
+        jobs=[job(source_id="LIVE", title="Relationship Manager", grp_seniority="senior")],
+        enrichments=[enrichment(source_id="LIVE", seniority="mid")],
+    )
+    connection = prepare(sqlite3.connect(db))
+    try:
+        senior_hits = list_jobs(
+            connection, JobFilters.of(seniority=["senior"]), page_size=100
+        ).jobs
+        mid_hits = list_jobs(
+            connection, JobFilters.of(seniority=["mid"]), page_size=100
+        ).jobs
+    finally:
+        connection.close()
+    assert _ids(senior_hits) == ["LIVE"]
+    assert _ids(mid_hits) == []
+
+
+def test_research_facets_seniority_levels_reflect_grp_seniority(tmp_path):
+    db = tmp_path / "grp-seniority-facets.db"
+    make_jobs_db(
+        db,
+        jobs=[job(source_id="LIVE", title="Relationship Manager", grp_seniority="senior")],
+        enrichments=[enrichment(source_id="LIVE", seniority="mid")],
+    )
+    connection = prepare(sqlite3.connect(db))
+    try:
+        facets = research_facets(connection, "relationship manager")
+    finally:
+        connection.close()
+    assert facets.seniority_levels == ["senior"]
+
+
 # ── Visibility: browsing is filtered ──────────────────────────────────────────
 
 def test_board_hides_closed_and_non_primary(conn):

@@ -502,3 +502,20 @@ def test_phase_39_is_idempotent(tmp_path: Path):
     ).fetchone()[0]
     conn.close()
     assert is_active == 1
+
+
+# ── Phase 40: jobs.grp_seniority ─────────────────────────────────────────────
+# Cross-post seniority consensus (see tests/test_seniority_consensus.py for the
+# actual voting logic) — this only checks the migration adds the column.
+
+def test_phase_40_adds_the_column(tmp_path: Path):
+    db = _db(tmp_path)
+    migrate(db)
+    assert "grp_seniority" in _columns(db, "jobs")
+
+
+def test_phase_40_is_idempotent(tmp_path: Path):
+    db = _db(tmp_path)
+    migrate(db)
+    migrations.migrate_to_phase_40(db)  # must not raise on a column that already exists
+    assert "grp_seniority" in _columns(db, "jobs")

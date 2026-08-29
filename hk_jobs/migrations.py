@@ -1253,6 +1253,47 @@ def migrate_to_phase_39(db_path: str) -> None:
     )
 
 
+def migrate_to_phase_40(db_path: str) -> None:
+    """
+    Add `jobs.grp_seniority`: one canonical seniority per cross-posted
+    vacancy, resolved across its copies — same shape as phase 22's
+    `grp_new`/`grp_urgent`/`grp_applicants`, but for AI-enriched data rather
+    than adapter-reported board signals.
+
+    WHY THIS EXISTS
+    ----------------
+    Each copy of a cross-posted vacancy is enriched independently by
+    DeepSeek, and the model runs at temperature=0.2 (not 0) — so
+    near-identical description text across copies of the SAME real vacancy
+    can genuinely produce different seniority answers. Measured on the live
+    board (2026-08): 14% of cross-posted vacancy clusters disagreed across
+    their copies, and in about half of those the copy that won the primary
+    election — the only one a Seeker or the seniority filter ever sees —
+    contradicted EVERY sibling copy of the identical job.
+
+    `JobStore.refresh_seniority_consensus()` (called alongside
+    `refresh_signal_flags()` at the end of `reconcile_cross_posted()`)
+    fills this in by majority vote across a cluster's active, enriched
+    copies. It is not set by this migration — existing rows start NULL and
+    get one on the next reconcile pass, same as `vacancy_id` (phase 38).
+    `job_read.py` reads `COALESCE(j.grp_seniority, e.seniority)`, so a
+    singleton job or an already-consistent cluster is unaffected — this
+    only ever overrides the primary's own value where a real disagreement
+    was found and resolved.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+        with conn:
+            if "grp_seniority" not in cols:
+                conn.execute("ALTER TABLE jobs ADD COLUMN grp_seniority TEXT")
+                logger.info("Phase 40 migration: added jobs.grp_seniority")
+            else:
+                logger.debug("Phase 40 migration: grp_seniority already exists")
+    finally:
+        conn.close()
+
+
 #: the whole of registering a new phase.
 #:
 #: Order is load-bearing beyond the obvious: 10 creates `jobs` before the seven
@@ -1291,6 +1332,7 @@ MIGRATIONS: tuple[tuple[int, Callable[[str], None]], ...] = (
     (37, migrate_to_phase_37),
     (38, migrate_to_phase_38),
     (39, migrate_to_phase_39),
+    (40, migrate_to_phase_40),
 )
 
 LATEST_PHASE = MIGRATIONS[-1][0]
