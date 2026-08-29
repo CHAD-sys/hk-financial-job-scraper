@@ -380,12 +380,14 @@ export default function Nav() {
                   onToggle={setAdminMode}
                   onNavigate={() => setOpen(false)}
                   compact
+                  iconOnly
                 />
               )}
 
               <SavedButton
                 count={savedCount}
                 active={pathname === '/saved'}
+                iconOnly
                 onClick={() => (pathname === '/saved' ? scrollToTop() : navigate('/saved'))}
               />
 
@@ -490,11 +492,20 @@ function SavedButton({
   count,
   active,
   compact = false,
+  iconOnly = false,
   onClick,
 }: {
   count: number
   active: boolean
   compact?: boolean
+  // Icon + count only, no "Saved" text — deterministic per call site (the
+  // mobile row passes this) rather than a CSS width breakpoint. A pixel
+  // threshold has to guess every real phone's width; iPhones alone split
+  // 375-430 CSS px across current models, and 414/428/430-wide phones
+  // (Plus/Max lines) still overflowed the row under the old `max-
+  // [400px]:hidden` cutoff even though the mobile block genuinely never
+  // has room for this label wherever it renders.
+  iconOnly?: boolean
   onClick: () => void
 }) {
   return (
@@ -512,7 +523,7 @@ function SavedButton({
       aria-label={`Saved jobs (${count})`}
     >
       <Bookmark size={14} strokeWidth={1.8} fill={count > 0 ? 'currentColor' : 'none'} />
-      <span className="max-[400px]:hidden">Saved</span>
+      {!iconOnly && <span>Saved</span>}
       {count > 0 && (
         <span
           className="flex h-4 w-4 items-center justify-center rounded-full text-xs font-bold"
@@ -553,11 +564,18 @@ function AdminModeSwitch({
   onToggle,
   onNavigate,
   compact = false,
+  iconOnly = false,
 }: {
   adminMode: boolean
   onToggle: (on: boolean) => void
   onNavigate: () => void
   compact?: boolean
+  // See SavedButton's iconOnly doc — same fix, same reason: a CSS width
+  // breakpoint has to guess every real phone's viewport width, and several
+  // common ones (414/428/430 CSS px — the Plus/Max iPhone lines) sit above
+  // any threshold narrow enough to still fit a 375px phone, so the row kept
+  // overflowing on exactly the devices the breakpoint was meant to catch.
+  iconOnly?: boolean
 }) {
   const navigate = useNavigate()
   const label = adminMode ? 'Seeker view' : 'Admin Mode'
@@ -585,15 +603,10 @@ function AdminModeSwitch({
       style={{ backgroundColor: 'var(--color-gold)', color: '#fff' }}
     >
       <Icon size={14} strokeWidth={2} aria-hidden="true" />
-      {/* Same max-[400px]:hidden treatment as SavedButton's "Saved" label just
-          to its right in the mobile row: below 400px the two full labels plus
-          the wordmark and the hamburger toggle don't fit one row, and the
-          hamburger — the one control that opens every other destination —
-          was the one getting pushed past the visible edge. `display:none`
-          drops this span from the accessibility tree too, which is why
-          `aria-label` above (not just this text) carries the name below
-          400px, same as SavedButton's own explicit aria-label. */}
-      <span className="max-[400px]:hidden">{label}</span>
+      {/* iconOnly drops this from the DOM entirely on the mobile row, which
+          is also why aria-label above (not just this text) carries the name
+          there — matching SavedButton's own explicit aria-label. */}
+      {!iconOnly && <span>{label}</span>}
     </button>
   )
 }
