@@ -219,6 +219,38 @@ escalation risk, anti-bot arms race — see the plan's §3 for the full posture)
 - Prefer one typed object over `getattr(obj, name, default)`. A silent default
   is how the test suite's idea of the arguments drifted from production's.
 
+## Repository mirroring (keep both remotes identical)
+
+This project lives in two GitHub repos that MUST stay byte-identical on every
+shared branch and tag:
+
+| Remote | Repo | Role |
+|--------|------|------|
+| `origin` | `FinEx-Club/hk-job-scraper` (private) | **canonical** — all work merges here |
+| `personal` | `CHAD-sys/hk-financial-job-scraper` (public) | one-way mirror of `origin` |
+
+Sync is **one-way, `origin` → `personal`**, enforced two ways:
+
+1. **Local fan-out push.** `origin` has two push URLs, so `git push origin <ref>`
+   pushes to BOTH repos at once. Re-add on a fresh clone with:
+   ```
+   git remote set-url --add --push origin https://github.com/FinEx-Club/hk-job-scraper.git
+   git remote set-url --add --push origin https://github.com/CHAD-sys/hk-financial-job-scraper.git
+   ```
+   If the `personal` half is rejected (non-fast-forward), run the mirror workflow
+   or `git push --force personal <ref>` — `personal` is a mirror, `origin` wins.
+2. **`.github/workflows/mirror-from-finex-club.yml`** — runs on `CHAD-sys` every
+   10 min + on demand, force-syncs every `origin` branch/tag. Catches merges made
+   with GitHub's web Merge button. Needs the `MIRROR_TOKEN` secret on `CHAD-sys`.
+
+Rules:
+- After any merge to `master` (or any shared branch), it must land on both repos —
+  the fan-out push does this; verify with `git ls-remote personal master`.
+- Never commit work only to `personal`. It is overwritten on the next mirror run.
+- `backup/*` branches are allowed to exist on `personal` only and are exempt from
+  the "must match" rule (the mirror never prunes them).
+- Never `git push --mirror` / `--prune` to `personal` — it would delete `backup/*`.
+
 ## Working agreement with the human
 
 - This is being built by someone newer to APIs/ATS concepts. Explain

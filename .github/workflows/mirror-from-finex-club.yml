@@ -1,0 +1,53 @@
+name: Mirror from FinEx-Club
+
+# The canonical repository is FinEx-Club/hk-job-scraper (private).
+# CHAD-sys/hk-financial-job-scraper is a one-way mirror of it: every branch and
+# tag on the canonical repo is force-synced here so the two never drift.
+#
+# Two mechanisms keep them in step:
+#   1. Local fan-out push  - `git push origin <ref>` on a dev machine goes to
+#      BOTH remotes at once (git remote set-url --add --push origin ...).
+#   2. This workflow        - a safety net that also catches merges done with
+#      GitHub's web "Merge" button, which never touch a local machine.
+#
+# This job is a no-op on the canonical repo itself (the `if` below), so the file
+# can live on the shared master without doing anything there.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: mirror-from-finex-club
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    if: github.repository == 'CHAD-sys/hk-financial-job-scraper'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Sync every branch and tag from the canonical repo
+        env:
+          # Classic PAT with `repo` + `workflow` scope (the mirror pushes commits
+          # that can touch .github/workflows/**). Owned by an account with push
+          # access to FinEx-Club/hk-job-scraper. Set with:
+          #   gh secret set MIRROR_TOKEN --repo CHAD-sys/hk-financial-job-scraper
+          MIRROR_TOKEN: ${{ secrets.MIRROR_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "${MIRROR_TOKEN}" || { echo "::error::MIRROR_TOKEN secret is not set"; exit 1; }
+
+          src="https://x-access-token:${MIRROR_TOKEN}@github.com/FinEx-Club/hk-job-scraper.git"
+          dst="https://x-access-token:${MIRROR_TOKEN}@github.com/CHAD-sys/hk-financial-job-scraper.git"
+
+          git clone --bare "${src}" canonical
+          cd canonical
+
+          # Force every canonical branch + tag onto the mirror. No --prune / --mirror:
+          # refs that exist only on the personal repo (e.g. backup/*) are left alone.
+          git push --force "${dst}" "refs/heads/*:refs/heads/*" "refs/tags/*:refs/tags/*"
