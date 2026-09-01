@@ -37,6 +37,11 @@ logger = logging.getLogger(__name__)
 #: clauses are chunked. Same limit and same reason as webapp/backend/job_read.py.
 _REF_CHUNK = 200
 
+#: The board's six-month freshness window (docs/adr/0032), as a SQLite date
+#: modifier. `deactivate_aged_out` retires anything older; keep this in step with
+#: `webapp/backend/job_read.py`'s BOARD_WHERE window.
+_AGED_OUT_HORIZON = "-6 months"
+
 #: A source's own "new" badge (board_signals.new_job) is a one-time snapshot from
 #: whichever scrape first saw it — see refresh_signal_flags(). It never expires on
 #: its own, so this is the cap we enforce instead.
@@ -835,6 +840,38 @@ class JobStore:
             )
             self.reconcile_cross_posted(company_slugs=slugs)
         return changed
+
+    def deactivate_aged_out(self, *, horizon: str = _AGED_OUT_HORIZON) -> int:
+        """
+        Soft-delete Listings whose posting date is older than `horizon` (a
+        SQLite date modifier, default `'-6 months'` — ADR 0032's board window),
+        plus undateable Listings not re-seen for that long.
+
+        A Role posted six months ago is almost certainly filled or withdrawn;
+        keeping it addressable points a deep link or a Saved Role at a vacancy
+        that no longer exists. So it leaves `Visibility.ADDRESSABLE` too, not
+        just the board's freshness slice. Runs every scrape (`pipeline.run`),
+        alongside the per-company `mark_inactive_for_run`.
+
+        Goes through `deactivate()` — same soft-delete, same `closed_at`, same
+        primary re-election for the touched company slugs — so it carries none
+        of the "fourth writer" risk the `deactivate` docstring is about.
+        """
+        stale = self._conn.execute(
+            """
+            SELECT source, source_id FROM jobs
+             WHERE is_active = 1
+               AND (
+                     date(posted_at) < date('now', ?)
+                  OR (posted_at IS NULL AND date(fetched_at) < date('now', ?))
+               )
+            """,
+            (horizon, horizon),
+        ).fetchall()
+        return self.deactivate(
+            [(r["source"], r["source_id"]) for r in stale],
+            reason="aged-out",
+        )
 
     def reconcile_cross_posted(
         self, *, company_slugs: Collection[str] | None = None

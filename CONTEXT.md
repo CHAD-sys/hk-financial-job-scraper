@@ -44,6 +44,16 @@ not establish a FinEx session)
 
 ### The board
 
+**Board**:
+What a Seeker browses and searches — and a *curated slice* of the catalogue, not
+all of it. A Role reaches the board only if it is open, posted within the last six
+months, not Hidden, and among the freshest of its sector (a per-sector cap, so a
+high-volume sector cannot crowd out a quieter one). The headline "live roles" figure
+is deliberately broader — it keeps counting every open Role posted this month,
+Hidden ones included — so curating the board does not move the number a visitor
+first sees. See `docs/adr/0032`.
+_Avoid_: catalogue (the whole stored set, most of which the board never shows)
+
 **Role**:
 One open vacancy as the board presents it to a Seeker.
 _Avoid_: job (reserved for the stored row), listing, posting, vacancy
@@ -74,6 +84,17 @@ Only a Role reached by reference is ever Closed; the board shows open Roles only
 also record *when* it closed, which is what lets a Saved Role drop off a list after a
 fortnight without the Role itself going anywhere. See `docs/adr/0010` and `0011`.
 _Avoid_: expired, inactive, dead, archived, deleted (a Role is never deleted)
+
+**Hidden**:
+A Role an admin has taken off the public board while it is still open. Distinct from
+Closed: the Role is not gone, it still accepts applications, and it is still reachable
+by reference (a deep link, a Saved Role) — it is only absent from the board, from every
+public count and facet, and from the Role Feed. Reversible with one toggle, and every
+switch is audited. Used to bury an individual stale-looking or off-topic Listing, or one
+an Employer asked us to pull. The board's own six-month freshness cutoff and the
+per-sector freshness cap are separate, automatic mechanisms — Hidden is the manual one,
+for a single Role a human looked at. See `docs/adr/0032`.
+_Avoid_: unpublished, suppressed, removed, blacklisted, invisible (the state, not the UI word)
 
 **Alert**:
 A standing, opt-in weekly email of Roles the Role Feed newly recommends to a Seeker.

@@ -36,7 +36,8 @@ from hk_jobs.storage import JobStore
 
 
 def job(source: str, source_id: str, *, title: str = "Data Engineer",
-        slug: str = "testco", fetched_at: datetime | None = None) -> Job:
+        slug: str = "testco", fetched_at: datetime | None = None,
+        posted_at: datetime | None = None) -> Job:
     # Company name defaults to the slug itself (not a shared literal like "Test
     # Co") — reconcile_cross_posted now groups by normalized company NAME, not
     # slug (ADR 0027), so two DIFFERENT slugs in these scoping tests need
@@ -45,6 +46,7 @@ def job(source: str, source_id: str, *, title: str = "Data Engineer",
         source=source, source_id=source_id, company=slug, company_slug=slug,
         url=f"https://example.com/{source}/{source_id}", title=title,
         locations=["Hong Kong"], fetched_at=fetched_at or datetime.now(UTC),
+        posted_at=posted_at,
     )
 
 
@@ -460,3 +462,64 @@ def test_a_listing_that_was_already_closed_keeps_its_original_date(db: str):
         assert store.deactivate([("workday", "W1")], reason="again") == 0
 
     assert closure(db, "workday")[1] == first
+
+
+# ── deactivate_aged_out(): the six-month board horizon (ADR 0032) ─────────────
+
+def test_aged_out_retires_a_listing_posted_over_six_months_ago(db: str):
+    old = datetime.now(UTC) - timedelta(days=190)
+    fresh = datetime.now(UTC) - timedelta(days=10)
+    with JobStore(db) as store:
+        store.upsert_many([
+            job("workday", "OLD", slug="a", posted_at=old),
+            job("jobsdb", "FRESH", slug="b", posted_at=fresh),
+        ])
+        assert store.deactivate_aged_out() == 1
+
+    assert closure(db, "workday")[0] == 0      # retired
+    assert closure(db, "jobsdb")[0] == 1       # untouched
+
+
+def test_aged_out_is_a_soft_delete_with_a_closure_date(db: str):
+    old = datetime.now(UTC) - timedelta(days=200)
+    with JobStore(db) as store:
+        store.upsert_many([job("workday", "OLD", posted_at=old)])
+        store.deactivate_aged_out()
+
+    active, closed_at = closure(db, "workday")
+    assert active == 0 and closed_at is not None  # the row stays, addressable
+
+
+def test_aged_out_retires_an_undateable_listing_not_seen_in_six_months(db: str):
+    stale_seen = datetime.now(UTC) - timedelta(days=190)
+    with JobStore(db) as store:
+        # posted_at is None; last fetched over six months ago.
+        store.upsert_many([job("indeed", "NODATE", posted_at=None, fetched_at=stale_seen)])
+        assert store.deactivate_aged_out() == 1
+    assert closure(db, "indeed")[0] == 0
+
+
+def test_aged_out_keeps_an_undateable_listing_still_being_seen(db: str):
+    with JobStore(db) as store:
+        store.upsert_many([job("indeed", "NODATE", posted_at=None)])  # fetched just now
+        assert store.deactivate_aged_out() == 0
+    assert closure(db, "indeed")[0] == 1
+
+
+def test_aged_out_re_elects_a_primary_when_it_retires_the_elected_copy(db: str):
+    """Same obligation as every other is_active writer (see the file docstring):
+    retire the elected copy of a cross-post and a survivor must be re-elected."""
+    old = datetime.now(UTC) - timedelta(days=200)
+    fresh = datetime.now(UTC) - timedelta(days=200)
+    with JobStore(db) as store:
+        # Both copies old; JobsDB is elected (DISPLAY_ORDER), Workday suppressed.
+        store.upsert_many([
+            job("jobsdb", "J1", posted_at=old),
+            job("workday", "W1", posted_at=fresh),
+        ])
+        store.reconcile_cross_posted()
+        assert rows(db) == {"jobsdb": (1, 1), "workday": (1, 0)}
+        store.deactivate_aged_out()
+
+    # Both are old, so both retire — nothing left visible, no stranded primary.
+    assert visible(db) == 0

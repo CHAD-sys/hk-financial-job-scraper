@@ -176,6 +176,17 @@ def run(args: PipelineArgs) -> list[CompanyResult]:
                     x_groups, x_rows,
                 )
 
+        # Retire Listings that have aged past the board's six-month window
+        # (ADR 0032). A soft-delete via deactivate(), so Saved Roles read it as
+        # closed rather than silently gone, and primaries are re-elected for the
+        # touched companies. Runs every scrape so the board never carries a
+        # half-year-old vacancy.
+        if not dry_run:
+            with db_lock:
+                aged = store.deactivate_aged_out()
+            if aged:
+                logger.info("Retired %d Listing(s) posted over six months ago (ADR 0032).", aged)
+
         if not dry_run and args.export:
             count = store.export_active_jsonl(args.export)
             logger.info("Exported %d active jobs → %s", count, args.export)

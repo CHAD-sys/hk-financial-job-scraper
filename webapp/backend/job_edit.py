@@ -61,6 +61,11 @@ JOB_FIELDS = frozenset(
         "description_raw",
         "apply_url",
         "is_active",
+        # ADR 0032: the admin-only Hidden state. 1 removes the Role from the
+        # public board (and every board-side count and the recommendation
+        # feeds) without closing it; 0 restores it. Reversible, audited here
+        # like any other field.
+        "admin_hidden",
         "source_tier",
         "category",
     }
@@ -155,9 +160,15 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     if not columns:
         raise RuntimeError("job_enrichments table is missing; run the base database migrations")
 
+    job_columns = {row[1] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+
     with conn:
         if "manually_edited_at" not in columns:
             conn.execute("ALTER TABLE job_enrichments ADD COLUMN manually_edited_at TEXT")
+        # ADR 0032 / migrations.py phase 41 — same reason as the line above: a
+        # long-lived Railway volume can predate the phase this feature needs.
+        if "admin_hidden" not in job_columns:
+            conn.execute("ALTER TABLE jobs ADD COLUMN admin_hidden INTEGER NOT NULL DEFAULT 0")
         conn.execute(_ADMIN_EDITS_DDL)
         conn.execute(_SALARY_CORRECTIONS_DDL)
 
@@ -166,7 +177,7 @@ def _to_storage(field: str, value: Any) -> Any:
     """The DB's own representation of a value the API received."""
     if field in _JSON_FIELDS:
         return json.dumps(value if value is not None else [])
-    if field == "is_active":
+    if field in ("is_active", "admin_hidden"):
         return 1 if value else 0
     return value
 
