@@ -29,12 +29,16 @@ nothing on the board is gated (ADR 0002).
 Closed, Hidden, Board. Use those words. Decisions live in `docs/adr/`; do not
 re-litigate one without reading it.
 
-The **Board** is a curated slice, not the whole catalogue (ADR 0032): a Role
-shows only if it is open, posted within 6 months, not `admin_hidden`, and among
-the freshest ~240 of its sector. `job_read.BOARD_WHERE` is that predicate;
-`job_read.LIVE_COUNT_WHERE` (1-month, counts hidden, no cap) backs the "X live
-roles" stat only. `hk_jobs.storage.JobStore.deactivate_aged_out()` runs every
-scrape to retire anything past the 6-month line.
+The **Board** shows every open, primary Role posted within the last calendar
+month — the whole eligible catalogue, not a curated subset. ADR 0032 tried
+shrinking it to a sector-fair freshest slice (~1,280 of ~2,750); ADR 0033
+reverted that within the day — it hid roughly as many genuinely-open Roles as
+it solved, for no offsetting gain. What's left of 0032: `admin_hidden` (an
+Ultimate-Admin-only toggle, `job_read.BOARD_WHERE` still excludes it, see
+`docs/adr/0032`'s "Who may see a hidden Role") and
+`hk_jobs.storage.JobStore.deactivate_aged_out()`, which still retires anything
+posted over 6 months ago every scrape — unrelated to what's currently visible,
+since nothing that old survives the 1-month board window anyway.
 
 ## Core domain knowledge (read this — it drives every design decision)
 

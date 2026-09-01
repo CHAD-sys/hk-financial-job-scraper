@@ -128,49 +128,32 @@ def has_research_scope(query: Optional[str]) -> bool:
     return len((query or "").strip()) >= MIN_RESEARCH_QUERY_LENGTH
 
 
-#: The board is a curated slice of the catalogue, not all of it (docs/adr/0032).
-#: Within its sector, a Role must be among the freshest BOARD_SECTOR_CAP to be on
-#: the board. The per-sector cap — not a global "newest N" — is what keeps a
-#: high-frequency sector (Banking is ~50% of the eligible pool) from crowding
-#: everything else off. Raising it widens every sector equally; there is no
-#: per-sector override.
-BOARD_SECTOR_CAP = 240
-
+#: ADR 0033 reverts ADR 0032's sector-fair freshness cap and 6-month window:
+#: shrinking the board to a curated slice (~1,280 of ~2,750) turned out to hide
+#: roughly as many Roles as it left un-enriched, for no offsetting benefit — the
+#: cure was worse than the problem. The board is the full catalogue again, one
+#: calendar month from posting, same rule `LIVE_COUNT_WHERE` already used. The
+#: only thing ADR 0032 leaves behind here is `admin_hidden` (still excluded from
+#: the public board; Ultimate Admin can still pull it back into view — see
+#: `_build_board_where` and docs/adr/0032's "Who may see a hidden Role" section).
 def _build_board_where(*, with_hidden: bool) -> str:
     """
-    The BOARD predicate. `with_hidden=False` is the public board (docs/adr/0032):
-    open, primary, NOT admin-hidden, posted within 6 months, and within the
-    freshest BOARD_SECTOR_CAP of its sector — a `ROW_NUMBER() OVER (PARTITION BY
-    sector)` subquery, not correlated, folded into the one fragment so every
-    board-side count derives from it and they cannot disagree.
+    The BOARD predicate. `with_hidden=False` is the public board: open, primary,
+    NOT admin-hidden, posted within 1 month — identical to `LIVE_COUNT_WHERE`
+    except for the `admin_hidden` clause, which is the one piece of ADR 0032
+    still live (see ADR 0033).
 
     `with_hidden=True` is the Ultimate-Admin variant: the `NOT admin_hidden`
-    clause is dropped from BOTH the core and the cap's own subquery, so a hidden
-    Role is ranked in like any other. Reached only through `list_jobs` when
-    `filters.admin_hidden` is set, which `main.py` gates to super-admin sessions.
-    A missing posting date fails closed either way — its age can't be verified.
-
-    `sector_case_sql` is the same title/company CASE the sector facet and filter
-    use, so the board and the "Banking" filter agree on what a Banking Role is.
-    Needs SQLite window functions (>= 3.25; every target has them).
+    clause is dropped, so a hidden Role is included. Reached only through
+    `list_jobs` when `filters.admin_hidden` is set, which `main.py` gates to
+    super-admin sessions. A missing posting date fails closed either way — its
+    age can't be verified.
     """
-    core = (
+    return (
         "j.is_active = 1 AND j.is_primary = 1"
         + ("" if with_hidden else " AND NOT j.admin_hidden")
-        + " AND date(j.posted_at) >= date('now', '-6 months')"
+        + " AND date(j.posted_at) >= date('now', '-1 month')"
     )
-    cap = f"""j.rowid IN (
-        SELECT rowid FROM (
-            SELECT j.rowid AS rowid, ROW_NUMBER() OVER (
-                PARTITION BY {sector_case_sql("j.title", "j.company")}
-                ORDER BY j.posted_at DESC, j.rowid DESC
-            ) AS _sector_rank
-            FROM jobs j
-            WHERE {core}
-        )
-        WHERE _sector_rank <= {BOARD_SECTOR_CAP}
-    )"""
-    return f"{core} AND {cap}"
 
 
 #: The one public BOARD predicate. Every board-facing count derives from it — the
@@ -179,7 +162,7 @@ def _build_board_where(*, with_hidden: bool) -> str:
 #: table aliased `j`.
 BOARD_WHERE = _build_board_where(with_hidden=False)
 
-#: BOARD_WHERE but admin-hidden Roles are ranked in too — Ultimate Admin only,
+#: BOARD_WHERE but admin-hidden Roles are included too — Ultimate Admin only,
 #: never a public read.
 _BOARD_WHERE_WITH_HIDDEN = _build_board_where(with_hidden=True)
 
@@ -191,14 +174,11 @@ _VISIBILITY_SQL: dict[Visibility, Optional[str]] = {
     Visibility.ADDRESSABLE: None,
 }
 
-#: The "X live roles" headline figure ONLY — About page, landing pages, search
-#: hero, bare /jobs. Deliberately NOT the board predicate (docs/adr/0032):
-#:   • one calendar month, not six — the number a visitor first sees keeps its
-#:     established meaning as the board is curated down;
-#:   • counts admin-hidden Roles — hiding a Role must not move that number;
-#:   • no per-sector freshness cap.
-#: This is exactly the pre-0032 BOARD rule. Reached only through
-#: `live_count_where`; nothing else may use it.
+#: The "X live roles" headline figure — About page, landing pages, search hero,
+#: bare /jobs. Since ADR 0033, this is the same window as `BOARD_WHERE` again;
+#: the one remaining difference is that this counts admin-hidden Roles and
+#: BOARD_WHERE does not — hiding a Role must not move the headline number.
+#: Reached only through `live_count_where`; nothing else may use it.
 LIVE_COUNT_WHERE = (
     "j.is_active = 1 AND j.is_primary = 1 "
     "AND date(j.posted_at) >= date('now', '-1 month')"

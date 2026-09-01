@@ -45,14 +45,14 @@ not establish a FinEx session)
 ### The board
 
 **Board**:
-What a Seeker browses and searches — and a *curated slice* of the catalogue, not
-all of it. A Role reaches the board only if it is open, posted within the last six
-months, not Hidden, and among the freshest of its sector (a per-sector cap, so a
-high-volume sector cannot crowd out a quieter one). The headline "live roles" figure
-is deliberately broader — it keeps counting every open Role posted this month,
-Hidden ones included — so curating the board does not move the number a visitor
-first sees. See `docs/adr/0032`.
-_Avoid_: catalogue (the whole stored set, most of which the board never shows)
+What a Seeker browses and searches. A Role reaches the board if it is open,
+primary, not Hidden, and posted within the last calendar month — every Role
+meeting that, not a further-curated subset. ADR 0032 shrank it to a sector-fair
+freshest slice for a day; ADR 0033 reverted that once it turned out to hide as
+many genuinely-open Roles as it addressed. The headline "live roles" figure
+counts the same window, Hidden Roles included — hiding one must not move the
+number a visitor first sees. See `docs/adr/0032` and `docs/adr/0033`.
+_Avoid_: catalogue (the whole stored set, including Closed and out-of-window Roles)
 
 **Role**:
 One open vacancy as the board presents it to a Seeker.
@@ -91,9 +91,11 @@ Closed: the Role is not gone, it still accepts applications, and it is still rea
 by reference (a deep link, a Saved Role) — it is only absent from the board, from every
 public count and facet, and from the Role Feed. Reversible with one toggle, and every
 switch is audited. Used to bury an individual stale-looking or off-topic Listing, or one
-an Employer asked us to pull. The board's own six-month freshness cutoff and the
-per-sector freshness cap are separate, automatic mechanisms — Hidden is the manual one,
-for a single Role a human looked at. See `docs/adr/0032`.
+an Employer asked us to pull. The pipeline's own six-month sweep (retiring a Listing
+posted that long ago entirely, `hk_jobs.storage.deactivate_aged_out`) is a separate,
+automatic mechanism — Hidden is the manual one, for a single Role a human looked at.
+Only Ultimate Admin can see a Hidden Role at all (see `docs/adr/0032`); the board itself
+is the full one-month catalogue again (`docs/adr/0033`).
 _Avoid_: unpublished, suppressed, removed, blacklisted, invisible (the state, not the UI word)
 
 **Alert**:
