@@ -19,6 +19,14 @@ on:
           - hosted
           - enrich_only
           - repair
+      enrich_limit:
+        description: "Override DEEPSEEK_DAILY_ENRICH_LIMIT for this run (blank = keep 250). Use to clear an enrichment backlog in one pass."
+        required: false
+        default: ""
+      enrich_budget:
+        description: "Override DEEPSEEK_RUN_BUDGET_USD for this run in dollars (blank = keep 2.00). Raise alongside enrich_limit — the limit is only a proxy, this is the real cap."
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -75,10 +83,12 @@ jobs:
       # 250 keeps an ordinary night near $1.50-2.00. The backlog is not lost:
       # enrichment selects on prompt_version, so whatever is skipped is picked
       # up by the following run.
-      DEEPSEEK_DAILY_ENRICH_LIMIT: "250"
+      # A manual dispatch may override both for a one-off backlog-clearing run
+      # (enrich_limit / enrich_budget inputs); a scheduled run always uses 250 / 2.00.
+      DEEPSEEK_DAILY_ENRICH_LIMIT: ${{ (github.event_name == 'workflow_dispatch' && inputs.enrich_limit) || '250' }}
       # Hard stop in dollars, enforced in-process by hk_jobs/ai_budget.py. The
       # Role limit above is only a proxy for cost; this is the actual cap.
-      DEEPSEEK_RUN_BUDGET_USD: "2.00"
+      DEEPSEEK_RUN_BUDGET_USD: ${{ (github.event_name == 'workflow_dispatch' && inputs.enrich_budget) || '2.00' }}
       PIPELINE_SYNC_TOKEN: ${{ secrets.PIPELINE_SYNC_TOKEN }}
       PIPELINE_DATABASE_SYNC_URL: https://finex-careers.up.railway.app/api/admin/pipeline/database
       PIPELINE_OPERATIONS_URL: https://finex-careers.up.railway.app/api/admin/pipeline/operations
