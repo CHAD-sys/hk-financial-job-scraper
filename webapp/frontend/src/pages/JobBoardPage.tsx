@@ -379,6 +379,7 @@ export default function JobBoardPage() {
         onUpdate={updateFilters}
         onClear={clearFilters}
         onNewSearch={backToSearch}
+        canFilterHidden={adminMode && !!seeker?.is_super_admin}
       />
 
       {/* ── Main content ────────────────────────────────────── */}

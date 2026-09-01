@@ -97,6 +97,11 @@ export interface Job {
    * `job_enrichments.manually_edited_at` — see JobSummary in job_read.py.
    */
   salary_verified: boolean
+  /**
+   * ADR 0032: this Role is admin-hidden — off the public board. Only ever set
+   * in an Ultimate-Admin read; the card is greyed when true.
+   */
+  admin_hidden?: boolean
   years_experience_required: number | null
   posted_at: string | null
   url: string
@@ -426,6 +431,12 @@ export interface JobFilters {
   max_applicants: number | null
   hidden_only: boolean
   verified_only: boolean
+  /**
+   * ADR 0032, Ultimate Admin only. Undefined = the public board (hidden Roles
+   * out). 'include' greys hidden Roles into the list; 'only' shows just them.
+   * The backend refuses this from anyone but a super-admin session.
+   */
+  admin_hidden?: 'include' | 'only'
 }
 
 // One name per field, per wire format `fetchJobs` and the URL serializer
@@ -437,13 +448,14 @@ export interface JobFilters {
 // params, `'true'` vs `'1'`), never naming — a renamed param can no longer
 // drift between the function that writes it and the one that reads it back.
 //
-// `tier` and `salary_disclosed_only` are deliberately absent: `tier` has no
-// URL representation at all (shared links collapse to the combined research
-// stream, see `searchParamsToFilters`), and `salary_disclosed_only` has no
-// API param of its own — it folds into `salary_min` instead (see the comment
-// on that in `fetchJobs`).
+// `tier`, `salary_disclosed_only` and `admin_hidden` are deliberately absent:
+// `tier` has no URL representation at all (shared links collapse to the combined
+// research stream, see `searchParamsToFilters`), `salary_disclosed_only` has no
+// API param of its own — it folds into `salary_min` instead (see the comment on
+// that in `fetchJobs`), and `admin_hidden` is a tri-state string with the same
+// name on both sides, handled inline (Ultimate-Admin only, ADR 0032).
 const FILTER_PARAM_NAMES: Record<
-  Exclude<keyof JobFilters, 'tier' | 'salary_disclosed_only'>,
+  Exclude<keyof JobFilters, 'tier' | 'salary_disclosed_only' | 'admin_hidden'>,
   { api: string; url: string }
 > = {
   search: { api: 'search', url: 'q' },
@@ -525,6 +537,7 @@ export async function fetchJobs(
   if (filters.max_applicants !== null) p.set(FILTER_PARAM_NAMES.max_applicants.api, String(filters.max_applicants))
   if (filters.hidden_only) p.set(FILTER_PARAM_NAMES.hidden_only.api, 'true')
   if (filters.verified_only) p.set(FILTER_PARAM_NAMES.verified_only.api, 'true')
+  if (filters.admin_hidden) p.set('admin_hidden', filters.admin_hidden)
 
   p.set('sort', sort)
   p.set('page', String(page))
@@ -1510,6 +1523,7 @@ export function filtersToSearchParams(
   if (filters.max_applicants !== null) p.set(FILTER_PARAM_NAMES.max_applicants.url, String(filters.max_applicants))
   if (filters.hidden_only) p.set(FILTER_PARAM_NAMES.hidden_only.url, '1')
   if (filters.verified_only) p.set(FILTER_PARAM_NAMES.verified_only.url, '1')
+  if (filters.admin_hidden) p.set('admin_hidden', filters.admin_hidden)
   if (sort !== 'newest') p.set('sort', sort)
   if (page > 1) p.set('page', String(page))
   return p
@@ -1546,6 +1560,8 @@ export function searchParamsToFilters(
         ? Number(p.get(FILTER_PARAM_NAMES.max_applicants.url)) : null,
       hidden_only: p.get(FILTER_PARAM_NAMES.hidden_only.url) === '1',
       verified_only: p.get(FILTER_PARAM_NAMES.verified_only.url) === '1',
+      admin_hidden: p.get('admin_hidden') === 'include' ? 'include'
+        : p.get('admin_hidden') === 'only' ? 'only' : undefined,
     },
     sort: p.get('sort') ?? 'newest',
     page: Number(p.get('page') ?? '1'),

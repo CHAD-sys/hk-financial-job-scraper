@@ -313,6 +313,64 @@ def _minutes_ago(m: int) -> str:
     return (datetime.now(timezone.utc) - timedelta(minutes=m)).isoformat()
 
 
+def _hidden_db(tmp_path):
+    db = tmp_path / "admin-hidden.db"
+    make_jobs_db(
+        db,
+        jobs=[
+            job(source_id="SHOWN1", posted_at=days_ago(2)),
+            job(source_id="SHOWN2", posted_at=days_ago(3)),
+            job(source_id="HIDDEN1", posted_at=days_ago(1), admin_hidden=1),
+        ],
+    )
+    return prepare(sqlite3.connect(db))
+
+
+def test_admin_hidden_default_excludes_hidden_roles(tmp_path):
+    """ADR 0032: with no admin_hidden filter (the public board, and a normal
+    admin), a hidden Role is not in the list."""
+    conn = _hidden_db(tmp_path)
+    try:
+        ids = _ids(list_jobs(conn, JobFilters(), page_size=100).jobs)
+    finally:
+        conn.close()
+    assert set(ids) == {"SHOWN1", "SHOWN2"}
+
+
+def test_admin_hidden_include_ranks_hidden_into_the_board(tmp_path):
+    conn = _hidden_db(tmp_path)
+    try:
+        res = list_jobs(conn, JobFilters(admin_hidden="include"), page_size=100, is_admin=True)
+    finally:
+        conn.close()
+    by_id = {s.source_id: s for s in res.jobs}
+    assert set(by_id) == {"SHOWN1", "SHOWN2", "HIDDEN1"}
+    assert by_id["HIDDEN1"].admin_hidden is True
+    assert by_id["SHOWN1"].admin_hidden is False
+
+
+def test_admin_hidden_only_returns_just_the_hidden_roles(tmp_path):
+    conn = _hidden_db(tmp_path)
+    try:
+        ids = _ids(list_jobs(conn, JobFilters(admin_hidden="only"), page_size=100, is_admin=True).jobs)
+    finally:
+        conn.close()
+    assert ids == ["HIDDEN1"]
+
+
+def test_admin_hidden_flag_is_not_leaked_to_a_non_admin_read(tmp_path):
+    """`admin_hidden` on the summary is gated on is_admin, same as the salary
+    estimate — a public read never carries it even if the column says 1."""
+    conn = _hidden_db(tmp_path)
+    try:
+        # is_admin defaults False; "only" would be refused at the route, but even
+        # if it reached here the summary must not expose the bit.
+        res = list_jobs(conn, JobFilters(admin_hidden="only"), page_size=100)
+    finally:
+        conn.close()
+    assert all(s.admin_hidden is False for s in res.jobs)
+
+
 def test_board_caps_each_sector_at_board_sector_cap_keeping_the_freshest(tmp_path):
     """ADR 0032: within a sector only the freshest BOARD_SECTOR_CAP Roles are on
     the board. Everything here classifies as Banking (the fallback bucket)."""

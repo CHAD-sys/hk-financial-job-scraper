@@ -357,6 +357,11 @@ def list_jobs(
     verified_only: Optional[bool] = Query(
         None, description="Only jobs ghost_check confirmed match a real board listing"
     ),
+    admin_hidden: Optional[str] = Query(
+        None,
+        description="Ultimate Admin only: 'include' greys admin-hidden Roles into "
+                    "the board, 'only' shows just them. Ignored for everyone else.",
+    ),
     sort: Sort = Query(Sort.NEWEST, description="Sort order"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(24, ge=1, le=100, description="Results per page"),
@@ -382,6 +387,12 @@ def list_jobs(
             detail="Start with a specific search of at least two characters.",
         )
 
+    # 'include'/'only' for the admin-Hidden state is Ultimate Admin only (ADR
+    # 0032). Anyone else asking for it gets the plain public board — silently,
+    # not a 403: the parameter simply does not exist for them.
+    is_super = seeker is not None and bool(seeker.get("is_super_admin"))
+    admin_hidden_mode = admin_hidden if (is_super and admin_hidden in ("include", "only")) else None
+
     filters = JobFilters.of(
         search=research_query, sectors=sectors, companies=companies, seniority=seniority,
         remote_type=remote_type, skills=skills, salary_min=salary_min,
@@ -389,7 +400,7 @@ def list_jobs(
         posted_within_days=posted_within_days, is_internship=is_internship,
         tier=tier, is_new=is_new, urgently_hiring=urgently_hiring,
         max_applicants=max_applicants, hidden_only=hidden_only,
-        verified_only=verified_only,
+        verified_only=verified_only, admin_hidden=admin_hidden_mode,
     )
     audience = (
         CatalogueAudience.MEMBER if seeker is not None else CatalogueAudience.PUBLIC

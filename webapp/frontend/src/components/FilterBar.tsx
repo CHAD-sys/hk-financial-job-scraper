@@ -15,9 +15,12 @@ interface Props {
    * bar rather than the scrolling hero above it, so the way back to search
    * never leaves the viewport. */
   onNewSearch: () => void
+  /** ADR 0032: show the admin-hidden Roles control. Ultimate Admin in Admin
+   * Mode only — the parent decides, this component just renders it. */
+  canFilterHidden?: boolean
 }
 
-export default function FilterBar({ filters, filterData, activeCount, onUpdate, onClear, onNewSearch }: Props) {
+export default function FilterBar({ filters, filterData, activeCount, onUpdate, onClear, onNewSearch, canFilterHidden }: Props) {
   const [showAllFilters, setShowAllFilters] = useState(false)
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
 
@@ -134,6 +137,37 @@ export default function FilterBar({ filters, filterData, activeCount, onUpdate, 
             </button>
           )}
         </div>
+
+        {/* ADR 0032 — Ultimate Admin only. A hidden Role is off the public
+            board; this is the only place it can be pulled back into view. */}
+        {canFilterHidden && (
+          <div className="flex flex-wrap items-center gap-2 pb-3 text-xs">
+            <span style={{ color: 'var(--color-ink-muted)' }}>Hidden Roles</span>
+            {([
+              [undefined, 'Excluded'],
+              ['include', 'Shown greyed'],
+              ['only', 'Only hidden'],
+            ] as const).map(([mode, label]) => {
+              const active = (filters.admin_hidden ?? undefined) === mode
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => onUpdate({ admin_hidden: mode })}
+                  data-active={active}
+                  className="filter-pill rounded-md px-2.5 py-1 font-medium cursor-pointer whitespace-nowrap"
+                  style={{
+                    border: `1px solid ${active ? 'var(--color-ink)' : 'var(--color-border-strong)'}`,
+                    backgroundColor: active ? 'var(--color-ink)' : 'var(--color-surface-2)',
+                    color: active ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
+                  }}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+        )}
 
         {/* Advanced filters — desktop only, collapsed by default */}
         {showAllFilters && (

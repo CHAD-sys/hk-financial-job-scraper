@@ -59,6 +59,7 @@ export default function JobCard({ job, saved, onToggleSave, onClick, onEdit }: P
       // closed — greying it out and then refusing to open it would defeat the
       // reason the Role is still here at all.
       data-closed={job.closed || undefined}
+      data-hidden={job.admin_hidden || undefined}
       // The .job-card class (index.css) already declares its own transition —
       // box-shadow, border-color and transform, the exact three properties
       // onMouseEnter/onMouseLeave below change, with its own easing curve.
@@ -97,6 +98,25 @@ export default function JobCard({ job, saved, onToggleSave, onClick, onEdit }: P
           style={{ height: '2px', backgroundColor: sectorColor.accent }}
           aria-hidden="true"
         />
+      )}
+
+      {/* ADR 0032: an admin-hidden Role, only ever rendered for Ultimate Admin.
+          A grey wash over the whole card plus a corner label, so it reads as
+          "off the board" at a glance without hiding any of its content. */}
+      {job.admin_hidden && (
+        <>
+          <div
+            className="absolute inset-0 rounded-lg z-10"
+            style={{ backgroundColor: 'rgb(107 114 128 / 0.16)', pointerEvents: 'none' }}
+            aria-hidden="true"
+          />
+          <span
+            className="absolute top-2 right-2 z-20 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+            style={{ backgroundColor: 'var(--color-ink-muted)', color: 'var(--color-surface)' }}
+          >
+            Hidden
+          </span>
+        </>
       )}
 
       <CardHeader job={job} sectorColor={sectorColor} saved={saved} onToggleSave={onToggleSave} onEdit={onEdit} />

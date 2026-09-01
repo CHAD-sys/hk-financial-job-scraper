@@ -70,8 +70,9 @@ without moving the number they first see.
 
 ### `admin_hidden` — the invisible state
 
-New `jobs.admin_hidden INTEGER NOT NULL DEFAULT 0` (migration phase 41; index
-`idx_jobs_admin_hidden`). A hidden Role is:
+New `jobs.admin_hidden INTEGER NOT NULL DEFAULT 0` (migration phase 41; no index
+— the hidden set is a small hand-curated one, never selective enough to index).
+A hidden Role is:
 
 - excluded from `BOARD_WHERE` and therefore from the list, every board-side
   count, the facets, and the Roles-for-you / resume-match feeds
@@ -85,6 +86,26 @@ New `jobs.admin_hidden INTEGER NOT NULL DEFAULT 0` (migration phase 41; index
 A hidden Role does not occupy one of a sector's 240 slots — hiding is applied
 before the cap, so hiding a Role lets the next-freshest one in that sector take
 its place.
+
+### Who may see a hidden Role (added 2026-09-01)
+
+A hidden Role is off the board for **everyone browsing it, staff included** — a
+normal admin's unscoped `/api/jobs` browse (ADR 0019) runs `BOARD_WHERE` and so
+never returns one. Only **Ultimate Admin** can pull them back into view, through
+an `admin_hidden` query param on `/api/jobs` that `main.py` refuses from any
+other session (silently — the parameter simply does not exist for them, no 403):
+
+- `admin_hidden=include` — swaps `BOARD_WHERE` for `_BOARD_WHERE_WITH_HIDDEN`
+  (same predicate, the `NOT admin_hidden` clause dropped from the core **and**
+  the cap's own subquery, so hidden Roles rank in). Each card comes back with
+  `JobSummary.admin_hidden`, and the frontend greys it — a wash over the card
+  plus a "Hidden" corner label. The sector facet counts are left on the plain
+  non-hidden board on purpose.
+- `admin_hidden=only` — the above, `AND j.admin_hidden = 1` — the review list.
+
+The FilterBar shows the three-way control (Excluded / Shown greyed / Only hidden)
+only when `adminMode && seeker.is_super_admin`. The state rides the URL
+(`?admin_hidden=`) like every other filter.
 
 ### Two predicates where there was one
 

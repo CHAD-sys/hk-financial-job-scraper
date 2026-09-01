@@ -136,41 +136,52 @@ def has_research_scope(query: Optional[str]) -> bool:
 #: per-sector override.
 BOARD_SECTOR_CAP = 240
 
-#: BROWSING visibility, before the freshness cap: open, primary, not
-#: admin-hidden, posted within 6 months. A missing posting date fails closed —
-#: its age cannot be verified, so it is neither inside the window nor rankable
-#: for the cap. Six months is also the horizon of the nightly `is_active = 0`
-#: sweep (hk_jobs.storage / the daily run), so in practice almost nothing this
-#: old is still `is_active = 1` by the time a read happens.
-_BOARD_CORE_SQL = (
-    "j.is_active = 1 AND j.is_primary = 1 AND NOT j.admin_hidden "
-    "AND date(j.posted_at) >= date('now', '-6 months')"
-)
+def _build_board_where(*, with_hidden: bool) -> str:
+    """
+    The BOARD predicate. `with_hidden=False` is the public board (docs/adr/0032):
+    open, primary, NOT admin-hidden, posted within 6 months, and within the
+    freshest BOARD_SECTOR_CAP of its sector — a `ROW_NUMBER() OVER (PARTITION BY
+    sector)` subquery, not correlated, folded into the one fragment so every
+    board-side count derives from it and they cannot disagree.
 
-#: The per-sector freshness cap, as a self-contained `j.rowid IN (…)` test.
-#: The subquery is NOT correlated: it ranks the whole eligible set once —
-#: partitioned by sector, newest first — and yields the top BOARD_SECTOR_CAP
-#: rowids per sector. `sector_case_sql` is the same title/company CASE the
-#: sector facet and filter use, so the board and the "Banking" filter agree on
-#: what a Banking Role is. Needs SQLite window functions (>= 3.25; every target
-#: has them).
-_BOARD_FRESHNESS_CAP_SQL = f"""j.rowid IN (
-    SELECT rowid FROM (
-        SELECT j.rowid AS rowid, ROW_NUMBER() OVER (
-            PARTITION BY {sector_case_sql("j.title", "j.company")}
-            ORDER BY j.posted_at DESC, j.rowid DESC
-        ) AS _sector_rank
-        FROM jobs j
-        WHERE {_BOARD_CORE_SQL}
+    `with_hidden=True` is the Ultimate-Admin variant: the `NOT admin_hidden`
+    clause is dropped from BOTH the core and the cap's own subquery, so a hidden
+    Role is ranked in like any other. Reached only through `list_jobs` when
+    `filters.admin_hidden` is set, which `main.py` gates to super-admin sessions.
+    A missing posting date fails closed either way — its age can't be verified.
+
+    `sector_case_sql` is the same title/company CASE the sector facet and filter
+    use, so the board and the "Banking" filter agree on what a Banking Role is.
+    Needs SQLite window functions (>= 3.25; every target has them).
+    """
+    core = (
+        "j.is_active = 1 AND j.is_primary = 1"
+        + ("" if with_hidden else " AND NOT j.admin_hidden")
+        + " AND date(j.posted_at) >= date('now', '-6 months')"
     )
-    WHERE _sector_rank <= {BOARD_SECTOR_CAP}
-)"""
+    cap = f"""j.rowid IN (
+        SELECT rowid FROM (
+            SELECT j.rowid AS rowid, ROW_NUMBER() OVER (
+                PARTITION BY {sector_case_sql("j.title", "j.company")}
+                ORDER BY j.posted_at DESC, j.rowid DESC
+            ) AS _sector_rank
+            FROM jobs j
+            WHERE {core}
+        )
+        WHERE _sector_rank <= {BOARD_SECTOR_CAP}
+    )"""
+    return f"{core} AND {cap}"
 
-#: The one BOARD predicate. Every board-facing count derives from it — the list,
-#: `total`/`total_pages`, the "Showing N" line, the filter facets,
-#: `research_total`, and the Roles-for-you / resume-match feeds — so they cannot
-#: disagree about what a browsable Role is. Expects the jobs table aliased `j`.
-BOARD_WHERE = f"{_BOARD_CORE_SQL} AND {_BOARD_FRESHNESS_CAP_SQL}"
+
+#: The one public BOARD predicate. Every board-facing count derives from it — the
+#: list, `total`/`total_pages`, the "Showing N" line, the filter facets,
+#: `research_total`, and the Roles-for-you / resume-match feeds. Expects the jobs
+#: table aliased `j`.
+BOARD_WHERE = _build_board_where(with_hidden=False)
+
+#: BOARD_WHERE but admin-hidden Roles are ranked in too — Ultimate Admin only,
+#: never a public read.
+_BOARD_WHERE_WITH_HIDDEN = _build_board_where(with_hidden=True)
 
 #: The SQL each rule contributes to the WHERE clause. `None` means "no predicate",
 #: which is a deliberate value rather than an oversight: addressing a Role by
@@ -378,6 +389,7 @@ _SELECT_COLUMNS = f"""
     j.board_signals,
     j.cross_posted,
     j.is_active,
+    j.admin_hidden,
     j.apply_url AS raw_apply_url,
     j.source_tier,
     j.locations,
@@ -437,6 +449,10 @@ class JobSummary(BaseModel):
     salary_estimated_min: Optional[int] = None
     salary_estimated_max: Optional[int] = None
     salary_estimated_confidence: Optional[str] = None
+    #: ADR 0032: this Role is admin-hidden. Only ever true in an Ultimate-Admin
+    #: read (the public board never returns a hidden Role); the frontend greys
+    #: the card.
+    admin_hidden: bool = False
     #: A human overruled the estimator on this Role.
     #:
     #: The board used to badge every estimate "AI est.", including the ones an
@@ -581,6 +597,12 @@ class JobFilters:
     max_applicants: Optional[int] = None
     hidden_only: Optional[bool] = None
     verified_only: Optional[bool] = None
+    #: ADR 0032's admin-only Hidden state. None = the public board (hidden Roles
+    #: excluded). "include" = rank hidden Roles into the board too (Ultimate
+    #: Admin's greyed view). "only" = just the hidden Roles. `main.py` refuses
+    #: "include"/"only" from anyone but a super-admin session, so `_where` can
+    #: act on it without re-checking who is asking.
+    admin_hidden: Optional[Literal["include", "only"]] = None
 
     # ── Salary-audit filters (ASF, 2026-08-21) ─────────────────────────────
     # Additive and admin-only in practice: every field defaults to "not
@@ -672,8 +694,14 @@ def _where(
     params: list = []
 
     rule = _VISIBILITY_SQL[visibility]
+    if visibility == Visibility.BOARD and filters.admin_hidden in ("include", "only"):
+        # Ultimate Admin looking at hidden Roles: swap in the variant that ranks
+        # them in. `main.py` has already refused this value from anyone else.
+        rule = _BOARD_WHERE_WITH_HIDDEN
     if rule:
         conditions.append(rule)
+    if filters.admin_hidden == "only":
+        conditions.append("j.admin_hidden = 1")
 
     if audience == CatalogueAudience.PUBLIC:
         conditions.append(PUBLIC_AUDIENCE_WHERE)
@@ -1043,6 +1071,7 @@ def _to_summary(
         salary_estimated_min=est_min,
         salary_estimated_max=est_max,
         salary_estimated_confidence=est_confidence,
+        admin_hidden=bool(row["admin_hidden"]) if is_admin else False,
         salary_verified=row["manually_edited_at"] is not None,
         years_experience_required=row["years_experience_required"],
         posted_at=row["posted_at"],
