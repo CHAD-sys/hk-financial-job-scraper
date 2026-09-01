@@ -1432,6 +1432,7 @@ export interface AdminJobRecord {
   employment_type: string
   apply_url: string
   is_active: number
+  admin_hidden: number // ADR 0032: 1 = hidden from the public board, admin-only
   source_tier: string
   category: string | null
   seniority: string | null

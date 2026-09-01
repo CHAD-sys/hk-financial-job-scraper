@@ -24,6 +24,7 @@ from .support import BACKEND, days_ago, enrichment, job, make_jobs_db, signals
 sys.path.insert(0, str(BACKEND))
 
 from job_read import (  # noqa: E402
+    BOARD_SECTOR_CAP,
     CatalogueAudience,
     JobFilters,
     Sort,
@@ -242,11 +243,13 @@ def test_addressable_listing_sees_everything(conn):
     assert set(ids) == {"LIVE", "CLOSED", "SECONDARY", "XPOST", "XPOST_HIDDEN"}
 
 
-def test_board_hides_roles_posted_more_than_one_calendar_month_ago(tmp_path):
+def test_board_hides_roles_posted_more_than_six_months_ago(tmp_path):
+    """ADR 0032: the board window is six months (not one), but a Role past it is
+    still reachable by reference — a Saved Role must not read as gone."""
     db = tmp_path / "posting-age.db"
     clock = sqlite3.connect(":memory:")
     boundary, stale, fresh = clock.execute(
-        "SELECT date('now', '-1 month'), date('now', '-1 month', '-1 day'), "
+        "SELECT date('now', '-6 months'), date('now', '-6 months', '-1 day'), "
         "date('now', '-7 days')"
     ).fetchone()
     clock.close()
@@ -274,6 +277,94 @@ def test_board_hides_roles_posted_more_than_one_calendar_month_ago(tmp_path):
 
     assert set(board_ids) == {"BOUNDARY", "FRESH"}
     assert set(addressed_ids) == {"BOUNDARY", "STALE", "FRESH"}
+
+
+def test_board_hides_admin_hidden_roles_but_keeps_them_addressable(tmp_path):
+    """ADR 0032: the Hidden state removes a Role from the board without closing
+    it — still reachable by reference, still `is_active`."""
+    db = tmp_path / "hidden.db"
+    make_jobs_db(
+        db,
+        jobs=[
+            job(source_id="SHOWN", posted_at=days_ago(2)),
+            job(source_id="HIDDEN", posted_at=days_ago(1), admin_hidden=1),
+        ],
+    )
+    connection = prepare(sqlite3.connect(db))
+    try:
+        board_ids = _ids(list_jobs(connection, JobFilters(), page_size=100).jobs)
+        addressed_ids = _ids(
+            list_jobs(
+                connection, JobFilters(), page_size=100,
+                visibility=Visibility.ADDRESSABLE,
+            ).jobs
+        )
+    finally:
+        connection.close()
+
+    assert board_ids == ["SHOWN"]
+    assert set(addressed_ids) == {"SHOWN", "HIDDEN"}
+
+
+def _minutes_ago(m: int) -> str:
+    """A strictly-decreasing recent timestamp — well inside the 6-month window,
+    so a test about the sector cap is not also a test about the age cutoff."""
+    from datetime import datetime, timedelta, timezone
+    return (datetime.now(timezone.utc) - timedelta(minutes=m)).isoformat()
+
+
+def test_board_caps_each_sector_at_board_sector_cap_keeping_the_freshest(tmp_path):
+    """ADR 0032: within a sector only the freshest BOARD_SECTOR_CAP Roles are on
+    the board. Everything here classifies as Banking (the fallback bucket)."""
+    db = tmp_path / "sector-cap.db"
+    n = BOARD_SECTOR_CAP + 15
+    make_jobs_db(
+        db,
+        jobs=[
+            # source_id B000 is the newest, B{n-1} the oldest.
+            job(source_id=f"B{i:03d}", company="HSBC", title="Analyst",
+                posted_at=_minutes_ago(i))
+            for i in range(n)
+        ],
+    )
+    connection = prepare(sqlite3.connect(db))
+    try:
+        result = list_jobs(connection, JobFilters(), page_size=1000)
+    finally:
+        connection.close()
+
+    shown = _ids(result.jobs)
+    assert result.total == BOARD_SECTOR_CAP
+    assert len(shown) == BOARD_SECTOR_CAP
+    # The freshest cap-many, none of the 15 oldest.
+    assert set(shown) == {f"B{i:03d}" for i in range(BOARD_SECTOR_CAP)}
+
+
+def test_the_sector_cap_does_not_starve_a_low_frequency_sector(tmp_path):
+    """ADR 0032's whole point: a sector that floods the board cannot push a
+    quiet one off it."""
+    db = tmp_path / "sector-fair.db"
+    flood = [
+        job(source_id=f"BANK{i:03d}", company="HSBC", title="Analyst",
+            posted_at=_minutes_ago(i))
+        for i in range(BOARD_SECTOR_CAP + 30)
+    ]
+    quiet = [
+        job(source_id="INS1", company="AIA International Limited",
+            title="Actuarial Analyst", posted_at=days_ago(90)),
+        job(source_id="INS2", company="Prudential", title="Underwriter",
+            posted_at=days_ago(120)),
+    ]
+    make_jobs_db(db, jobs=flood + quiet)
+    connection = prepare(sqlite3.connect(db))
+    try:
+        shown = set(_ids(list_jobs(connection, JobFilters(), page_size=1000).jobs))
+    finally:
+        connection.close()
+
+    # Both Insurance Roles survive despite being far older than 240 Banking Roles.
+    assert {"INS1", "INS2"} <= shown
+    assert sum(1 for s in shown if s.startswith("BANK")) == BOARD_SECTOR_CAP
 
 
 # ── Visibility: addressing is not ─────────────────────────────────────────────

@@ -166,6 +166,32 @@ def test_is_active_bool_round_trips_to_integer(conn):
     ).fetchone()[0] == 0
 
 
+def test_admin_hidden_toggles_and_is_audited(conn):
+    """ADR 0032: an admin may hide a Role and restore it, and both writes are
+    logged like any other field."""
+    job_edit.apply_edit(conn, "workday", "W1", "admin-1", job_changes={"admin_hidden": True})
+    assert conn.execute(
+        "SELECT admin_hidden FROM jobs WHERE source='workday' AND source_id='W1'"
+    ).fetchone()[0] == 1
+    assert conn.execute(
+        "SELECT COUNT(*) FROM admin_edits WHERE field='job.admin_hidden'"
+    ).fetchone()[0] == 1
+
+    job_edit.apply_edit(conn, "workday", "W1", "admin-1", job_changes={"admin_hidden": False})
+    assert conn.execute(
+        "SELECT admin_hidden FROM jobs WHERE source='workday' AND source_id='W1'"
+    ).fetchone()[0] == 0
+
+
+def test_re_hiding_an_already_hidden_role_writes_nothing(conn):
+    """The diff guard: resending the current value is a no-op, no audit row."""
+    job_edit.apply_edit(conn, "workday", "W1", "admin-1", job_changes={"admin_hidden": True})
+    job_edit.apply_edit(conn, "workday", "W1", "admin-1", job_changes={"admin_hidden": True})
+    assert conn.execute(
+        "SELECT COUNT(*) FROM admin_edits WHERE field='job.admin_hidden'"
+    ).fetchone()[0] == 1
+
+
 # ── apply_edit: writing `job_enrichments` fields ─────────────────────────────
 
 

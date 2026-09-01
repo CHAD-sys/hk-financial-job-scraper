@@ -59,6 +59,7 @@ interface FormState {
   salary_max: string
   salary_currency: string
   is_active: boolean
+  admin_hidden: boolean
   // job_enrichments
   e_seniority: string
   e_remote_type: string
@@ -73,6 +74,7 @@ interface FormState {
 const JOB_KEYS = [
   'title', 'company', 'employment_type', 'seniority', 'remote_type',
   'category', 'salary_min', 'salary_max', 'salary_currency', 'is_active',
+  'admin_hidden',
 ] as const
 
 const ENRICHMENT_KEYS = [
@@ -105,6 +107,7 @@ function toForm(rec: AdminJobRecord): FormState {
     salary_max: str(rec.salary_max),
     salary_currency: str(rec.salary_currency),
     is_active: !!rec.is_active,
+    admin_hidden: !!rec.admin_hidden,
     e_seniority: str(rec.e_seniority),
     e_remote_type: str(rec.e_remote_type),
     job_category: str(rec.job_category),
@@ -375,6 +378,20 @@ export default function AdminJobEditDrawer({ job, onClose, onSaved }: Props) {
                   />
                   <span className="text-sm" style={{ color: 'var(--color-ink)' }}>
                     Live on the board
+                  </span>
+                </label>
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.admin_hidden}
+                    onChange={e => set({ admin_hidden: e.target.checked })}
+                    style={{ accentColor: 'var(--color-blue)', width: 15, height: 15 }}
+                  />
+                  <span className="text-sm" style={{ color: 'var(--color-ink)' }}>
+                    Hide from the board
+                    <span style={{ color: 'var(--color-ink-muted)' }}>
+                      {' '}— stays open, admin-only, off every public count
+                    </span>
                   </span>
                 </label>
               </Section>

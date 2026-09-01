@@ -26,8 +26,15 @@ member. Seeker accounts exist as the identity foundation for it (ADR 0001);
 nothing on the board is gated (ADR 0002).
 
 `CONTEXT.md` is the domain glossary — Seeker, Role, Listing, Tier, Saved Role,
-Closed. Use those words. Decisions live in `docs/adr/`; do not re-litigate one
-without reading it.
+Closed, Hidden, Board. Use those words. Decisions live in `docs/adr/`; do not
+re-litigate one without reading it.
+
+The **Board** is a curated slice, not the whole catalogue (ADR 0032): a Role
+shows only if it is open, posted within 6 months, not `admin_hidden`, and among
+the freshest ~240 of its sector. `job_read.BOARD_WHERE` is that predicate;
+`job_read.LIVE_COUNT_WHERE` (1-month, counts hidden, no cap) backs the "X live
+roles" stat only. `hk_jobs.storage.JobStore.deactivate_aged_out()` runs every
+scrape to retire anything past the 6-month line.
 
 ## Core domain knowledge (read this — it drives every design decision)
 

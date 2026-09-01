@@ -519,3 +519,44 @@ def test_phase_40_is_idempotent(tmp_path: Path):
     migrate(db)
     migrations.migrate_to_phase_40(db)  # must not raise on a column that already exists
     assert "grp_seniority" in _columns(db, "jobs")
+
+
+# ── Phase 41: jobs.admin_hidden ─────────────────────────────────────────────
+# The admin-only Hidden state (ADR 0032): removes a Role from the public board
+# without closing or deleting it. This only checks the migration adds the
+# column and leaves existing rows visible; the read-path filtering lives in
+# tests/test_job_read.py.
+
+def test_phase_41_adds_the_column(tmp_path: Path):
+    db = _db(tmp_path)
+    migrate(db)
+    assert "admin_hidden" in _columns(db, "jobs")
+
+
+def test_phase_41_is_idempotent(tmp_path: Path):
+    db = _db(tmp_path)
+    migrate(db)
+    migrations.migrate_to_phase_41(db)  # must not raise on a column that already exists
+    assert "admin_hidden" in _columns(db, "jobs")
+
+
+def test_phase_41_defaults_existing_rows_to_visible(tmp_path: Path):
+    """A Role that pre-dates the column must not vanish from the board — the
+    ADD COLUMN default is 0 (not hidden), and it applies to every existing row."""
+    db = _db(tmp_path)
+    migrate(db)
+    conn = sqlite3.connect(db)
+    try:
+        conn.execute(
+            "INSERT INTO jobs (source, source_id, company, company_slug, url,"
+            " dedup_hash, title, fetched_at, is_active)"
+            " VALUES ('workday', 'j1', 'X', 'x', 'https://e.test', 'h', 'T',"
+            " '2026-06-01T00:00:00+00:00', 1)"
+        )
+        conn.commit()
+        # Re-running the phase on a DB that already has rows must leave them visible.
+        migrations.migrate_to_phase_41(db)
+        val = conn.execute("SELECT admin_hidden FROM jobs WHERE source_id = 'j1'").fetchone()[0]
+        assert val == 0
+    finally:
+        conn.close()
