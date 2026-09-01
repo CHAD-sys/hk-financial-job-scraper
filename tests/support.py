@@ -71,6 +71,7 @@ _JOB_DEFAULTS: dict[str, Any] = {
     "grp_applicants": None,
     "vacancy_id": None,
     "grp_seniority": None,
+    "admin_hidden": 0,
 }
 
 _ENRICHMENT_DEFAULTS: dict[str, Any] = {
@@ -115,6 +116,7 @@ CREATE TABLE jobs (
     grp_applicants  INTEGER,
     vacancy_id      TEXT,
     grp_seniority   TEXT,
+    admin_hidden    INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (source, source_id)
 );
 """

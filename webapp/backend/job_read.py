@@ -128,29 +128,70 @@ def has_research_scope(query: Optional[str]) -> bool:
     return len((query or "").strip()) >= MIN_RESEARCH_QUERY_LENGTH
 
 
-#: A Role stays discoverable for one calendar month from the Employer's posting
-#: date. This is catalogue visibility, not deletion: the Listing remains stored
-#: and addressable so Saved Roles and deep links keep their history. A missing
-#: posting date fails closed because its age cannot be verified.
-BOARD_POSTING_WINDOW_SQL = "date(j.posted_at) >= date('now', '-1 month')"
+#: The board is a curated slice of the catalogue, not all of it (docs/adr/0032).
+#: Within its sector, a Role must be among the freshest BOARD_SECTOR_CAP to be on
+#: the board. The per-sector cap — not a global "newest N" — is what keeps a
+#: high-frequency sector (Banking is ~50% of the eligible pool) from crowding
+#: everything else off. Raising it widens every sector equally; there is no
+#: per-sector override.
+BOARD_SECTOR_CAP = 240
+
+#: BROWSING visibility, before the freshness cap: open, primary, not
+#: admin-hidden, posted within 6 months. A missing posting date fails closed —
+#: its age cannot be verified, so it is neither inside the window nor rankable
+#: for the cap. Six months is also the horizon of the nightly `is_active = 0`
+#: sweep (hk_jobs.storage / the daily run), so in practice almost nothing this
+#: old is still `is_active = 1` by the time a read happens.
+_BOARD_CORE_SQL = (
+    "j.is_active = 1 AND j.is_primary = 1 AND NOT j.admin_hidden "
+    "AND date(j.posted_at) >= date('now', '-6 months')"
+)
+
+#: The per-sector freshness cap, as a self-contained `j.rowid IN (…)` test.
+#: The subquery is NOT correlated: it ranks the whole eligible set once —
+#: partitioned by sector, newest first — and yields the top BOARD_SECTOR_CAP
+#: rowids per sector. `sector_case_sql` is the same title/company CASE the
+#: sector facet and filter use, so the board and the "Banking" filter agree on
+#: what a Banking Role is. Needs SQLite window functions (>= 3.25; every target
+#: has them).
+_BOARD_FRESHNESS_CAP_SQL = f"""j.rowid IN (
+    SELECT rowid FROM (
+        SELECT j.rowid AS rowid, ROW_NUMBER() OVER (
+            PARTITION BY {sector_case_sql("j.title", "j.company")}
+            ORDER BY j.posted_at DESC, j.rowid DESC
+        ) AS _sector_rank
+        FROM jobs j
+        WHERE {_BOARD_CORE_SQL}
+    )
+    WHERE _sector_rank <= {BOARD_SECTOR_CAP}
+)"""
+
+#: The one BOARD predicate. Every board-facing count derives from it — the list,
+#: `total`/`total_pages`, the "Showing N" line, the filter facets,
+#: `research_total`, and the Roles-for-you / resume-match feeds — so they cannot
+#: disagree about what a browsable Role is. Expects the jobs table aliased `j`.
+BOARD_WHERE = f"{_BOARD_CORE_SQL} AND {_BOARD_FRESHNESS_CAP_SQL}"
 
 #: The SQL each rule contributes to the WHERE clause. `None` means "no predicate",
 #: which is a deliberate value rather than an oversight: addressing a Role by
 #: reference is unfiltered by design.
 _VISIBILITY_SQL: dict[Visibility, Optional[str]] = {
-    Visibility.BOARD: (
-        "j.is_active = 1 AND j.is_primary = 1 AND "
-        f"{BOARD_POSTING_WINDOW_SQL}"
-    ),
+    Visibility.BOARD: BOARD_WHERE,
     Visibility.ADDRESSABLE: None,
 }
 
-#: The BOARD rule as a bare SQL fragment, for aggregate queries that build their
-#: own SELECT and so cannot go through `list_jobs` — /api/filters and /api/stats
-#: are nine hand-written GROUP BYs between them. They used to spell the predicate
-#: out sixteen times, which is how /api/stats and /api/jobs could come to disagree
-#: about what an open Role is. Expects the jobs table aliased as `j`.
-BOARD_WHERE = _VISIBILITY_SQL[Visibility.BOARD]
+#: The "X live roles" headline figure ONLY — About page, landing pages, search
+#: hero, bare /jobs. Deliberately NOT the board predicate (docs/adr/0032):
+#:   • one calendar month, not six — the number a visitor first sees keeps its
+#:     established meaning as the board is curated down;
+#:   • counts admin-hidden Roles — hiding a Role must not move that number;
+#:   • no per-sector freshness cap.
+#: This is exactly the pre-0032 BOARD rule. Reached only through
+#: `live_count_where`; nothing else may use it.
+LIVE_COUNT_WHERE = (
+    "j.is_active = 1 AND j.is_primary = 1 "
+    "AND date(j.posted_at) >= date('now', '-1 month')"
+)
 
 #: Recruiter-posted Roles and medium/boutique company Roles are a member benefit.
 #: Keep this policy next to the lifecycle visibility rule so lists, facets and
@@ -194,6 +235,25 @@ def scope_where(
     if not rowids:
         return f"{BOARD_WHERE}{audience_sql} AND 0"
     return f"{BOARD_WHERE}{audience_sql} AND j.rowid IN ({','.join(str(r) for r in rowids)})"
+
+
+def live_count_where(audience: CatalogueAudience) -> str:
+    """
+    The predicate for the "X live roles" headline figure and the other public
+    market totals — `get_stats`, `_hub_body`, `_landing_pages`. `LIVE_COUNT_WHERE`
+    plus the same audience scoping `scope_where` applies, and nothing else.
+
+    A second, narrower predicate rather than a `scope_where` call on purpose
+    (docs/adr/0032): the board is now a curated slice, but the number a visitor
+    first sees should keep counting "open, primary, posted this month" —
+    admin-hidden Roles included, no sector cap — so curating the board down does
+    not move it. Takes no `conn`: there is no search-scoped variant.
+    """
+    audience_sql = (
+        f" AND {PUBLIC_AUDIENCE_WHERE}" if audience == CatalogueAudience.PUBLIC else ""
+    )
+    return f"{LIVE_COUNT_WHERE}{audience_sql}"
+
 
 #: A recruiter is not an employer, so a Recruiter Post is not in the employer
 #: dimension — not offered as a filter choice, and never returned by one.

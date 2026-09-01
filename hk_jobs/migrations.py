@@ -1294,6 +1294,51 @@ def migrate_to_phase_40(db_path: str) -> None:
         conn.close()
 
 
+def migrate_to_phase_41(db_path: str) -> None:
+    """
+    Add `jobs.admin_hidden`: an Ultimate-Admin toggle that removes a Role from
+    the public board without closing or deleting it (docs/adr/0032).
+
+    WHY THIS EXISTS
+    ----------------
+    ADR 0032 curates the board down to a sector-fair freshest slice. Two
+    lifecycle states already answer "should a Seeker see this Role" —
+    `is_active = 0` (the source dropped it, or the 6-month sweep retired it)
+    and `is_primary = 0` (a duplicate copy of a cross-posted vacancy). Neither
+    fits "a human looked at this specific Role and decided it should not be on
+    the public board" — a stale-looking listing, an off-topic title that
+    slipped the filters, a role an Employer asked us to pull. That decision is
+    reversible and per-Role, so it is its own flag rather than a
+    (mis)use of `deactivate()`.
+
+    `job_read.BOARD_WHERE` adds `AND NOT j.admin_hidden`, so a hidden Role
+    leaves the list, every board-side count, the facets and the
+    Roles-for-you / resume-match feeds. It is applied BEFORE the per-sector
+    freshness cap, so hiding a Role lets the next-freshest one in its sector
+    take the slot. `LIVE_COUNT_WHERE` (the "X live roles" headline stat)
+    deliberately does NOT exclude it — hiding a Role must not move the number
+    a visitor first sees.
+
+    Not set by this migration or by the scraper's upsert (which does not list
+    the column, so a re-scrape of a hidden Role keeps it hidden). Existing
+    rows take the `DEFAULT 0` — every Role stays visible until an admin hides
+    it. Toggled only by the Ultimate-Admin job-edit route (ADR 0019).
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+        with conn:
+            if "admin_hidden" not in cols:
+                conn.execute(
+                    "ALTER TABLE jobs ADD COLUMN admin_hidden INTEGER NOT NULL DEFAULT 0"
+                )
+                logger.info("Phase 41 migration: added jobs.admin_hidden")
+            else:
+                logger.debug("Phase 41 migration: admin_hidden already exists")
+    finally:
+        conn.close()
+
+
 #: the whole of registering a new phase.
 #:
 #: Order is load-bearing beyond the obvious: 10 creates `jobs` before the seven
@@ -1333,6 +1378,7 @@ MIGRATIONS: tuple[tuple[int, Callable[[str], None]], ...] = (
     (38, migrate_to_phase_38),
     (39, migrate_to_phase_39),
     (40, migrate_to_phase_40),
+    (41, migrate_to_phase_41),
 )
 
 LATEST_PHASE = MIGRATIONS[-1][0]

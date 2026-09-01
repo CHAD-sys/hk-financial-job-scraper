@@ -1246,7 +1246,10 @@ def _landing_pages(request: Request) -> dict[str, tuple[str, str, int]]:
     pages: dict[str, tuple[str, str, int]] = {}
     try:
         with get_db(request) as conn:
-            audience_where = job_read.scope_where(conn, audience=CatalogueAudience.PUBLIC)
+            # Which employers earn a landing page is a question about the whole
+            # live catalogue, not the curated board (docs/adr/0032) — otherwise
+            # the sector cap would silently drop an employer's page.
+            audience_where = job_read.live_count_where(CatalogueAudience.PUBLIC)
             employers = [
                 (company, count)
                 for company, count in conn.execute(
@@ -1555,7 +1558,9 @@ def _hub_body(request: Request) -> str:
     """
     try:
         with get_db(request) as conn:
-            audience_where = job_read.scope_where(conn, audience=CatalogueAudience.PUBLIC)
+            # The public market totals on bare /jobs keep the pre-0032 meaning
+            # (docs/adr/0032), same as /api/stats — not the curated board count.
+            audience_where = job_read.live_count_where(CatalogueAudience.PUBLIC)
             total = conn.execute(
                 f"SELECT COUNT(*) FROM jobs j WHERE {audience_where}"
             ).fetchone()[0]
@@ -1843,7 +1848,11 @@ def get_stats(request: Request):
         else CatalogueAudience.MEMBER
     )
     with get_db(request) as conn:
-        audience_where = job_read.scope_where(conn, audience=audience)
+        # The headline "X live roles" figure and its breakdowns keep the pre-0032
+        # meaning — open, primary, posted this month, admin-hidden included, no
+        # sector cap — so curating the board down (docs/adr/0032) does not move
+        # the number a visitor first sees.
+        audience_where = job_read.live_count_where(audience)
         total = conn.execute(
             f"SELECT COUNT(*) FROM jobs j WHERE {audience_where}"
         ).fetchone()[0]
