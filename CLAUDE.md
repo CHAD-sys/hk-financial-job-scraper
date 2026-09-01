@@ -251,6 +251,29 @@ Rules:
   the "must match" rule (the mirror never prunes them).
 - Never `git push --mirror` / `--prune` to `personal` — it would delete `backup/*`.
 
+## Where the daily pipeline runs (CHAD-sys, not FinEx-Club)
+
+Since 2026-09-01 the scheduled pipeline runs from the **`CHAD-sys`** repo's
+GitHub Actions, not `FinEx-Club`'s — `CHAD-sys` is public, so Actions minutes
+are free/unlimited, and the private `FinEx-Club` repo was burning its capped
+minutes on a 30-60 min nightly scrape.
+
+- `Daily HK Jobs Scrape` and `Refresh Learning content` are **disabled** on
+  `FinEx-Club` (`gh workflow disable`, a repo-level state the mirror does not
+  touch) and **enabled** on `CHAD-sys`. To fail back, flip the two with
+  `gh workflow enable/disable`.
+- Both workflows POST to `finex-careers.up.railway.app/api/admin/pipeline/*`
+  (the `finex-jobs-demo` Railway project's `backend` service — same box that
+  serves `finexcareers.com`). Railway is **not** GitHub-connected; Actions only
+  pushes data to the running backend over HTTP with `PIPELINE_SYNC_TOKEN`.
+- `CHAD-sys` needs these Actions secrets: `PIPELINE_SYNC_TOKEN` (must equal the
+  backend's Railway var), `DEEPSEEK_API_KEY`, `SMTP_USER`, `SMTP_PASS`. The
+  daily summary email recipients are hardcoded in `daily.yml`
+  (`NOTIFY_EMAILS`), currently `amine@finexclub.org,mohamedaminechahid@gmail.com`.
+- There is no auto-deploy Railway project watching `CHAD-sys` — the old
+  `energetic-motivation` project (7 straight failed builds, no data) was
+  deleted 2026-09-01. Web-app deploys are still CLI-only via `/rail-it`.
+
 ## Working agreement with the human
 
 - This is being built by someone newer to APIs/ATS concepts. Explain
