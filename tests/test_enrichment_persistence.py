@@ -21,7 +21,12 @@ _SCHEMA = """
 CREATE TABLE jobs (
     source TEXT, source_id TEXT, title TEXT, company TEXT, company_slug TEXT,
     source_tier TEXT, description_clean TEXT, category TEXT,
-    is_active INTEGER DEFAULT 1, fetched_at TEXT DEFAULT '2026-08-05T00:00:00'
+    is_active INTEGER DEFAULT 1, fetched_at TEXT DEFAULT '2026-08-05T00:00:00',
+    -- ADR 0034: _fetch_unenriched filters on board_visible_sql(), which needs
+    -- these three. Defaults put every row on the board so this file's tests
+    -- (about what gets STORED, not what gets SELECTED) are unaffected.
+    is_primary INTEGER DEFAULT 1, admin_hidden INTEGER DEFAULT 0,
+    posted_at TEXT DEFAULT (date('now'))
 );
 CREATE TABLE job_enrichments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

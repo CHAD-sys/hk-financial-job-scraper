@@ -61,6 +61,7 @@ from typing import Callable, Iterable, Literal, Optional, Sequence
 from pydantic import BaseModel
 
 import search_index
+from hk_jobs.board_visibility import board_visible_sql
 from hk_jobs.sector_classify import sector_case_sql, sector_condition_sql
 
 # ── Connection requirements ───────────────────────────────────────────────────
@@ -128,43 +129,27 @@ def has_research_scope(query: Optional[str]) -> bool:
     return len((query or "").strip()) >= MIN_RESEARCH_QUERY_LENGTH
 
 
-#: ADR 0033 reverts ADR 0032's sector-fair freshness cap and 6-month window:
+#: ADR 0033 reverted ADR 0032's sector-fair freshness cap and 6-month window:
 #: shrinking the board to a curated slice (~1,280 of ~2,750) turned out to hide
 #: roughly as many Roles as it left un-enriched, for no offsetting benefit — the
 #: cure was worse than the problem. The board is the full catalogue again, one
-#: calendar month from posting, same rule `LIVE_COUNT_WHERE` already used. The
-#: only thing ADR 0032 leaves behind here is `admin_hidden` (still excluded from
-#: the public board; Ultimate Admin can still pull it back into view — see
-#: `_build_board_where` and docs/adr/0032's "Who may see a hidden Role" section).
-def _build_board_where(*, with_hidden: bool) -> str:
-    """
-    The BOARD predicate. `with_hidden=False` is the public board: open, primary,
-    NOT admin-hidden, posted within 1 month — identical to `LIVE_COUNT_WHERE`
-    except for the `admin_hidden` clause, which is the one piece of ADR 0032
-    still live (see ADR 0033).
-
-    `with_hidden=True` is the Ultimate-Admin variant: the `NOT admin_hidden`
-    clause is dropped, so a hidden Role is included. Reached only through
-    `list_jobs` when `filters.admin_hidden` is set, which `main.py` gates to
-    super-admin sessions. A missing posting date fails closed either way — its
-    age can't be verified.
-    """
-    return (
-        "j.is_active = 1 AND j.is_primary = 1"
-        + ("" if with_hidden else " AND NOT j.admin_hidden")
-        + " AND date(j.posted_at) >= date('now', '-1 month')"
-    )
-
-
+#: calendar month from posting — `hk_jobs.board_visibility.board_visible_sql()`,
+#: the SAME function `hk_jobs.enrichment._fetch_unenriched` filters on (ADR
+#: 0034: estimation never targets a Role that isn't on the board). The only
+#: thing ADR 0032 leaves behind here is `admin_hidden` — still excluded from
+#: the public board; Ultimate Admin can still pull it back into view (see
+#: docs/adr/0032's "Who may see a hidden Role" section).
+#:
 #: The one public BOARD predicate. Every board-facing count derives from it — the
 #: list, `total`/`total_pages`, the "Showing N" line, the filter facets,
 #: `research_total`, and the Roles-for-you / resume-match feeds. Expects the jobs
 #: table aliased `j`.
-BOARD_WHERE = _build_board_where(with_hidden=False)
+BOARD_WHERE = board_visible_sql(with_hidden=False)
 
 #: BOARD_WHERE but admin-hidden Roles are included too — Ultimate Admin only,
-#: never a public read.
-_BOARD_WHERE_WITH_HIDDEN = _build_board_where(with_hidden=True)
+#: never a public read, never a target for salary estimation (ADR 0034 excludes
+#: a hidden Role exactly like anything else off the public board).
+_BOARD_WHERE_WITH_HIDDEN = board_visible_sql(with_hidden=True)
 
 #: The SQL each rule contributes to the WHERE clause. `None` means "no predicate",
 #: which is a deliberate value rather than an oversight: addressing a Role by

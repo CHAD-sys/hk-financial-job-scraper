@@ -32,7 +32,11 @@ _SCHEMA = """
 CREATE TABLE jobs (
     source TEXT, source_id TEXT, title TEXT, company TEXT, company_slug TEXT,
     source_tier TEXT, description_clean TEXT, is_active INTEGER DEFAULT 1,
-    category TEXT, fetched_at TEXT
+    category TEXT, fetched_at TEXT,
+    -- ADR 0034: _fetch_unenriched now filters on board_visible_sql(), which
+    -- needs these three. Every row here defaults to on-the-board so existing
+    -- selection tests are unaffected by that filter.
+    is_primary INTEGER DEFAULT 1, admin_hidden INTEGER DEFAULT 0, posted_at TEXT
 );
 CREATE TABLE job_enrichments (
     source TEXT, source_id TEXT, prompt_version TEXT, manually_edited_at TEXT
@@ -49,10 +53,13 @@ def conn():
 
 
 def _add(conn, source_id, *, version="__missing__", pinned=None):
+    from datetime import UTC, datetime
+
+    posted_at = datetime.now(UTC).isoformat()  # always inside the 1-month board window
     conn.execute(
         "INSERT INTO jobs VALUES ('jobsdb',?,'Analyst','A Bank','a-bank',"
-        "'mainstream','A description.',1,NULL,'2026-08-20')",
-        (source_id,),
+        "'mainstream','A description.',1,NULL,'2026-08-20',1,0,?)",
+        (source_id, posted_at),
     )
     if version != "__missing__":
         conn.execute(

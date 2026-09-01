@@ -117,6 +117,16 @@ app's job cards. The full description on `jobs` is never overwritten — enrichm
 still reads it. When a job has no description (e.g. Indeed rows), the summary is
 an empty string, never hallucinated.
 
+**HARD RULE — never changes (ADR 0034): we do not estimate the salary of a Role
+that is not on the board.** `hk_jobs.enrichment._fetch_unenriched` filters on
+`hk_jobs.board_visibility.board_visible_sql()` — the exact predicate
+`webapp/backend/job_read.BOARD_WHERE` uses (open, primary, not `admin_hidden`,
+posted within one month). No `--enrich` / `--re-enrich` / `--enrich-boutique`
+carve-out. This exists because a bulk run once spent 66% of its budget on
+duplicate cross-post copies, month-old postings, and undated rows a Seeker could
+never see. If you touch the board predicate, both sides move together because
+they share that one function — do not re-introduce a second copy.
+
 ## Architecture (the shape of the solution)
 
 ```

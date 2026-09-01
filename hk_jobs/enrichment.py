@@ -23,6 +23,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 from typing import Any
 
+from hk_jobs.board_visibility import board_visible_sql
 from hk_jobs.enrichers.deepseek import _MODEL, PROMPT_VERSION, DeepSeekEnricher
 from hk_jobs import salary, salary_corrections
 
@@ -335,13 +336,22 @@ class EnrichmentPipeline:
             else f"AND (e.source_id IS NULL OR e.prompt_version IS NULL "
                  f"OR e.prompt_version NOT IN ({accepted_sql}))"
         )
+        # ADR 0034: estimation never targets a Role that isn't on the board.
+        # board_visible_sql() is the exact predicate webapp/backend/job_read.py's
+        # BOARD_WHERE uses — is_active, is_primary, not admin_hidden, posted
+        # within the last month — so the two cannot drift the way they did when
+        # only the read side had a definition: a $5.24 bulk run once spent 66%
+        # of its budget on duplicate copies of a cross-posted vacancy, postings
+        # over a month old, and rows with no posting date at all, none of which
+        # a Seeker could ever have seen.
+        board_filter = board_visible_sql()
         sql = f"""
             SELECT j.source, j.source_id, j.title, j.company, j.company_slug,
                    j.source_tier, j.description_clean
               FROM jobs j
               LEFT JOIN job_enrichments e
                 ON j.source = e.source AND j.source_id = e.source_id
-             WHERE j.is_active = 1
+             WHERE {board_filter}
                AND e.manually_edited_at IS NULL
                {enriched_filter}
                {boutique_filter}
@@ -352,10 +362,10 @@ class EnrichmentPipeline:
             sql += f" LIMIT {limit}"
         rows = conn.execute(sql).fetchall()
         if incremental:
-            total = conn.execute("""
+            total = conn.execute(f"""
                 SELECT COUNT(*) FROM jobs j
                 LEFT JOIN job_enrichments e ON j.source=e.source AND j.source_id=e.source_id
-                WHERE e.source_id IS NULL AND j.is_active=1
+                WHERE e.source_id IS NULL AND {board_filter}
             """).fetchone()[0]
             logger.info(
                 "Incremental mode: %d new jobs to enrich, skipping %d existing",
