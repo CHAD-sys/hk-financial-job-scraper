@@ -189,3 +189,33 @@ def test_every_live_prompt_version_is_grandfathered():
         v.startswith("2026-07-21-v10-merged-3source-granular-prefix-cached")
         for v in salary.ACCEPTED_PRIOR_VERSIONS
     )
+
+
+def test_an_unpriced_internship_is_not_re_selected_every_run(conn):
+    """Owner decision 2026-09-03: internships are deliberately left unpriced —
+    the anchors file publishes a ceiling for them but no band, and inventing a
+    floor would break the rule that every figure comes from a published guide.
+
+    They therefore can NEVER stop matching the "no salary figure" arm. Without
+    this exclusion all 96 internships on the board would be re-enriched every
+    single night to store the same blank."""
+    _add(conn, "intern-role", version=PROMPT_VERSION, priced=None)
+    conn.execute("UPDATE jobs SET title = 'Summer Analyst Programme 2027' "
+                 "WHERE source_id = 'intern-role'")
+    assert "intern-role" not in _selected(conn)
+
+
+def test_an_unpriced_non_internship_is_still_re_selected(conn):
+    """The exclusion is surgical — it must not shield ordinary unpriced Roles."""
+    _add(conn, "normal-role", version=PROMPT_VERSION, priced=None)
+    conn.execute("UPDATE jobs SET title = 'Compliance Manager' WHERE source_id = 'normal-role'")
+    assert "normal-role" in _selected(conn)
+
+
+def test_an_internship_with_no_enrichment_row_is_still_enriched(conn):
+    """It still needs a summary, seniority and skills — only the endless
+    re-pricing loop is cut, not the Role's first pass."""
+    _add(conn, "new-intern")
+    conn.execute("UPDATE jobs SET title = 'Summer Internship Programme' "
+                 "WHERE source_id = 'new-intern'")
+    assert "new-intern" in _selected(conn)

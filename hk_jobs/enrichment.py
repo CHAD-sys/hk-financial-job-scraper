@@ -23,10 +23,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 from typing import Any
 
-from hk_jobs.board_visibility import board_visible_sql
-from hk_jobs.salary_clamp import normalise_coordinate
-from hk_jobs.enrichers.deepseek import _MODEL, PROMPT_VERSION, DeepSeekEnricher
 from hk_jobs import salary, salary_corrections
+from hk_jobs.board_visibility import board_visible_sql
+from hk_jobs.enrichers.deepseek import _MODEL, PROMPT_VERSION, DeepSeekEnricher
+from hk_jobs.salary_clamp import is_internship, normalise_coordinate
 
 logger = logging.getLogger(__name__)
 
@@ -349,6 +349,13 @@ class EnrichmentPipeline:
         incremental: bool = False, re_enrich: bool = False,
         boutique_only: bool = False,
     ) -> list[sqlite3.Row]:
+        # Registered here rather than in `run()` so every caller of this
+        # selector — the pipeline, the tests, an operator at a REPL — asks the
+        # SAME internship question the clamp asks, from the one regex that owns
+        # it. Registering on the connection is idempotent.
+        conn.create_function(
+            "is_internship", 1, lambda title: 1 if is_internship(title or "") else 0
+        )
         today_filter = "AND DATE(j.fetched_at) = DATE('now')" if incremental else ""
         # boutique_only restricts to the "Exclusive" section (jobs whose category
         # was set from the company config) and always reprocesses them — those
@@ -376,6 +383,13 @@ class EnrichmentPipeline:
         #      grandfathered in salary.ACCEPTED_PRIOR_VERSIONS;
         #   3. it carries NO salary figure — no AI estimate and no disclosed one.
         #
+        # (3) excludes internships. They are deliberately left unpriced (owner
+        # decision 2026-09-03, docs/adr/0037): the anchors file publishes a
+        # ceiling for them but no band, and inventing a floor would break the
+        # rule that every figure here comes from a published guide. Without this
+        # exclusion they can never stop matching arm (3), so all 96 of them
+        # would be re-enriched every night to store the same blank.
+        #
         # (3) is what makes a pricing FIX reach the rows it was written for
         # without re-running the whole catalogue. When the coordinate-only gate
         # left 1,024 board Roles unpriced, every one of them already held a
@@ -388,7 +402,8 @@ class EnrichmentPipeline:
             if (re_enrich or boutique_only)
             else f"AND (e.source_id IS NULL OR e.prompt_version IS NULL "
                  f"OR e.prompt_version NOT IN ({accepted_sql}) "
-                 f"OR (e.salary_estimated_min IS NULL AND e.salary_hkd_min IS NULL))"
+                 f"OR (e.salary_estimated_min IS NULL AND e.salary_hkd_min IS NULL "
+                 f"     AND NOT is_internship(j.title)))"
         )
         # ADR 0034: estimation never targets a Role that isn't on the board.
         # board_visible_sql() is the exact predicate webapp/backend/job_read.py's

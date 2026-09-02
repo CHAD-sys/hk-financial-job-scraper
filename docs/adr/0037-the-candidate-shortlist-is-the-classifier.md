@@ -349,5 +349,21 @@ through every rung and stores nothing.
 The clamp knows `INTERNSHIP_MAX_MONTHLY_HKD = 15000` but there is **no published
 internship BAND anywhere in the anchors file** — only a ceiling. Pricing them
 needs a floor, and inventing one would break the rule every figure on this board
-follows: it comes from a published guide. That is a decision for the owner, not
-a fix to slip in here. 96 Roles on the board are internships.
+follows: it comes from a published guide.
+
+**Owner decision, 2026-09-03: internships are left unpriced.** A HK internship
+band is genuinely all over the place, and a blank is more honest than a number
+nothing published backs. 96 board Roles carry no salary by design.
+
+That decision has one consequence worth spelling out, because it would
+otherwise be a standing bill: an internship can never stop matching ADR 0036's
+"no salary figure" selection arm, so all 96 would be re-enriched **every night**
+to store the same blank. `_fetch_unenriched` therefore excludes them from that
+arm — via `is_internship` registered as a SQLite function on the connection, so
+the selector asks the same question `salary_clamp` asks, from the one regex that
+owns it. An internship with **no enrichment row at all** is still enriched
+normally: it needs its summary, seniority and skills. Only the endless
+re-pricing loop is cut.
+
+Coverage is therefore measured against the **priceable** board (~2,103 of
+2,199), not the whole of it.
