@@ -71,10 +71,11 @@ the way substring-matching the free-text name did.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-from enum import IntEnum
 import logging
 import re
+from dataclasses import dataclass
+from enum import IntEnum
+from math import ceil
 from typing import Iterable
 
 from hk_jobs import salary_anchors
@@ -496,8 +497,59 @@ def price_from_coordinate(tier: str | None, role: str | None, grade: str | None)
 #: clamp rule and a change to it invalidates stored estimates.
 MAX_ENVELOPE_WIDTH_RATIO = 3.0
 
+#: Where each coarse seniority sits in a role's grade ladder, as a fraction of
+#: the ladder's rows (which the table orders by pay). Used only when the exact
+#: grade row is unknown AND `_role_band`'s name mapping did not resolve — about
+#: half the ladders use idiosyncratic labels the four-value `seniority` field
+#: cannot address. Slices overlap on purpose: the boundary between "mid" and
+#: "senior" is genuinely fuzzy, and a slightly wide window beats no figure.
+_SENIORITY_LADDER_WINDOW: dict[str, tuple[float, float]] = {
+    "intern": (0.00, 0.25),
+    "junior": (0.00, 0.40),
+    "mid": (0.20, 0.65),
+    "senior": (0.50, 0.90),
+    "lead": (0.70, 1.00),
+    "executive": (0.80, 1.00),
+}
 
-def price_from_role_envelope(tier: str | None, role: str | None) -> tuple[int, int] | None:
+
+def normalise_coordinate(
+    tier: str | None, role: str | None, grade: str | None
+) -> tuple[str | None, str | None, str | None]:
+    """Repair a coordinate whose role and grade arrived in the wrong fields.
+
+    The candidate block prints a role's grades in the same snake_case a role key
+    uses (``- middle_office / cybersecurity: security_engineer | ...``), so the
+    model regularly answers with the GRADE in ``salary_role``. Measured on the
+    2026-09-02 nightly that binned 12 otherwise-perfect classifications, each of
+    which had an exact published cell waiting:
+
+        network_engineer   -> it_infrastructure_support  45,000-65,000
+        security_engineer  -> cybersecurity              35,000-65,000
+        it_audit_security  -> it_governance_risk_compliance  65,000-80,000
+        hr_business_partner-> human_resources            40,000-50,000
+
+    Pure lookup against the published table — it can only ever move a name into
+    the field the table itself says it belongs in, never invent one. Returns the
+    input unchanged when the role is already valid or nothing matches.
+    """
+    roles = (_TABLES.get(tier or "", {}) or {}).get("roles") or {}
+    if not roles or (role and role in roles):
+        return tier, role, grade
+    if role:
+        # `role` is really a grade name: find the role whose ladder holds it.
+        owners = sorted(name for name, ladder in roles.items() if role in ladder)
+        if owners:
+            return tier, owners[0], role
+    if grade and grade in roles:
+        # The two are simply swapped.
+        return tier, grade, role if role in (roles.get(grade) or {}) else None
+    return tier, role, grade
+
+
+def price_from_role_envelope(
+    tier: str | None, role: str | None, seniority: str | None = None
+) -> tuple[int, int] | None:
     """The full published range of a role's ladder — its lowest grade's floor to
     its highest grade's ceiling — or None.
 
@@ -516,18 +568,31 @@ def price_from_role_envelope(tier: str | None, role: str | None) -> tuple[int, i
     if not tier or not role:
         return None
     ladder = _TABLES.get(tier, {}).get("roles", {}).get(role) or {}
-    lows = [band[0] for band in ladder.values()
-            if isinstance(band, list) and len(band) == 2 and band[0] and band[1]]
-    highs = [band[1] for band in ladder.values()
+    bands = [band for band in ladder.values()
              if isinstance(band, list) and len(band) == 2 and band[0] and band[1]]
-    if not lows or not highs:
+    if not bands:
         return None
-    low, high = int(min(lows)), int(max(highs))
-    # A whole ladder can span junior to Head — compliance_banking is
-    # 21,500-200,000 and tax is 22,000-300,000. Published as an estimate that is
-    # not information, it is noise wearing a number's clothes, and a Seeker is
-    # better served by an honest blank. Real grade rows in this table run about
-    # 1.4-1.7x wide, so anything past 3x is a ladder, not a band.
+    bands.sort(key=lambda band: (band[0], band[1]))
+
+    # A whole ladder spans junior to Head — compliance_banking is 21,500-200,000
+    # and change_project_management is 21,500-200,000 (9.3x). Publishing that as
+    # an estimate is noise wearing a number's clothes.
+    #
+    # But rejecting it outright wasted 14 correct classifications on the
+    # 2026-09-02 nightly. When we know the seniority, take the slice of the
+    # ladder that seniority occupies instead: the rows ARE ordered by pay, so a
+    # "junior" is in the bottom of them and a "lead" is at the top. That is still
+    # entirely the published table — a narrower window on it, not a new number.
+    window = _SENIORITY_LADDER_WINDOW.get((seniority or "").lower())
+    if window is not None and len(bands) > 1:
+        start = int(window[0] * len(bands))
+        stop = max(start + 1, ceil(window[1] * len(bands)))
+        bands = bands[start:stop] or bands
+        return int(min(b[0] for b in bands)), int(max(b[1] for b in bands))
+
+    low, high = int(min(b[0] for b in bands)), int(max(b[1] for b in bands))
+    # No seniority to narrow with — fall back to the honest blank past 3x. Real
+    # grade rows in this table run about 1.4-1.7x wide.
     if high > low * MAX_ENVELOPE_WIDTH_RATIO:
         return None
     return low, high
@@ -547,7 +612,7 @@ def price_from_partial_coordinate(
     One definition, called by both `clamp_salary` and `salary.finalise`, so the
     "is there anything to price?" test and the pricing itself cannot disagree.
     """
-    return _role_band(tier, role, seniority) or price_from_role_envelope(tier, role)
+    return _role_band(tier, role, seniority) or price_from_role_envelope(tier, role, seniority)
 
 
 def _role_ceiling(tier: str | None, role: str | None, seniority: str | None) -> int | None:
