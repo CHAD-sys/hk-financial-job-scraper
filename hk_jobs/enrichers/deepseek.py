@@ -587,10 +587,15 @@ fallback is better than a plausible but untraceable number.""".replace(
     "{insurance_tier_policy}", _INSURANCE_TIER_POLICY
 )
 
-# v14's execution policy.  The preceding v13 text is retained temporarily as
-# migration history; this smaller policy is what reaches the model. Salary
-# bands, employer exceptions and caps live only in the typed anchors/clamp that
-# actually prices a listing, never in a second prose copy that can drift.
+# ⚠️  EVERYTHING ABOVE THIS LINE IS DEAD. `_SALARY_INSTRUCTIONS` is reassigned
+# here, so the long v13 text — Steps 1-4, the 471-cell reference table, "ALSO
+# estimate a band ... treat it as required" — is NEVER SENT TO THE MODEL. It is
+# kept only as migration history. Reading it as the live prompt produced a wrong
+# root-cause diagnosis once already (docs/adr/0037); the live policy is the
+# ~20 lines below, and it is the only thing that governs model behaviour.
+#
+# Salary bands, employer exceptions and caps live only in the typed anchors/clamp
+# that actually prices a listing, never in a second prose copy that can drift.
 _SALARY_INSTRUCTIONS = """\
 SALARY CLASSIFICATION (v14)
 
@@ -603,14 +608,20 @@ derives any estimate deterministically from your selected coordinate.
 is genuinely base pay. Never treat commission, bonus, OTE, package/total
 compensation, or an "up to" earnings claim as base salary. For an upper-bound-
 only disclosure, set salary_hkd_min to null and salary_hkd_max to the stated cap.
-2. Read the posting and the ANCHOR CANDIDATES block after it. Select exactly one
-salary_tier / salary_role / salary_grade combination from that block only when
-the function and grade clearly fit responsibilities, scope and experience.
-Return the grade spelling exactly as shown. Do not invent a coordinate.
-3. If the role is ambiguous, has no suitable candidate, or offers a menu of
-possible grades, return null for salary_tier, salary_role, salary_grade,
-salary_estimated_min and salary_estimated_max. This is a review fallback, not a
-reason to guess. Keep salary_estimated_confidence low or null.
+2. Read the posting and the ANCHOR CANDIDATES block after it. Pick the ONE
+candidate that BEST fits what this job actually does. The block is ranked by how
+well each already matches, so the first entry is usually right. Judge from the
+responsibilities, not the title alone — HK titles inflate, and a two-year
+analyst is often called "AVP". Copy the tier, role and grade spellings exactly
+as shown. Never invent a coordinate that is not in the block.
+3. Prefer a partial answer to no answer. If the ROLE is clear but no single
+grade row is a confident match, return salary_tier and salary_role and leave
+salary_grade null — the runtime prices that from the role's own published range.
+Return null for all three ONLY when the candidate block is empty, or when
+nothing in it is even plausibly related to this job. Declining is not the safe
+choice it looks like: a Role you decline shows a Seeker no salary at all, which
+is the worst outcome available. When you pick a best fit rather than an exact
+one, say so with salary_estimated_confidence "low".
 4. If a coordinate is selected and no salary is disclosed, leave both
 salary_estimated_* endpoints null and use medium confidence. The deterministic
 pricing layer owns every endpoint, employer cohort adjustment and cap.
