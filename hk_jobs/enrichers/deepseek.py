@@ -622,6 +622,21 @@ nothing in it is even plausibly related to this job. Declining is not the safe
 choice it looks like: a Role you decline shows a Seeker no salary at all, which
 is the worst outcome available. When you pick a best fit rather than an exact
 one, say so with salary_estimated_confidence "low".
+3a. A title that advertises SEVERAL grades at once — "Manager / Associate
+Director", "Analyst/Consultant/Senior Consultant", "Associate/Senior
+Associate/Manager" — is NOT ambiguous about the role. It is one job open to a
+range of levels. Always return salary_tier and salary_role for it. For the
+grade, take the LOWEST level the title advertises: a HK advert leads with the
+most senior title it will consider, and the usual hire sits at the bottom of
+that range. Leave salary_grade null only if no advertised level maps onto a row.
+3b. Advisory, consulting, assurance and audit work AT a professional-services
+firm (the Big 4 and similar) is a real, priced function, not an unclassifiable
+one. It belongs to corporate_finance_accounting / professional_practice_advisory
+or strategy_business_consulting, whose ladders carry exactly the grades those
+firms advertise (Consultant, Senior Consultant, Assistant Manager, Manager,
+Senior Manager, Associate Director, Director / Partner). Where a posting names a
+specialism the block also offers — cyber security, technology risk, internal
+audit — prefer that specific role over the generic advisory one.
 4. If a coordinate is selected and no salary is disclosed, leave both
 salary_estimated_* endpoints null and use medium confidence. The deterministic
 pricing layer owns every endpoint, employer cohort adjustment and cap.

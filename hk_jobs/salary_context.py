@@ -53,7 +53,10 @@ _ROLE_TERMS: dict[str, tuple[str, ...]] = {
         "relationship manager", "retail relationship", "personal banking",
         "premier banking", "priority banking", "personal financial services",
     ),
-    "financial_markets_sales": ("global markets sales", "markets sales", "sales trading"),
+    "financial_markets_sales": (
+        "global markets sales", "markets sales", "sales trading",
+        "structured products sales", "fx sales", "rates sales",
+    ),
     "risk_credit": ("credit risk", "counterparty risk", "credit approval", "信用风险", "信用風險"),
     "risk_market": ("market risk", "var", "value at risk", "市场风险", "市場風險"),
     "risk_operational": ("operational risk", "non-financial risk", "operations risk"),
@@ -70,7 +73,14 @@ _ROLE_TERMS: dict[str, tuple[str, ...]] = {
         "m&a", "mergers", "acquisitions", "ecm", "dcm", "investment banking",
         "financial sponsors", "origination", "capital markets",
     ),
-    "global_markets_trading": ("trader", "trading", "rates", "fx", "equities"),
+    "global_markets_trading": (
+        "trader", "trading", "rates", "fx", "equities",
+        # A structured-products desk at UOB was offered back_office/human_resources
+        # as its ONLY candidate (docs/adr/0037 follow-up): "dealer" and
+        # "structured products" are what a HK trading-desk advert actually says.
+        "dealer", "structured products", "structuring", "market making",
+        "flow trading", "derivatives trading", "交易員", "交易员",
+    ),
     "trade_support": ("trade support", "middle office"),
     "payment_operation": ("payment operations", "payments", "remittance", "支付", "付款", "汇款", "匯款"),
     "fund_operations": ("fund operations", "fund administration"),
@@ -127,6 +137,10 @@ _ROLE_TERMS: dict[str, tuple[str, ...]] = {
     "it_infrastructure_support": (
         "infrastructure", "helpdesk", "help desk", "system administrator",
         "database administrator", "network", "desktop support",
+        # "Senior Load Balancer Engineer" tied this at score 3 with
+        # corporate_finance_ma_ecm_dcm and private_banking_rm.
+        "load balancer", "network engineer", "systems engineer", "middleware",
+        "site reliability", "sre", "platform engineer",
     ),
     "cybersecurity": (
         "cyber security", "cybersecurity", "information security",

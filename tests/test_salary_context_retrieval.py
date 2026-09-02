@@ -136,3 +136,30 @@ def test_an_unrelated_title_still_declines():
     context = build_salary_context(title="Office Happiness Champion")
     assert context.requires_review
     assert "Return null" in context.render()
+
+
+# ── follow-up: the two retrieval gaps the ADR 0037 verification pass exposed ──
+
+def test_a_structured_products_dealer_reaches_the_trading_desk():
+    """The verification run offered this posting exactly one candidate:
+    back_office_operations/human_resources. "dealer" and "structured products"
+    are what a HK trading-desk advert says; neither was in the vocabulary."""
+    context = build_salary_context(
+        title="Dealer, Structured Products Team",
+        description="Price and execute structured product trades for institutional "
+                    "clients; manage desk risk.",
+    )
+    assert _ranked(context)[0] == "global_markets_trading"
+
+
+def test_an_infrastructure_engineer_outranks_unrelated_front_office_roles():
+    """RED before this change: it_infrastructure_support tied at score 3 with
+    corporate_finance_ma_ecm_dcm and private_banking_rm."""
+    context = build_salary_context(
+        title="Senior Load Balancer Engineer - ETS",
+        description="Own load balancer platforms, F5 estate, network and middleware "
+                    "infrastructure.",
+    )
+    ranked = _ranked(context)
+    assert ranked[0] == "it_infrastructure_support"
+    assert "private_banking_rm" not in ranked[:3]

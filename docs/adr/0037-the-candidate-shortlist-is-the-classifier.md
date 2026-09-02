@@ -201,3 +201,69 @@ classifier has to choose from.
 cap it — but it re-opens the ~30% over-estimation that classification-first was
 built to close, and throws away the table's precision for the many Roles where
 the coordinate does resolve.
+
+---
+
+## Follow-up (2026-09-03) — what the verification pass left behind
+
+The 40-Role pass took pricing from **12/38 (32%) to 31/38 (82%)**, with 0
+estimates lost and the partial rung firing 5 times. The 7 that stayed unpriced
+split cleanly, and both halves are addressed here.
+
+**Two were retrieval, again.** A UOB *"Dealer, Structured Products Team"* was
+offered `back_office_operations/human_resources` as its **only** candidate, and
+a Morgan Stanley *"Senior Load Balancer Engineer"* had `it_infrastructure_support`
+tied at score 3 with `corporate_finance_ma_ecm_dcm` and `private_banking_rm`.
+`global_markets_trading`, `financial_markets_sales` and `it_infrastructure_support`
+gain the words a HK advert actually uses (`dealer`, `structured products`,
+`market making`, `load balancer`, `network engineer`, `site reliability`, …).
+Both now rank first.
+
+**Five were the model declining despite a good shortlist**, and they concentrate
+hard by employer, not by title shape:
+
+| cohort | priced |
+|---|---:|
+| everything else | 27/29 (93%) |
+| **Big 4 (KPMG, Deloitte, PwC, EY)** | **4/9 (44%)** |
+| single-grade titles | 23/25 (92%) |
+| grade-menu titles (`a / b / c`) | 8/13 (62%) |
+
+Grade menus at banks price fine; grade menus at advisory firms do not. The
+clincher: for KPMG *"Manager/Associate Director, Technology Risk"*,
+`professional_practice_advisory` ranked **#1** — carrying the exact Big-4 ladder
+(Consultant → Senior Consultant → Assistant Manager → Manager → Senior Manager →
+Associate Director → Director / Partner) — and the model still returned all-null.
+The table was never the gap.
+
+Two prompt rules answer it concretely rather than by exhortation:
+
+- **3a** — a title advertising several grades is *one job open to a range of
+  levels*, not an ambiguous one. Always return tier and role; take the **lowest**
+  advertised grade, because a HK advert leads with the most senior title it will
+  consider.
+- **3b** — advisory / consulting / assurance work **at** a professional-services
+  firm is a priced function belonging to `professional_practice_advisory` or
+  `strategy_business_consulting`, with a specialism (cyber security, technology
+  risk, internal audit) preferred where the block offers one.
+
+At 303 Big-4 Roles on the board and only 121 priced (40%), this is the largest
+remaining block — roughly 180 Roles.
+
+### The candidate cap stays at 12
+
+Raising it to 16 was considered and **rejected on measurement**. Over 800
+postings:
+
+| | |
+|---|---:|
+| postings exceeding a 12-cap | 396 (50%) |
+| chosen role ranked 1st / 2nd / 3rd | 206 / 81 / 43 — **77% in the top 3** |
+| chosen role ranked 9–12 | 14 |
+| **chosen role ranked beyond 12** | **3 of 431 (0.7%)** |
+
+Sixteen would rescue about three postings while adding four more mostly-noise
+options to half of every prompt — the wrong trade for a classifier whose failure
+mode is declining when unsure.
+
+Priced-Role retention through both changes: **480/500 (96%)**, up from 477.
