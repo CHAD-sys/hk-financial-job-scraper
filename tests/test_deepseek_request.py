@@ -182,10 +182,16 @@ def test_max_tokens_is_allocated_per_task(sent):
     assert title_only == MAX_TOKENS_TITLE_ONLY
     assert title_only < with_description
     # The 2026-08-22 evaluation exposed a long tail: 88/400 description-backed
-    # calls exhausted 10,000 tokens. 16,000 keeps room for a full trace and the
-    # final JSON, without removing the cost ceiling altogether.
-    assert with_description == 16_000
-    assert title_only == 8_000
+    # calls exhausted 10,000 tokens, so v13 set 16,000. The 2026-09-02 backlog
+    # run then lost 243 of 1,694 Roles (14%) to finish_reason="length" AT that
+    # ceiling — a full reasoning trace generated, billed, and thrown away for a
+    # 0-character answer. 24,000 is a deliberately modest raise (docs/adr/0036):
+    # max_tokens is a limit, not an allocation, so a call that already fits
+    # costs exactly the same, and the only calls that grow are the ones
+    # currently returning nothing. It stays a firm ceiling — a trace that cannot
+    # finish inside it is a runaway, and TruncatedAnswer is the right outcome.
+    assert with_description == 24_000
+    assert title_only == 12_000
 
 
 # ── truncation must never be silent again ────────────────────────────────────

@@ -245,15 +245,43 @@ class EnrichmentPipeline:
                                     job_category              = excluded.job_category,
                                     enriched_at               = excluded.enriched_at,
                                     model_used                = excluded.model_used,
-                                    salary_estimated_min        = excluded.salary_estimated_min,
-                                    salary_estimated_max        = excluded.salary_estimated_max,
-                                    salary_estimated_confidence = excluded.salary_estimated_confidence,
+                                    -- WE NEVER DESTROY AN EXISTING ESTIMATE (docs/adr/0036).
+                                    -- A run that comes back unable to price a Role leaves
+                                    -- whatever was already there alone; it may only replace
+                                    -- a figure with another figure, never with NULL. The
+                                    -- 2026-09-02 backlog run is why: it re-priced the board
+                                    -- under a coordinate-only gate and blanked the salary on
+                                    -- 336 Roles that already had a perfectly good one.
+                                    -- min/max/confidence/coordinate move as ONE block, keyed
+                                    -- on the new min, so a kept estimate keeps the tier, role
+                                    -- and grade that actually produced it.
+                                    salary_estimated_min = CASE
+                                        WHEN excluded.salary_estimated_min IS NULL
+                                        THEN job_enrichments.salary_estimated_min
+                                        ELSE excluded.salary_estimated_min END,
+                                    salary_estimated_max = CASE
+                                        WHEN excluded.salary_estimated_min IS NULL
+                                        THEN job_enrichments.salary_estimated_max
+                                        ELSE excluded.salary_estimated_max END,
+                                    salary_estimated_confidence = CASE
+                                        WHEN excluded.salary_estimated_min IS NULL
+                                        THEN job_enrichments.salary_estimated_confidence
+                                        ELSE excluded.salary_estimated_confidence END,
                                     description_summary         = excluded.description_summary,
                                     title_en                    = excluded.title_en,
                                     prompt_version               = excluded.prompt_version,
-                                    salary_tier                  = excluded.salary_tier,
-                                    salary_role                  = excluded.salary_role,
-                                    salary_grade                 = excluded.salary_grade
+                                    salary_tier = CASE
+                                        WHEN excluded.salary_estimated_min IS NULL
+                                        THEN job_enrichments.salary_tier
+                                        ELSE excluded.salary_tier END,
+                                    salary_role = CASE
+                                        WHEN excluded.salary_estimated_min IS NULL
+                                        THEN job_enrichments.salary_role
+                                        ELSE excluded.salary_role END,
+                                    salary_grade = CASE
+                                        WHEN excluded.salary_estimated_min IS NULL
+                                        THEN job_enrichments.salary_grade
+                                        ELSE excluded.salary_grade END
                                 """,
                                 (
                                     row["source"], row["source_id"],
@@ -330,11 +358,25 @@ class EnrichmentPipeline:
         # something that should happen as a side effect of a wording change.
         accepted = {PROMPT_VERSION, *salary.ACCEPTED_PRIOR_VERSIONS}
         accepted_sql = ", ".join("'" + v.replace("'", "''") + "'" for v in sorted(accepted))
+        # Three ways a Role is a candidate on an ordinary run (docs/adr/0036):
+        #   1. it has no enrichment row at all;
+        #   2. its enrichment predates the current PROMPT_VERSION and is not
+        #      grandfathered in salary.ACCEPTED_PRIOR_VERSIONS;
+        #   3. it carries NO salary figure — no AI estimate and no disclosed one.
+        #
+        # (3) is what makes a pricing FIX reach the rows it was written for
+        # without re-running the whole catalogue. When the coordinate-only gate
+        # left 1,024 board Roles unpriced, every one of them already held a
+        # current prompt_version, so (1) and (2) both said "nothing to do" and
+        # the only way to reach them was a full --re-enrich that would also
+        # churn the rows that were fine. An unpriced Role is cheap to retry and
+        # there is nothing on it to damage.
         enriched_filter = (
             ""
             if (re_enrich or boutique_only)
             else f"AND (e.source_id IS NULL OR e.prompt_version IS NULL "
-                 f"OR e.prompt_version NOT IN ({accepted_sql}))"
+                 f"OR e.prompt_version NOT IN ({accepted_sql}) "
+                 f"OR (e.salary_estimated_min IS NULL AND e.salary_hkd_min IS NULL))"
         )
         # ADR 0034: estimation never targets a Role that isn't on the board.
         # board_visible_sql() is the exact predicate webapp/backend/job_read.py's

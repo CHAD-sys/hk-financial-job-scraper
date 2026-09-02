@@ -78,16 +78,38 @@ def test_finalise_passes_none_through():
     assert salary.finalise(None, None, tier="middle_office", seniority="mid") == (None, None)
 
 
-def test_coordinate_only_finalise_refuses_a_free_form_model_estimate():
-    assert salary.finalise(
-        40_000, 60_000, tier="middle_office", seniority="mid", coordinate_only=True,
-    ) == (None, None)
-
+def test_coordinate_only_prices_from_an_exact_coordinate_when_it_resolves():
+    """The coordinate is still PREFERRED: a resolvable cell prices the Role
+    outright, with no band from the model at all."""
     assert salary.finalise(
         None, None,
         tier="middle_office", role="product_management", grade="Analyst",
         seniority="junior", coordinate_only=True,
     ) == (25_000, 40_000)
+
+
+def test_coordinate_only_falls_back_to_the_clamped_model_band():
+    """docs/adr/0036 — the coordinate is preferred, NOT required.
+
+    RED before this change: `finalise` returned (None, None) here, and that is
+    how 1,024 of 2,169 board Roles ended up with no salary at all. The model's
+    own band is still clamped down through the tier/role/title/global ceilings,
+    which is what stops the over-estimation the old gate was aimed at.
+    """
+    lo, hi = salary.finalise(
+        40_000, 60_000, tier="middle_office", seniority="mid", coordinate_only=True,
+    )
+    assert lo is not None and hi is not None
+    assert lo <= hi <= salary_anchors.GLOBAL_MAX_MONTHLY_HKD
+
+
+def test_coordinate_only_still_refuses_when_there_is_nothing_to_price_from():
+    """No resolvable coordinate AND no band from the model — there is genuinely
+    nothing to publish, so nothing is."""
+    assert salary.finalise(
+        None, None, tier=None, role=None, grade=None,
+        seniority=None, coordinate_only=True,
+    ) == (None, None)
 
 
 def test_finalise_never_returns_a_flat_point():

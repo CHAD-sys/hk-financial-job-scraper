@@ -156,8 +156,18 @@ _DESC_MAX_CHARS = 2_000   # cap to keep prompt tight; descriptions are typically
 # 16,000 leaves roughly 5,800 tokens above the highest earlier observed trace
 # while keeping a firm, auditable cost ceiling. Title-only work is cheaper but
 # still needs room for thinking, so it is raised proportionally to 8,000.
-MAX_TOKENS_WITH_DESCRIPTION = 16_000
-MAX_TOKENS_TITLE_ONLY = 8_000
+#
+# 2026-09-02: raised 50% to 24,000 / 12,000. The backlog run of 1,694 Roles lost
+# 243 of them (14%) to `finish_reason="length"` at these ceilings — a whole
+# reasoning trace generated, billed, and thrown away for a 0-character answer.
+# Raising the ceiling is close to free: `max_tokens` is a limit, not an
+# allocation, so a call that already finishes inside 16,000 costs exactly the
+# same at 24,000. The only calls that generate more are the ones currently
+# producing nothing. Deliberately a modest raise and not an open budget — a
+# trace that cannot finish inside 24,000 is a runaway, and the loud
+# TruncatedAnswer below is the right outcome for it.
+MAX_TOKENS_WITH_DESCRIPTION = 24_000
+MAX_TOKENS_TITLE_ONLY = 12_000
 
 
 class TruncatedAnswer(RuntimeError):

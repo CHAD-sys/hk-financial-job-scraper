@@ -75,13 +75,37 @@ def finalise(
     Every caller that turns a fresh model estimate into a stored one goes
     through here, so there is one answer to "what happened to this number
     between the model and the database".
+
+    `coordinate_only` means "prefer an exact table coordinate" — `clamp_salary`
+    adopts the (tier, role, grade) cell outright when it resolves. It does NOT
+    mean "publish nothing without one": see the comment below and docs/adr/0036.
     """
-    # New enrichment is classification-first: it can publish an AI estimate only
-    # when the model selected an exact, valid table coordinate.  A missing or
-    # invalid coordinate is a review fallback, never permission to preserve the
-    # model's free-form amount. Historical repair/audit callers retain the
-    # previous behaviour unless they opt in explicitly.
-    if coordinate_only and price_from_coordinate(tier, role, grade) is None:
+    # The coordinate is PREFERRED, not REQUIRED (docs/adr/0036).
+    #
+    # v13 made this gate absolute: no valid (tier, role, grade) cell -> store
+    # nothing, on the reasoning that a missing coordinate is "a review fallback"
+    # for a manual /fix-s pass to price by hand. Measured on the live board
+    # 2026-09-02, that cost 54% of it any salary at all: 1,024 of 2,169 visible
+    # Roles carried no figure, 916 of them purely because the model returned
+    # salary_tier = null — and a re-enrichment run STRIPPED a good estimate from
+    # 336 Roles that already had one. The manual Opus pass the gate assumed
+    # would cover the gap is deliberately not something this project runs.
+    #
+    # `clamp_salary` below already does the right thing on its own: it REPLACES
+    # both endpoints when the coordinate resolves, and otherwise clips the
+    # model's own band DOWN through the tier ladder, the role ceiling, the
+    # title-grade ceiling, the internship cap and the global cap. The
+    # over-estimation this gate was added to prevent is precisely what that
+    # stack exists for, and it applies either way.
+    #
+    # So refuse only when there is nothing to price FROM — neither a resolvable
+    # coordinate nor any band from the model.
+    if (
+        coordinate_only
+        and price_from_coordinate(tier, role, grade) is None
+        and raw_min is None
+        and raw_max is None
+    ):
         return None, None
 
     fixed_min, fixed_max = fix_salary_magnitude(raw_min, raw_max)
@@ -313,11 +337,36 @@ def _clamp_fingerprint() -> str:
 #: rows keep saying which prompt actually produced them; this list only says
 #: "and that is fine".
 #:
-#: `--re-enrich` still overrides everything here.  v14 intentionally has no
-#: grandfathered version: candidate classification changes the *selection* of
-#: the 729 cells, so leaving the old free-form estimates accepted would prevent
-#: the redesign from ever reaching the active board.
-ACCEPTED_PRIOR_VERSIONS: frozenset[str] = frozenset()
+#: `--re-enrich` still overrides everything here.
+#:
+#: 2026-09-02 — every prompt_version observed on the live catalogue is
+#: grandfathered, because the change that made this list non-empty again is a
+#: fix to `finalise` (docs/adr/0036: the coordinate is preferred, not
+#: required). That edit lands inside `_clamp_logic_fingerprint`'s window, so it
+#: moves PROMPT_VERSION and would otherwise mark all ~13,000 stored estimates
+#: stale and re-pay DeepSeek for every one of them.
+#:
+#: Nothing is lost by grandfathering them. A row that already carries a figure
+#: does not need the fix — the fix only changes what happens when the model
+#: returns NO usable coordinate, which is exactly the case that stored nothing.
+#: Those rows are reached instead by `_fetch_unenriched`'s "no salary figure"
+#: arm, which ignores prompt_version entirely. So the fix reaches precisely the
+#: Roles it was written for, and no others.
+#:
+#: These four strings are read off the published database, not computed here:
+#: `_clamp_logic_fingerprint` normalises an AST and its output differs between
+#: Python versions, so the CI runner's (3.11) fingerprint is not the one a
+#: developer's interpreter produces. Copy from `SELECT DISTINCT prompt_version
+#: FROM job_enrichments`, never from a local `PROMPT_VERSION`.
+_V10 = "2026-07-21-v10-merged-3source-granular-prefix-cached+deepseek-v4-flash"
+ACCEPTED_PRIOR_VERSIONS: frozenset[str] = frozenset({
+    # The bulk of the back catalogue (~10,300 rows), pre-coordinate pricing.
+    f"{_V10}+pac7b0b6b+adb2136ef+c0bba64e1",
+    # Coordinate-pricing era, current on the board until this change (~2,900).
+    f"{_V10}+p0d74585a+aabc6a639+c16c9cda8",
+    f"{_V10}+pbc5764cc+adb2136ef+c0bba64e1",
+    f"{_V10}+p020fb8c9+ac9f4c710+c0bba64e1",
+})
 
 
 def version(model: str, prompt: str) -> str:

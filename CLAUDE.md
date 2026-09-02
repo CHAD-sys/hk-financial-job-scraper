@@ -122,6 +122,23 @@ app's job cards. The full description on `jobs` is never overwritten — enrichm
 still reads it. When a job has no description (e.g. Indeed rows), the summary is
 an empty string, never hallucinated.
 
+**Salaries come from DeepSeek + the HK anchor table, and nothing else.** The
+model returns a `(tier, role, grade)` coordinate; `salary_guidlines/hk_salary_anchors.json`
+supplies the number; `hk_jobs/salary_clamp.clamp_salary` clips it through the
+tier, role, title-grade, internship and global ceilings. **The coordinate is
+PREFERRED, not REQUIRED (ADR 0036)** — when the model names no usable
+coordinate, its own band is clamped through the same stack and stored. It is
+never Opus, and `/fix-s` is not part of the pipeline.
+
+**HARD RULE — never changes (ADR 0036): WE NEVER DESTROY AN EXISTING SALARY
+ESTIMATE.** A run may replace a figure with another figure, or fill a blank. It
+may never turn a figure into a blank — the write path in
+`hk_jobs/enrichment.py` keeps the stored `min`/`max`/`confidence`/coordinate as
+one block whenever the new estimate is NULL. This exists because a re-pricing
+run on 2026-09-02 blanked the salary on **336 Roles that already had a good
+one**. A Role carrying no figure is a re-enrichment candidate whatever its
+`prompt_version`, so a pricing fix reaches exactly the rows it was written for.
+
 **HARD RULE — never changes (ADR 0034): we do not estimate the salary of a Role
 that is not on the board.** `hk_jobs.enrichment._fetch_unenriched` filters on
 `hk_jobs.board_visibility.board_visible_sql()` — the exact predicate
