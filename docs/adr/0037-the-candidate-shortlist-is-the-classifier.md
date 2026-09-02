@@ -267,3 +267,87 @@ options to half of every prompt — the wrong trade for a classifier whose failu
 mode is declining when unsure.
 
 Priced-Role retention through both changes: **480/500 (96%)**, up from 477.
+
+---
+
+## Follow-up 2 (2026-09-03) — three ways a correct answer was being thrown away
+
+The first full-scale run (nightly 33678359225, 500 Roles) priced **66%** of what
+it answered — well short of usable. Breaking the misses down showed only a
+minority were genuinely hard postings:
+
+| of 500 attempted | |
+|---|---:|
+| never got an answer (timeout / truncation / connect) | 162 |
+| answered and priced | 222 |
+| **answered and NOT priced** | **116** |
+
+Of those 116: **26 had a tier and role the model got right**, and **90 were
+outright declines — 28 of them while our own scorer had already found the
+answer** (`Receptionist → secretarial_admin`, `Cyber Security → cybersecurity(37)`,
+`FICC Software Engineer → software_data_engineering(21)`).
+
+### A. The model answers with the GRADE in the role field
+
+The candidate block prints a role's grades in the same snake_case a role key
+uses, so `- middle_office / cybersecurity: security_engineer | ...` invites
+exactly this. Each of these had an exact published cell waiting and was binned:
+
+```
+network_engineer    is a grade in it_infrastructure_support      45,000-65,000
+security_engineer   is a grade in cybersecurity                  35,000-65,000
+it_audit_security   is a grade in it_governance_risk_compliance  65,000-80,000
+hr_business_partner is a grade in human_resources                40,000-50,000
+```
+
+`salary_clamp.normalise_coordinate()` repairs it by pure lookup — it can only
+move a name into the field the table itself says it belongs in, never invent
+one. `enrichment.py` repairs BEFORE pricing and stores the repaired triple, so
+the stored coordinate and the figure it produced always describe each other.
+
+### B. A wide ladder is narrowed by seniority rather than refused
+
+Follow-up 1's `MAX_ENVELOPE_WIDTH_RATIO` correctly refuses a junior-to-Head span
+as an estimate — but refusing outright wasted valid classifications. When the
+seniority is known, take the slice of the ladder that seniority occupies
+(`_SENIORITY_LADDER_WINDOW`); the rows are ordered by pay, so a junior sits in
+the bottom of them. Still entirely the published table, just a narrower window
+on it. The 3× guard still applies when there is no seniority to narrow with.
+
+### C. Adopt our own top candidate when the model declines
+
+**The model is not the last word on which anchor row a job belongs to.** It is
+one of two opinions, and the other is a deterministic scorer we can measure.
+When the model returns a null coordinate AND our top candidate scores at least
+`AUTOFILL_MIN_SCORE` (6 — one strong token matched in the *title*, i.e. the
+title literally names the role), we take our own pick, mark the confidence
+"low", and log it.
+
+It never overrides a coordinate the model *did* name — it read the posting and
+we did not. The figure still comes only from the anchor table and still passes
+through the whole clamp.
+
+### Measured by replaying all 116 real misses
+
+| | recovered |
+|---|---:|
+| A — role/grade repair | 10 |
+| B — seniority window | 15 |
+| C — adopt top candidate | 50 |
+| **total** | **60 (52% of the misses)** |
+
+**Answered-and-priced: 66% → 83%.**
+
+## What is left, and it is now one thing
+
+Of the 56 still unpriced, **38 (68%) are internships** — "Summer Analyst",
+"Graduate Programme", "Part-Time". `clamp_salary` gates the coordinate rung on
+`not internship` (correctly: the whole internship failure mode is a genuine
+intern matching a full-time band), so an intern with no model estimate falls
+through every rung and stores nothing.
+
+The clamp knows `INTERNSHIP_MAX_MONTHLY_HKD = 15000` but there is **no published
+internship BAND anywhere in the anchors file** — only a ceiling. Pricing them
+needs a floor, and inventing one would break the rule every figure on this board
+follows: it comes from a published guide. That is a decision for the owner, not
+a fix to slip in here. 96 Roles on the board are internships.

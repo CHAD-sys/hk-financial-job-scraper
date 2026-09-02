@@ -885,11 +885,12 @@ class DeepSeekEnricher:
         salary_instructions = _SALARY_INSTRUCTIONS + salary_corrections.evidence_for(
             self.salary_corrections, title=title, seniority=seniority,
         )
-        salary_context = build_salary_context(
+        context = build_salary_context(
             title=title,
             description=description,
             company_slug=company_slug,
-        ).render()
+        )
+        salary_context = context.render()
         if description.strip():
             desc_text = description.strip()[:_DESC_MAX_CHARS]
             prompt = _PROMPT_WITH_DESC.format(
@@ -984,7 +985,56 @@ class DeepSeekEnricher:
             )
 
         text = text.replace("```json", "").replace("```", "").strip()
-        return json.loads(text)
+        return self._adopt_top_candidate(json.loads(text), context, title)
+
+    #: How good our OWN retrieval has to be before we override a declining model.
+    #: 6 is one strong token matched in the TITLE — the posting's title literally
+    #: names the role — which is the point at which "we found it, the model just
+    #: would not commit" is the better reading. 12 is a full title-phrase match.
+    AUTOFILL_MIN_SCORE = 6
+
+    def _adopt_top_candidate(
+        self, data: dict[str, Any], context: Any, title: str
+    ) -> dict[str, Any]:
+        """Fill in a coordinate the model declined, when retrieval was confident.
+
+        The model is not the last word on which anchor row a job belongs to; it
+        is one of two opinions, and the other one is a deterministic scorer that
+        can be measured. On the 2026-09-02 nightly the model returned a null
+        coordinate for 90 Roles — and 28 of those had a top candidate scoring 12
+        or more, meaning the title itself named the role:
+
+            Receptionist               -> secretarial_admin
+            Intern (Human Resources)   -> human_resources (24)
+            FICC Software Engineer     -> software_data_engineering (21)
+            Cyber Security Consultant  -> cybersecurity (37)
+
+        Every one was stored with no salary at all. Adopting our own top pick
+        costs nothing a Seeker can see going wrong — the figure still comes only
+        from the anchor table, still goes through the whole clamp (ceilings,
+        internship cap, boutique scaling), and is marked "low" confidence so it
+        never reads as a precise claim.
+
+        Only fires when the model declined outright. A coordinate the model DID
+        name is never overridden: it read the posting and we did not.
+        """
+        if data.get("salary_tier"):
+            return data
+        candidates = getattr(context, "candidates", ()) or ()
+        if not candidates or candidates[0].score < self.AUTOFILL_MIN_SCORE:
+            return data
+        best = candidates[0]
+        data["salary_tier"] = best.tier
+        data["salary_role"] = best.role
+        data["salary_grade"] = None      # priced from the role's seniority window
+        data["salary_estimated_confidence"] = "low"
+        logger.info(
+            "Model declined a coordinate for %r; adopting retrieval's top pick "
+            "%s/%s (score %d).", title[:60], best.tier, best.role, best.score,
+        )
+        with self._usage_lock:
+            self.usage_totals["autofilled"] = self.usage_totals.get("autofilled", 0) + 1
+        return data
 
     def _note_budget_stop(self) -> None:
         with self._usage_lock:

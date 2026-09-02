@@ -24,6 +24,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from hk_jobs.board_visibility import board_visible_sql
+from hk_jobs.salary_clamp import normalise_coordinate
 from hk_jobs.enrichers.deepseek import _MODEL, PROMPT_VERSION, DeepSeekEnricher
 from hk_jobs import salary, salary_corrections
 
@@ -192,13 +193,24 @@ class EnrichmentPipeline:
                             # Magnitude fix then the deterministic clamp — one
                             # call, so the estimator and the nightly audit cannot
                             # drift on how a model answer becomes a stored one.
+                            # The model routinely answers with the GRADE in the
+                            # role field — the candidate block prints grades in
+                            # the same snake_case a role key uses. Repair it
+                            # BEFORE pricing and store the repaired triple, so
+                            # the stored coordinate and the figure it produced
+                            # always describe each other (docs/adr/0037).
+                            c_tier, c_role, c_grade = normalise_coordinate(
+                                data.get("salary_tier"),
+                                data.get("salary_role"),
+                                data.get("salary_grade"),
+                            )
                             est_salary_min, est_salary_max = salary.finalise(
                                 _coerce_int(data.get("salary_estimated_min")),
                                 _coerce_int(data.get("salary_estimated_max")),
-                                tier=data.get("salary_tier"),
+                                tier=c_tier,
                                 seniority=data.get("seniority"),
-                                role=data.get("salary_role"),
-                                grade=data.get("salary_grade"),
+                                role=c_role,
+                                grade=c_grade,
                                 company_slug=row["company_slug"],
                                 title=row["title"],
                                 source_tier=row["source_tier"],
@@ -300,9 +312,9 @@ class EnrichmentPipeline:
                                     _clean_summary(data.get("description_summary")),
                                     _clean_title_en(data.get("title_en")),
                                     PROMPT_VERSION,
-                                    data.get("salary_tier"),
-                                    data.get("salary_role"),
-                                    data.get("salary_grade"),
+                                    c_tier,
+                                    c_role,
+                                    c_grade,
                                 ),
                             )
                             enriched += 1
