@@ -367,3 +367,64 @@ re-pricing loop is cut.
 
 Coverage is therefore measured against the **priceable** board (~2,103 of
 2,199), not the whole of it.
+
+---
+
+## Follow-up 3 (2026-09-03) — the enrichment queue was growing, not shrinking
+
+An audit of what visitors actually see found **82% of the visible board
+enriched**, not the 95%+ it should be. The cause was not selection and not the
+model:
+
+```
+never-enriched Roles, by date first scraped:
+    2026-09-02 ....... 396      <- every single one
+    (nothing older)
+395 of the 396 carry a full description. Nothing was skipping them.
+```
+
+They were simply last night's intake, and the run never reached them:
+
+| | |
+|---|---:|
+| enrich cap | 500 |
+| lost to timeouts / dropped connections | **162 (32%)** |
+| actually delivered | 338 |
+| a night's intake | 400–500 |
+
+So the queue **grew**. Two changes, both about connection health rather than
+budget:
+
+- **`_MAX_WORKERS` 90 → 40** (and `_BATCH_SIZE` with it). 90 was chosen when a
+  call was sized at 12,000 output tokens; it is 24,000 now, so each holds a
+  connection roughly twice as long and 90 at once is far more in-flight work
+  than the same number used to be. 60 was the last setting with a
+  measured-good failure rate, at half today's token budget — 40 is that,
+  scaled. Throughput does not suffer the way the number suggests: a timeout
+  costs a whole call and delivers nothing, so fewer healthy connections finish
+  **more** Roles per run than more failing ones.
+- **A granular HTTP timeout** replaces one flat `120.0`:
+  `connect=10s, read=240s, write=30s, pool=30s`. Under thinking mode the read
+  is the long part — the server holds the connection for the entire reasoning
+  trace before sending a byte, and this client is non-streaming. Splitting it
+  means a genuinely unreachable API still fails in seconds instead of hanging
+  for four minutes.
+
+Retrying a timeout was considered and deliberately left out of this change:
+truncation must never be retried (it is deterministic and only triples the
+bill), so a retry path has to distinguish the two carefully. Worth doing
+separately, on evidence, once these two are measured.
+
+Both settings are now pinned by `tests/test_deepseek_request.py` — the v11
+lesson in `deepseek.py`'s own changelog is that "nothing in the suite inspected
+the request body, so the switch that cost the money was untested."
+
+### The card summary was never the problem
+
+Of Roles that **have been enriched**, **1,740 of 1,777 (97.9%) carry a summary**.
+The 37 that do not are 36 Indeed rows with no description at all plus one
+LinkedIn row — Indeed is listing-only by design and the summary stays an empty
+string rather than being hallucinated. Description coverage on the visible board
+is 2,136/2,173 (98.3%), and summary coverage is bounded by it. Measuring summary
+against the whole board rather than against enriched Roles is what made it look
+like an 80% problem.

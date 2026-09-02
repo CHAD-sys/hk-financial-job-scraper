@@ -30,14 +30,27 @@ from hk_jobs.salary_clamp import is_internship, normalise_coordinate
 
 logger = logging.getLogger(__name__)
 
-_MAX_WORKERS = 90   # concurrent DeepSeek API calls; bump carefully — rate limits apply.
-                    # Bumped 20->60->150->90 for the v9 thinking-mode backfill. 150 hit no
-                    # 429s but caused a much higher rate of garbled/empty responses (~11%
-                    # of jobs needed a retry, vs ~1.7% at 60) — DeepSeek straining under
-                    # load rather than cleanly rejecting, which burns retries/tokens
-                    # without a clear backoff signal. 90 is a middle ground; re-check the
-                    # retry rate before pushing higher again.
-_BATCH_SIZE = 90    # jobs fetched from DB per write cycle — matches _MAX_WORKERS so a
+_MAX_WORKERS = 40   # concurrent DeepSeek API calls; bump carefully — rate limits apply.
+                    # History: 20->60->150->90 for the v9 thinking-mode backfill. 150 hit
+                    # no 429s but caused a much higher rate of garbled/empty responses
+                    # (~11% of jobs needed a retry, vs ~1.7% at 60) — DeepSeek straining
+                    # under load rather than cleanly rejecting, which burns retries/tokens
+                    # without a clear backoff signal.
+                    #
+                    # 90 -> 40 on 2026-09-03. The nightly lost 162 of 500 Roles (32%) to
+                    # timeouts and dropped connections, which is what kept the enrichment
+                    # queue GROWING: the cap said 500, the run delivered 338, and a night
+                    # brings in 400-500. The 90 figure was chosen when a call was sized at
+                    # 12,000 output tokens; it is now 24,000 with thinking on, so each
+                    # call holds a connection roughly twice as long and 90 of them at once
+                    # is far more in-flight work than the same number used to be. 60 was
+                    # the last setting with a measured-good failure rate, at half today's
+                    # token budget — 40 is that, scaled.
+                    #
+                    # Throughput does not suffer the way the number suggests: a timeout
+                    # costs a whole call and delivers nothing, so fewer, healthier
+                    # connections finish MORE Roles per run than more, failing ones.
+_BATCH_SIZE = 40    # jobs fetched from DB per write cycle — matches _MAX_WORKERS so a
                     # full batch saturates the worker pool
 
 _VALID_CONFIDENCE = {"low", "medium", "high"}

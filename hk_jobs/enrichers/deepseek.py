@@ -166,6 +166,19 @@ _DESC_MAX_CHARS = 2_000   # cap to keep prompt tight; descriptions are typically
 # producing nothing. Deliberately a modest raise and not an open budget — a
 # trace that cannot finish inside 24,000 is a runaway, and the loud
 # TruncatedAnswer below is the right outcome for it.
+#: One flat 120s covered connect, write, read and pool alike. Under thinking
+#: mode the READ is the long part — the server holds the connection open for the
+#: whole reasoning trace before a single byte comes back, and this client is
+#: non-streaming, so it waits for all of it. At 24,000 output tokens 120s was
+#: simply too tight: the 2026-09-03 nightly lost 162 of 500 Roles (32%) to
+#: timeouts and dropped connections, which is what kept the enrichment queue
+#: growing.
+#:
+#: Split rather than raised as one number, so a genuinely unreachable API still
+#: fails in seconds instead of hanging for four minutes: connect stays short,
+#: only the read is patient.
+_HTTP_TIMEOUT = httpx.Timeout(connect=10.0, read=240.0, write=30.0, pool=30.0)
+
 MAX_TOKENS_WITH_DESCRIPTION = 24_000
 MAX_TOKENS_TITLE_ONLY = 12_000
 
@@ -914,7 +927,7 @@ class DeepSeekEnricher:
         # receipt, not a cap.
         self.run_budget.check()
 
-        with httpx.Client(timeout=120.0) as client:
+        with httpx.Client(timeout=_HTTP_TIMEOUT) as client:
             resp = client.post(
                 _API_URL,
                 headers={

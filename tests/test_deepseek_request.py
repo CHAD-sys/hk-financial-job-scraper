@@ -326,3 +326,35 @@ def test_an_irrelevant_correction_leaves_the_prompt_untouched(sent):
 def test_an_enricher_given_no_corrections_behaves_exactly_as_before(sent):
     _enricher().enrich_single("Risk Analyst", "A Bank", description="Do risk things.")
     assert _BLOCK_MARKER not in _prompt(sent)
+
+
+# ── docs/adr/0037 f/u 3 — the settings that decide how many Roles survive ─────
+
+def test_the_read_timeout_is_patient_but_connect_is_not():
+    """RED before this change: one flat 120s covered connect and read alike.
+
+    Under thinking mode the READ is the long part — the server holds the
+    connection for the whole reasoning trace before sending a byte, and this
+    client is non-streaming, so it waits for all of it. At 24,000 output tokens
+    120s was too tight: the 2026-09-03 nightly lost 162 of 500 Roles (32%) to
+    timeouts, which is what kept the enrichment queue growing.
+
+    Split rather than raised as one number, so an unreachable API still fails in
+    seconds instead of hanging for four minutes.
+    """
+    from hk_jobs.enrichers.deepseek import _HTTP_TIMEOUT
+
+    assert _HTTP_TIMEOUT.read >= 240.0, "a full 24k-token trace must fit"
+    assert _HTTP_TIMEOUT.connect <= 15.0, "an unreachable API must fail fast"
+    assert _HTTP_TIMEOUT.connect < _HTTP_TIMEOUT.read
+
+
+def test_concurrency_is_sized_for_the_current_token_budget():
+    """90 workers was chosen when a call was sized at 12,000 output tokens; it is
+    24,000 now, so each holds a connection about twice as long. A timeout costs a
+    whole call and delivers nothing, so fewer healthy connections finish MORE
+    Roles per run than more failing ones."""
+    from hk_jobs.enrichment import _BATCH_SIZE, _MAX_WORKERS
+
+    assert _MAX_WORKERS <= 60, "above the last measured-good rate at half the tokens"
+    assert _BATCH_SIZE == _MAX_WORKERS, "a batch must saturate the pool, not starve it"
