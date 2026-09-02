@@ -29,16 +29,21 @@ nothing on the board is gated (ADR 0002).
 Closed, Hidden, Board. Use those words. Decisions live in `docs/adr/`; do not
 re-litigate one without reading it.
 
-The **Board** shows every open, primary Role posted within the last calendar
-month — the whole eligible catalogue, not a curated subset. ADR 0032 tried
-shrinking it to a sector-fair freshest slice (~1,280 of ~2,750); ADR 0033
-reverted that within the day — it hid roughly as many genuinely-open Roles as
-it solved, for no offsetting gain. What's left of 0032: `admin_hidden` (an
-Ultimate-Admin-only toggle, `job_read.BOARD_WHERE` still excludes it, see
-`docs/adr/0032`'s "Who may see a hidden Role") and
-`hk_jobs.storage.JobStore.deactivate_aged_out()`, which still retires anything
-posted over 6 months ago every scrape — unrelated to what's currently visible,
-since nothing that old survives the 1-month board window anyway.
+The **Board** shows every open, primary, not-Hidden Role posted within the last
+calendar month — **up to 60 per employer, newest first** (ADR 0035). That cap
+brought the board from ~3,250 to ~2,100 so the nightly enrichment covers all of
+it: before it, ~1,600 visible Roles had no salary figure and ~1,300 no card
+summary, worst on the freshest Roles. It replaces the ~26 mega-posters' oldest
+Roles only; ~55 smaller employers are untouched, and a capped-out Role stays
+open and addressable (Saved Roles, deep links), just off the browse board.
+`job_read.BOARD_WHERE` and `hk_jobs.enrichment._fetch_unenriched` both read one
+function, `board_visible_sql()` — touch the predicate and both move together.
+(ADR 0032 tried a per-*sector* cap + 6-month window; ADR 0033 reverted that same
+day. What survives 0032: `admin_hidden`, an Ultimate-Admin-only toggle
+`BOARD_WHERE` still excludes, and `JobStore.deactivate_aged_out()`, which
+retires anything posted over 6 months ago every scrape.) The "X live roles"
+headline stat (`LIVE_COUNT_WHERE`) is deliberately **uncapped** (~3,220) — it
+counts market context, not what a visitor browses.
 
 ## Core domain knowledge (read this — it drives every design decision)
 
@@ -121,8 +126,8 @@ an empty string, never hallucinated.
 that is not on the board.** `hk_jobs.enrichment._fetch_unenriched` filters on
 `hk_jobs.board_visibility.board_visible_sql()` — the exact predicate
 `webapp/backend/job_read.BOARD_WHERE` uses (open, primary, not `admin_hidden`,
-posted within one month). No `--enrich` / `--re-enrich` / `--enrich-boutique`
-carve-out. This exists because a bulk run once spent 66% of its budget on
+posted within one month, and among the freshest 60 for the employer — ADR
+0035). No `--enrich` / `--re-enrich` / `--enrich-boutique` carve-out. This exists because a bulk run once spent 66% of its budget on
 duplicate cross-post copies, month-old postings, and undated rows a Seeker could
 never see. If you touch the board predicate, both sides move together because
 they share that one function — do not re-introduce a second copy.

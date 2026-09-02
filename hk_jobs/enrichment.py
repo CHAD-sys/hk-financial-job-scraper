@@ -339,11 +339,13 @@ class EnrichmentPipeline:
         # ADR 0034: estimation never targets a Role that isn't on the board.
         # board_visible_sql() is the exact predicate webapp/backend/job_read.py's
         # BOARD_WHERE uses — is_active, is_primary, not admin_hidden, posted
-        # within the last month — so the two cannot drift the way they did when
-        # only the read side had a definition: a $5.24 bulk run once spent 66%
-        # of its budget on duplicate copies of a cross-posted vacancy, postings
-        # over a month old, and rows with no posting date at all, none of which
-        # a Seeker could ever have seen.
+        # within the last month, and (ADR 0035) among the freshest 60 Roles for
+        # its employer — so the two cannot drift the way they did when only the
+        # read side had a definition: a $5.24 bulk run once spent 66% of its
+        # budget on duplicate copies of a cross-posted vacancy, postings over a
+        # month old, and rows with no posting date at all, none of which a
+        # Seeker could ever have seen. The per-company cap (ADR 0035) brought
+        # the pool from ~3,250 to ~2,100 so a nightly run can cover all of it.
         board_filter = board_visible_sql()
         sql = f"""
             SELECT j.source, j.source_id, j.title, j.company, j.company_slug,

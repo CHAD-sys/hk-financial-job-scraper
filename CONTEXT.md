@@ -46,12 +46,15 @@ not establish a FinEx session)
 
 **Board**:
 What a Seeker browses and searches. A Role reaches the board if it is open,
-primary, not Hidden, and posted within the last calendar month — every Role
-meeting that, not a further-curated subset. ADR 0032 shrank it to a sector-fair
-freshest slice for a day; ADR 0033 reverted that once it turned out to hide as
-many genuinely-open Roles as it addressed. The headline "live roles" figure
-counts the same window, Hidden Roles included — hiding one must not move the
-number a visitor first sees. See `docs/adr/0032` and `docs/adr/0033`.
+primary, not Hidden, posted within the last calendar month, AND among the
+freshest 60 Roles for its employer (ADR 0035 — `BOARD_COMPANY_CAP`, newest
+first). The cap took the board from ~3,250 to ~2,100 so the nightly enrichment
+covers every visible Role; it trims only ~26 mega-posters' oldest Roles, and a
+capped-out Role stays open and reachable by reference. ADR 0032 tried a
+per-*sector* cap + 6-month window and ADR 0033 reverted that same day. The
+headline "live roles" figure counts open + primary + one month, Hidden Roles
+included and **uncapped** — hiding a Role or capping the board must not move the
+number a visitor first sees. See `docs/adr/0032`, `0033`, `0035`.
 _Avoid_: catalogue (the whole stored set, including Closed and out-of-window Roles)
 
 **Role**:
@@ -94,8 +97,8 @@ switch is audited. Used to bury an individual stale-looking or off-topic Listing
 an Employer asked us to pull. The pipeline's own six-month sweep (retiring a Listing
 posted that long ago entirely, `hk_jobs.storage.deactivate_aged_out`) is a separate,
 automatic mechanism — Hidden is the manual one, for a single Role a human looked at.
-Only Ultimate Admin can see a Hidden Role at all (see `docs/adr/0032`); the board itself
-is the full one-month catalogue again (`docs/adr/0033`).
+Only Ultimate Admin can see a Hidden Role at all (see `docs/adr/0032`); the board is the
+one-month catalogue capped at 60 Roles per employer (`docs/adr/0033`, `docs/adr/0035`).
 _Avoid_: unpublished, suppressed, removed, blacklisted, invisible (the state, not the UI word)
 
 **Alert**:

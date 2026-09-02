@@ -278,6 +278,64 @@ def test_board_hides_roles_posted_more_than_one_calendar_month_ago(tmp_path):
     assert set(addressed_ids) == {"BOUNDARY", "STALE", "FRESH"}
 
 
+def _company_cap_db(tmp_path):
+    """One mega-poster with more Roles than BOARD_COMPANY_CAP, plus a small
+    employer well under it — all open and inside the 1-month window (minutes
+    apart, so >60 for one employer still fit)."""
+    from datetime import datetime, timedelta, timezone
+
+    from hk_jobs.board_visibility import BOARD_COMPANY_CAP
+
+    now = datetime.now(timezone.utc)
+
+    def ago(m: int) -> str:
+        return (now - timedelta(minutes=m)).isoformat()
+
+    db = tmp_path / "company-cap.db"
+    rows = []
+    for i in range(BOARD_COMPANY_CAP + 5):  # 5 over the cap; BIG000 newest
+        rows.append(job(source="jobsdb", source_id=f"BIG{i:03d}", company="Bank of China (HK)",
+                        company_slug="bochk", title=f"Analyst {i}", posted_at=ago(i + 1)))
+    for i in range(3):
+        rows.append(job(source="jobsdb", source_id=f"SMALL{i:02d}", company="Tiny Boutique",
+                        company_slug="tiny-boutique", title=f"Associate {i}", posted_at=ago(i + 1)))
+    make_jobs_db(db, jobs=rows)
+    return db, BOARD_COMPANY_CAP
+
+
+def test_board_caps_each_employer_newest_first_but_leaves_small_employers_whole(tmp_path):
+    """ADR 0035: an employer shows at most BOARD_COMPANY_CAP Roles on the board,
+    the freshest ones; the capped-out Roles stay open and addressable."""
+    db, cap = _company_cap_db(tmp_path)
+    connection = prepare(sqlite3.connect(db))
+    try:
+        board_ids = _ids(list_jobs(connection, JobFilters(), page_size=500).jobs)
+        addressed_ids = _ids(list_jobs(connection, JobFilters(), page_size=500,
+                                       visibility=Visibility.ADDRESSABLE).jobs)
+    finally:
+        connection.close()
+
+    big_on_board = sorted(i for i in board_ids if i.startswith("BIG"))
+    # days_ago(i+1): BIG000 is newest. Exactly the freshest `cap` survive.
+    assert big_on_board == [f"BIG{i:03d}" for i in range(cap)]
+    assert sum(i.startswith("SMALL") for i in board_ids) == 3
+    # The 5 capped-out Roles are still open, just off the browse board.
+    dropped = {f"BIG{i:03d}" for i in range(cap, cap + 5)}
+    assert dropped.isdisjoint(board_ids)
+    assert dropped <= set(addressed_ids)
+
+
+def test_board_total_reflects_the_company_cap(tmp_path):
+    """Every board-side count derives from BOARD_WHERE, so `total` drops with it."""
+    db, cap = _company_cap_db(tmp_path)
+    connection = prepare(sqlite3.connect(db))
+    try:
+        res = list_jobs(connection, JobFilters(), page_size=10)
+    finally:
+        connection.close()
+    assert res.total == cap + 3  # capped mega-poster + the 3 uncapped
+
+
 def test_board_hides_admin_hidden_roles_but_keeps_them_addressable(tmp_path):
     """ADR 0032: the Hidden state removes a Role from the board without closing
     it — still reachable by reference, still `is_active`."""

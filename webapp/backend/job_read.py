@@ -129,16 +129,17 @@ def has_research_scope(query: Optional[str]) -> bool:
     return len((query or "").strip()) >= MIN_RESEARCH_QUERY_LENGTH
 
 
-#: ADR 0033 reverted ADR 0032's sector-fair freshness cap and 6-month window:
-#: shrinking the board to a curated slice (~1,280 of ~2,750) turned out to hide
-#: roughly as many Roles as it left un-enriched, for no offsetting benefit — the
-#: cure was worse than the problem. The board is the full catalogue again, one
-#: calendar month from posting — `hk_jobs.board_visibility.board_visible_sql()`,
-#: the SAME function `hk_jobs.enrichment._fetch_unenriched` filters on (ADR
-#: 0034: estimation never targets a Role that isn't on the board). The only
-#: thing ADR 0032 leaves behind here is `admin_hidden` — still excluded from
-#: the public board; Ultimate Admin can still pull it back into view (see
-#: docs/adr/0032's "Who may see a hidden Role" section).
+#: The board is: open, primary, not admin-hidden, posted within one calendar
+#: month, AND — ADR 0035 — among the freshest `BOARD_COMPANY_CAP` (60) Roles for
+#: its employer. History: ADR 0032 tried a sector-fair cap + 6-month window and
+#: ADR 0033 reverted it the same day (it hid Roles for no gain, and enrichment
+#: had no board-aware selection to track it). ADR 0034 then wired enrichment to
+#: this exact predicate, and ADR 0035 adds the per-company cap on top: the board
+#: had drifted to ~3,250 Roles — more than the nightly DeepSeek run enriches —
+#: with a handful of mega-posters (Bank of China ~300, HKEX ~220) driving the
+#: bulk. Capping every employer at 60 brings the board to ~2,100, a size the
+#: nightly run covers in full, and both sides move together because they call
+#: one function (`hk_jobs.board_visibility.board_visible_sql()`).
 #:
 #: The one public BOARD predicate. Every board-facing count derives from it — the
 #: list, `total`/`total_pages`, the "Showing N" line, the filter facets,
@@ -160,10 +161,12 @@ _VISIBILITY_SQL: dict[Visibility, Optional[str]] = {
 }
 
 #: The "X live roles" headline figure — About page, landing pages, search hero,
-#: bare /jobs. Since ADR 0033, this is the same window as `BOARD_WHERE` again;
-#: the one remaining difference is that this counts admin-hidden Roles and
-#: BOARD_WHERE does not — hiding a Role must not move the headline number.
-#: Reached only through `live_count_where`; nothing else may use it.
+#: bare /jobs. Deliberately NOT the board predicate: it counts every open,
+#: primary, in-window Role — admin-hidden ones included (hiding a Role must not
+#: move the headline number) and with NO per-employer cap (ADR 0035), so
+#: capping the board down does not move the number a visitor first sees. Same
+#: split ADR 0032 established and the owner endorsed. Reached only through
+#: `live_count_where`; nothing else may use it.
 LIVE_COUNT_WHERE = (
     "j.is_active = 1 AND j.is_primary = 1 "
     "AND date(j.posted_at) >= date('now', '-1 month')"
@@ -220,10 +223,11 @@ def live_count_where(audience: CatalogueAudience) -> str:
     plus the same audience scoping `scope_where` applies, and nothing else.
 
     A second, narrower predicate rather than a `scope_where` call on purpose
-    (docs/adr/0032): the board is now a curated slice, but the number a visitor
-    first sees should keep counting "open, primary, posted this month" —
-    admin-hidden Roles included, no sector cap — so curating the board down does
-    not move it. Takes no `conn`: there is no search-scoped variant.
+    (docs/adr/0032, docs/adr/0035): the board is a curated slice again — capped
+    per employer — but the number a visitor first sees should keep counting
+    "open, primary, posted this month" — admin-hidden Roles included, no
+    per-employer cap — so curating the board down does not move it. Takes no
+    `conn`: there is no search-scoped variant.
     """
     audience_sql = (
         f" AND {PUBLIC_AUDIENCE_WHERE}" if audience == CatalogueAudience.PUBLIC else ""
@@ -1181,9 +1185,12 @@ def salary_audit_rows(
     resolve_admin: Callable[[str], Optional[dict]],
 ) -> SalaryAuditResponse:
     """
-    ASF's row source: the whole catalogue plus the salary-audit filters, the
-    priced coordinate, and the latest correction (if any) with the acting
-    admin's identity resolved.
+    ASF's row source: the board (`Visibility.BOARD` — open, primary, in-window,
+    and since ADR 0035 capped at 60 per employer, the same set enrichment
+    prices) plus the salary-audit filters, the priced coordinate, and the
+    latest correction (if any) with the acting admin's identity resolved. A
+    Role off the board is corrected by reference, not browsed here — matching
+    ADR 0034: we audit the salaries we actually estimate.
 
     `resolve_admin` is injected — jobs.db and seekers.db are separate files
     (ADR 0006), so `admin_salary_corrections.seeker_id` cannot be joined in

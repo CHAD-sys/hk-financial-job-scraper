@@ -21,6 +21,7 @@ the fixtures do not cover (a second database, an odd bundle layout).
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import sys
 from datetime import date, timedelta
@@ -54,6 +55,7 @@ _JOB_DEFAULTS: dict[str, Any] = {
     "source": "workday",
     "source_id": "X",
     "company": "HSBC",
+    "company_slug": "hsbc",
     "url": "https://example.test/x",
     "title": "Analyst",
     "description_clean": "",
@@ -99,6 +101,7 @@ CREATE TABLE jobs (
     source          TEXT NOT NULL,
     source_id       TEXT NOT NULL,
     company         TEXT NOT NULL,
+    company_slug    TEXT NOT NULL DEFAULT '',
     url             TEXT NOT NULL,
     title           TEXT NOT NULL,
     description_clean TEXT NOT NULL DEFAULT '',
@@ -150,8 +153,16 @@ CREATE TABLE job_enrichments (
 
 
 def job(**over: Any) -> dict[str, Any]:
-    """A jobs row: defaults, overridden by whatever the test states."""
-    return {**_JOB_DEFAULTS, **over}
+    """A jobs row: defaults, overridden by whatever the test states.
+
+    `company_slug` (the per-employer cap's partition key, ADR 0035) defaults to
+    a slug of whatever `company` the test gave, so two differently-named
+    employers in one fixture stay distinct without every call spelling it out.
+    """
+    row = {**_JOB_DEFAULTS, **over}
+    if "company_slug" not in over:
+        row["company_slug"] = re.sub(r"[^a-z0-9]+", "-", row["company"].lower()).strip("-")
+    return row
 
 
 def enrichment(**over: Any) -> dict[str, Any]:

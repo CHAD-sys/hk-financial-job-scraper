@@ -20,11 +20,11 @@ on:
           - enrich_only
           - repair
       enrich_limit:
-        description: "Override DEEPSEEK_DAILY_ENRICH_LIMIT for this run (blank = keep 250). Use to clear an enrichment backlog in one pass."
+        description: "Override DEEPSEEK_DAILY_ENRICH_LIMIT for this run (blank = keep 500). Use to clear an enrichment backlog in one pass."
         required: false
         default: ""
       enrich_budget:
-        description: "Override DEEPSEEK_RUN_BUDGET_USD for this run in dollars (blank = keep 2.00). Raise alongside enrich_limit — the limit is only a proxy, this is the real cap."
+        description: "Override DEEPSEEK_RUN_BUDGET_USD for this run in dollars (blank = keep 4.00). Raise alongside enrich_limit — the limit is only a proxy, this is the real cap."
         required: false
         default: ""
 
@@ -59,36 +59,29 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-      # A ceiling on Roles enriched per run, not a budget. It becomes a starvation
-      # risk whenever the backlog exceeds it, because the enricher selects
-      # `ORDER BY j.fetched_at DESC LIMIT <this>` — newest first. At 300, a night
-      # that brought in 300+ un-enriched Roles pushed the older ones further down
-      # every subsequent night, and they were never reached again. 569 Roles on
-      # production had no enrichment row at all, so no `description_summary`, and
-      # the read path used to fall back to publishing the employer's own text.
+      # A ceiling on Roles enriched per run, not a budget. It is a starvation
+      # risk whenever the nightly intake of un-enriched Roles exceeds it: the
+      # enricher takes the newest first (`ORDER BY j.fetched_at DESC LIMIT
+      # <this>`), so anything past the limit is pushed down every subsequent
+      # night and never reached. Set it above the intake and the backlog drains.
       #
-      # 1200 clears that 569 backlog in one run and still leaves room for a
-      # night's intake (recent runs: 372-806 Roles). The bill is bounded by
-      # construction, not by hope: LIMIT caps rows at 1200, enrichers/deepseek.py
-      # retries at most 3 times per Role and then gives up, and one Role is one
-      # call — so at the observed $0.00193/Role this phase cannot exceed
-      # 1200 x 3 x $0.00193 = $6.95, and costs ~$1.10-2.30 in practice.
-      #
-      # Safe to drop back to 300 once the backlog is clear, but leaving headroom
-      # above the nightly intake is what stops the starvation recurring.
-      # 1200 with thinking mode ON is what produced $6.31 on 2026-08-16 and
-      # ~$5.80 on 08-17 (real billing dashboard, not our own estimate — that
-      # ledger under-reports by ~5-10x). Observed cost with thinking is roughly
-      # $0.006-0.008 per Role, so 1200 Roles is a $7-10 night.
-      # 250 keeps an ordinary night near $1.50-2.00. The backlog is not lost:
-      # enrichment selects on prompt_version, so whatever is skipped is picked
-      # up by the following run.
+      # 500 / $4.00 since ADR 0035. The board is capped at ~60 Roles per employer
+      # now (~2,100 total) and new board Roles arrive at ~110-130/night, so
+      # 500/night is ~4x the intake — it clears a standing backlog in a few
+      # nights and then holds the whole board at full salary + summary coverage,
+      # which is the point of the cap. Cost with thinking mode ON is roughly
+      # $0.006-0.008/Role (real billing dashboard; our own ai_usage ledger
+      # under-reports ~5-10x), so a 500-Role night is ~$3-4. The bill is bounded
+      # by construction: LIMIT caps the rows, deepseek.py retries at most 3x per
+      # Role, one Role is one call — and DEEPSEEK_RUN_BUDGET_USD below is the
+      # hard in-process stop regardless. Nothing skipped is lost: enrichment
+      # selects on prompt_version, so the next run picks it up.
       # A manual dispatch may override both for a one-off backlog-clearing run
-      # (enrich_limit / enrich_budget inputs); a scheduled run always uses 250 / 2.00.
-      DEEPSEEK_DAILY_ENRICH_LIMIT: ${{ (github.event_name == 'workflow_dispatch' && inputs.enrich_limit) || '250' }}
+      # (enrich_limit / enrich_budget inputs); a scheduled run uses 500 / 4.00.
+      DEEPSEEK_DAILY_ENRICH_LIMIT: ${{ (github.event_name == 'workflow_dispatch' && inputs.enrich_limit) || '500' }}
       # Hard stop in dollars, enforced in-process by hk_jobs/ai_budget.py. The
       # Role limit above is only a proxy for cost; this is the actual cap.
-      DEEPSEEK_RUN_BUDGET_USD: ${{ (github.event_name == 'workflow_dispatch' && inputs.enrich_budget) || '2.00' }}
+      DEEPSEEK_RUN_BUDGET_USD: ${{ (github.event_name == 'workflow_dispatch' && inputs.enrich_budget) || '4.00' }}
       PIPELINE_SYNC_TOKEN: ${{ secrets.PIPELINE_SYNC_TOKEN }}
       PIPELINE_DATABASE_SYNC_URL: https://finex-careers.up.railway.app/api/admin/pipeline/database
       PIPELINE_OPERATIONS_URL: https://finex-careers.up.railway.app/api/admin/pipeline/operations
