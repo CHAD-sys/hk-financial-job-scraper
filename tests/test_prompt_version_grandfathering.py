@@ -39,7 +39,11 @@ CREATE TABLE jobs (
     is_primary INTEGER DEFAULT 1, admin_hidden INTEGER DEFAULT 0, posted_at TEXT
 );
 CREATE TABLE job_enrichments (
-    source TEXT, source_id TEXT, prompt_version TEXT, manually_edited_at TEXT
+    source TEXT, source_id TEXT, prompt_version TEXT, manually_edited_at TEXT,
+    -- ADR 0036: _fetch_unenriched also selects a Role carrying NO salary figure,
+    -- whatever its prompt_version. Rows here default to "already priced" so the
+    -- staleness tests below keep testing staleness and nothing else.
+    salary_estimated_min INTEGER DEFAULT 40000, salary_hkd_min INTEGER
 );
 """
 
@@ -52,7 +56,7 @@ def conn():
     return connection
 
 
-def _add(conn, source_id, *, version="__missing__", pinned=None):
+def _add(conn, source_id, *, version="__missing__", pinned=None, priced=40_000):
     from datetime import UTC, datetime
 
     posted_at = datetime.now(UTC).isoformat()  # always inside the 1-month board window
@@ -63,8 +67,9 @@ def _add(conn, source_id, *, version="__missing__", pinned=None):
     )
     if version != "__missing__":
         conn.execute(
-            "INSERT INTO job_enrichments VALUES ('jobsdb',?,?,?)",
-            (source_id, version, pinned),
+            "INSERT INTO job_enrichments (source, source_id, prompt_version, "
+            "manually_edited_at, salary_estimated_min) VALUES ('jobsdb',?,?,?,?)",
+            (source_id, version, pinned, priced),
         )
 
 
@@ -140,6 +145,47 @@ def test_a_deterministic_rule_change_selects_an_old_unpinned_estimate(conn, monk
     assert "old-rule-result" in _selected(conn)
 
 
-def test_classification_recalibration_does_not_grandfather_legacy_estimates():
-    """v14 must reach old active Roles; it changes coordinate selection itself."""
-    assert salary.ACCEPTED_PRIOR_VERSIONS == frozenset()
+def test_an_unpriced_role_is_selected_whatever_its_prompt_version(conn):
+    """ADR 0036's other half. A Role carrying NO salary figure is always a
+    candidate again — even on the CURRENT version, even on a grandfathered one.
+
+    RED before ADR 0036: the 1,024 board Roles the coordinate-only gate left
+    unpriced all held a current prompt_version, so every staleness arm said
+    "nothing to do" and the only way to reach them was a full --re-enrich that
+    would also re-bill the ~13,000 rows that were fine."""
+    _add(conn, "unpriced-current", version=PROMPT_VERSION, priced=None)
+    assert "unpriced-current" in _selected(conn)
+
+    old = "prompt-v-old"
+    conn.execute("DELETE FROM jobs")
+    conn.execute("DELETE FROM job_enrichments")
+    _add(conn, "unpriced-grandfathered", version=old, priced=None)
+    assert "unpriced-grandfathered" in _selected(conn)
+
+
+def test_a_priced_role_on_a_grandfathered_version_is_left_alone(conn, monkeypatch):
+    """The pairing that makes ADR 0036's fix cheap: it reaches the Roles it was
+    written for (unpriced) and no others (priced, on a listed version)."""
+    old = "prompt-v-old"
+    monkeypatch.setattr(salary, "ACCEPTED_PRIOR_VERSIONS", frozenset({old}))
+    _add(conn, "priced-and-grandfathered", version=old, priced=40_000)
+    assert "priced-and-grandfathered" not in _selected(conn)
+
+
+def test_every_live_prompt_version_is_grandfathered():
+    """ADR 0036 re-populates this list, reversing v14's empty set.
+
+    The fix that made it necessary lands inside `finalise`, which
+    `_clamp_logic_fingerprint` hashes — so PROMPT_VERSION moves and would
+    otherwise mark all ~13,000 stored estimates stale. Nothing is lost: a Role
+    that already carries a figure does not need the fix, and one that does not
+    is reached by the "no salary figure" arm above regardless of its version.
+    """
+    assert salary.ACCEPTED_PRIOR_VERSIONS, "ADR 0036 grandfathers the live versions"
+    # Read off the published catalogue, never computed locally: the AST-based
+    # clamp fingerprint differs between Python versions, so a developer's
+    # PROMPT_VERSION is not the CI runner's. See salary.ACCEPTED_PRIOR_VERSIONS.
+    assert all(
+        v.startswith("2026-07-21-v10-merged-3source-granular-prefix-cached")
+        for v in salary.ACCEPTED_PRIOR_VERSIONS
+    )
