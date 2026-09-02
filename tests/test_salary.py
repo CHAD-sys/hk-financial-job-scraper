@@ -350,3 +350,46 @@ def test_the_enricher_stamps_the_derived_version():
 
     assert deepseek.PROMPT_VERSION == salary.version(deepseek._MODEL, deepseek._SALARY_INSTRUCTIONS)
     assert salary.MANUAL_TAG in deepseek.PROMPT_VERSION
+
+
+# ── docs/adr/0037 — the partial coordinate ───────────────────────────────────
+
+def test_a_partial_coordinate_prices_from_the_seniority_row():
+    """RED before ADR 0037: (tier, role) with no grade returned (None, None).
+    30 Roles in the 2026-09-02 run returned exactly that shape and got nothing."""
+    lo, hi = salary.finalise(
+        None, None, tier="middle_office", role="compliance_banking", grade=None,
+        seniority="mid", coordinate_only=True,
+    )
+    assert (lo, hi) == salary_clamp._role_band("middle_office", "compliance_banking", "mid")
+    assert lo is not None and lo < hi
+
+
+def test_an_exact_coordinate_still_beats_the_partial_one():
+    """The grade row is the tighter, better answer and must keep winning."""
+    exact = salary.finalise(
+        None, None, tier="middle_office", role="product_management", grade="Analyst",
+        seniority="junior", coordinate_only=True,
+    )
+    partial = salary.finalise(
+        None, None, tier="middle_office", role="product_management", grade=None,
+        seniority="junior", coordinate_only=True,
+    )
+    assert exact[1] - exact[0] <= partial[1] - partial[0]
+
+
+def test_a_ladder_wide_envelope_is_refused_rather_than_published():
+    """`compliance_banking` spans 21,500-200,000 across its whole ladder. Without
+    a seniority to narrow it, that is noise wearing a number's clothes."""
+    assert salary_clamp.price_from_role_envelope("middle_office", "compliance_banking") is None
+    assert salary.finalise(
+        None, None, tier="middle_office", role="compliance_banking", grade=None,
+        seniority=None, coordinate_only=True,
+    ) == (None, None)
+
+
+def test_a_role_that_is_not_in_the_table_prices_nothing():
+    assert salary.finalise(
+        None, None, tier="middle_office", role="not_a_real_role", grade=None,
+        seniority="mid", coordinate_only=True,
+    ) == (None, None)

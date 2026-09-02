@@ -491,6 +491,65 @@ def price_from_coordinate(tier: str | None, role: str | None, grade: str | None)
     return int(band[0]), int(band[1])
 
 
+#: A partial coordinate's envelope is rejected past this width (docs/adr/0037).
+#: Uppercase, so `salary._clamp_rule_state()` fingerprints it like every other
+#: clamp rule and a change to it invalidates stored estimates.
+MAX_ENVELOPE_WIDTH_RATIO = 3.0
+
+
+def price_from_role_envelope(tier: str | None, role: str | None) -> tuple[int, int] | None:
+    """The full published range of a role's ladder — its lowest grade's floor to
+    its highest grade's ceiling — or None.
+
+    A PARTIAL coordinate (docs/adr/0037). `price_from_coordinate` above needs all
+    three parts and is the exact answer; this is the honest wider one for a
+    posting the enricher could place in a role but not on a specific grade row.
+    30 Roles in the 2026-09-02 run returned exactly that and were stored with no
+    salary at all, which serves a Seeker worse than a real — if wide — published
+    range for the right job family.
+
+    Deliberately NOT a substitute for the exact cell: `clamp_salary` uses it only
+    when `price_from_coordinate` returns None, and INTERSECTS it with any
+    estimate already in hand rather than replacing one. Every number still comes
+    from the anchor table; nothing here is inferred.
+    """
+    if not tier or not role:
+        return None
+    ladder = _TABLES.get(tier, {}).get("roles", {}).get(role) or {}
+    lows = [band[0] for band in ladder.values()
+            if isinstance(band, list) and len(band) == 2 and band[0] and band[1]]
+    highs = [band[1] for band in ladder.values()
+             if isinstance(band, list) and len(band) == 2 and band[0] and band[1]]
+    if not lows or not highs:
+        return None
+    low, high = int(min(lows)), int(max(highs))
+    # A whole ladder can span junior to Head — compliance_banking is
+    # 21,500-200,000 and tax is 22,000-300,000. Published as an estimate that is
+    # not information, it is noise wearing a number's clothes, and a Seeker is
+    # better served by an honest blank. Real grade rows in this table run about
+    # 1.4-1.7x wide, so anything past 3x is a ladder, not a band.
+    if high > low * MAX_ENVELOPE_WIDTH_RATIO:
+        return None
+    return low, high
+
+
+def price_from_partial_coordinate(
+    tier: str | None, role: str | None, seniority: str | None
+) -> tuple[int, int] | None:
+    """The band for a coordinate that names a role but no grade row.
+
+    Tries the seniority-mapped grade row first — `mid` on `compliance_banking`
+    is 50,000-75,000, against a 21,500-200,000 envelope for the same role — and
+    only falls back to the role's whole range when that mapping does not resolve
+    (about half the ladders use idiosyncratic grade labels the four-value
+    `seniority` field cannot address).
+
+    One definition, called by both `clamp_salary` and `salary.finalise`, so the
+    "is there anything to price?" test and the pricing itself cannot disagree.
+    """
+    return _role_band(tier, role, seniority) or price_from_role_envelope(tier, role)
+
+
 def _role_ceiling(tier: str | None, role: str | None, seniority: str | None) -> int | None:
     """Ceiling of the explicitly mapped grade row, or ``None``."""
     band = _role_seniority_band(tier, role, seniority)
@@ -1596,6 +1655,23 @@ def clamp_salary(
     # is harder evidence again, this time about company-specific pay grades a
     # generic cross-employer table cannot know.
     coordinate_band = None if internship else price_from_coordinate(tier, role, grade)
+    if (
+        coordinate_band is None
+        and not internship
+        and new_min is None
+        and new_max is None
+    ):
+        # Partial coordinate (docs/adr/0037): the role is known, the grade row is
+        # not. Fill the gap from the role's own published band rather than store
+        # nothing — 30 Roles in the 2026-09-02 run returned exactly this shape.
+        #
+        # Deliberately ONLY when there is no estimate at all. This rung exists to
+        # replace a blank, never to move a number: a role matched without a grade
+        # is weaker evidence than every ceiling and floor above, and letting it
+        # touch an existing figure would override the deliberate pass-through for
+        # roles whose ladder `_role_band` cannot resolve (see
+        # test_floor_raise_does_not_apply_to_idiosyncratic_fallback_roles).
+        coordinate_band = price_from_partial_coordinate(tier, role, seniority)
     if coordinate_band is not None:
         new_min, new_max = coordinate_band
         # Same re-capping as the floor raise above, and for the same reason: adopting

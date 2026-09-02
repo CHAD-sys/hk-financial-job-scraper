@@ -45,7 +45,12 @@ from pathlib import Path
 from typing import Any
 
 from hk_jobs import salary_anchors
-from hk_jobs.salary_clamp import clamp_salary, fix_salary_magnitude, price_from_coordinate
+from hk_jobs.salary_clamp import (
+    clamp_salary,
+    fix_salary_magnitude,
+    price_from_coordinate,
+    price_from_partial_coordinate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -100,9 +105,13 @@ def finalise(
     #
     # So refuse only when there is nothing to price FROM — neither a resolvable
     # coordinate nor any band from the model.
+    # docs/adr/0037 adds the middle rung: a (tier, role) with no grade prices
+    # from that role's own published envelope, so a partial classification is
+    # worth something instead of nothing.
     if (
         coordinate_only
         and price_from_coordinate(tier, role, grade) is None
+        and price_from_partial_coordinate(tier, role, seniority) is None
         and raw_min is None
         and raw_max is None
     ):

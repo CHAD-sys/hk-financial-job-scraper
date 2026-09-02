@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from hk_jobs.salary_context import build_salary_context
+from hk_jobs.salary_context import (
+    _DEFAULT_CANDIDATE_LIMIT,
+    build_salary_context,
+)
 
 
 def _coordinates(context):
@@ -15,7 +18,7 @@ def test_product_manager_gets_a_short_valid_product_candidate_set():
     )
 
     assert ("middle_office", "product_management") in _coordinates(context)
-    assert len(context.candidates) <= 8
+    assert len(context.candidates) <= _DEFAULT_CANDIDATE_LIMIT
     assert "dbs_sized_banks" in context.cohorts
     product = next(candidate for candidate in context.candidates if candidate.role == "product_management")
     assert "Senior Manager" in product.grades
