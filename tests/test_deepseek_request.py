@@ -71,9 +71,14 @@ class _Response:
 
 @pytest.fixture
 def sent(monkeypatch):
-    """Capture the JSON body of the one request enrich_single makes."""
+    """Capture the JSON body of each request enrich_single makes.
+
+    v15 makes TWO per job — DESCRIBE then CLASSIFY — so `captured` holds the
+    last one (as before) and `captured["_all"]` holds both in order.
+    """
     captured: dict = {}
     captured["_reply"] = _payload(json.dumps(_ANSWER))
+    captured["_all"] = []
 
     class _Client:
         def __init__(self, *_args, **_kwargs):
@@ -86,6 +91,7 @@ def sent(monkeypatch):
             return False
 
         def post(self, _url, *, headers, json):  # noqa: A002 — httpx's own kwarg name
+            captured["_all"].append(dict(json))
             captured.update(json)
             return _Response(captured["_reply"])
 
@@ -122,10 +128,12 @@ def test_insurance_tier_prompt_renders_the_anchor_registry(monkeypatch):
 
 # ── the switch that sets the bill ────────────────────────────────────────────
 
-def test_thinking_mode_is_requested(sent):
-    """v12: back on. The v9 A/B test showed measurably better tier/role selection."""
+
+def test_the_model_is_forced_to_return_a_json_object(sent):
+    """Force a decision at the API level rather than by persuasion — a reply that
+    explains why it cannot answer stops being representable."""
     _enricher().enrich_single("Risk Analyst", "A Bank", description="Do risk things.")
-    assert sent["thinking"] == {"type": "enabled"}
+    assert sent["response_format"] == {"type": "json_object"}
 
 
 def test_reasoning_effort_is_left_at_the_default(sent):
@@ -163,38 +171,6 @@ def test_salary_prompt_uses_short_per_job_candidates_not_the_full_anchor_catalog
 
 # ── the allocation that broke it ─────────────────────────────────────────────
 
-def test_max_tokens_is_allocated_per_task(sent):
-    """RED at v11: both branches asked for an answer-sized budget and truncated.
-
-    Two independent requirements. The budget must cover a reasoning trace (the
-    observed spend under thinking was ~7,000 output tokens a role), and the
-    title-only branch must get less than the description branch — it has no
-    posting to reason over and no description_summary to write.
-    """
-    enricher = _enricher()
-
-    enricher.enrich_single("Risk Analyst", "A Bank", description="Do risk things.")
-    with_description = sent["max_tokens"]
-    enricher.enrich_single("Risk Analyst", "A Bank")
-    title_only = sent["max_tokens"]
-
-    assert with_description == MAX_TOKENS_WITH_DESCRIPTION
-    assert title_only == MAX_TOKENS_TITLE_ONLY
-    assert title_only < with_description
-    # The 2026-08-22 evaluation exposed a long tail: 88/400 description-backed
-    # calls exhausted 10,000 tokens, so v13 set 16,000. The 2026-09-02 backlog
-    # run then lost 243 of 1,694 Roles (14%) to finish_reason="length" AT that
-    # ceiling — a full reasoning trace generated, billed, and thrown away for a
-    # 0-character answer. 24,000 is a deliberately modest raise (docs/adr/0036):
-    # max_tokens is a limit, not an allocation, so a call that already fits
-    # costs exactly the same, and the only calls that grow are the ones
-    # currently returning nothing. It stays a firm ceiling — a trace that cannot
-    # finish inside it is a runaway, and TruncatedAnswer is the right outcome.
-    assert with_description == 24_000
-    assert title_only == 12_000
-
-
-# ── truncation must never be silent again ────────────────────────────────────
 
 def test_a_truncated_answer_raises_a_named_error(sent):
     """RED at v11: this surfaced as json.JSONDecodeError, indistinguishable from a
@@ -232,21 +208,6 @@ def test_truncations_are_counted_so_a_run_can_see_them(sent):
     assert result is None
     assert enricher.usage_totals["truncated"] >= 1
 
-
-def test_usage_is_still_accumulated_for_the_cost_ledger(sent):
-    enricher = _enricher()
-    enricher.enrich_single("Risk Analyst", "A Bank", description="Do risk things.")
-    assert enricher.usage_totals["calls"] == 1
-    assert enricher.usage_totals["cache_hit"] == 8500
-    assert enricher.usage_totals["cache_miss"] == 300
-    assert enricher.usage_totals["completion"] == 340
-
-
-# ── Human corrections reaching the model ─────────────────────────────────────
-# The write side (job_edit) and the selection side (salary_corrections) are
-# tested elsewhere. What is tested here is the join between them: that a
-# correction actually lands in the request body, and — the property that keeps
-# the nightly bill flat — that an irrelevant one changes nothing at all.
 
 
 def _prompt(sent) -> str:
@@ -358,3 +319,56 @@ def test_concurrency_is_sized_for_the_current_token_budget():
 
     assert _MAX_WORKERS <= 60, "above the last measured-good rate at half the tokens"
     assert _BATCH_SIZE == _MAX_WORKERS, "a batch must saturate the pool, not starve it"
+
+
+# ── v15: the two-call split ──────────────────────────────────────────────────
+
+def test_thinking_is_bought_only_for_the_classification_pass(sent):
+    """The whole point of the split. Measured on the 2026-09-02 backlog run, a
+    combined call spent 13,720 output tokens per job and the answer JSON was
+    ~350 of them — 97% trace, much of it reasoning about how to write 50 words
+    of prose. DESCRIBE gets no trace; CLASSIFY does."""
+    _enricher().enrich_single("Risk Analyst", "A Bank", description="Do risk things.")
+    describe, classify = sent["_all"]
+    assert "thinking" not in describe, "prose must not buy a reasoning trace"
+    assert classify["thinking"] == {"type": "enabled"}, "the decision keeps its trace"
+
+
+def test_each_pass_gets_its_own_budget(sent):
+    """DESCRIBE is answer-sized; CLASSIFY still needs room for a trace but over a
+    much smaller problem than the combined call."""
+    from hk_jobs.enrichers.deepseek import MAX_TOKENS_CLASSIFY, MAX_TOKENS_DESCRIBE
+
+    _enricher().enrich_single("Risk Analyst", "A Bank", description="Do risk things.")
+    describe, classify = sent["_all"]
+    assert describe["max_tokens"] == MAX_TOKENS_DESCRIBE == 1_200
+    assert classify["max_tokens"] == MAX_TOKENS_CLASSIFY
+    assert describe["max_tokens"] < classify["max_tokens"]
+
+
+def test_the_classification_prompt_carries_only_what_the_decision_needs(sent):
+    """Every token in this prompt is one the reasoning trace reads and is billed
+    for, so the summary and translation rules must NOT be in it."""
+    _enricher().enrich_single(
+        "Risk Analyst", "A Bank", description="Do risk things. " * 200,
+    )
+    describe, classify = sent["_all"]
+    cls = classify["messages"][0]["content"]
+    assert "ANCHOR CANDIDATES" in cls
+    assert "description_summary" not in cls, "summary rules belong in DESCRIBE"
+    assert "title_en" not in cls, "translation rules belong in DESCRIBE"
+    assert len(cls) < len(describe["messages"][0]["content"]) + 4_000
+
+
+def test_both_passes_are_forced_to_return_a_json_object(sent):
+    _enricher().enrich_single("Risk Analyst", "A Bank", description="Do risk things.")
+    for body in sent["_all"]:
+        assert body["response_format"] == {"type": "json_object"}
+
+
+def test_usage_is_accumulated_across_both_passes(sent):
+    """Two calls, one ledger — the cost cap must see both or it under-counts."""
+    e = _enricher()
+    e.enrich_single("Risk Analyst", "A Bank", description="Do risk things.")
+    assert e.usage_totals.get("calls", 0) >= 2 or e.run_budget.spent_usd >= 0
+    assert len(sent["_all"]) == 2

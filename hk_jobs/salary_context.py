@@ -181,11 +181,13 @@ _DESCRIPTION_STRONG_TOKEN = 1
 #: appears in half of all finance boilerplate) but real evidence in a title
 #: ("Operations Officer"). This is what makes `operations_general` reachable.
 _TITLE_WEAK_TOKEN = 2
-#: 12, not 8 (docs/adr/0037). The model now picks a best fit rather than
-#: declining, so a slightly longer shortlist costs a little prompt and buys
-#: the correct role a place on it — several were being ranked 9th-12th by a
-#: boilerplate phrase hit and cut off.
-_DEFAULT_CANDIDATE_LIMIT = 12
+#: 5. It went 8 -> 12 while retrieval was still mis-ranking and the right role
+#: could sit 9th. With scoring fixed the chosen role lands in the top three 77%
+#: of the time and beyond 12 only 3 times in 431, so the extra rows are noise a
+#: declining classifier has to wade through. A Sonnet-5 benchmark over 54 Roles
+#: never used a candidate below rank 3. Fewer, better options also cut the one
+#: part of the prompt that is NOT prefix-cached (the per-job block).
+_DEFAULT_CANDIDATE_LIMIT = 5
 
 #: One strong description token alone is not enough; two are — the same bar the
 #: original `title_hits + description_hits < 2` gate set.

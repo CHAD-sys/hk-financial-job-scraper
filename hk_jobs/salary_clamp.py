@@ -1029,6 +1029,22 @@ def _ambiguous_grade_match_count(title: str, patterns: list[str] | None = None) 
     return matches
 
 
+#: "Senior <anything> Consultant". Up to four words may sit between the two,
+#: which is what a Big Four specialist title looks like ("Senior Cloud Security
+#: Consultant"). Bounded so it cannot span a slash-separated grade menu.
+_SENIOR_CONSULTANT_RE = r"(?:\bsenior\b|\(\s*senior\s*\))(?:\s+[\w&-]+){0,4}\s+consultant\b"
+#: A SECURITY specialism at Big Four commands a premium over generic advisory at
+#: the same grade (owner calibration, docs/adr/0037 follow-up). Deliberately NOT
+#: "technology" or "digital": at a Big Four firm those name whole service lines
+#: ("Senior Consultant, Technology Consulting"), not a scarce specialism, and
+#: treating a whole practice as premium is exactly the over-reach
+#: test_big_four_shared_professional_services_bands_apply_to_every_firm pins.
+_TECH_SPECIALISM_RE = (
+    r"\b(?:cloud|cyber|cybersecurity|security|devsecops|infosec|"
+    r"penetration\s+testing|pentest|red\s+team)\b"
+)
+
+
 def big_four_grade_band(
     company_slug: str | None, title: str | None, *, professional_practice: bool = False,
 ) -> tuple[int, int, str] | None:
@@ -1066,8 +1082,16 @@ def big_four_grade_band(
     # can keep a deliberately broad range without false precision.
     elif _is_multi_grade_title(title):
         return None
-    elif re.search(r"\bsenior\s+consultant\b", title, re.I):
-        grade = "senior_consultant"
+    elif re.search(_SENIOR_CONSULTANT_RE, title, re.I):
+        # "Senior Cloud Security Consultant", "Senior Data Consultant" — the
+        # words are not adjacent, and requiring that graded every specialist
+        # senior consultant as a plain Consultant (20,000-33,000 instead of
+        # 40,000-55,000). A technology specialism carries its own row.
+        grade = (
+            "senior_consultant_technology"
+            if re.search(_TECH_SPECIALISM_RE, title, re.I)
+            else "senior_consultant"
+        )
     elif (
         re.search(r"\bforensic(?:s)?\b", title, re.I)
         and re.search(r"\bsenior\b", title, re.I)
@@ -1081,8 +1105,12 @@ def big_four_grade_band(
         return None
     elif re.search(r"\bsenior manager\b", title, re.I):
         grade = "senior_manager"
-    elif re.search(r"(?:\bsenior\b|\(\s*senior\s*\))\s+consultant\b", title, re.I):
-        grade = "senior_consultant"
+    elif re.search(_SENIOR_CONSULTANT_RE, title, re.I):
+        grade = (
+            "senior_consultant_technology"
+            if re.search(_TECH_SPECIALISM_RE, title, re.I)
+            else "senior_consultant"
+        )
     elif re.search(r"\bsenior associate\b|\bassistant manager\b", title, re.I):
         grade = "senior_associate_or_assistant_manager"
     elif re.search(r"\b(?:consultant|associate)\b", title, re.I):

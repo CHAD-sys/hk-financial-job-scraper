@@ -179,8 +179,26 @@ _DESC_MAX_CHARS = 2_000   # cap to keep prompt tight; descriptions are typically
 #: only the read is patient.
 _HTTP_TIMEOUT = httpx.Timeout(connect=10.0, read=240.0, write=30.0, pool=30.0)
 
-MAX_TOKENS_WITH_DESCRIPTION = 24_000
-MAX_TOKENS_TITLE_ONLY = 12_000
+#: Thinking mode. OFF since v15 — see the request body for the full argument and
+#: the v11 disaster it must not repeat. Env-overridable so a flip back needs no
+#: deploy: DEEPSEEK_THINKING=1.
+THINKING_ENABLED = os.getenv("DEEPSEEK_THINKING", "1") == "1"
+
+#: With thinking OFF these are answer-sized. 2,500 is over 3x v11's fatal 700 and
+#: leaves room for a long description_summary plus the coordinate. With thinking
+#: ON they must cover the reasoning trace too, so they revert to the v14 budgets.
+MAX_TOKENS_WITH_DESCRIPTION = 24_000 if THINKING_ENABLED else 2_500
+MAX_TOKENS_TITLE_ONLY = 12_000 if THINKING_ENABLED else 1_500
+
+#: DESCRIBE never thinks, so this is answer-sized (a summary plus a skills list).
+MAX_TOKENS_DESCRIBE = 1_200
+#: CLASSIFY thinks, but over a much smaller problem than the old combined call:
+#: five candidates and ~1,200 characters of posting instead of the whole task.
+MAX_TOKENS_CLASSIFY = 12_000 if THINKING_ENABLED else 900
+#: The decisive signals for a grade — title, opening responsibilities, years of
+#: experience — are at the top of a posting. Every extra character is one the
+#: reasoning trace reads and is billed for.
+CLASSIFY_DESC_MAX_CHARS = 1_200
 
 
 class TruncatedAnswer(RuntimeError):
@@ -716,6 +734,77 @@ STRICT rules:
 # and bills cache-hits at ~1/10th the input rate, so the large reference block costs
 # almost nothing marginal across a run. Do not reorder — putting job data first (the old
 # layout) silently disables the prefix cache and multiplies input cost.
+#: v15 TWO-CALL SPLIT. One thinking call used to produce the summary, the title
+#: translation, the skills AND the salary coordinate — so a reasoning trace was
+#: billed for writing 50 words of prose. Measured on the 2026-09-02 backlog run:
+#: 13,720 output tokens per call, of which the answer JSON is ~350. 97% of the
+#: bill was trace, and much of it was spent on tasks that need no reasoning.
+#:
+#: DESCRIBE runs with thinking OFF and a small budget: extraction and prose.
+#: CLASSIFY runs with thinking ON, sees only what the decision needs, and is told
+#: not to reason about anything else — so the trace we DO pay for is spent
+#: entirely on picking the anchor row, which is what the v9 A/B showed it is
+#: good for.
+_PROMPT_DESCRIBE = """\
+You extract structured data from Hong Kong job postings at financial firms. The posting
+appears at the END of this prompt. Return ONLY valid JSON, no markdown, in exactly this shape:
+{{
+  "title_en": "<English job title, see LANGUAGE rules below>",
+  "seniority": "junior|mid|senior|lead",
+  "years_experience": <integer or null>,
+  "skills": ["skill1", "skill2", ...],
+  "remote_type": "on-site|hybrid|remote",
+  "salary_hkd_min": <integer or null>,
+  "salary_hkd_max": <integer or null>,
+  "job_category": "Engineering|Finance|Operations|Sales|HR|Other",
+  "description_summary": "<short neutral English summary, see rules below>"
+}}
+
+Extract a DISCLOSED monthly BASE salary into salary_hkd_min/max only when the posting
+states one and it is genuinely base pay. Never treat commission, bonus, OTE, package or
+an "up to" earnings claim as base salary; for an upper-bound-only figure set
+salary_hkd_min null and salary_hkd_max to the stated cap. Do NOT estimate a salary —
+another step owns that entirely.
+
+{translation_instructions}
+
+{summary_instructions}
+
+======== POSTING ========
+Company: {company}
+Title: {title}
+Description:
+{description}"""
+
+
+#: Only what the coordinate decision needs. No summary rules, no translation
+#: rules, no skills — every token here is one the reasoning trace has to read.
+_PROMPT_CLASSIFY = """\
+You place one Hong Kong job posting on a published salary grid. Return ONLY valid JSON,
+no markdown, in exactly this shape:
+{{
+  "salary_tier": "front_office|commercial_corporate_banking|retail_banking|corporate_finance_accounting|middle_office|insurance|back_office_operations",
+  "salary_role": "<role_key copied from the candidate block, or null>",
+  "salary_grade": "<grade name copied from the candidate block, or null>",
+  "salary_estimated_confidence": "low|medium|high"
+}}
+
+REASON ONLY about which candidate below fits this posting. Do not reason about the
+summary, the skills, the title translation or anything else — they are already handled.
+Keep your reasoning short: this is a pick-one-from-a-short-list decision.
+
+{salary_instructions}
+
+======== POSTING ========
+Company: {company}
+Title: {title}
+Description:
+{description}
+
+======== ANCHOR CANDIDATES (classification only) ========
+{salary_context}"""
+
+
 _PROMPT_WITH_DESC = """\
 You extract structured data from Hong Kong job postings at financial firms. The posting
 appears at the END of this prompt. Return ONLY valid JSON, no markdown, in exactly this shape:
@@ -885,44 +974,61 @@ class DeepSeekEnricher:
         seniority: str | None = None,
         company_slug: str | None = None,
     ) -> dict[str, Any]:
-        """Single API call. Raises on error."""
+        """Two calls (v15): DESCRIBE without thinking, CLASSIFY with it.
+
+        Merged into the single dict every caller already expects, so nothing
+        downstream of the enricher changes.
+        """
         company = company or "(unknown)"
-        # Appended to the salary instructions rather than formatted into the
-        # prompt template as its own slot: PROMPT_VERSION hashes
-        # _SALARY_INSTRUCTIONS, and this block is per-JOB. Baking it into the
-        # module-level constant would make the stored version churn with every
-        # admin correction and re-bill the back catalogue each time — the exact
-        # failure hk_jobs/salary_corrections.py's docstring exists to avoid.
-        # `evidence_for` returns "" when nothing is relevant, so the common case
-        # is a prompt byte-identical to the one this built before.
-        salary_instructions = _SALARY_INSTRUCTIONS + salary_corrections.evidence_for(
-            self.salary_corrections, title=title, seniority=seniority,
-        )
         context = build_salary_context(
-            title=title,
-            description=description,
-            company_slug=company_slug,
+            title=title, description=description, company_slug=company_slug,
         )
-        salary_context = context.render()
-        if description.strip():
-            desc_text = description.strip()[:_DESC_MAX_CHARS]
-            prompt = _PROMPT_WITH_DESC.format(
-                company=company, title=title, description=desc_text,
+        data = self._describe(title, company, description)
+        data.update(self._classify(title, company, description, context, seniority))
+        return self._adopt_top_candidate(data, context, title)
+
+    def _describe(self, title: str, company: str, description: str) -> dict[str, Any]:
+        """Extraction and prose. No reasoning trace is bought for this."""
+        desc = description.strip()[:_DESC_MAX_CHARS]
+        if desc:
+            prompt = _PROMPT_DESCRIBE.format(
+                company=company, title=title, description=desc,
                 translation_instructions=_TRANSLATION_INSTRUCTIONS,
-                salary_instructions=salary_instructions,
                 summary_instructions=_SUMMARY_INSTRUCTIONS,
-                salary_context=salary_context,
             )
-            max_tokens = MAX_TOKENS_WITH_DESCRIPTION
         else:
             prompt = _PROMPT_TITLE_ONLY.format(
                 company=company, title=title,
                 translation_instructions=_TRANSLATION_INSTRUCTIONS,
-                salary_instructions=salary_instructions,
-                salary_context=salary_context,
+                salary_instructions=_SALARY_INSTRUCTIONS,
+                salary_context="(no description; classification runs separately)",
             )
-            max_tokens = MAX_TOKENS_TITLE_ONLY
+        return self._call(prompt, MAX_TOKENS_DESCRIBE, thinking=False, title=title)
 
+    def _classify(
+        self, title: str, company: str, description: str, context: Any,
+        seniority: str | None = None,
+    ) -> dict[str, Any]:
+        """The one decision worth a reasoning trace: which anchor row is this?"""
+        # Per-JOB, so appended rather than formatted into the module-level
+        # constant PROMPT_VERSION hashes — see salary_corrections' docstring.
+        salary_instructions = _SALARY_INSTRUCTIONS + salary_corrections.evidence_for(
+            self.salary_corrections, title=title, seniority=seniority,
+        )
+        prompt = _PROMPT_CLASSIFY.format(
+            company=company, title=title,
+            description=description.strip()[:CLASSIFY_DESC_MAX_CHARS] or "(none given)",
+            salary_instructions=salary_instructions,
+            salary_context=context.render(),
+        )
+        return self._call(prompt, MAX_TOKENS_CLASSIFY,
+                          thinking=THINKING_ENABLED, title=title)
+
+    def _call(
+        self, prompt: str, max_tokens: int, *, thinking: bool, title: str,
+    ) -> dict[str, Any]:
+        """One request. Shared by both passes so budget, truncation handling and
+        usage accounting cannot drift between them."""
         # Refuse BEFORE spending, not after. A guard that only reports is a
         # receipt, not a cap.
         self.run_budget.check()
@@ -938,21 +1044,23 @@ class DeepSeekEnricher:
                     "model": _MODEL,
                     "messages": [{"role": "user", "content": prompt}],
                     "max_tokens": max_tokens,
-                    # v12: thinking back on. It was removed in v11 to stop paying for
-                    # reasoning traces, which was the right cost diagnosis and the wrong
-                    # cure — the v9 A/B test showed thinking picks tiers and roles
-                    # measurably better, and tier/role selection is what decides which
-                    # of the 471 anchor cells prices the job.
-                    "thinking": {"type": "enabled"},
-                    # reasoning_effort is deliberately OMITTED so it stays at the
-                    # default. "max" was tried in v9.2 and burned the whole DeepSeek
-                    # balance in ~9 minutes for no proven quality gain; the A/B test
-                    # that justified thinking ran at default effort, so default is the
-                    # validated setting, not a compromise.
+                    # Thinking is bought per PASS now, not per job: DESCRIBE never
+                    # gets it, CLASSIFY does. reasoning_effort stays OMITTED at its
+                    # default — "max" was tried in v9.2 and burned the balance in
+                    # ~9 minutes for no proven gain.
                     #
                     # temperature/top_p are NOT sent: DeepSeek silently ignores them
-                    # under thinking mode, and sending them implies a control we do not
-                    # have. Both are pinned by tests/test_deepseek_request.py.
+                    # under thinking mode, and sending them implies a control we do
+                    # not have. Pinned by tests/test_deepseek_request.py.
+                    # ALWAYS sent explicitly, never omitted. Omitting it does NOT
+                    # turn thinking off on deepseek-v4-flash: a 3-Role smoke test
+                    # of the v15 split had every DESCRIBE call burn its whole
+                    # 1,200-token budget on a trace and return content=0 chars.
+                    # That is the same 0-char symptom the v9 changelog describes,
+                    # and it would have wasted an entire backlog run.
+                    "thinking": {"type": "enabled" if thinking else "disabled"},
+                    # Force a decision at the API level rather than by persuasion.
+                    "response_format": {"type": "json_object"},
                 },
             )
 
@@ -972,33 +1080,23 @@ class DeepSeekEnricher:
         )
         choice = payload["choices"][0]
         message = choice["message"]
-        # Thinking mode returns this alongside `content`. Never persisted, but logged at
-        # DEBUG so a mis-tiered job's reasoning can be read back afterwards.
         reasoning = message.get("reasoning_content")
         if reasoning:
             logger.debug("Reasoning for %r: %s", title[:60], reasoning[:2000])
 
         text = (message.get("content") or "").strip()
-
-        # Truncation is checked BEFORE parsing, and is its own error. Two distinct
-        # symptoms, one cause — the output budget ran out:
-        #   * finish_reason "length" with a partial answer (what v11 produced), and
-        #   * empty content, which is what happens when the reasoning trace alone
-        #     consumes the whole budget (see the v9 changelog).
-        # Parsing first turns both into a generic JSONDecodeError, which is precisely
-        # how a two-day outage passed for ordinary flakiness.
+        # Truncation is checked BEFORE parsing, and is its own error: parsing
+        # first turns it into a generic JSONDecodeError, which is how a two-day
+        # outage once passed for ordinary flakiness.
         finish_reason = choice.get("finish_reason")
         if finish_reason == "length" or not text:
             self._note_truncation()
             raise TruncatedAnswer(
                 f"answer truncated at max_tokens={max_tokens} "
-                f"(finish_reason={finish_reason!r}, content={len(text)} chars). "
-                "The output budget is too small for a reasoning trace plus the answer — "
-                "see MAX_TOKENS_WITH_DESCRIPTION / MAX_TOKENS_TITLE_ONLY."
+                f"(finish_reason={finish_reason!r}, content={len(text)} chars)."
             )
-
         text = text.replace("```json", "").replace("```", "").strip()
-        return self._adopt_top_candidate(json.loads(text), context, title)
+        return json.loads(text)
 
     #: How good our OWN retrieval has to be before we override a declining model.
     #: 6 is one strong token matched in the TITLE — the posting's title literally

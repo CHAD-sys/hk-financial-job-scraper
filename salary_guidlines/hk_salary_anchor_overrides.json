@@ -80,7 +80,8 @@
       "policy": "When a guide coordinate has PERSOLKELLY or Adecco evidence, exclude Hays total-package evidence before merging. Preserve Hays only as a fallback when no package-free guide covers the coordinate.",
       "coordinate_count_before": 729,
       "coordinate_count_after": 729
-    }
+    },
+    "big_four_senior_consultant_technology_2026_09_03": "Owner-calibrated row for a Big Four SENIOR consultant in a technology specialism (cloud security, DevSecOps, cyber, data). The generic senior_consultant band (40,000-55,000) under-reads these: HK tech-advisory hires carry a premium over generic advisory at the same grade. Deliberately wider (1.44x) than a normal grade row because the premium varies by specialism. Provenance is OWNER CALIBRATION, not a published guide row - the same basis the big_four group's docstring already records for parts of this table. Added with the matcher fix that stopped 'Senior <specialism> Consultant' being graded as a plain Consultant (20,000-33,000)."
   },
   "tables_monthly_hkd": {
     "front_office": {
@@ -161,12 +162,6 @@
             171500
           ]
         },
-        "investment_management": {
-          "Senior Manager": [
-            70000,
-            90000
-          ]
-        },
         "hedge_fund_investment": {
           "Analyst": [
             35500,
@@ -211,6 +206,12 @@
           "Senior Investment Counsellor / Advisor": [
             128500,
             171500
+          ]
+        },
+        "investment_management": {
+          "Senior Manager": [
+            70000,
+            90000
           ]
         },
         "quantitative_analytics": {
@@ -568,10 +569,6 @@
             100000,
             150000
           ],
-          "Head of Department": [
-            100000,
-            150000
-          ],
           "Officer": [
             20000,
             40000
@@ -847,12 +844,6 @@
             200000
           ]
         },
-        "private_banking_business_management": {
-          "Manager": [
-            50000,
-            70000
-          ]
-        },
         "change_project_management": {
           "Officer": [
             21500,
@@ -957,6 +948,12 @@
             90000
           ]
         },
+        "private_banking_business_management": {
+          "Manager": [
+            50000,
+            70000
+          ]
+        },
         "asset_management_compliance": {
           "Analyst": [
             26500,
@@ -1011,12 +1008,6 @@
           "Head of Department": [
             49500,
             67000
-          ]
-        },
-        "exchange_clearing_operations": {
-          "AVP": [
-            50000,
-            80000
           ]
         },
         "payment_operation": {
@@ -1077,12 +1068,6 @@
           "Head of Department": [
             49000,
             78500
-          ]
-        },
-        "investment_operations": {
-          "Senior Manager": [
-            65000,
-            80000
           ]
         },
         "collateral_management": {
@@ -1214,25 +1199,23 @@
             60000,
             120000
           ]
+        },
+        "exchange_clearing_operations": {
+          "AVP": [
+            50000,
+            80000
+          ]
+        },
+        "investment_operations": {
+          "Senior Manager": [
+            65000,
+            80000
+          ]
         }
       }
     },
     "corporate_finance_accounting": {
       "roles": {
-        "strategy_business_consulting": {
-          "Consultant": [
-            45000,
-            65000
-          ],
-          "Senior Consultant": [
-            45000,
-            65000
-          ],
-          "Senior Associate": [
-            45000,
-            65000
-          ]
-        },
         "banking_industry_finance": {
           "Officer": [
             21000,
@@ -1417,6 +1400,20 @@
           "Assistant Audit Manager": [
             40000,
             50000
+          ]
+        },
+        "strategy_business_consulting": {
+          "Consultant": [
+            45000,
+            65000
+          ],
+          "Senior Consultant": [
+            45000,
+            65000
+          ],
+          "Senior Associate": [
+            45000,
+            65000
           ]
         },
         "treasury_corporate": {
@@ -2149,6 +2146,10 @@
         "forensics_senior": [
           40000,
           55000
+        ],
+        "senior_consultant_technology": [
+          45000,
+          65000
         ]
       },
       "evidence": {

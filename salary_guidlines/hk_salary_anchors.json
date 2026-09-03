@@ -85,7 +85,8 @@
       "policy": "When a guide coordinate has PERSOLKELLY or Adecco evidence, exclude Hays total-package evidence before merging. Preserve Hays only as a fallback when no package-free guide covers the coordinate.",
       "coordinate_count_before": 729,
       "coordinate_count_after": 729
-    }
+    },
+    "big_four_senior_consultant_technology_2026_09_03": "Owner-calibrated row for a Big Four SENIOR consultant in a technology specialism (cloud security, DevSecOps, cyber, data). The generic senior_consultant band (40,000-55,000) under-reads these: HK tech-advisory hires carry a premium over generic advisory at the same grade. Deliberately wider (1.44x) than a normal grade row because the premium varies by specialism. Provenance is OWNER CALIBRATION, not a published guide row - the same basis the big_four group's docstring already records for parts of this table. Added with the matcher fix that stopped 'Senior <specialism> Consultant' being graded as a plain Consultant (20,000-33,000)."
   },
   "tier_order_low_to_high": [
     "back_office_operations",
@@ -3747,6 +3748,10 @@
         "forensics_senior": [
           40000,
           55000
+        ],
+        "senior_consultant_technology": [
+          45000,
+          65000
         ]
       },
       "evidence": {
