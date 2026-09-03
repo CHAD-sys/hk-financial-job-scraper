@@ -861,6 +861,62 @@ _SORT_SQL: dict[Sort, str] = {
 }
 
 
+# ── Unpriced Roles rank last within their bucket (ADR 0038) ───────────────────
+# A card with no salary figure is the weakest card on the board, and enrichment
+# is a queue: a Role scraped tonight is priced within a night or two, not on
+# arrival. Under plain NEWEST that queue points the wrong way — the freshest
+# Roles, the ones page 1 is made of, are exactly the ones that have not been
+# priced yet (ADR 0035 measured 73% un-enriched among Roles posted in the last
+# two days). So the board opened on its own worst cards.
+#
+# The fix is an ordering rule, not a filter: an unpriced Role is still on the
+# board, still addressable, still counted in `total`. It just ranks after the
+# priced Roles it shares a bucket with.
+#
+#: Whether the CARD shows a figure at all — the same question `JobCard.tsx`
+#: asks: a disclosed range if there is one, else the AI estimate, else nothing.
+#: All four columns, not just the `_max` pair the salary sorts read, so a row
+#: carrying only a floor still counts as priced. (On the 2026-09 board the two
+#: predicates select the same 1,191 rows: min and max always travel together.)
+_UNPRICED = (
+    "COALESCE(e.salary_hkd_min, e.salary_hkd_max,"
+    " e.salary_estimated_min, e.salary_estimated_max) IS NULL"
+)
+#: 0 sorts before 1, so priced Roles come first. Explicit CASE rather than the
+#: bare predicate for the same reason the salary sorts use one: NULL ordering.
+_PRICED_FIRST = f"CASE WHEN {_UNPRICED} THEN 1 ELSE 0 END"
+
+#: The demoted form of each sort, for callers that pass `demote_unpriced`.
+#: Every entry keeps its sort's own meaning and only breaks a tie inside one
+#: bucket, so no Role ever overtakes a Role the sort ranks genuinely above it:
+#:
+#:   NEWEST  — bucket is the posting DAY. An unpriced Role never sinks below a
+#:     Role posted the day before, so "newest" still means newest. The bucket
+#:     works because within a day the ordering carried no information anyway:
+#:     `posted_at` is midnight on 651 of 2,216 board rows, and the rest cluster
+#:     on the minute the scraper ran (dozens of rows at ...T09:1x), so sub-day
+#:     order was scrape order, not posting order. This spends noise, not signal.
+#:
+#:   COMPANY — bucket is the employer. Purely additive: `j.company ASC` had no
+#:     tiebreak at all, so rows within one employer came back in whatever order
+#:     SQLite chose.
+#:
+#: SALARY_HIGH and SALARY_LOW have no entry: their leading CASE already sinks
+#: unpriced rows to the bottom in both directions, and a second copy of the same
+#: rule could only drift from the first.
+#:
+#: RELEVANCE has no entry because its ranking is one search's own rowid order,
+#: not a fixed expression. It IS demoted — harder than anything here, with
+#: `_PRICED_FIRST` leading the whole result set. `_order_sql` builds it.
+_DEMOTED_SORT_SQL: dict[Sort, str] = {
+    Sort.NEWEST: (
+        f"date({_VALID_POSTED}) DESC NULLS LAST, {_PRICED_FIRST} ASC,"
+        f" {_VALID_POSTED} DESC NULLS LAST"
+    ),
+    Sort.COMPANY: f"j.company ASC, {_PRICED_FIRST} ASC",
+}
+
+
 def _relevance_order_sql(search_rowids: list[int]) -> str:
     """
     An `ORDER BY` expression that reproduces `search_rowids`' order exactly.
@@ -876,6 +932,38 @@ def _relevance_order_sql(search_rowids: list[int]) -> str:
         f"WHEN {rowid} THEN {position}" for position, rowid in enumerate(search_rowids)
     )
     return f"CASE j.rowid {when_clauses} ELSE {len(search_rowids)} END ASC"
+
+
+def _order_sql(
+    sort: Sort, search_rowids: list[int] | None, *, demote_unpriced: bool = False
+) -> str:
+    """
+    The `ORDER BY` expression for one read.
+
+    RELEVANCE is where the demotion bites hardest, and deliberately so (ADR
+    0038, "Search is the case that matters"): typing a query is how a Seeker
+    looks for one specific thing, and the answer they get should be made of
+    cards that carry a salary. `_PRICED_FIRST` leads, so the matches with a
+    figure fill the early pages and BM25 orders within each group — the
+    strongest form of the rule anywhere on the board, and the only one that
+    reorders across the whole result set rather than inside a bucket.
+
+    RELEVANCE with no search term (or one that matched nothing) has no ranking
+    to fall back on — NEWEST is the same silent fallback an unknown `Sort` value
+    not in `_SORT_SQL` would need anyway, and it takes NEWEST's day-bucketed
+    form like any other newest-first listing.
+    """
+    if sort == Sort.RELEVANCE and search_rowids:
+        ranked = _relevance_order_sql(search_rowids)
+        # One extra leading term, and the BM25 CASE is still emitted once. That
+        # matters: `matching_rowids` returns up to 20,000 rowids and the CASE
+        # carries one WHEN per rowid, so a form that needed it twice would
+        # double the most expensive expression in this module.
+        return f"{_PRICED_FIRST} ASC, {ranked}" if demote_unpriced else ranked
+    resolved = Sort.NEWEST if sort == Sort.RELEVANCE else sort
+    if demote_unpriced:
+        return _DEMOTED_SORT_SQL.get(resolved, _SORT_SQL[resolved])
+    return _SORT_SQL[resolved]
 
 
 # ── Recruiter Posts boost ─────────────────────────────────────────────────────
@@ -1123,6 +1211,7 @@ def list_jobs(
     visibility: Visibility = Visibility.BOARD,
     audience: CatalogueAudience = CatalogueAudience.PUBLIC,
     boost_recruiter_posts: bool = False,
+    demote_unpriced: bool = False,
     is_admin: bool = False,
 ) -> JobListResponse:
     """
@@ -1130,9 +1219,31 @@ def list_jobs(
 
     `boost_recruiter_posts` interleaves `source_tier='social'` rows into a
     fixed cadence near the top of EVERY page instead of leaving them to rank
-    purely on `sort` — see `_boosted_rows_sql`. It changes row order only:
-    `total`/`total_pages` and the WHERE clause (filters, visibility, audience)
-    are identical with it on or off.
+    purely on `sort` — see `_boosted_rows_sql`.
+
+    `demote_unpriced` ranks a Role showing no salary figure after the priced
+    ones. Under RELEVANCE — a Seeker searching for one specific thing — that is
+    across the whole result set, so the early pages are made of cards carrying a
+    figure. Under NEWEST and COMPANY it is within a bucket (the posting day, the
+    employer), which is all those sorts need to clear their own first pages
+    without making "newest" mean something else. ADR 0038.
+
+    Both change row order ONLY: `total`/`total_pages` and the WHERE clause
+    (filters, visibility, audience) are identical with them on or off. Both are
+    opt-in, for the same reason — a caller that re-ranks the rows itself, or one
+    reading the board to find what is missing, wants neither:
+
+      - `role_feed._candidates` takes a newest-first window and scores it. A
+        demotion would change WHICH Roles reach the scorer, quietly biasing
+        recommendations towards priced ones, and the boost it would discard.
+      - `salary_audit_rows` is Ultimate Admin hunting the unpriced Roles. Its
+        sort must not be the one that hides them, which is why the rule lives
+        here on the caller's flag rather than inside `_SORT_SQL` itself.
+
+    Together they compose: `_boosted_rows_sql` ranks within each tier by
+    whatever expression it is handed, so Recruiter Posts keep their reserved
+    slots (unpriced or not — the Secret Market's whole point is that these
+    vacancies are nowhere else) and the demotion applies inside each tier.
     """
     # One search_index lookup, used twice: to filter (in _where, via the IN
     # clause) and, if the caller asked for RELEVANCE, to order. Computed once
@@ -1141,15 +1252,7 @@ def list_jobs(
     search_rowids = search_index.matching_rowids(conn, filters.search) if filters.search else None
     where_sql, params = _where(filters, visibility, search_rowids, audience)
     offset = (page - 1) * page_size
-
-    # RELEVANCE with no search term (or one that matched nothing) has no
-    # ranking to fall back on — NEWEST is the same silent fallback an unknown
-    # Sort value not in _SORT_SQL would need anyway.
-    order_sql = (
-        _relevance_order_sql(search_rowids)
-        if sort == Sort.RELEVANCE and search_rowids
-        else _SORT_SQL[Sort.NEWEST if sort == Sort.RELEVANCE else sort]
-    )
+    order_sql = _order_sql(sort, search_rowids, demote_unpriced=demote_unpriced)
 
     total = conn.execute(f"{_COUNT_SELECT} {where_sql}", params).fetchone()[0]
 
@@ -1217,12 +1320,10 @@ def salary_audit_rows(
     search_rowids = search_index.matching_rowids(conn, filters.search) if filters.search else None
     where_sql, params = _where(filters, Visibility.BOARD, search_rowids, CatalogueAudience.MEMBER)
     offset = (page - 1) * page_size
-
-    order_sql = (
-        _relevance_order_sql(search_rowids)
-        if sort == Sort.RELEVANCE and search_rowids
-        else _SORT_SQL[Sort.NEWEST if sort == Sort.RELEVANCE else sort]
-    )
+    #: Never `demote_unpriced` here — see `list_jobs`. An unpriced Role is what
+    #: this screen exists to find, so the board's ordering rule is the one thing
+    #: it must not inherit.
+    order_sql = _order_sql(sort, search_rowids)
 
     total = conn.execute(f"{_COUNT_SELECT} {where_sql}", params).fetchone()[0]
     rows = conn.execute(

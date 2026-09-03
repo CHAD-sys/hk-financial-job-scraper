@@ -34,6 +34,7 @@ from job_read import (  # noqa: E402
     list_jobs,
     prepare,
     research_facets,
+    salary_audit_rows,
     scope_where,
 )
 
@@ -762,6 +763,271 @@ def test_boost_paginates_without_gaps_or_duplicates(boost_conn):
                        audience=CatalogueAudience.MEMBER, boost_recruiter_posts=True)
     seen = _ids(page1.jobs) + _ids(page2.jobs) + _ids(page3.jobs)
     assert len(seen) == len(set(seen)) == 12
+
+
+# ── Unpriced Roles rank last within their bucket (ADR 0038) ───────────────────
+
+
+@pytest.fixture()
+def priced_conn(tmp_path) -> sqlite3.Connection:
+    """
+    Two posting days. Within each, the UNPRICED Role is the newer one — so plain
+    NEWEST puts the unpriced Role first on both days, which is the arrangement
+    the demotion has to reverse.
+
+    `days_ago` is date-only, so these spell out a time of day: the rule buckets
+    by DAY and orders inside the bucket, and a fixture where every row shares a
+    timestamp could not tell the two apart.
+    """
+    db = tmp_path / "priced.db"
+    today, yesterday = days_ago(0), days_ago(1)
+    make_jobs_db(
+        db,
+        jobs=[
+            job(source="workday", source_id="T_UNPRICED", company="HSBC",
+                title="Analyst A", posted_at=f"{today}T18:00:00+00:00"),
+            job(source="workday", source_id="T_PRICED", company="HSBC",
+                title="Analyst B", posted_at=f"{today}T09:00:00+00:00"),
+            job(source="workday", source_id="Y_UNPRICED", company="DBS",
+                title="Analyst C", posted_at=f"{yesterday}T18:00:00+00:00"),
+            job(source="workday", source_id="Y_PRICED", company="DBS",
+                title="Analyst D", posted_at=f"{yesterday}T09:00:00+00:00"),
+        ],
+        enrichments=[
+            enrichment(source="workday", source_id="T_PRICED",
+                       salary_estimated_min=40_000, salary_estimated_max=60_000),
+            enrichment(source="workday", source_id="Y_PRICED",
+                       salary_estimated_min=40_000, salary_estimated_max=60_000),
+        ],
+    )
+    c = prepare(sqlite3.connect(db))
+    yield c
+    c.close()
+
+
+@pytest.fixture()
+def search_conn(tmp_path) -> sqlite3.Connection:
+    """
+    Five Roles that all match one query, ordered by BM25 so an UNPRICED Role is
+    the single best match — the arrangement a bucketed rule could not fix, and
+    the one a Seeker searching for a specific thing actually hits.
+
+    `U1`'s description is the bare term, so it is the shortest document
+    containing it and BM25 ranks it first; the priced rows pad theirs. Two rows
+    also carry a term nobody else has, for the "matched only unpriced Roles"
+    case.
+    """
+    db = tmp_path / "search.db"
+    pad = " ".join(["padding"] * 40)
+    make_jobs_db(
+        db,
+        jobs=[
+            job(source="workday", source_id="U1", company="HSBC",
+                title="Analyst", posted_at=days_ago(1),
+                description_clean="finexscope unpricedonlyterm"),
+            job(source="workday", source_id="U2", company="HSBC",
+                title="Analyst", posted_at=days_ago(2),
+                description_clean=f"finexscope unpricedonlyterm {pad}"),
+            # Inserted longest-first, so BM25 order (P1, P2, P3) is NOT rowid
+            # order (P3, P1, P2). A fixture where the two agree lets a rule that
+            # dropped the relevance ordering entirely still look correct.
+            job(source="workday", source_id="P3", company="HSBC",
+                title="Analyst", posted_at=days_ago(5),
+                description_clean=f"finexscope {pad} {pad} {pad}"),
+            job(source="workday", source_id="P1", company="HSBC",
+                title="Analyst", posted_at=days_ago(3),
+                description_clean=f"finexscope {pad}"),
+            job(source="workday", source_id="P2", company="HSBC",
+                title="Analyst", posted_at=days_ago(4),
+                description_clean=f"finexscope {pad} {pad}"),
+        ],
+        enrichments=[
+            enrichment(source="workday", source_id=sid,
+                       salary_estimated_min=40_000, salary_estimated_max=60_000)
+            for sid in ("P1", "P2", "P3")
+        ],
+    )
+    c = prepare(sqlite3.connect(db))
+    yield c
+    c.close()
+
+
+def _newest(conn, **over) -> list[str]:
+    kwargs = {"sort": Sort.NEWEST, "page_size": 100,
+              "audience": CatalogueAudience.MEMBER, **over}
+    return _ids(list_jobs(conn, kwargs.pop("filters", JobFilters()), **kwargs).jobs)
+
+
+def test_unpriced_roles_rank_after_priced_ones_posted_the_same_day(priced_conn):
+    """The whole point: a card with no salary figure stops opening the board.
+    Both unpriced Roles are the NEWER row on their day, so this passes only if
+    the demotion actually beats intra-day recency."""
+    assert _newest(priced_conn, demote_unpriced=True) == [
+        "T_PRICED", "T_UNPRICED", "Y_PRICED", "Y_UNPRICED",
+    ]
+
+
+def test_demotion_never_crosses_a_posting_day(priced_conn):
+    """`newest` still means newest. An unpriced Role posted today outranks a
+    PRICED Role posted yesterday — the demotion breaks a tie inside one day, it
+    does not sort the board by whether a salary exists."""
+    order = _newest(priced_conn, demote_unpriced=True)
+    assert order.index("T_UNPRICED") < order.index("Y_PRICED")
+
+
+def test_demotion_is_off_by_default(priced_conn):
+    """Every reader that ranks rows itself, and the Ultimate Admin screen that
+    hunts unpriced Roles, gets the unchanged sort — so the default has to be the
+    old behaviour, newest-first with no regard for salary."""
+    assert _newest(priced_conn) == [
+        "T_UNPRICED", "T_PRICED", "Y_UNPRICED", "Y_PRICED",
+    ]
+
+
+def test_a_disclosed_floor_alone_counts_as_priced(tmp_path):
+    """"Priced" means the CARD shows a figure, and `JobCard.tsx` renders a
+    lone minimum as "HK$45k+/mo". Reading only the `_max` columns — the pair the
+    salary sorts use — would call this Role unpriced and demote a card that does
+    show a salary.
+
+    `NOTHING` is the NEWER row on purpose. With both rows on the same side of
+    the predicate the tiebreak falls through to recency and the older row loses
+    anyway, so a fixture ordered the other way would pass against a `_max`-only
+    predicate without ever exercising the floor."""
+    db = tmp_path / "floor.db"
+    today = days_ago(0)
+    make_jobs_db(
+        db,
+        jobs=[
+            job(source="workday", source_id="FLOOR_ONLY", company="HSBC",
+                title="Analyst A", posted_at=f"{today}T09:00:00+00:00"),
+            job(source="workday", source_id="NOTHING", company="HSBC",
+                title="Analyst B", posted_at=f"{today}T18:00:00+00:00"),
+        ],
+        enrichments=[
+            enrichment(source="workday", source_id="FLOOR_ONLY",
+                       salary_hkd_min=45_000, salary_hkd_max=None),
+        ],
+    )
+    c = prepare(sqlite3.connect(db))
+    try:
+        assert _newest(c, demote_unpriced=True) == ["FLOOR_ONLY", "NOTHING"]
+    finally:
+        c.close()
+
+
+def test_demotion_does_not_change_the_total(priced_conn):
+    """Same invariant the boost carries: this is an ordering rule, not a filter.
+    An unpriced Role is still on the board and still counted."""
+    plain = list_jobs(priced_conn, JobFilters(), page_size=100,
+                      audience=CatalogueAudience.MEMBER)
+    demoted = list_jobs(priced_conn, JobFilters(), page_size=100,
+                        audience=CatalogueAudience.MEMBER, demote_unpriced=True)
+    assert demoted.total == plain.total == 4
+    assert {j.source_id for j in demoted.jobs} == {j.source_id for j in plain.jobs}
+
+
+def test_search_puts_priced_matches_first_across_the_whole_result(search_conn):
+    """The case the rule exists for: a Seeker looking for one specific thing.
+
+    Every row here matches the query. `U1` is the single best BM25 match and
+    carries no figure, so this passes only if the demotion outranks relevance
+    itself rather than breaking a tie inside it — and it must reach ACROSS the
+    result set, not within a bucket, or the priced matches further down never
+    reach page 1.
+    """
+    filters = JobFilters(search="finexscope")
+    # Asserted, not assumed: if BM25 stopped ranking the unpriced row first the
+    # test below would pass without exercising anything.
+    ranked = _ids(list_jobs(search_conn, filters, sort=Sort.RELEVANCE,
+                            page_size=100, audience=CatalogueAudience.MEMBER).jobs)
+    assert ranked[0] == "U1", f"fixture no longer sets up the case: {ranked}"
+
+    ids = _ids(list_jobs(search_conn, filters, sort=Sort.RELEVANCE, page_size=100,
+                         audience=CatalogueAudience.MEMBER, demote_unpriced=True).jobs)
+    assert ids[:3] == ["P1", "P2", "P3"]
+    assert set(ids[3:]) == {"U1", "U2"}
+
+
+def test_search_keeps_bm25_order_inside_each_group(search_conn):
+    """Relevance still decides everything except which group a row is in, so the
+    priced matches stay in BM25 order and so do the unpriced ones. Without the
+    inner ordering this would be "priced first, then arbitrary"."""
+    ranked = _ids(list_jobs(
+        search_conn, JobFilters(search="finexscope"), sort=Sort.RELEVANCE,
+        page_size=100, audience=CatalogueAudience.MEMBER,
+    ).jobs)
+    demoted = _ids(list_jobs(
+        search_conn, JobFilters(search="finexscope"), sort=Sort.RELEVANCE,
+        page_size=100, audience=CatalogueAudience.MEMBER, demote_unpriced=True,
+    ).jobs)
+    priced = {"P1", "P2", "P3"}
+    assert [i for i in demoted if i in priced] == [i for i in ranked if i in priced]
+    assert [i for i in demoted if i not in priced] == [i for i in ranked if i not in priced]
+
+
+def test_a_search_matching_only_unpriced_roles_still_returns_them(search_conn):
+    """Demotion is never suppression. When nothing in the result carries a
+    figure there is no priced group to rank ahead, and the Seeker gets the same
+    rows in the same relevance order they would have got anyway."""
+    filters = JobFilters(search="unpricedonlyterm")
+    ranked = _ids(list_jobs(search_conn, filters, sort=Sort.RELEVANCE, page_size=100,
+                            audience=CatalogueAudience.MEMBER).jobs)
+    demoted = _ids(list_jobs(search_conn, filters, sort=Sort.RELEVANCE, page_size=100,
+                             audience=CatalogueAudience.MEMBER,
+                             demote_unpriced=True).jobs)
+    assert demoted == ranked == ["U1", "U2"]
+
+
+def test_relevance_without_a_match_falls_back_to_a_demotable_newest(priced_conn):
+    """RELEVANCE with nothing to rank by IS a newest-first listing, so it takes
+    the board's ordering rule rather than silently escaping it."""
+    assert _newest(priced_conn, sort=Sort.RELEVANCE, demote_unpriced=True) == [
+        "T_PRICED", "T_UNPRICED", "Y_PRICED", "Y_UNPRICED",
+    ]
+
+
+def test_company_sort_puts_priced_roles_first_within_an_employer(priced_conn):
+    """`j.company ASC` had no tiebreak at all, so this is purely additive: the
+    employer grouping is untouched and only the order inside one employer moves."""
+    order = _ids(list_jobs(priced_conn, JobFilters(), sort=Sort.COMPANY, page_size=100,
+                           audience=CatalogueAudience.MEMBER, demote_unpriced=True).jobs)
+    assert order == ["Y_PRICED", "Y_UNPRICED", "T_PRICED", "T_UNPRICED"]
+
+
+def test_salary_sorts_need_no_demotion_to_sink_unpriced_rows(priced_conn):
+    """SALARY_HIGH already ends with the unpriced rows, so the demotion has no
+    entry for it — one rule, not two copies that can drift."""
+    plain = _ids(list_jobs(priced_conn, JobFilters(), sort=Sort.SALARY_HIGH,
+                           page_size=100, audience=CatalogueAudience.MEMBER).jobs)
+    demoted = _ids(list_jobs(priced_conn, JobFilters(), sort=Sort.SALARY_HIGH,
+                             page_size=100, audience=CatalogueAudience.MEMBER,
+                             demote_unpriced=True).jobs)
+    assert demoted == plain
+    assert plain[:2] == ["T_PRICED", "Y_PRICED"]
+
+
+def test_demotion_does_not_cost_recruiter_posts_their_boosted_slots(boost_conn):
+    """Recruiter Posts carry no salary far more often than the rest of the board
+    (82% of them on the 2026-09 board), so a demotion that ranked ACROSS tiers
+    would quietly undo Secret Market visibility. The boost reserves slot 3 of
+    every 4 by tier, and the demotion only orders rows within a tier."""
+    ids = _newest(boost_conn, boost_recruiter_posts=True, demote_unpriced=True)
+    assert ids == [
+        "M1", "M2", "S1", "M3", "M4", "M5", "S2", "M6", "M7", "M8", "S3", "M9",
+    ]
+
+
+def test_salary_audit_rows_still_show_unpriced_roles_first_in_the_day(priced_conn):
+    """The Ultimate Admin salary screen exists to FIND Roles with no figure.
+    It shares `_SORT_SQL` with the board, so the rule had to live on the
+    caller's flag — if it lived in the sort itself, this screen would bury
+    exactly what it is for."""
+    rows = salary_audit_rows(
+        priced_conn, JobFilters(), sort=Sort.NEWEST, page_size=100,
+        resolve_admin=lambda _seeker_id: None,
+    )
+    assert _ids(rows.jobs) == ["T_UNPRICED", "T_PRICED", "Y_UNPRICED", "Y_PRICED"]
 
 
 # ── A recruiter is not an employer ────────────────────────────────────────────

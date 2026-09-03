@@ -412,6 +412,11 @@ def list_jobs(
             # Recruiter Posts get quick, steady visibility on the board itself,
             # whatever sort or filters are active — see job_read's boost docstring.
             boost_recruiter_posts=True,
+            # A Role with no salary figure ranks after the priced Roles posted
+            # the same day, so the board does not open on its own worst cards
+            # while enrichment catches up (ADR 0038). The board is the only
+            # surface that wants this; see job_read.list_jobs for who opts out.
+            demote_unpriced=True,
             is_admin=_is_admin_session(seeker),
         )
     _grant_role_access(request, result.jobs)

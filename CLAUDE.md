@@ -45,6 +45,21 @@ retires anything posted over 6 months ago every scrape.) The "X live roles"
 headline stat (`LIVE_COUNT_WHERE`) is deliberately **uncapped** (~3,220) — it
 counts market context, not what a visitor browses.
 
+**Ordering, separately from membership (ADR 0038):** on `/api/jobs` a Role whose
+card shows no salary figure ranks after the priced ones. **Under `RELEVANCE` —
+what the board switches to the moment a Seeker types in the search box
+(`JobBoardPage.tsx:145`) — that is across the whole result set**, so a search
+fills its early pages with cards that carry a figure; BM25 orders within each
+group. Under `NEWEST` it is bucketed by posting day and under `COMPANY` by
+employer, so those labels stay true. Enrichment is a queue, so the freshest
+Roles are the least likely to be priced, and page 1 was made of them. This is
+order only: the Role stays on the board, stays addressable, and still counts in
+`total` — a search matching only unpriced Roles still returns them all. It is
+opt-in per caller (`list_jobs(demote_unpriced=True)`) and **only `/api/jobs`
+opts in** — `role_feed` re-ranks its own window, and `salary_audit_rows` is the
+Ultimate Admin screen for *finding* unpriced Roles, so the rule must never live
+inside `_SORT_SQL` itself.
+
 ## Core domain knowledge (read this — it drives every design decision)
 
 ### What an ATS is

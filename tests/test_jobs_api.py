@@ -426,6 +426,81 @@ def test_company_sorts_alphabetically(client):
     assert companies == sorted(companies)
 
 
+@pytest.fixture()
+def same_day_client(tmp_path):
+    """Two Roles posted the SAME day, the unpriced one later — the arrangement
+    ADR 0038's rule has to reverse.
+
+    The main fixture puts every row on its own `days_ago(n)`, so the day bucket
+    makes each Role the only occupant of its own bucket and the rule cannot show
+    up there at all.
+    """
+    db = tmp_path / "sameday.db"
+    today = days_ago(1)
+    make_jobs_db(
+        db,
+        jobs=[
+            job(source="workday", source_id="UNPRICED", company=BANKING,
+                title="Credit Analyst", posted_at=f"{today}T18:00:00+00:00",
+                description_clean="finexscope"),
+            job(source="workday", source_id="PRICED", company=BANKING,
+                title="Market Analyst", posted_at=f"{today}T09:00:00+00:00",
+                description_clean="finexscope"),
+        ],
+        enrichments=[
+            enrichment(source="workday", source_id="PRICED",
+                       salary_estimated_min=40_000, salary_estimated_max=60_000),
+        ],
+    )
+    dist = tmp_path / "dist"
+    make_bundle(dist)
+    return TestClient(make_app(db, dist, tmp_path, cookie_secure=False))
+
+
+def test_the_board_ranks_an_unpriced_role_after_a_priced_one_from_the_same_day(
+    same_day_client,
+):
+    """ADR 0038, pinned at the HTTP surface because `/api/jobs` is the ONLY
+    caller that opts in. `demote_unpriced` defaults to False, so deleting the
+    argument in main.py leaves every job_read test green and only this one red.
+
+    The unpriced Role is the newer of the two: without the rule it leads.
+    """
+    assert _ids(_get(same_day_client, sort="newest", page_size=100)) == [
+        "PRICED", "UNPRICED",
+    ]
+
+
+def test_a_search_fills_its_first_page_with_priced_matches(client):
+    """The journey this rule is for: the box is typed into, `JobBoardPage`
+    switches the sort to `relevance` (its line 145), and the answer should be
+    made of cards that carry a figure.
+
+    Every fixture row shares the `finexscope` research term, and the priced ones
+    are a minority of it — so a page ordered by relevance alone interleaves
+    them. `AM`, `INTERN` and the rest carry no salary at all.
+    """
+    def has_figure(j) -> bool:
+        return any(j[k] is not None for k in (
+            "salary_hkd_min", "salary_hkd_max",
+            "salary_estimated_min", "salary_estimated_max",
+        ))
+
+    jobs = _get(client, sort="relevance", page_size=100)["jobs"]
+    priced = [j["source_id"] for j in jobs if has_figure(j)]
+    # BANK, IB and INS are the only fixture rows carrying a figure, and they are
+    # the first three results — the rest of the corpus, all unpriced, follows.
+    assert priced == [j["source_id"] for j in jobs[:3]] == ["INS", "IB", "BANK"]
+    assert not has_figure(jobs[3])
+
+
+def test_the_board_still_shows_the_unpriced_role(same_day_client):
+    """Demoted, not filtered. It is on the board and in the count — the whole
+    difference between ADR 0038 and hiding a Role until enrichment reaches it."""
+    body = _get(same_day_client, sort="newest", page_size=100)
+    assert body["total"] == 2
+
+
 def test_unknown_sort_is_rejected(client):
     """
     Changed deliberately. `sort` used to be a free string resolved with
