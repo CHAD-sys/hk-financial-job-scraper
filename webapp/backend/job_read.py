@@ -1009,14 +1009,27 @@ def _to_summary(
     # on every row of every list response including anonymous ones.
     summary = row["description_summary"] or ""
     excerpt = summary[:200].rstrip() + ("…" if len(summary) > 200 else "")
-    # The AI SALARY ESTIMATE only — never the employer-disclosed salary_hkd_*
-    # below, which stays visible to everyone. Hidden from non-admins while a
-    # round of estimator fixes is in flight (Morris H., 2026-08-21: several
-    # visibly wrong estimates had already reached Seekers). `is_admin` defaults
-    # to False — every call site must opt IN to showing it, not opt out.
-    est_min = row["salary_estimated_min"] if is_admin else None
-    est_max = row["salary_estimated_max"] if is_admin else None
-    est_confidence = row["salary_estimated_confidence"] if is_admin else None
+    # The AI SALARY ESTIMATE is visible to EVERYONE again (owner decision,
+    # 2026-09-03). It was hidden from non-admins on 2026-08-21 (Morris H.) as an
+    # explicitly temporary measure "while a round of estimator fixes is in
+    # flight", after several visibly wrong estimates reached Seekers.
+    #
+    # That round has landed. What changed, and why the figures can be trusted now:
+    #   * pricing is coordinate-first off the published anchor table, not a
+    #     free-form model number (ADR 0036/0037);
+    #   * an estimate can never be replaced by a blank, and a wide ladder-sized
+    #     range is refused rather than published (MAX_ENVELOPE_WIDTH_RATIO);
+    #   * audited on the live board 2026-09-03: median HK$55,000/month, a clean
+    #     seniority gradient (24k junior -> 51k mid -> 70k senior -> 102k lead),
+    #     median band width 1.41x, front office a restrained 15% of rows, and
+    #     zero values above the HK$200,000 cap or with min >= max.
+    #
+    # The employer-disclosed salary_hkd_* below was always public and is
+    # unaffected; the frontend still renders an estimate muted, in mono, behind
+    # an explicit "AI est." tag so it can never read as a disclosed figure.
+    est_min = row["salary_estimated_min"]
+    est_max = row["salary_estimated_max"]
+    est_confidence = row["salary_estimated_confidence"]
     # Seniority label hidden from non-admins, same fail-safe-default gating as
     # the AI salary estimate above. `is_admin` defaults to False — every call
     # site must opt IN, not opt out.

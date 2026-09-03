@@ -285,18 +285,6 @@ def _job(body, source_id: str) -> dict:
     return next(j for j in body["jobs"] if j["source_id"] == source_id)
 
 
-def test_salary_estimate_is_hidden_from_an_anonymous_visitor(client):
-    ib = _job(_get(client, page_size=100), "IB")
-    assert ib["salary_estimated_min"] is None
-    assert ib["salary_estimated_max"] is None
-    assert ib["salary_estimated_confidence"] is None
-
-
-def test_salary_estimate_is_hidden_from_a_signed_in_seeker(client):
-    _register_member(client)
-    ib = _job(_get(client, page_size=100), "IB")
-    assert ib["salary_estimated_min"] is None
-    assert ib["salary_estimated_max"] is None
 
 
 def test_salary_estimate_is_visible_to_an_admin(client):
@@ -322,21 +310,6 @@ def test_disclosed_salary_is_never_hidden_anonymous_or_admin(client):
     admin = _job(_get(client, page_size=100), "BANK")
     assert (admin["salary_hkd_min"], admin["salary_hkd_max"]) == (40_000, 60_000)
 
-
-def test_salary_estimate_gate_also_applies_to_the_detail_endpoint(client):
-    anon_detail = _detail(client, "workday", "IB")
-    assert anon_detail.status_code == 200
-    assert anon_detail.json()["salary_estimated_min"] is None
-
-    _register_admin(client)
-    admin_detail = _detail(client, "workday", "IB")
-    assert admin_detail.status_code == 200
-    assert admin_detail.json()["salary_estimated_min"] == 80_000
-
-
-# ── Seniority label visibility ──────────────────────────────────────────────
-# Same fail-safe-default gate as the AI salary estimate above, on the same
-# "IB" row (seniority="senior").
 
 
 def test_seniority_is_hidden_from_an_anonymous_visitor(client):
@@ -775,3 +748,32 @@ def test_the_sentinel_is_really_in_the_database(client):
     found = client.get("/api/jobs", params={"search": EMPLOYER_TEXT_SENTINEL})
     assert found.status_code == 200
     assert found.json()["total"] > 0, "sentinel is not in description_clean any more"
+
+
+
+# ── the AI salary estimate is public again (owner decision, 2026-09-03) ──────
+
+def test_the_salary_estimate_is_visible_to_an_anonymous_visitor(client):
+    """It was hidden on 2026-08-21 as an explicitly temporary measure "while a
+    round of estimator fixes is in flight". That round has landed: pricing is
+    coordinate-first off the published anchor table, an estimate can never be
+    replaced by a blank, and a ladder-wide range is refused rather than shown.
+    """
+    jobs = _get(client, page_size=100)["jobs"]
+    priced = [j for j in jobs if j["salary_estimated_min"] is not None]
+    assert priced, "an anonymous visitor must see the AI estimate"
+
+
+def test_the_estimate_is_visible_on_the_detail_endpoint_too(client):
+    jobs = _get(client, page_size=100)["jobs"]
+    job = next(j for j in jobs if j["salary_estimated_min"] is not None)
+    detail = _detail(client, job["source"], job["source_id"])
+    assert detail.status_code == 200
+    assert detail.json()["salary_estimated_min"] is not None
+
+
+def test_a_disclosed_salary_is_still_carried_separately(client):
+    """Unhiding the estimate must not merge it with an employer's own figure —
+    the card prefers salary_hkd_* and only falls back to the estimate."""
+    job = _get(client, page_size=100)["jobs"][0]
+    assert "salary_hkd_min" in job and "salary_estimated_min" in job
