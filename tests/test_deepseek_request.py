@@ -330,7 +330,10 @@ def test_thinking_is_bought_only_for_the_classification_pass(sent):
     of prose. DESCRIBE gets no trace; CLASSIFY does."""
     _enricher().enrich_single("Risk Analyst", "A Bank", description="Do risk things.")
     describe, classify = sent["_all"]
-    assert "thinking" not in describe, "prose must not buy a reasoning trace"
+    # ALWAYS sent explicitly, never omitted: a 3-Role live smoke test proved that
+    # omitting it does NOT disable thinking on deepseek-v4-flash — every DESCRIBE
+    # call burned its whole budget on a trace and returned content=0 chars.
+    assert describe["thinking"] == {"type": "disabled"}, "prose must not buy a trace"
     assert classify["thinking"] == {"type": "enabled"}, "the decision keeps its trace"
 
 

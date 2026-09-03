@@ -588,7 +588,16 @@ def price_from_role_envelope(
         start = int(window[0] * len(bands))
         stop = max(start + 1, ceil(window[1] * len(bands)))
         bands = bands[start:stop] or bands
-        return int(min(b[0] for b in bands)), int(max(b[1] for b in bands))
+        low, high = int(min(b[0] for b in bands)), int(max(b[1] for b in bands))
+        # The SAME width guard the un-narrowed envelope gets. Narrowing by
+        # seniority usually lands inside it, but not always: a board audit found
+        # "System Analyst" at 35,000-120,000 (3.4x) and "Customer Experience
+        # Designer" at 23,000-80,000 (3.5x). A range that wide tells a Seeker
+        # nothing, and an honest blank beats noise wearing a number's clothes.
+        # Leaving this path unguarded was an oversight when the window was added.
+        if high > low * MAX_ENVELOPE_WIDTH_RATIO:
+            return None
+        return low, high
 
     low, high = int(min(b[0] for b in bands)), int(max(b[1] for b in bands))
     # No seniority to narrow with — fall back to the honest blank past 3x. Real

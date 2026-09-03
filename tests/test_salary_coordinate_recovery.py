@@ -141,3 +141,33 @@ def test_a_coordinate_the_model_did_name_is_never_overridden():
         ctx, "Claims Manager",
     )
     assert (out["salary_tier"], out["salary_role"]) == ("insurance", "claims")
+
+
+def test_a_seniority_window_wider_than_the_guard_is_refused():
+    """The seniority-narrowed path gets the SAME width guard as the raw envelope.
+
+    Leaving it unguarded was an oversight when the window was added: a board
+    audit found live estimates of 35,000-120,000 (3.4x) and 23,000-80,000 (3.5x)
+    reaching Seekers. A range that wide is not information.
+    """
+    from hk_jobs.salary_clamp import (
+        MAX_ENVELOPE_WIDTH_RATIO, price_from_partial_coordinate,
+    )
+
+    for tier, role in (
+        ("middle_office", "compliance_banking"),
+        ("back_office_operations", "software_data_engineering"),
+        ("back_office_operations", "customer_service"),
+        ("front_office", "global_markets_trading"),
+        ("corporate_finance_accounting", "tax"),
+    ):
+        for seniority in ("junior", "mid", "senior", "lead", None):
+            band = price_from_partial_coordinate(tier, role, seniority)
+            if band is None:
+                continue
+            low, high = band
+            assert low < high
+            assert high <= low * MAX_ENVELOPE_WIDTH_RATIO, (
+                f"{tier}/{role}/{seniority} published {low}-{high}, "
+                f"{high / low:.1f}x — wider than the guard allows"
+            )
