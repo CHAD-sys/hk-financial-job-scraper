@@ -855,9 +855,13 @@ def signal_conn(tmp_path) -> sqlite3.Connection:
         db,
         jobs=[
             job(source="indeed", source_id="FRESH", posted_at=days_ago(window),
-                board_signals=signals(applicant_count=4, job_types=["Full-time"])),
+                grp_new=1, grp_urgent=1,
+                board_signals=signals(applicant_count=4, new_job=True,
+                                      urgently_hiring=True, job_types=["Full-time"])),
             job(source="indeed", source_id="EXPIRED", posted_at=days_ago(window + 1),
-                board_signals=signals(applicant_count=1, job_types=["Full-time"])),
+                grp_new=1, grp_urgent=1,
+                board_signals=signals(applicant_count=1, new_job=True,
+                                      urgently_hiring=True, job_types=["Full-time"])),
         ],
     )
     c = prepare(sqlite3.connect(db))
@@ -889,6 +893,34 @@ def test_expiry_only_touches_perishable_signals(signal_conn):
     assert _signals_for(signal_conn, "EXPIRED")["job_types"] == ["Full-time"]
 
 
+def test_every_perishable_signal_expires_not_just_the_count(signal_conn):
+    """`new_job` and `urgently_hiring` are the same class of fact as the
+    applicant count — true when scraped, quietly false later. The raw flags must
+    leave the wire too, or the next client to read `board_signals` finds them
+    and believes them."""
+    expired = _signals_for(signal_conn, "EXPIRED")
+    assert "new_job" not in expired
+    assert "urgently_hiring" not in expired
+    fresh = _signals_for(signal_conn, "FRESH")
+    assert fresh["new_job"] is True and fresh["urgently_hiring"] is True
+
+
+def test_the_urgently_hiring_filter_shares_the_badge_window(signal_conn):
+    """Otherwise filtering "Urgently hiring" returns cards whose badge has
+    already expired off them — the same badge/filter split `is_new` avoids."""
+    ids = _ids(list_jobs(signal_conn, JobFilters(urgently_hiring=True), page_size=100).jobs)
+    assert ids == ["FRESH"]
+
+
+def test_the_new_filter_and_the_urgency_filter_agree_on_the_window(signal_conn):
+    """One window, read from one constant. Both flags are set on both Roles in
+    this fixture, so any divergence between the two filters is the rule being
+    written down twice."""
+    new = _ids(list_jobs(signal_conn, JobFilters(is_new=True), page_size=100).jobs)
+    urgent = _ids(list_jobs(signal_conn, JobFilters(urgently_hiring=True), page_size=100).jobs)
+    assert new == urgent == ["FRESH"]
+
+
 def test_a_cross_posted_copy_cannot_hand_back_an_expired_count(tmp_path):
     """`_attach_group_signals` REPLACES a cross-posted card's signals with the
     whole group's, so an expiry applied only in `_own_signals` would be undone
@@ -904,7 +936,7 @@ def test_a_cross_posted_copy_cannot_hand_back_an_expired_count(tmp_path):
                 board_signals=signals(applicant_count=2)),
             job(source="indeed", source_id="COPY", posted_at=old, is_primary=0,
                 cross_posted=1, apply_url="https://apply.test/shared",
-                board_signals=signals(applicant_count=9, urgently_hiring=True)),
+                board_signals=signals(applicant_count=9, job_types=["Full-time"])),
         ],
     )
     c = prepare(sqlite3.connect(db))
@@ -915,7 +947,9 @@ def test_a_cross_posted_copy_cannot_hand_back_an_expired_count(tmp_path):
     flat = {k: v for sets in card.board_signals.values() for k, v in sets.items()}
     assert card.source_id == "PRIMARY"
     assert "applicant_count" not in flat, "the hidden copy's count leaked through the group merge"
-    assert flat["urgently_hiring"] is True, "the group merge itself must still work"
+    # A STANDING signal from that same hidden copy still has to come through,
+    # or this passes because the merge broke rather than because expiry worked.
+    assert flat["job_types"] == ["Full-time"], "the group merge itself must still work"
 
 
 # ── Unpriced Roles rank last within their bucket (ADR 0038) ───────────────────

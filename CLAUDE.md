@@ -58,10 +58,15 @@ to fill. What they lacked was an expiry: the "New" badge rode `grp_new` for up t
 28 days, and a Role posted three weeks ago still advertised "1 applicant" scraped
 when it was new. Both now expire 7 days after `posted_at` — the only workable
 clock, since `fetched_at` is overwritten every scrape and a first-seen column
-could not be backfilled. `PERISHABLE_SIGNALS` names what expires; expiry is
-applied where signals reach the WIRE (`_own_signals` AND the cross-post merge in
-`_attach_group_signals`, which would otherwise hand a stale count straight back),
-so no client can render one.
+could not be backfilled. `PERISHABLE_SIGNALS` names what expires — `applicant_count`, `new_job`,
+`urgently_hiring` — and expiry is applied where signals reach the WIRE
+(`_own_signals` AND the cross-post merge in `_attach_group_signals`, which would
+otherwise hand a stale one straight back), so no client can render one. Standing
+properties survive (`position_type`, `expires_at`, `business_unit`, `job_types`,
+`recruiter_name`, `not_a_ghost_job`); `reposted` is history, not current state,
+and is deliberately exempt. Every FILTER over a perishable signal shares the same
+window (`IS_NEW_COND`, `IS_URGENT_COND`) so a filter can never return a card
+whose badge has already expired off it.
 
 **Ordering, separately from membership (ADR 0038):** on `/api/jobs` a Role whose
 card shows no salary figure ranks after the priced ones. **Under `RELEVANCE` —

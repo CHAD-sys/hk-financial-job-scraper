@@ -367,14 +367,34 @@ _WITHIN_SIGNAL_WINDOW = f"date(j.posted_at) >= date('now', '-{SCRAPED_SIGNAL_DAY
 IS_NEW_COND = f"(j.grp_new = 1 AND {_WITHIN_SIGNAL_WINDOW})"
 IS_NEW_SQL = f"CASE WHEN {IS_NEW_COND} THEN 1 ELSE 0 END"
 
+# "Urgently hiring", same shape and the same window. `grp_urgent` is the board's
+# own flag and expires no better than `grp_new` did: an employer who was urgent
+# a month ago has either hired or stopped being urgent, and the badge is the one
+# signal on the card allowed to shout (it is the only coloured one), so a stale
+# one is the most misleading thing the card can say.
+IS_URGENT_COND = f"(j.grp_urgent = 1 AND {_WITHIN_SIGNAL_WINDOW})"
+
 #: Signals dropped from the wire once the window has passed, so no client can
-#: render a stale one. The applicant count is the case this exists for: Indeed
-#: reports "1 applicant" and we keep showing it for as long as the Role is
-#: listed, so a Role posted three weeks ago still advertised a number scraped
-#: when it was new. Everything NOT named here is a standing property and
-#: survives (eFinancialCareers' `position_type`, Eightfold's `business_unit`,
-#: a Recruiter Post's `recruiter_name`).
-PERISHABLE_SIGNALS = frozenset({"applicant_count"})
+#: render a stale one.
+#:
+#:   applicant_count  Indeed reports "1 applicant" and we kept showing it for as
+#:                    long as the Role was listed — a Role posted three weeks
+#:                    ago still advertising a number scraped when it was new.
+#:   new_job          The raw flag behind the "New" badge. The badge itself is
+#:                    already windowed via `IS_NEW_COND`; this stops the stale
+#:                    flag riding along on the wire, where the next client to
+#:                    read `board_signals` would find it and believe it.
+#:   urgently_hiring  An employer urgent a month ago has hired or stopped being
+#:                    urgent.
+#:
+#: Everything NOT named here is a STANDING property of the Role and survives:
+#: eFinancialCareers' `position_type` and `expires_at`, Eightfold's
+#: `business_unit`, Indeed's `job_types`, a Recruiter Post's `recruiter_name`,
+#: and `not_a_ghost_job` (a ghost check is a verdict, not a moment).
+#:
+#: `reposted` is deliberately NOT here — it is a fact about the Role's history
+#: rather than its current state, and the owner named only the three above.
+PERISHABLE_SIGNALS = frozenset({"applicant_count", "new_job", "urgently_hiring"})
 
 #: 1 when this Role's scraped point-in-time signals have expired.
 SIGNALS_STALE_SQL = f"CASE WHEN {_WITHIN_SIGNAL_WINDOW} THEN 0 ELSE 1 END"
@@ -726,7 +746,9 @@ def _where(
         # cannot return a card that does not show the badge.
         conditions.append(IS_NEW_COND)
     if filters.urgently_hiring:
-        conditions.append("j.grp_urgent = 1")
+        # Windowed like `is_new`, so the filter cannot return a card whose
+        # badge has already expired off it.
+        conditions.append(IS_URGENT_COND)
     if filters.max_applicants is not None:
         # Low-competition: highest known applicant count across boards is below the
         # threshold. Jobs with no known count are excluded (grp_applicants IS NULL).
