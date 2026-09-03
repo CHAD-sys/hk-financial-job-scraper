@@ -162,17 +162,7 @@ _VISIBILITY_SQL: dict[Visibility, Optional[str]] = {
     Visibility.ADDRESSABLE: None,
 }
 
-#: The "X live roles" headline figure — About page, landing pages, search hero,
-#: bare /jobs. Deliberately NOT the board predicate: it counts every open,
-#: primary, in-window Role — admin-hidden ones included (hiding a Role must not
-#: move the headline number) and with NO per-employer cap (ADR 0035), so
-#: capping the board down does not move the number a visitor first sees. Same
-#: split ADR 0032 established and the owner endorsed. Reached only through
-#: `live_count_where`; nothing else may use it.
-LIVE_COUNT_WHERE = (
-    "j.is_active = 1 AND j.is_primary = 1 "
-    "AND date(j.posted_at) >= date('now', '-1 month')"
-)
+#: There is no separate headline predicate any more. See `live_count_where`.
 
 #: Recruiter-posted Roles and medium/boutique company Roles are a member benefit.
 #: Keep this policy next to the lifecycle visibility rule so lists, facets and
@@ -220,21 +210,28 @@ def scope_where(
 
 def live_count_where(audience: CatalogueAudience) -> str:
     """
-    The predicate for the "X live roles" headline figure and the other public
-    market totals — `get_stats`, `_hub_body`, `_landing_pages`. `LIVE_COUNT_WHERE`
-    plus the same audience scoping `scope_where` applies, and nothing else.
+    The predicate for the "X live roles" headline figure and the public market
+    totals — `get_stats`, `_hub_body`, `_landing_pages`.
 
-    A second, narrower predicate rather than a `scope_where` call on purpose
-    (docs/adr/0032, docs/adr/0035): the board is a curated slice again — capped
-    per employer — but the number a visitor first sees should keep counting
-    "open, primary, posted this month" — admin-hidden Roles included, no
-    per-employer cap — so curating the board down does not move it. Takes no
-    `conn`: there is no search-scoped variant.
+    It is the BOARD predicate. The number a visitor is shown is the number of
+    Roles that visitor can actually open (ADR 0039).
+
+    It did not used to be. ADR 0032 deliberately split the two so that curating
+    the board down would not move the headline, and ADR 0035's per-employer cap
+    then opened a real gap: 3,331 counted against 2,148 browsable — 36% of the
+    headline was Roles nobody could reach. Whatever the number was measuring, a
+    visitor reads it as "jobs on this site", and it was not that.
+
+    Kept as a named function rather than inlined so `get_stats` and the two SEO
+    surfaces still share one seam — but it now returns exactly what
+    `scope_where(conn, audience)` returns for an unfiltered read, and
+    `test_stats_and_jobs_agree_on_what_is_open` pins the two together so they
+    cannot drift apart again quietly.
     """
     audience_sql = (
         f" AND {PUBLIC_AUDIENCE_WHERE}" if audience == CatalogueAudience.PUBLIC else ""
     )
-    return f"{LIVE_COUNT_WHERE}{audience_sql}"
+    return f"{BOARD_WHERE}{audience_sql}"
 
 
 #: A recruiter is not an employer, so a Recruiter Post is not in the employer

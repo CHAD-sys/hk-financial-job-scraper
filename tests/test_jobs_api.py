@@ -29,6 +29,8 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
+from hk_jobs.board_visibility import BOARD_COMPANY_CAP
+
 from .support import days_ago, enrichment, job, make_app, make_bundle, make_jobs_db, signals
 
 # Companies chosen so SECTOR_SQL puts each in a different bucket.
@@ -738,6 +740,46 @@ def test_stats_and_jobs_agree_on_what_is_open(client):
     stats_total = client.get("/api/stats").json()["total_active_jobs"]
     jobs_total = _get(client, page_size=1)["total"]
     assert stats_total == jobs_total
+
+
+def test_the_headline_figure_counts_only_what_a_visitor_can_open(tmp_path):
+    """ADR 0039. The headline used to count a WIDER set than the board on
+    purpose (ADR 0032/0035), so the per-employer cap opened a gap between the
+    number a visitor is shown and the number they can reach — 3,331 against
+    2,148 on the live board, 36% of the headline unreachable.
+
+    `test_stats_and_jobs_agree_on_what_is_open` cannot catch this: its fixture
+    has no employer anywhere near the cap, so the two predicates agree by
+    accident. This one puts one employer OVER it, which is the only shape where
+    the old split is visible.
+    """
+    over = BOARD_COMPANY_CAP + 15
+    db = tmp_path / "capped.db"
+    make_jobs_db(
+        db,
+        jobs=[
+            job(source="jobsdb", source_id=f"BIG{i}", company="Bank of China (HK)",
+                title=f"Analyst {i} finexscope", posted_at=days_ago(i % 28),
+                description_clean="finexscope")
+            for i in range(over)
+        ],
+    )
+    dist = tmp_path / "dist"
+    make_bundle(dist)
+    c = TestClient(make_app(db, dist, tmp_path, cookie_secure=False))
+
+    headline = c.get("/api/stats").json()
+    browsable = c.get("/api/jobs", params={"search": "finexscope", "page_size": 1}).json()
+
+    assert browsable["total"] == BOARD_COMPANY_CAP, "the cap should be biting in this fixture"
+    assert headline["total_active_jobs"] == browsable["total"], (
+        f"headline says {headline['total_active_jobs']} but only "
+        f"{browsable['total']} Roles can be opened"
+    )
+    assert sum(headline["by_sector"].values()) == browsable["total"], (
+        "the breakdowns have to count the same set as the headline, or they "
+        "add up to more than the total shown above them"
+    )
 
 
 def test_filters_lists_only_sectors_that_are_open(client):

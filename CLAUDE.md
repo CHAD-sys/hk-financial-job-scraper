@@ -45,8 +45,13 @@ that could pull hidden Roles back into view, removed 2026-09-03 at the owner's
 request. Nothing in production calls `board_visible_sql(with_hidden=True)` now.
 Also surviving: `JobStore.deactivate_aged_out()`, which retires anything posted
 over 6 months ago every scrape.) The "X live roles"
-headline stat (`LIVE_COUNT_WHERE`) is deliberately **uncapped** (~3,220) — it
-counts market context, not what a visitor browses.
+headline stat now counts **the board** (ADR 0039) — the number a visitor is
+shown is the number they can open. It used to be deliberately uncapped
+(`LIVE_COUNT_WHERE`, ~3,330) so curating the board would not move it, but ADR
+0035's cap grew that gap to 36%: 3,331 published against 2,148 browsable.
+`live_count_where()` is now `BOARD_WHERE` + audience, and it moves every stat
+those surfaces publish — the headline, `employer_count`, and all the
+breakdowns, which previously summed to more than the board could show.
 
 **Scraped board signals expire after a week** (`job_read.SCRAPED_SIGNAL_DAYS`).
 Some things a board tells us are standing properties of the Role; others are

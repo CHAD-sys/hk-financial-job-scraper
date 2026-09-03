@@ -1851,10 +1851,10 @@ def get_stats(request: Request):
         else CatalogueAudience.MEMBER
     )
     with get_db(request) as conn:
-        # The headline "X live roles" figure and its breakdowns keep the pre-0032
-        # meaning — open, primary, posted this month, admin-hidden included, no
-        # sector cap — so curating the board down (docs/adr/0032) does not move
-        # the number a visitor first sees.
+        # The headline "X live roles" figure and its breakdowns count the BOARD
+        # — the Roles a visitor can actually open (ADR 0039). They used to count
+        # a wider set on purpose (ADR 0032/0035), which left 36% of the headline
+        # unreachable.
         audience_where = job_read.live_count_where(audience)
         total = conn.execute(
             f"SELECT COUNT(*) FROM jobs j WHERE {audience_where}"
