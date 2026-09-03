@@ -66,7 +66,7 @@ export function FilterRow({ label, children }: { label: string; children: ReactN
   )
 }
 
-// Not exported: only SalaryFields/ExpFields/ApplicantsFields below use it,
+// Not exported: only SalaryFields/ExpFields below use it,
 // all in this same file — nothing imports it from elsewhere.
 function RangeInput({
   placeholder,
@@ -190,45 +190,3 @@ export function ExpFields({
   )
 }
 
-export function ApplicantsFields({
-  filters,
-  onUpdate,
-}: {
-  filters: JobFilters
-  onUpdate: (p: Partial<JobFilters>) => void
-}) {
-  return (
-    <div className="flex flex-col gap-3">
-      <p className="text-xs" style={{ color: 'var(--color-ink-faint)' }}>
-        Show jobs with fewer than…
-      </p>
-      <div className="flex items-center gap-2">
-        <RangeInput
-          placeholder="e.g. 25"
-          min={1}
-          max={500}
-          value={filters.max_applicants}
-          onChange={v => onUpdate({ max_applicants: v })}
-        />
-        <span className="text-xs" style={{ color: 'var(--color-ink-muted)' }}>applicants</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        {[10, 25, 50].map(n => (
-          <button
-            key={n}
-            type="button"
-            onClick={() => onUpdate({ max_applicants: n })}
-            className="filter-pill rounded px-2 py-1 text-xs font-semibold cursor-pointer outline-none"
-            style={{
-              backgroundColor: filters.max_applicants === n ? 'var(--color-ink)' : 'var(--color-surface-2)',
-              color: filters.max_applicants === n ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
-              border: '1px solid var(--color-border-strong)',
-            }}
-          >
-            &lt;{n}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}

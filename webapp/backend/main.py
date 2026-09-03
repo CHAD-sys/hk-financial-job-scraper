@@ -350,17 +350,11 @@ def list_jobs(
     ),
     is_new: Optional[bool] = Query(None, description="Only newly-posted jobs (board 'New' flag)"),
     urgently_hiring: Optional[bool] = Query(None, description="Only 'urgently hiring' jobs"),
-    max_applicants: Optional[int] = Query(None, ge=1, description="Only jobs with fewer than N applicants"),
     hidden_only: Optional[bool] = Query(
         None, description="Only Recruiter Posts jobs with no match on any real board"
     ),
     verified_only: Optional[bool] = Query(
         None, description="Only jobs ghost_check confirmed match a real board listing"
-    ),
-    admin_hidden: Optional[str] = Query(
-        None,
-        description="Ultimate Admin only: 'include' greys admin-hidden Roles into "
-                    "the board, 'only' shows just them. Ignored for everyone else.",
     ),
     sort: Sort = Query(Sort.NEWEST, description="Sort order"),
     page: int = Query(1, ge=1, description="Page number"),
@@ -387,20 +381,13 @@ def list_jobs(
             detail="Start with a specific search of at least two characters.",
         )
 
-    # 'include'/'only' for the admin-Hidden state is Ultimate Admin only (ADR
-    # 0032). Anyone else asking for it gets the plain public board — silently,
-    # not a 403: the parameter simply does not exist for them.
-    is_super = seeker is not None and bool(seeker.get("is_super_admin"))
-    admin_hidden_mode = admin_hidden if (is_super and admin_hidden in ("include", "only")) else None
-
     filters = JobFilters.of(
         search=research_query, sectors=sectors, companies=companies, seniority=seniority,
         remote_type=remote_type, skills=skills, salary_min=salary_min,
         salary_max=salary_max, exp_min=exp_min, exp_max=exp_max,
         posted_within_days=posted_within_days, is_internship=is_internship,
         tier=tier, is_new=is_new, urgently_hiring=urgently_hiring,
-        max_applicants=max_applicants, hidden_only=hidden_only,
-        verified_only=verified_only, admin_hidden=admin_hidden_mode,
+        hidden_only=hidden_only, verified_only=verified_only,
     )
     audience = (
         CatalogueAudience.MEMBER if seeker is not None else CatalogueAudience.PUBLIC

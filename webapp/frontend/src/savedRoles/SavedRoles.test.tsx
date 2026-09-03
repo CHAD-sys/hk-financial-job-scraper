@@ -30,7 +30,7 @@ function makeJob(over: Partial<Job> = {}): Job {
     required_skills: [], salary_hkd_min: null, salary_hkd_max: null,
     salary_estimated_min: null, salary_estimated_max: null,
     salary_estimated_confidence: null, salary_verified: false, years_experience_required: null,
-    posted_at: '2026-07-01', url: 'https://example.test/j1', is_internship: false,
+    posted_at: '2026-07-01', url: 'https://example.test/j1', is_internship: false, is_new: false,
     description_excerpt: '', closed: false, board_signals: {},
     access_token: 'role-grant',
     ...over,

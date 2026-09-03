@@ -24,6 +24,7 @@ from .support import BACKEND, days_ago, enrichment, job, make_jobs_db, signals
 sys.path.insert(0, str(BACKEND))
 
 from job_read import (  # noqa: E402
+    NEW_BADGE_DAYS,
     CatalogueAudience,
     JobFilters,
     Sort,
@@ -388,38 +389,42 @@ def test_admin_hidden_default_excludes_hidden_roles(tmp_path):
     assert set(ids) == {"SHOWN1", "SHOWN2"}
 
 
-def test_admin_hidden_include_ranks_hidden_into_the_board(tmp_path):
+def test_no_filter_can_pull_a_hidden_role_onto_the_board(tmp_path):
+    """The Hidden Roles filter was removed on 2026-09-03 (owner request), so
+    `JobFilters` no longer has a field that could rank a hidden Role in.
+
+    Asserted as the absence of the field rather than by trying a value: an
+    unknown keyword raises, which is exactly the guarantee wanted — there is no
+    spelling of a board read that returns a hidden Role.
+    """
+    assert not hasattr(JobFilters(), "admin_hidden")
+    with pytest.raises(TypeError):
+        JobFilters(admin_hidden="only")  # type: ignore[call-arg]
+
     conn = _hidden_db(tmp_path)
     try:
-        res = list_jobs(conn, JobFilters(admin_hidden="include"), page_size=100, is_admin=True)
+        ids = _ids(list_jobs(conn, JobFilters(), page_size=100, is_admin=True).jobs)
     finally:
         conn.close()
-    by_id = {s.source_id: s for s in res.jobs}
-    assert set(by_id) == {"SHOWN1", "SHOWN2", "HIDDEN1"}
-    assert by_id["HIDDEN1"].admin_hidden is True
-    assert by_id["SHOWN1"].admin_hidden is False
-
-
-def test_admin_hidden_only_returns_just_the_hidden_roles(tmp_path):
-    conn = _hidden_db(tmp_path)
-    try:
-        ids = _ids(list_jobs(conn, JobFilters(admin_hidden="only"), page_size=100, is_admin=True).jobs)
-    finally:
-        conn.close()
-    assert ids == ["HIDDEN1"]
+    assert set(ids) == {"SHOWN1", "SHOWN2"}
 
 
 def test_admin_hidden_flag_is_not_leaked_to_a_non_admin_read(tmp_path):
-    """`admin_hidden` on the summary is gated on is_admin, same as the salary
-    estimate — a public read never carries it even if the column says 1."""
+    """`admin_hidden` on the summary is gated on is_admin, same as the seniority
+    label — a public read never carries it even if the column says 1.
+
+    Reached BY REFERENCE, the one door a hidden Role still comes through now
+    that the board filter is gone (ADR 0010: addressing is not filtered).
+    """
     conn = _hidden_db(tmp_path)
     try:
-        # is_admin defaults False; "only" would be refused at the route, but even
-        # if it reached here the summary must not expose the bit.
-        res = list_jobs(conn, JobFilters(admin_hidden="only"), page_size=100)
+        as_admin = jobs_by_refs(conn, [("workday", "HIDDEN1")], is_admin=True)
+        as_public = jobs_by_refs(conn, [("workday", "HIDDEN1")])
     finally:
         conn.close()
-    assert all(s.admin_hidden is False for s in res.jobs)
+    assert [j.source_id for j in as_admin] == ["HIDDEN1"]
+    assert as_admin[0].admin_hidden is True
+    assert as_public[0].admin_hidden is False
 
 
 # ── Visibility: addressing is not ─────────────────────────────────────────────
@@ -763,6 +768,74 @@ def test_boost_paginates_without_gaps_or_duplicates(boost_conn):
                        audience=CatalogueAudience.MEMBER, boost_recruiter_posts=True)
     seen = _ids(page1.jobs) + _ids(page2.jobs) + _ids(page3.jobs)
     assert len(seen) == len(set(seen)) == 12
+
+
+# ── The "New" badge expires after a week ──────────────────────────────────────
+
+
+@pytest.fixture()
+def new_badge_conn(tmp_path) -> sqlite3.Connection:
+    """Four Roles the source board all flagged `grp_new`, spread across the
+    expiry boundary, plus one it never flagged.
+
+    `NEW_BADGE_DAYS` is read from the module rather than retyped, so the fixture
+    straddles the real boundary even if the window is retuned.
+    """
+    db = tmp_path / "new-badge.db"
+    window = NEW_BADGE_DAYS
+    make_jobs_db(
+        db,
+        jobs=[
+            job(source_id="TODAY", posted_at=days_ago(0), grp_new=1),
+            job(source_id="EDGE_IN", posted_at=days_ago(window), grp_new=1),
+            job(source_id="EDGE_OUT", posted_at=days_ago(window + 1), grp_new=1),
+            job(source_id="STALE", posted_at=days_ago(28), grp_new=1),
+            job(source_id="NEVER_FLAGGED", posted_at=days_ago(0), grp_new=0),
+        ],
+    )
+    c = prepare(sqlite3.connect(db))
+    yield c
+    c.close()
+
+
+def _badges(conn) -> dict[str, bool]:
+    return {j.source_id: j.is_new for j in
+            list_jobs(conn, JobFilters(), page_size=100).jobs}
+
+
+def test_the_new_badge_expires_after_a_week(new_badge_conn):
+    """The bug this fixes, live on the 2026-09 board: 129 Roles wore a "New"
+    badge while over a week old, the oldest 28 days — a card reading "New"
+    directly above its own "4w ago" line. `grp_new` is the source board's flag
+    and it never expires on its own."""
+    badges = _badges(new_badge_conn)
+    assert badges["STALE"] is False, "a 28-day-old Role is not new"
+    assert badges["EDGE_OUT"] is False
+
+
+def test_the_new_badge_still_applies_inside_the_window(new_badge_conn):
+    """The expiry must not swallow the badge entirely — a Role flagged by its
+    board and posted within the window still wears it, including on the last
+    day of the window."""
+    badges = _badges(new_badge_conn)
+    assert badges["TODAY"] is True
+    assert badges["EDGE_IN"] is True, f"day {NEW_BADGE_DAYS} is inside the window"
+
+
+def test_a_recent_role_the_board_never_flagged_is_not_new(new_badge_conn):
+    """Recency is a CAP on the source board's flag, not a replacement for it.
+    Tagging every Role posted this week would put the badge on about half the
+    board, which is the same as not having a badge."""
+    assert _badges(new_badge_conn)["NEVER_FLAGGED"] is False
+
+
+def test_the_new_filter_returns_exactly_the_badged_roles(new_badge_conn):
+    """One rule, one expression. If the filter and the badge were computed
+    separately, filtering by "New" would return cards showing no badge — which
+    is what a client-side badge over a server-side filter had always risked."""
+    filtered = _ids(list_jobs(new_badge_conn, JobFilters(is_new=True), page_size=100).jobs)
+    badged = [sid for sid, on in _badges(new_badge_conn).items() if on]
+    assert sorted(filtered) == sorted(badged) == ["EDGE_IN", "TODAY"]
 
 
 # ── Unpriced Roles rank last within their bucket (ADR 0038) ───────────────────

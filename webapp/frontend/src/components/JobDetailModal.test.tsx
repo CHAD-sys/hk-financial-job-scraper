@@ -33,6 +33,7 @@ const recruiterAccountingOfficer: Job = {
   posted_at: '2026-07-01T00:00:00Z',
   url: 'https://linkedin.example/post',
   is_internship: false,
+  is_new: false,
   description_excerpt: 'Salary up to HK$30K.',
   closed: false,
   board_signals: {},

@@ -162,7 +162,7 @@ export default function JobCard({ job, saved, onToggleSave, onClick, onEdit }: P
           A Recruiter Post carries none of these either: they come from job
           boards, and a personal LinkedIn post is not one. */}
       {!job.closed && job.source_tier !== 'social' && (
-        <SignalBadges boardSignals={job.board_signals} />
+        <SignalBadges boardSignals={job.board_signals} isNew={job.is_new} />
       )}
 
       <CardFooter job={job} />
@@ -422,12 +422,16 @@ function MetaRow({ job }: { job: Job }) {
 
 // ── Market-signal badges (from the boards this vacancy is on) ─────────────────
 
-function SignalBadges({ boardSignals }: { boardSignals: Job['board_signals'] }) {
+function SignalBadges({ boardSignals, isNew }: { boardSignals: Job['board_signals']; isNew: boolean }) {
   // Market signals, merged across every board this vacancy appears on.
   const signalSets = Object.values(boardSignals || {})
   const urgent = signalSets.some(s => s?.urgently_hiring)
-  const isNew = signalSets.some(s => s?.new_job)
   const reposted = signalSets.some(s => s?.reposted)
+  // `isNew` is NOT read out of boardSignals like the others. A board's own
+  // `new_job` flag never expires, so it kept saying "new" for as long as the
+  // Role was listed — 129 board Roles were wearing the badge over a week after
+  // posting, the oldest at 28 days. The server now decides it (one expression,
+  // job_read.IS_NEW_SQL, shared with the `is_new` FILTER so the two agree).
   // Single pass: track the highest applicant count seen across boards.
   let applicants: number | null = null
   for (const s of signalSets) {

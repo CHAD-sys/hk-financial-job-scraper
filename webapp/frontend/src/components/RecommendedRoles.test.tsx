@@ -36,6 +36,7 @@ function makeJob(overrides: Partial<Job> = {}): Job {
     posted_at: '2026-08-06',
     url: 'https://example.test/j1',
     is_internship: false,
+    is_new: false,
     description_excerpt: '',
     closed: false,
     board_signals: {},

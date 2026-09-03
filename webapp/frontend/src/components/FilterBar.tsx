@@ -1,9 +1,9 @@
-import { ArrowLeft, Search, X, SlidersHorizontal, ChevronDown, Flame, Sparkles, Users, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Search, X, SlidersHorizontal, ChevronDown, Flame, Sparkles, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import type { JobFilters, FiltersResponse } from '../api/client'
 import MultiSelect from './MultiSelect'
 import MobileFilterSheet from './MobileFilterSheet'
-import { PillButton, FilterRow, SalaryFields, ExpFields, ApplicantsFields } from './FilterPrimitives'
+import { PillButton, FilterRow, SalaryFields, ExpFields } from './FilterPrimitives'
 
 interface Props {
   filters: JobFilters
@@ -17,10 +17,9 @@ interface Props {
   onNewSearch: () => void
   /** ADR 0032: show the admin-hidden Roles control. Ultimate Admin in Admin
    * Mode only — the parent decides, this component just renders it. */
-  canFilterHidden?: boolean
 }
 
-export default function FilterBar({ filters, filterData, activeCount, onUpdate, onClear, onNewSearch, canFilterHidden }: Props) {
+export default function FilterBar({ filters, filterData, activeCount, onUpdate, onClear, onNewSearch }: Props) {
   const [showAllFilters, setShowAllFilters] = useState(false)
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
 
@@ -138,36 +137,6 @@ export default function FilterBar({ filters, filterData, activeCount, onUpdate, 
           )}
         </div>
 
-        {/* ADR 0032 — Ultimate Admin only. A hidden Role is off the public
-            board; this is the only place it can be pulled back into view. */}
-        {canFilterHidden && (
-          <div className="flex flex-wrap items-center gap-2 pb-3 text-xs">
-            <span style={{ color: 'var(--color-ink-muted)' }}>Hidden Roles</span>
-            {([
-              [undefined, 'Excluded'],
-              ['include', 'Shown greyed'],
-              ['only', 'Only hidden'],
-            ] as const).map(([mode, label]) => {
-              const active = (filters.admin_hidden ?? undefined) === mode
-              return (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => onUpdate({ admin_hidden: mode })}
-                  data-active={active}
-                  className="filter-pill rounded-md px-2.5 py-1 font-medium cursor-pointer whitespace-nowrap"
-                  style={{
-                    border: `1px solid ${active ? 'var(--color-ink)' : 'var(--color-border-strong)'}`,
-                    backgroundColor: active ? 'var(--color-ink)' : 'var(--color-surface-2)',
-                    color: active ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
-                  }}
-                >
-                  {label}
-                </button>
-              )
-            })}
-          </div>
-        )}
 
         {/* Advanced filters — desktop only, collapsed by default */}
         {showAllFilters && (
@@ -342,7 +311,6 @@ function AdvancedFilters({
             <ShieldCheck size={12} strokeWidth={2} aria-hidden="true" />Verified job
           </span>
         </PillButton>
-        <ApplicantsFilter filters={filters} onUpdate={onUpdate} />
       </FilterRow>
 
       {/* Refine — company / skills / salary / experience */}
@@ -409,9 +377,6 @@ function ActiveChips({
     ...(filters.is_new ? [{ label: 'New', remove: () => onUpdate({ is_new: false }) }] : []),
     ...(filters.urgently_hiring ? [{ label: 'Urgently hiring', remove: () => onUpdate({ urgently_hiring: false }) }] : []),
     ...(filters.verified_only ? [{ label: 'Verified job', remove: () => onUpdate({ verified_only: false }) }] : []),
-    ...(filters.max_applicants !== null
-      ? [{ label: `Under ${filters.max_applicants} applicants`, remove: () => onUpdate({ max_applicants: null }) }]
-      : []),
   ]
 
   if (chips.length === 0) return null
@@ -551,62 +516,6 @@ function ExpFilter({
           }}
         >
           <ExpFields filters={filters} onUpdate={onUpdate} />
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="text-xs font-medium text-right cursor-pointer"
-            style={{ color: 'var(--color-gold)' }}
-          >
-            Done
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Applicants filter (desktop popover wrapper around ApplicantsFields) ─────
-
-function ApplicantsFilter({
-  filters,
-  onUpdate,
-}: {
-  filters: JobFilters
-  onUpdate: (p: Partial<JobFilters>) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const isActive = filters.max_applicants !== null
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        data-active={isActive}
-        className="filter-pill rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1.5 outline-none"
-        style={{
-          backgroundColor: isActive ? 'var(--color-ink)' : 'var(--color-surface-2)',
-          color: isActive ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
-          border: `1px solid ${isActive ? 'var(--color-ink)' : 'var(--color-border-strong)'}`,
-          boxShadow: isActive ? 'var(--shadow-card)' : 'none',
-        }}
-        aria-expanded={open}
-      >
-        <Users size={12} strokeWidth={2} aria-hidden="true" />
-        {isActive ? `Under ${filters.max_applicants} applicants` : 'Few applicants'}
-      </button>
-
-      {open && (
-        <div
-          className="absolute left-0 top-full mt-1 z-40 rounded-lg p-4 flex flex-col gap-3"
-          style={{
-            minWidth: '240px',
-            backgroundColor: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            boxShadow: 'var(--shadow-float)',
-          }}
-        >
-          <ApplicantsFields filters={filters} onUpdate={onUpdate} />
           <button
             type="button"
             onClick={() => setOpen(false)}

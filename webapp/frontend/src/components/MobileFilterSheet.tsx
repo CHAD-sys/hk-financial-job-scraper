@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { X, Sparkles, Flame, ShieldCheck } from 'lucide-react'
 import type { JobFilters, FiltersResponse } from '../api/client'
-import { PillButton, FilterRow, SalaryFields, ExpFields, ApplicantsFields } from './FilterPrimitives'
+import { PillButton, FilterRow, SalaryFields, ExpFields } from './FilterPrimitives'
 import MultiSelect from './MultiSelect'
 
 interface Props {
@@ -141,10 +141,6 @@ export default function MobileFilterSheet({
             </span>
           </PillButton>
         </FilterRow>
-
-        <SectionHeader label="Applicants">
-          <ApplicantsFields filters={filters} onUpdate={onUpdate} />
-        </SectionHeader>
 
         <MultiSelect
           inline

@@ -102,6 +102,13 @@ export interface Job {
    * in an Ultimate-Admin read; the card is greyed when true.
    */
   admin_hidden?: boolean
+  /**
+   * Wears the "New" badge. Server-derived: the source board flagged the Role
+   * AND it was posted inside job_read.NEW_BADGE_DAYS. Do NOT re-derive this
+   * from `board_signals.new_job` — that flag never expires, which is how Roles
+   * up to 28 days old ended up badged "New" above their own "4w ago" line.
+   */
+  is_new: boolean
   years_experience_required: number | null
   posted_at: string | null
   url: string
@@ -428,15 +435,8 @@ export interface JobFilters {
   is_internship: boolean | null
   is_new: boolean
   urgently_hiring: boolean
-  max_applicants: number | null
   hidden_only: boolean
   verified_only: boolean
-  /**
-   * ADR 0032, Ultimate Admin only. Undefined = the public board (hidden Roles
-   * out). 'include' greys hidden Roles into the list; 'only' shows just them.
-   * The backend refuses this from anyone but a super-admin session.
-   */
-  admin_hidden?: 'include' | 'only'
 }
 
 // One name per field, per wire format `fetchJobs` and the URL serializer
@@ -448,14 +448,13 @@ export interface JobFilters {
 // params, `'true'` vs `'1'`), never naming — a renamed param can no longer
 // drift between the function that writes it and the one that reads it back.
 //
-// `tier`, `salary_disclosed_only` and `admin_hidden` are deliberately absent:
-// `tier` has no URL representation at all (shared links collapse to the combined
-// research stream, see `searchParamsToFilters`), `salary_disclosed_only` has no
-// API param of its own — it folds into `salary_min` instead (see the comment on
-// that in `fetchJobs`), and `admin_hidden` is a tri-state string with the same
-// name on both sides, handled inline (Ultimate-Admin only, ADR 0032).
+// `tier` and `salary_disclosed_only` are deliberately absent: `tier` has no URL
+// representation at all (shared links collapse to the combined research stream,
+// see `searchParamsToFilters`), and `salary_disclosed_only` has no API param of
+// its own — it folds into `salary_min` instead (see the comment on that in
+// `fetchJobs`).
 const FILTER_PARAM_NAMES: Record<
-  Exclude<keyof JobFilters, 'tier' | 'salary_disclosed_only' | 'admin_hidden'>,
+  Exclude<keyof JobFilters, 'tier' | 'salary_disclosed_only'>,
   { api: string; url: string }
 > = {
   search: { api: 'search', url: 'q' },
@@ -471,7 +470,6 @@ const FILTER_PARAM_NAMES: Record<
   is_internship: { api: 'is_internship', url: 'intern' },
   is_new: { api: 'is_new', url: 'new' },
   urgently_hiring: { api: 'urgently_hiring', url: 'urgent' },
-  max_applicants: { api: 'max_applicants', url: 'max_appl' },
   hidden_only: { api: 'hidden_only', url: 'hidden' },
   verified_only: { api: 'verified_only', url: 'verified' },
 }
@@ -492,7 +490,6 @@ export const DEFAULT_FILTERS: JobFilters = {
   is_internship: null,
   is_new: false,
   urgently_hiring: false,
-  max_applicants: null,
   hidden_only: false,
   verified_only: false,
 }
@@ -534,10 +531,8 @@ export async function fetchJobs(
   if (filters.is_internship !== null) p.set(FILTER_PARAM_NAMES.is_internship.api, String(filters.is_internship))
   if (filters.is_new) p.set(FILTER_PARAM_NAMES.is_new.api, 'true')
   if (filters.urgently_hiring) p.set(FILTER_PARAM_NAMES.urgently_hiring.api, 'true')
-  if (filters.max_applicants !== null) p.set(FILTER_PARAM_NAMES.max_applicants.api, String(filters.max_applicants))
   if (filters.hidden_only) p.set(FILTER_PARAM_NAMES.hidden_only.api, 'true')
   if (filters.verified_only) p.set(FILTER_PARAM_NAMES.verified_only.api, 'true')
-  if (filters.admin_hidden) p.set('admin_hidden', filters.admin_hidden)
 
   p.set('sort', sort)
   p.set('page', String(page))
@@ -1520,10 +1515,8 @@ export function filtersToSearchParams(
   if (filters.is_internship) p.set(FILTER_PARAM_NAMES.is_internship.url, '1')
   if (filters.is_new) p.set(FILTER_PARAM_NAMES.is_new.url, '1')
   if (filters.urgently_hiring) p.set(FILTER_PARAM_NAMES.urgently_hiring.url, '1')
-  if (filters.max_applicants !== null) p.set(FILTER_PARAM_NAMES.max_applicants.url, String(filters.max_applicants))
   if (filters.hidden_only) p.set(FILTER_PARAM_NAMES.hidden_only.url, '1')
   if (filters.verified_only) p.set(FILTER_PARAM_NAMES.verified_only.url, '1')
-  if (filters.admin_hidden) p.set('admin_hidden', filters.admin_hidden)
   if (sort !== 'newest') p.set('sort', sort)
   if (page > 1) p.set('page', String(page))
   return p
@@ -1556,12 +1549,8 @@ export function searchParamsToFilters(
       is_internship: p.get(FILTER_PARAM_NAMES.is_internship.url) === '1' ? true : null,
       is_new: p.get(FILTER_PARAM_NAMES.is_new.url) === '1',
       urgently_hiring: p.get(FILTER_PARAM_NAMES.urgently_hiring.url) === '1',
-      max_applicants: p.has(FILTER_PARAM_NAMES.max_applicants.url)
-        ? Number(p.get(FILTER_PARAM_NAMES.max_applicants.url)) : null,
       hidden_only: p.get(FILTER_PARAM_NAMES.hidden_only.url) === '1',
       verified_only: p.get(FILTER_PARAM_NAMES.verified_only.url) === '1',
-      admin_hidden: p.get('admin_hidden') === 'include' ? 'include'
-        : p.get('admin_hidden') === 'only' ? 'only' : undefined,
     },
     sort: p.get('sort') ?? 'newest',
     page: Number(p.get('page') ?? '1'),
@@ -1581,7 +1570,6 @@ export function countActiveFilters(filters: JobFilters): number {
   if (filters.is_internship) n++
   if (filters.is_new) n++
   if (filters.urgently_hiring) n++
-  if (filters.max_applicants !== null) n++
   if (filters.hidden_only) n++
   if (filters.verified_only) n++
   return n

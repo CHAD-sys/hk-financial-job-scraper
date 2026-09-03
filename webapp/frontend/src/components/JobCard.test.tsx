@@ -37,6 +37,7 @@ const base: Job = {
   posted_at: '2026-07-28T00:00:00Z',
   url: 'https://example.com/job',
   is_internship: false,
+  is_new: false,
   description_excerpt: '',
   closed: false,
   board_signals: {},
@@ -211,5 +212,42 @@ describe('JobCard', () => {
     fireEvent.click(screen.getByLabelText('Edit Vice President, Credit Risk'))
     expect(edited).toHaveLength(1)
     expect(opened).toHaveLength(0)
+  })
+})
+
+describe('the "New" badge', () => {
+  it('renders when the server says the Role is new', () => {
+    render(<JobCard job={{ ...base, is_new: true }} onSelect={() => {}} />)
+    expect(screen.getByText('New')).toBeTruthy()
+  })
+
+  it('ignores a board\'s own never-expiring new_job flag', () => {
+    // The bug this replaced: `new_job` is set by the source board and never
+    // cleared, so a card kept saying "New" for as long as the Role was listed
+    // — 129 board Roles were badged over a week after posting, the oldest at
+    // 28 days, directly above their own "4w ago" line. Only the server's
+    // `is_new` (job_read.IS_NEW_SQL, which expires after NEW_BADGE_DAYS)
+    // decides this now.
+    render(
+      <JobCard
+        job={{ ...base, is_new: false, board_signals: { jobsdb: { new_job: true } } }}
+        onSelect={() => {}}
+      />,
+    )
+    expect(screen.queryByText('New')).toBeNull()
+  })
+
+  it('still shows the other board signals from board_signals', () => {
+    // The expiry is scoped to "New" — urgency and applicant counts are still
+    // read straight from the boards, so this must not have quietly taken the
+    // whole signal row with it.
+    render(
+      <JobCard
+        job={{ ...base, board_signals: { jobsdb: { urgently_hiring: true, applicant_count: 4 } } }}
+        onSelect={() => {}}
+      />,
+    )
+    expect(screen.getByText('Urgently hiring')).toBeTruthy()
+    expect(screen.getByText('4 applicants')).toBeTruthy()
   })
 })

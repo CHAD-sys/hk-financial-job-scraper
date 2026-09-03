@@ -39,9 +39,12 @@ open and addressable (Saved Roles, deep links), just off the browse board.
 `job_read.BOARD_WHERE` and `hk_jobs.enrichment._fetch_unenriched` both read one
 function, `board_visible_sql()` — touch the predicate and both move together.
 (ADR 0032 tried a per-*sector* cap + 6-month window; ADR 0033 reverted that same
-day. What survives 0032: `admin_hidden`, an Ultimate-Admin-only toggle
-`BOARD_WHERE` still excludes, and `JobStore.deactivate_aged_out()`, which
-retires anything posted over 6 months ago every scrape.) The "X live roles"
+day. What survives 0032: the `admin_hidden` column, which `BOARD_WHERE` still
+excludes and `job_edit.py` still sets — but **not** the Ultimate-Admin filter
+that could pull hidden Roles back into view, removed 2026-09-03 at the owner's
+request. Nothing in production calls `board_visible_sql(with_hidden=True)` now.
+Also surviving: `JobStore.deactivate_aged_out()`, which retires anything posted
+over 6 months ago every scrape.) The "X live roles"
 headline stat (`LIVE_COUNT_WHERE`) is deliberately **uncapped** (~3,220) — it
 counts market context, not what a visitor browses.
 

@@ -166,7 +166,6 @@ describe('public Role research URLs', () => {
       is_internship: true,
       is_new: true,
       urgently_hiring: true,
-      max_applicants: 10,
       hidden_only: true,
       verified_only: true,
     }

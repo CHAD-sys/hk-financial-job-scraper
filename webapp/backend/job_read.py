@@ -147,10 +147,12 @@ def has_research_scope(query: Optional[str]) -> bool:
 #: table aliased `j`.
 BOARD_WHERE = board_visible_sql(with_hidden=False)
 
-#: BOARD_WHERE but admin-hidden Roles are included too — Ultimate Admin only,
-#: never a public read, never a target for salary estimation (ADR 0034 excludes
-#: a hidden Role exactly like anything else off the public board).
-_BOARD_WHERE_WITH_HIDDEN = board_visible_sql(with_hidden=True)
+#: There is no with-hidden variant here any more. ADR 0032's Hidden state is
+#: still WRITTEN (`job_edit.py` sets `admin_hidden`) and still excluded from
+#: every board read, but the Ultimate-Admin filter that could pull hidden Roles
+#: back into view was removed on 2026-09-03 at the owner's request. Nothing in
+#: production calls `board_visible_sql(with_hidden=True)` today; the parameter
+#: and its tests remain, so restoring the view is a one-line change here.
 
 #: The SQL each rule contributes to the WHERE clause. `None` means "no predicate",
 #: which is a deliberate value rather than an oversight: addressing a Role by
@@ -331,6 +333,33 @@ INTERNSHIP_COND = f"(j.title REGEXP '{_INTERNSHIP_REGEX}')"
 INTERNSHIP_SQL = f"CASE WHEN {INTERNSHIP_COND} THEN 1 ELSE 0 END"
 
 
+# ── The "New" badge, and when it expires ──────────────────────────────────────
+# `grp_new` is the SOURCE board's own "new" flag, aggregated across a vacancy's
+# cross-post group by `JobStore.refresh_signal_flags`. It never expires: a board
+# that once said "new" keeps saying it, so the badge outlived any sense of the
+# word. On the 2026-09 catalogue 129 of the 330 flagged Roles were over a week
+# old and the oldest were 28 days — a card reading "New" directly above its own
+# "4w ago" timestamp.
+#
+# So the flag is now a TRIGGER with an expiry: a Role wears the badge for
+# `NEW_BADGE_DAYS` after its posting date, and never again.
+#
+#: Measured by `posted_at`, which is the honest choice AND the only workable
+#: one. `jobs` has no first-seen column — `fetched_at` is overwritten on every
+#: scrape by the `_UPSERT` (2,096 of 2,216 board rows carry the last run's
+#: timestamp), so "how long has this been in the database" is not a question the
+#: schema can answer, and a new column could not be backfilled: every existing
+#: Role would date from the migration and the whole board would read "New" for a
+#: week. `posted_at` is also what the card's own "3w ago" line renders, so the
+#: badge and the timestamp beside it now agree by construction.
+NEW_BADGE_DAYS = 7
+IS_NEW_COND = (
+    "(j.grp_new = 1"
+    f" AND date(j.posted_at) >= date('now', '-{NEW_BADGE_DAYS} days'))"
+)
+IS_NEW_SQL = f"CASE WHEN {IS_NEW_COND} THEN 1 ELSE 0 END"
+
+
 # ── The select ────────────────────────────────────────────────────────────────
 # FROM/JOIN is a single constant used by BOTH the row query and the count. They
 # used to be typed out separately, so a change to one silently disagreed with the
@@ -388,7 +417,8 @@ _SELECT_COLUMNS = f"""
     e.description_summary,
     e.title_en,
     ({SECTOR_SQL}) AS sector,
-    ({INTERNSHIP_SQL}) AS is_internship
+    ({INTERNSHIP_SQL}) AS is_internship,
+    ({IS_NEW_SQL}) AS is_new
 """.strip()
 
 BASE_SELECT = f"SELECT\n{_SELECT_COLUMNS}\n{_FROM}".strip()
@@ -440,6 +470,11 @@ class JobSummary(BaseModel):
     posted_at: Optional[str] = None
     url: str
     is_internship: bool = False
+    #: Wears the "New" badge — the source board flagged it AND it was posted
+    #: within `NEW_BADGE_DAYS`. Derived here rather than left to the client to
+    #: read out of `board_signals`, so the badge and the `is_new` FILTER cannot
+    #: disagree about what "new" means.
+    is_new: bool = False
     description_excerpt: str = ""
     #: Why this Role appears in the current free-text search.  Absent outside
     #: search results so a card never claims a relevance judgment it did not make.
@@ -566,13 +601,6 @@ class JobFilters:
     max_applicants: Optional[int] = None
     hidden_only: Optional[bool] = None
     verified_only: Optional[bool] = None
-    #: ADR 0032's admin-only Hidden state. None = the public board (hidden Roles
-    #: excluded). "include" = rank hidden Roles into the board too (Ultimate
-    #: Admin's greyed view). "only" = just the hidden Roles. `main.py` refuses
-    #: "include"/"only" from anyone but a super-admin session, so `_where` can
-    #: act on it without re-checking who is asking.
-    admin_hidden: Optional[Literal["include", "only"]] = None
-
     # ── Salary-audit filters (ASF, 2026-08-21) ─────────────────────────────
     # Additive and admin-only in practice: every field defaults to "not
     # requested", so every existing caller (/api/jobs, /api/filters,
@@ -663,14 +691,8 @@ def _where(
     params: list = []
 
     rule = _VISIBILITY_SQL[visibility]
-    if visibility == Visibility.BOARD and filters.admin_hidden in ("include", "only"):
-        # Ultimate Admin looking at hidden Roles: swap in the variant that ranks
-        # them in. `main.py` has already refused this value from anyone else.
-        rule = _BOARD_WHERE_WITH_HIDDEN
     if rule:
         conditions.append(rule)
-    if filters.admin_hidden == "only":
-        conditions.append("j.admin_hidden = 1")
 
     if audience == CatalogueAudience.PUBLIC:
         conditions.append(PUBLIC_AUDIENCE_WHERE)
@@ -679,7 +701,9 @@ def _where(
     # (populated by JobStore.refresh_signal_flags at reconcile time), which already
     # aggregate each vacancy's cross-post group — so filtering is instant. ──
     if filters.is_new:
-        conditions.append("j.grp_new = 1")
+        # The same expression the badge is rendered from, so filtering by "New"
+        # cannot return a card that does not show the badge.
+        conditions.append(IS_NEW_COND)
     if filters.urgently_hiring:
         conditions.append("j.grp_urgent = 1")
     if filters.max_applicants is not None:
@@ -1147,6 +1171,7 @@ def _to_summary(
         posted_at=row["posted_at"],
         url=row["url"],
         is_internship=bool(row["is_internship"]),
+        is_new=bool(row["is_new"]),
         description_excerpt=excerpt,
         match_reason=match_reason,
         closed=not row["is_active"],
