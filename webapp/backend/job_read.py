@@ -333,31 +333,51 @@ INTERNSHIP_COND = f"(j.title REGEXP '{_INTERNSHIP_REGEX}')"
 INTERNSHIP_SQL = f"CASE WHEN {INTERNSHIP_COND} THEN 1 ELSE 0 END"
 
 
-# ── The "New" badge, and when it expires ──────────────────────────────────────
-# `grp_new` is the SOURCE board's own "new" flag, aggregated across a vacancy's
-# cross-post group by `JobStore.refresh_signal_flags`. It never expires: a board
-# that once said "new" keeps saying it, so the badge outlived any sense of the
-# word. On the 2026-09 catalogue 129 of the 330 flagged Roles were over a week
-# old and the oldest were 28 days — a card reading "New" directly above its own
-# "4w ago" timestamp.
+# ── Scraped board signals, and when they stop being true ─────────────────────
+# Some things a board tells us are STANDING properties of the Role (its title,
+# its location). Others are POINT-IN-TIME facts: true at the moment we scraped
+# them, and quietly false afterwards, with nothing in the data to say so. We
+# scrape those facts, we never derive them — which is why only some Roles carry
+# them at all (37 of 62 Indeed rows report an applicant count; `new_job` comes
+# only from LinkedIn). That patchiness is the source being honest, not a gap to
+# fill in.
 #
-# So the flag is now a TRIGGER with an expiry: a Role wears the badge for
-# `NEW_BADGE_DAYS` after its posting date, and never again.
+# What they lack is an expiry, so we give them one. A scraped point-in-time fact
+# is shown for `SCRAPED_SIGNAL_DAYS` after the Role was posted, and then not at
+# all. It is never recomputed, never guessed at, and never extended.
 #
-#: Measured by `posted_at`, which is the honest choice AND the only workable
+#: Measured from `posted_at`, which is the honest choice AND the only workable
 #: one. `jobs` has no first-seen column — `fetched_at` is overwritten on every
 #: scrape by the `_UPSERT` (2,096 of 2,216 board rows carry the last run's
-#: timestamp), so "how long has this been in the database" is not a question the
-#: schema can answer, and a new column could not be backfilled: every existing
-#: Role would date from the migration and the whole board would read "New" for a
-#: week. `posted_at` is also what the card's own "3w ago" line renders, so the
-#: badge and the timestamp beside it now agree by construction.
-NEW_BADGE_DAYS = 7
-IS_NEW_COND = (
-    "(j.grp_new = 1"
-    f" AND date(j.posted_at) >= date('now', '-{NEW_BADGE_DAYS} days'))"
-)
+#: timestamp), so "how long have we had this" is not a question the schema can
+#: answer, and a new column could not be backfilled: every existing Role would
+#: date from the migration and the whole board would look freshly scraped for a
+#: week. `posted_at` is also what the card's own "3w ago" line renders, so a
+#: signal and the timestamp beside it now agree by construction.
+SCRAPED_SIGNAL_DAYS = 7
+
+_WITHIN_SIGNAL_WINDOW = f"date(j.posted_at) >= date('now', '-{SCRAPED_SIGNAL_DAYS} days')"
+
+# The "New" badge. `grp_new` is the SOURCE board's own flag, aggregated across a
+# vacancy's cross-post group by `JobStore.refresh_signal_flags`, and it never
+# expires on its own: a board that once said "new" keeps saying it. On the
+# 2026-09 catalogue 129 of the 330 flagged Roles were over a week old and the
+# oldest were 28 days — a card reading "New" directly above its own "4w ago"
+# timestamp. The flag stays the TRIGGER; the window is the expiry.
+IS_NEW_COND = f"(j.grp_new = 1 AND {_WITHIN_SIGNAL_WINDOW})"
 IS_NEW_SQL = f"CASE WHEN {IS_NEW_COND} THEN 1 ELSE 0 END"
+
+#: Signals dropped from the wire once the window has passed, so no client can
+#: render a stale one. The applicant count is the case this exists for: Indeed
+#: reports "1 applicant" and we keep showing it for as long as the Role is
+#: listed, so a Role posted three weeks ago still advertised a number scraped
+#: when it was new. Everything NOT named here is a standing property and
+#: survives (eFinancialCareers' `position_type`, Eightfold's `business_unit`,
+#: a Recruiter Post's `recruiter_name`).
+PERISHABLE_SIGNALS = frozenset({"applicant_count"})
+
+#: 1 when this Role's scraped point-in-time signals have expired.
+SIGNALS_STALE_SQL = f"CASE WHEN {_WITHIN_SIGNAL_WINDOW} THEN 0 ELSE 1 END"
 
 
 # ── The select ────────────────────────────────────────────────────────────────
@@ -418,7 +438,8 @@ _SELECT_COLUMNS = f"""
     e.title_en,
     ({SECTOR_SQL}) AS sector,
     ({INTERNSHIP_SQL}) AS is_internship,
-    ({IS_NEW_SQL}) AS is_new
+    ({IS_NEW_SQL}) AS is_new,
+    ({SIGNALS_STALE_SQL}) AS signals_stale
 """.strip()
 
 BASE_SELECT = f"SELECT\n{_SELECT_COLUMNS}\n{_FROM}".strip()
@@ -1104,12 +1125,26 @@ def _salary_period(row: sqlite3.Row) -> Literal["month", "year"] | None:
     return "year" if max(stated) > _MAX_PLAUSIBLE_MONTHLY_SALARY else "month"
 
 
+def _fresh(sig: dict, *, stale: bool) -> dict:
+    """One board's signals with the expired point-in-time ones removed.
+
+    Applied where signals reach the WIRE rather than where a card renders them,
+    so a stale count cannot be shown by any client, present or future — the
+    invariant lives with the data, not with one component that remembers to
+    check. Standing properties are untouched; see `PERISHABLE_SIGNALS`.
+    """
+    if not stale:
+        return sig
+    return {k: v for k, v in sig.items() if k not in PERISHABLE_SIGNALS}
+
+
 def _own_signals(row: sqlite3.Row) -> dict[str, dict]:
     """This row's own board_signals, namespaced by its source ({source: {...}})."""
     try:
         sig = json.loads(row["board_signals"] or "{}")
     except (TypeError, ValueError, IndexError):
         sig = {}
+    sig = _fresh(sig, stale=bool(row["signals_stale"]))
     return {row["source"]: sig} if sig else {}
 
 
@@ -1213,7 +1248,16 @@ def _attach_group_signals(
 
     for row, summary in zip(rows, summaries):
         if row["cross_posted"] and row["raw_apply_url"] in by_url:
-            summary.board_signals = by_url[row["raw_apply_url"]]
+            # Expiry is keyed on the DISPLAYED Role's posting date, not on each
+            # copy's — the card shows one date, so one window governs every
+            # signal beside it. Without this the group merge would hand back the
+            # stale count `_own_signals` had just dropped.
+            stale = bool(row["signals_stale"])
+            summary.board_signals = {
+                source: fresh
+                for source, sig in by_url[row["raw_apply_url"]].items()
+                if (fresh := _fresh(sig, stale=stale))
+            }
 
 
 # ── The interface ─────────────────────────────────────────────────────────────

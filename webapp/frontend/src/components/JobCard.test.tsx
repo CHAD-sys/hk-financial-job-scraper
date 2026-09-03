@@ -217,7 +217,7 @@ describe('JobCard', () => {
 
 describe('the "New" badge', () => {
   it('renders when the server says the Role is new', () => {
-    render(<JobCard job={{ ...base, is_new: true }} onSelect={() => {}} />)
+    render(<JobCard job={{ ...base, is_new: true }} saved={false} onToggleSave={noop} onClick={noop} />)
     expect(screen.getByText('New')).toBeTruthy()
   })
 
@@ -231,7 +231,7 @@ describe('the "New" badge', () => {
     render(
       <JobCard
         job={{ ...base, is_new: false, board_signals: { jobsdb: { new_job: true } } }}
-        onSelect={() => {}}
+        saved={false} onToggleSave={noop} onClick={noop}
       />,
     )
     expect(screen.queryByText('New')).toBeNull()
@@ -244,7 +244,7 @@ describe('the "New" badge', () => {
     render(
       <JobCard
         job={{ ...base, board_signals: { jobsdb: { urgently_hiring: true, applicant_count: 4 } } }}
-        onSelect={() => {}}
+        saved={false} onToggleSave={noop} onClick={noop}
       />,
     )
     expect(screen.getByText('Urgently hiring')).toBeTruthy()

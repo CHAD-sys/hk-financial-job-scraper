@@ -433,6 +433,11 @@ function SignalBadges({ boardSignals, isNew }: { boardSignals: Job['board_signal
   // posting, the oldest at 28 days. The server now decides it (one expression,
   // job_read.IS_NEW_SQL, shared with the `is_new` FILTER so the two agree).
   // Single pass: track the highest applicant count seen across boards.
+  // The count is SCRAPED (Indeed and LinkedIn report it; the other boards never
+  // do), and the server drops it from board_signals once it is older than
+  // job_read.SCRAPED_SIGNAL_DAYS — so this renders nothing for a Role whose
+  // count was taken back when it was new. Nothing to check for here: an expired
+  // signal simply is not on the wire.
   let applicants: number | null = null
   for (const s of signalSets) {
     const n = Number(s?.applicant_count)

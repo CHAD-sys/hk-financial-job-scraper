@@ -48,6 +48,21 @@ over 6 months ago every scrape.) The "X live roles"
 headline stat (`LIVE_COUNT_WHERE`) is deliberately **uncapped** (~3,220) — it
 counts market context, not what a visitor browses.
 
+**Scraped board signals expire after a week** (`job_read.SCRAPED_SIGNAL_DAYS`).
+Some things a board tells us are standing properties of the Role; others are
+point-in-time facts — true when scraped, quietly false later, with nothing in
+the data to say so. **We scrape those, we never derive them**, which is why only
+some Roles carry them (37 of 62 Indeed rows report an applicant count; `new_job`
+comes only from LinkedIn). That patchiness is the source being honest, not a gap
+to fill. What they lacked was an expiry: the "New" badge rode `grp_new` for up to
+28 days, and a Role posted three weeks ago still advertised "1 applicant" scraped
+when it was new. Both now expire 7 days after `posted_at` — the only workable
+clock, since `fetched_at` is overwritten every scrape and a first-seen column
+could not be backfilled. `PERISHABLE_SIGNALS` names what expires; expiry is
+applied where signals reach the WIRE (`_own_signals` AND the cross-post merge in
+`_attach_group_signals`, which would otherwise hand a stale count straight back),
+so no client can render one.
+
 **Ordering, separately from membership (ADR 0038):** on `/api/jobs` a Role whose
 card shows no salary figure ranks after the priced ones. **Under `RELEVANCE` —
 what the board switches to the moment a Seeker types in the search box

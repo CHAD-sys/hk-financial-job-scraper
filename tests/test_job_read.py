@@ -24,7 +24,7 @@ from .support import BACKEND, days_ago, enrichment, job, make_jobs_db, signals
 sys.path.insert(0, str(BACKEND))
 
 from job_read import (  # noqa: E402
-    NEW_BADGE_DAYS,
+    SCRAPED_SIGNAL_DAYS,
     CatalogueAudience,
     JobFilters,
     Sort,
@@ -778,11 +778,11 @@ def new_badge_conn(tmp_path) -> sqlite3.Connection:
     """Four Roles the source board all flagged `grp_new`, spread across the
     expiry boundary, plus one it never flagged.
 
-    `NEW_BADGE_DAYS` is read from the module rather than retyped, so the fixture
+    `SCRAPED_SIGNAL_DAYS` is read from the module rather than retyped, so the fixture
     straddles the real boundary even if the window is retuned.
     """
     db = tmp_path / "new-badge.db"
-    window = NEW_BADGE_DAYS
+    window = SCRAPED_SIGNAL_DAYS
     make_jobs_db(
         db,
         jobs=[
@@ -819,7 +819,7 @@ def test_the_new_badge_still_applies_inside_the_window(new_badge_conn):
     day of the window."""
     badges = _badges(new_badge_conn)
     assert badges["TODAY"] is True
-    assert badges["EDGE_IN"] is True, f"day {NEW_BADGE_DAYS} is inside the window"
+    assert badges["EDGE_IN"] is True, f"day {SCRAPED_SIGNAL_DAYS} is inside the window"
 
 
 def test_a_recent_role_the_board_never_flagged_is_not_new(new_badge_conn):
@@ -836,6 +836,86 @@ def test_the_new_filter_returns_exactly_the_badged_roles(new_badge_conn):
     filtered = _ids(list_jobs(new_badge_conn, JobFilters(is_new=True), page_size=100).jobs)
     badged = [sid for sid, on in _badges(new_badge_conn).items() if on]
     assert sorted(filtered) == sorted(badged) == ["EDGE_IN", "TODAY"]
+
+
+# ── Scraped point-in-time signals expire with the same window ────────────────
+# The applicant count is SCRAPED, never derived — which is why only some Roles
+# carry one (37 of 62 Indeed rows on the 2026-09 board). That patchiness is the
+# source being honest and must survive; what must not is showing a count taken
+# when the Role was new for as long as the Role is listed.
+
+
+@pytest.fixture()
+def signal_conn(tmp_path) -> sqlite3.Connection:
+    """One fresh and one expired Role, each carrying a perishable signal
+    (`applicant_count`) alongside a standing one (`job_types`)."""
+    db = tmp_path / "signals.db"
+    window = SCRAPED_SIGNAL_DAYS
+    make_jobs_db(
+        db,
+        jobs=[
+            job(source="indeed", source_id="FRESH", posted_at=days_ago(window),
+                board_signals=signals(applicant_count=4, job_types=["Full-time"])),
+            job(source="indeed", source_id="EXPIRED", posted_at=days_ago(window + 1),
+                board_signals=signals(applicant_count=1, job_types=["Full-time"])),
+        ],
+    )
+    c = prepare(sqlite3.connect(db))
+    yield c
+    c.close()
+
+
+def _signals_for(conn, source_id: str) -> dict:
+    by_id = {j.source_id: j for j in list_jobs(conn, JobFilters(), page_size=100).jobs}
+    return {k: v for sets in by_id[source_id].board_signals.values() for k, v in sets.items()}
+
+
+def test_a_scraped_applicant_count_expires(signal_conn):
+    """The card in the owner's screenshot: an Indeed Role posted three weeks ago
+    still advertising "1 applicant" from the day it was scraped."""
+    assert "applicant_count" not in _signals_for(signal_conn, "EXPIRED")
+
+
+def test_an_applicant_count_inside_the_window_is_kept(signal_conn):
+    """The expiry must not delete the signal outright — it is real information
+    while it is fresh, on the last day of the window included."""
+    assert _signals_for(signal_conn, "FRESH")["applicant_count"] == 4
+
+
+def test_expiry_only_touches_perishable_signals(signal_conn):
+    """A standing property of the Role does not go stale and must survive on an
+    expired Role — otherwise this quietly empties `board_signals` instead of
+    ageing out the one fact that needed it."""
+    assert _signals_for(signal_conn, "EXPIRED")["job_types"] == ["Full-time"]
+
+
+def test_a_cross_posted_copy_cannot_hand_back_an_expired_count(tmp_path):
+    """`_attach_group_signals` REPLACES a cross-posted card's signals with the
+    whole group's, so an expiry applied only in `_own_signals` would be undone
+    by the very next line. Both seams filter, keyed on the displayed Role's
+    posting date."""
+    db = tmp_path / "xpost-signals.db"
+    old = days_ago(SCRAPED_SIGNAL_DAYS + 1)
+    make_jobs_db(
+        db,
+        jobs=[
+            job(source="jobsdb", source_id="PRIMARY", posted_at=old, cross_posted=1,
+                apply_url="https://apply.test/shared",
+                board_signals=signals(applicant_count=2)),
+            job(source="indeed", source_id="COPY", posted_at=old, is_primary=0,
+                cross_posted=1, apply_url="https://apply.test/shared",
+                board_signals=signals(applicant_count=9, urgently_hiring=True)),
+        ],
+    )
+    c = prepare(sqlite3.connect(db))
+    try:
+        card = list_jobs(c, JobFilters(), page_size=100).jobs[0]
+    finally:
+        c.close()
+    flat = {k: v for sets in card.board_signals.values() for k, v in sets.items()}
+    assert card.source_id == "PRIMARY"
+    assert "applicant_count" not in flat, "the hidden copy's count leaked through the group merge"
+    assert flat["urgently_hiring"] is True, "the group merge itself must still work"
 
 
 # ── Unpriced Roles rank last within their bucket (ADR 0038) ───────────────────
