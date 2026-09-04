@@ -1,6 +1,6 @@
 import {
   Briefcase, Bookmark, Menu, X, ChevronDown, FileText, LogOut, ArrowUpRight, Building2,
-  LayoutDashboard, Search,
+  LayoutDashboard, Search, UserRound,
 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
@@ -85,6 +85,42 @@ const LINKS: PrimaryLink[] = [
  * the desktop row must not be able to drift apart on what "primary" means —
  * both call this.
  */
+/**
+ * What the account slot shows: the Seeker's menu, the Employer's, a "Sign in"
+ * prompt, or nothing yet.
+ *
+ * Seeker and Employer are separate accounts with separate sessions (ADR 0001),
+ * and BOTH can be signed in at once. The slot used to be decided inline from
+ * the Seeker session alone, in two places — the desktop bar and the mobile
+ * menu — which is how the same bug reached both: a signed-in Employer was shown
+ * their own company chip and a bare "Sign in" link side by side, which reads as
+ * "you are not signed in" whatever else is on the bar.
+ *
+ * A function, for the same reason `primaryLinksFor` is one: the two menus must
+ * not be able to disagree about who is signed in. `'pending'` until BOTH
+ * sessions have answered — flashing "Sign in" at somebody who is signed in is
+ * worse than a beat of nothing, and that is true of either account.
+ */
+export type AccountSlot = 'pending' | 'seeker' | 'employer' | 'sign-in'
+
+export function accountSlotFor(
+  { authLoading, hasSeeker, employerAuthLoading, hasEmployer }: {
+    authLoading: boolean
+    hasSeeker: boolean
+    employerAuthLoading: boolean
+    hasEmployer: boolean
+  },
+): AccountSlot {
+  if (authLoading || employerAuthLoading) return 'pending'
+  // Seeker wins the slot when both are signed in: this bar's other Employer
+  // affordances (the "Post a role" button, EmployerMenu) render independently,
+  // so the Employer is still represented — see the desktop bar.
+  if (hasSeeker) return 'seeker'
+  if (hasEmployer) return 'employer'
+  return 'sign-in'
+}
+
+
 export function primaryLinksFor(isAdmin: boolean, isSuperAdmin: boolean): PrimaryLink[] {
   const links = isAdmin ? [...LINKS, { label: 'Admin panel', to: '/admin' }] : [...LINKS]
   if (isSuperAdmin) links.push({ label: 'ASF', to: '/asf' })
@@ -102,6 +138,11 @@ export default function Nav() {
   const { pathname, hash } = useLocation()
   const { seeker, loading: authLoading, logout } = useAuth()
   const { employer, loading: employerAuthLoading, logout: employerLogout } = useEmployerAuth()
+  //: One decision, read by both the desktop bar and the mobile menu.
+  const accountSlot = accountSlotFor({
+    authLoading, hasSeeker: Boolean(seeker),
+    employerAuthLoading, hasEmployer: Boolean(employer),
+  })
   // Both bits, for the same reason JobBoardPage reads both: seekers_store's
   // set_super_admin() writes only its own column, so an Ultimate Admin granted
   // that bit alone would otherwise get no way back to the panel.
@@ -294,22 +335,33 @@ export default function Nav() {
                 onClick={() => (pathname === '/saved' ? scrollToTop() : navigate('/saved'))}
               />
 
-              {/* Nothing renders until /api/auth/me has answered: flashing
-                  "Sign in" at somebody who is signed in is worse than a beat
-                  of nothing. */}
-              {!authLoading && (
-                seeker ? (
-                  <SeekerMenu seeker={seeker} onSignOut={handleSignOut} />
-                ) : (
-                  <Link
-                    to="/get-started"
-                    state={{ from: returnTo }}
-                    className="inline-flex min-h-9 items-center rounded px-3 py-1.5 text-sm font-medium no-underline"
-                    style={{ color: 'rgba(248,250,252,0.75)' }}
-                  >
-                    Sign in
-                  </Link>
-                )
+              {/* Nothing renders until BOTH /api/auth/me and the employer's
+                  equivalent have answered: flashing "Sign in" at somebody who
+                  is signed in is worse than a beat of nothing.
+
+                  The employer half of that gate was missing, and it is the bug
+                  this fixes. Seeker and Employer are separate accounts (ADR
+                  0001) with separate sessions, and this slot only ever asked
+                  about the Seeker — so a signed-in Employer saw their own
+                  company chip and a "Sign in" link side by side, which reads as
+                  "you are not signed in" no matter what else is on the bar.
+
+                  An Employer who also wants a Seeker account is not stranded:
+                  the chooser is still at /get-started, and EmployerMenu links
+                  to it. What is gone is the bare prompt that contradicted the
+                  chip beside it. */}
+              {accountSlot === 'seeker' && seeker && (
+                <SeekerMenu seeker={seeker} onSignOut={handleSignOut} />
+              )}
+              {accountSlot === 'sign-in' && (
+                <Link
+                  to="/get-started"
+                  state={{ from: returnTo }}
+                  className="inline-flex min-h-9 items-center rounded px-3 py-1.5 text-sm font-medium no-underline"
+                  style={{ color: 'rgba(248,250,252,0.75)' }}
+                >
+                  Sign in
+                </Link>
               )}
             </div>
           </div>
@@ -419,9 +471,12 @@ export default function Nav() {
             // Same rule as the desktop bar: only for a signed-in Employer.
             ...(!employerAuthLoading && employer ? [{ label: 'Post a role', to: '/post-a-role' }] : []),
             // The account item(s), which the desktop bar keeps in its own slot.
-            ...(authLoading ? [] : seeker
-              ? [{ label: 'Resume & account', to: '/account' }]
-              : [{ label: 'Sign in', to: '/get-started' }]),
+            // Same `accountSlot` the desktop bar reads, so the two menus cannot
+            // disagree about who is signed in — an Employer's own sign-out sits
+            // at the bottom of this menu, so 'employer' contributes nothing here.
+            ...(accountSlot === 'seeker' ? [{ label: 'Resume & account', to: '/account' }]
+              : accountSlot === 'sign-in' ? [{ label: 'Sign in', to: '/get-started' }]
+              : []),
           ].map(({ label, to, external }) =>
             external ? (
               <a
@@ -808,6 +863,21 @@ function EmployerMenu({ employer, onSignOut }: { employer: Employer; onSignOut: 
           >
             {employer.email}
           </p>
+          {/* The one route to the Seeker side for someone already signed in
+              as an Employer. The bar's "Sign in" link is hidden for them (it
+              contradicted the chip this menu hangs off), so without this the
+              two accounts would have no door between them. Worded as the
+              separate thing it is, never as a bare "Sign in". */}
+          <Link
+            role="menuitem"
+            to="/get-started"
+            onClick={() => setOpen(false)}
+            className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm font-medium no-underline"
+            style={{ color: 'var(--color-ink-muted)' }}
+          >
+            <UserRound size={15} strokeWidth={2} />
+            Seeker account
+          </Link>
           <button
             role="menuitem"
             type="button"

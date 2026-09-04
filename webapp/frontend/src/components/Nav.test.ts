@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { primaryLinksFor } from './Nav'
+import { accountSlotFor, primaryLinksFor } from './Nav'
 
 /**
  * Admins get one extra destination in the primary row; Ultimate Admin gets a
@@ -55,5 +55,58 @@ describe('primaryLinksFor', () => {
 
   it('never exposes ASF to a plain administrator', () => {
     expect(primaryLinksFor(true, false).map(link => link.label)).not.toContain('ASF')
+  })
+})
+
+/**
+ * Who the account slot says you are.
+ *
+ * Seeker and Employer are separate accounts with separate sessions (ADR 0001)
+ * and both can be signed in at once. This slot used to be decided from the
+ * Seeker session alone, inline, in the desktop bar AND again in the mobile
+ * menu — so a signed-in Employer got their company chip and a bare "Sign in"
+ * link side by side, in both menus, which reads as "you are not signed in".
+ */
+describe('accountSlotFor', () => {
+  const settled = { authLoading: false, employerAuthLoading: false }
+
+  it('does not ask a signed-in employer to sign in', () => {
+    // The reported bug, exactly: employer session, no seeker session.
+    expect(accountSlotFor({ ...settled, hasSeeker: false, hasEmployer: true }))
+      .toBe('employer')
+  })
+
+  it('still asks a visitor with neither account to sign in', () => {
+    expect(accountSlotFor({ ...settled, hasSeeker: false, hasEmployer: false }))
+      .toBe('sign-in')
+  })
+
+  it('shows the seeker menu to a signed-in seeker', () => {
+    expect(accountSlotFor({ ...settled, hasSeeker: true, hasEmployer: false }))
+      .toBe('seeker')
+  })
+
+  it('gives the slot to the seeker when both accounts are signed in', () => {
+    // The bar renders the Employer's "Post a role" button and EmployerMenu
+    // independently, so the Employer is still represented either way.
+    expect(accountSlotFor({ ...settled, hasSeeker: true, hasEmployer: true }))
+      .toBe('seeker')
+  })
+
+  it('waits for the EMPLOYER session before offering "Sign in"', () => {
+    // The half of the gate that was missing. With only the seeker session
+    // resolved, an employer would see "Sign in" flash before their own chip
+    // arrived — the same contradiction, just briefer.
+    expect(accountSlotFor({
+      authLoading: false, hasSeeker: false,
+      employerAuthLoading: true, hasEmployer: false,
+    })).toBe('pending')
+  })
+
+  it('waits for the seeker session too', () => {
+    expect(accountSlotFor({
+      authLoading: true, hasSeeker: false,
+      employerAuthLoading: false, hasEmployer: false,
+    })).toBe('pending')
   })
 })
