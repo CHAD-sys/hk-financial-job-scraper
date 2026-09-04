@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
   Building2,
   CircleSlash,
@@ -231,54 +230,43 @@ function BoardRoles({ activity }: { activity: EmployerActivity }) {
 
 
 /**
- * Enters the Employer PREVIEW — the other half of this section.
+ * Points at where the Employer PREVIEW actually lives — the other half of
+ * this section, but not a second control for it.
  *
- * The tables below answer "what does this Employer have?" from our side. This
- * answers "what does an Employer see?" from theirs, which no admin could look
- * at before without registering a throwaway company into employers.db.
+ * The tables below answer "what does this Employer have?" from our side. The
+ * preview answers "what does an Employer see?" from theirs — no admin could
+ * look at that before without registering a throwaway company into
+ * employers.db. The toggle for it is the "Employer view" switch in the top
+ * nav bar, next to Admin Mode; this is a pointer to that switch, not a second
+ * one. Two controls doing the same job is exactly the confusion this is
+ * written to avoid — the switch is the only place that turns it on or off.
  *
- * Hidden rather than disabled when unavailable: the only reason an Ultimate
- * Admin cannot enter is that they are ALREADY signed in as a real Employer
- * (see EmployerViewProvider), and in that case there is nothing to preview —
- * they are looking at the real thing.
+ * Hidden rather than shown-disabled when unavailable: the only reason an
+ * Ultimate Admin cannot use it is that they are ALREADY signed in as a real
+ * Employer (see EmployerViewProvider), and in that case there is nothing to
+ * preview — they are looking at the real thing.
  */
 function EmployerViewLauncher() {
-  const { employerView, canUseEmployerView, setEmployerView } = useEmployerView()
-  const navigate = useNavigate()
+  const { employerView, canUseEmployerView } = useEmployerView()
 
   if (!canUseEmployerView) return null
 
   return (
     <div
-      className="mb-6 flex flex-col gap-3 rounded-lg p-4 sm:flex-row sm:items-center sm:justify-between"
+      className="mb-6 flex items-start gap-2.5 rounded-lg p-4"
       style={{ backgroundColor: 'var(--color-gold-light)', border: '1px solid var(--color-gold)' }}
     >
-      <div className="flex items-start gap-2.5">
-        <Eye size={17} className="mt-0.5 shrink-0" style={{ color: 'var(--color-gold)' }} aria-hidden="true" />
-        <p className="text-sm leading-relaxed" style={{ color: 'var(--color-ink)' }}>
-          <strong>See the site as an Employer.</strong>{' '}
-          <span style={{ color: 'var(--color-ink-muted)' }}>
-            Turns on the employer-facing nav and Post a role, without an Employer account.
-            It is a preview: nothing you do in it acts on any Employer&rsquo;s behalf, and
-            submitting is disabled.
-          </span>
-        </p>
-      </div>
-      <button
-        type="button"
-        onClick={() => {
-          setEmployerView(!employerView)
-          if (!employerView) navigate('/post-a-role')
-        }}
-        className="min-h-11 shrink-0 cursor-pointer rounded-md px-4 text-sm font-semibold"
-        style={{
-          backgroundColor: employerView ? 'var(--color-surface)' : 'var(--color-ink)',
-          color: employerView ? 'var(--color-ink)' : 'var(--color-ink-inverse)',
-          border: '1px solid var(--color-ink)',
-        }}
-      >
-        {employerView ? 'Leave Employer view' : 'Enter Employer view'}
-      </button>
+      <Eye size={17} className="mt-0.5 shrink-0" style={{ color: 'var(--color-gold)' }} aria-hidden="true" />
+      <p className="text-sm leading-relaxed" style={{ color: 'var(--color-ink)' }}>
+        <strong>See the site as an Employer.</strong>{' '}
+        <span style={{ color: 'var(--color-ink-muted)' }}>
+          {employerView
+            ? <>The preview is on right now — the top bar shows &ldquo;Leave preview&rdquo;. Nothing you
+                do in it acts on any Employer&rsquo;s behalf, and submitting is disabled.</>
+            : <>Use the &ldquo;Employer view&rdquo; switch in the top bar, next to Admin Mode, to turn on
+                the employer-facing nav and Post a role without an Employer account.</>}
+        </span>
+      </p>
     </div>
   )
 }

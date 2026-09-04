@@ -153,7 +153,7 @@ export default function Nav() {
   // this is an Ultimate Admin looking at the shell. Anywhere the two could
   // be confused, the real session wins — the provider makes the preview
   // unavailable while one exists.
-  const { employerView, setEmployerView } = useEmployerView()
+  const { employerView, canUseEmployerView, setEmployerView } = useEmployerView()
   // The panel is an admin-view destination, so the row only carries it in admin
   // view. In Seeker view an admin's nav is a Seeker's nav, entry for entry.
   // ASF is the one exception: it reads seeker.is_super_admin directly, not
@@ -341,31 +341,43 @@ export default function Nav() {
                 />
               )}
 
+              {/* Ultimate Admin only, and never alongside a real Employer
+                  session (useEmployerView's own guard) — the entry AND exit
+                  for the preview, same shape as AdminModeSwitch beside it. This
+                  is the ONE control that turns the preview on or off; nothing
+                  else in the bar repeats that job, so there is exactly one
+                  place to look for it. */}
+              {!authLoading && !employerAuthLoading && canUseEmployerView && (
+                <EmployerViewSwitch
+                  employerView={employerView}
+                  onToggle={setEmployerView}
+                  onNavigate={() => setOpen(false)}
+                  backTo={adminMode ? '/admin' : '/jobs'}
+                  compact
+                />
+              )}
+
               {/* Only for a signed-in Employer now — PostRolePage.tsx redirects
                   anyone else to /employer/signin, so a standing link nobody
-                  anonymous could use would be a promise this bar could not keep. */}
+                  anonymous could use would be a promise this bar could not keep.
+                  Rendered in preview too, so there is something for the switch
+                  above to actually preview — but the preview carries no
+                  identity, so it gets no EmployerMenu: the switch above is
+                  already this bar's one way out of it. */}
               {!employerAuthLoading && (employer || employerView) && (
-                <>
-                  <Link
-                    to="/post-a-role"
-                    onClick={e => handleClick(e, '/post-a-role')}
-                    className="inline-flex min-h-9 items-center rounded px-3 py-1.5 text-sm font-medium no-underline"
-                    style={{
-                      color: 'var(--color-ink-inverse)',
-                      border: '1px solid rgba(255,255,255,0.25)',
-                    }}
-                  >
-                    Post a role
-                  </Link>
-                  {/* EmployerMenu renders a real company's name, email and
-                      sign-out. A preview has none of those, and inventing them
-                      would be the one thing this feature must never do — so the
-                      preview gets its own chip instead of a dressed-up menu. */}
-                  {employer
-                    ? <EmployerMenu employer={employer} onSignOut={handleEmployerSignOut} />
-                    : <EmployerPreviewChip onLeave={() => setEmployerView(false)} />}
-                </>
+                <Link
+                  to="/post-a-role"
+                  onClick={e => handleClick(e, '/post-a-role')}
+                  className="inline-flex min-h-9 items-center rounded px-3 py-1.5 text-sm font-medium no-underline"
+                  style={{
+                    color: 'var(--color-ink-inverse)',
+                    border: '1px solid rgba(255,255,255,0.25)',
+                  }}
+                >
+                  Post a role
+                </Link>
               )}
+              {employer && <EmployerMenu employer={employer} onSignOut={handleEmployerSignOut} />}
 
               <SavedButton
                 count={savedCount}
@@ -470,6 +482,17 @@ export default function Nav() {
                   adminMode={adminMode}
                   onToggle={setAdminMode}
                   onNavigate={() => setOpen(false)}
+                  compact
+                  iconOnly
+                />
+              )}
+
+              {!authLoading && !employerAuthLoading && canUseEmployerView && (
+                <EmployerViewSwitch
+                  employerView={employerView}
+                  onToggle={setEmployerView}
+                  onNavigate={() => setOpen(false)}
+                  backTo={adminMode ? '/admin' : '/jobs'}
                   compact
                   iconOnly
                 />
@@ -706,6 +729,75 @@ function AdminModeSwitch({
 }
 
 /**
+ * The Employer view ⇄ leave toggle — AdminModeSwitch's twin, sitting right
+ * beside it.
+ *
+ * This is the fix for "where can I even switch it": the preview used to have
+ * no entry point in the bar at all, only a launcher buried inside the
+ * Employer view panel on /admin. One button now does what AdminModeSwitch
+ * does for Admin Mode — it IS the toggle, on and off, always visible to
+ * whoever could use it, not only once the preview is already running.
+ *
+ * Deliberately NOT solid gold. Admin Mode's gold means "a real privilege is
+ * active"; this is a preview of somebody else's product, and dressing it in
+ * the same color would claim more than it is. Same outline treatment as
+ * "Post a role" instead — present, not urgent.
+ *
+ * `backTo` is the page to land on when the switch goes OFF: PostRolePage
+ * redirects anyone with neither a real Employer session nor the preview flag
+ * straight to /employer/signin, so leaving the preview while sitting on
+ * /post-a-role must navigate away in the same click, or the very next render
+ * would bounce to a sign-in page nobody asked for. The caller passes whichever
+ * page makes sense for who is asking — see the two call sites in this file.
+ */
+function EmployerViewSwitch({
+  employerView,
+  onToggle,
+  onNavigate,
+  backTo,
+  compact = false,
+  iconOnly = false,
+}: {
+  employerView: boolean
+  onToggle: (on: boolean) => void
+  onNavigate: () => void
+  backTo: string
+  compact?: boolean
+  iconOnly?: boolean
+}) {
+  const navigate = useNavigate()
+  const label = employerView ? 'Leave preview' : 'Employer view'
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        const next = !employerView
+        onToggle(next)
+        onNavigate()
+        navigate(next ? '/post-a-role' : backTo)
+      }}
+      aria-pressed={employerView}
+      aria-label={label}
+      title={employerView
+        ? 'Leave Employer view — return to your own view'
+        : 'See the site as an Employer — a preview, no account and no submissions'}
+      className={`flex cursor-pointer items-center gap-1.5 rounded font-medium transition-colors duration-150 ${
+        compact ? 'min-h-9 px-3 py-1.5 text-sm' : 'min-h-11 px-3 text-sm'
+      }`}
+      style={{
+        backgroundColor: employerView ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.08)',
+        color: 'var(--color-ink-inverse)',
+        border: '1px solid rgba(255,255,255,0.25)',
+      }}
+    >
+      <Eye size={14} strokeWidth={2} aria-hidden="true" />
+      {!iconOnly && <span>{label}</span>}
+    </button>
+  )
+}
+
+/**
  * The signed-in menu in the desktop bar.
  *
  * A disclosure button plus a short list — not a hover menu. Hover menus are
@@ -834,34 +926,6 @@ function SeekerMenu({ seeker, onSignOut }: { seeker: Seeker; onSignOut: () => vo
  * submission form, nothing else), so this is company name in, sign out out,
  * and nothing invented in between.
  */
-/**
- * The preview's stand-in for EmployerMenu.
- *
- * Deliberately NOT a menu, and deliberately carries no company name, address or
- * sign-out: there is no Employer here to name, and a chip that invented one
- * would make the preview look like a session. It says whose view this is and
- * offers the way out, which is all a preview owes the reader.
- */
-function EmployerPreviewChip({ onLeave }: { onLeave: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onLeave}
-      className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium"
-      style={{
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        border: '1px dashed rgba(255,255,255,0.35)',
-        color: 'var(--color-ink-inverse)',
-      }}
-    >
-      <Eye size={14} strokeWidth={2} aria-hidden="true" />
-      Employer preview
-      <X size={13} strokeWidth={2.5} aria-hidden="true" />
-      <span className="sr-only">Leave Employer view</span>
-    </button>
-  )
-}
-
 function EmployerMenu({ employer, onSignOut }: { employer: Employer; onSignOut: () => void }) {
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)

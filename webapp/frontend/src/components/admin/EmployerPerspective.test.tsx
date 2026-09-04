@@ -93,6 +93,8 @@ async function choose(company: string) {
 beforeEach(() => {
   fetchEmployerActivity.mockReset()
   fetchEmployerActivity.mockResolvedValue(activity())
+  employerViewValue.employerView = false
+  employerViewValue.canUseEmployerView = false
 })
 
 describe('EmployerPerspective', () => {
@@ -177,5 +179,32 @@ describe('EmployerPerspective', () => {
     await choose('Acme Capital')
 
     expect(await screen.findByRole('alert')).toHaveTextContent('403')
+  })
+
+  it('points at the nav switch rather than duplicating it', () => {
+    // The panel used to carry its own "Enter Employer view" button — a second
+    // control doing the same job as the nav switch, which is the exact
+    // confusion the switch was built to remove. This panel now only points at
+    // it.
+    employerViewValue.canUseEmployerView = true
+    render(<EmployerPerspective employers={EMPLOYERS} />)
+    expect(screen.getByText(/Employer view.*switch in the top bar/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Enter Employer view/ })).not.toBeInTheDocument()
+  })
+
+  it('says the preview is already on when it is', () => {
+    employerViewValue.canUseEmployerView = true
+    employerViewValue.employerView = true
+    render(<EmployerPerspective employers={EMPLOYERS} />)
+    expect(screen.getByText(/preview is on right now/)).toBeInTheDocument()
+  })
+
+  it('shows nothing about the preview to an account that could not use it', () => {
+    // canUseEmployerView is false whenever a real Employer session already
+    // exists (useEmployerView's own guard) — nothing here should invite an
+    // admin into a preview they cannot enter.
+    employerViewValue.canUseEmployerView = false
+    render(<EmployerPerspective employers={EMPLOYERS} />)
+    expect(screen.queryByText(/See the site as an Employer/)).not.toBeInTheDocument()
   })
 })
