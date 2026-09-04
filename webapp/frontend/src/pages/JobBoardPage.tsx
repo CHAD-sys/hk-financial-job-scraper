@@ -46,6 +46,14 @@ export default function JobBoardPage() {
 
   // Initialise state from URL (parsed once on mount)
   const [initial] = useState(() => searchParamsToFilters(searchParams))
+  // Highlight cards add the exact Role alongside the search term for its desk.
+  // Capture it before the normal URL-sync effect removes these one-shot params.
+  const [highlightedRole] = useState(() => {
+    const source = searchParams.get('role_source')
+    const sourceId = searchParams.get('role_id')
+    const lookup = searchParams.get('role_lookup')
+    return source && sourceId && lookup ? { source, sourceId, lookup } : null
+  })
 
   // The raw search text lives in its own state so the effects below can depend
   // on the debounced value without re-firing on every keystroke.
@@ -85,6 +93,32 @@ export default function JobBoardPage() {
   // puts the tools away, it does not drop the privilege.
   const { adminMode } = useAdminMode()
   const canEdit = adminMode
+
+  // Discover the exact highlighted Role through Careers before opening it.
+  // This matters: detail reads require the short-lived access grant attached
+  // to a legitimate search result; a source/id pair alone is intentionally not
+  // permission. The main query independently fills the grid with Roles from
+  // the same desk, so the modal sits over useful alternatives.
+  useEffect(() => {
+    if (!highlightedRole) return
+    let cancelled = false
+    fetchJobs(
+      { ...DEFAULT_FILTERS, search: highlightedRole.lookup },
+      'relevance',
+      1,
+      PAGE_SIZE,
+    )
+      .then(response => {
+        if (cancelled) return
+        const job = response.jobs.find(candidate =>
+          candidate.source === highlightedRole.source
+          && candidate.source_id === highlightedRole.sourceId,
+        )
+        if (job) setSelectedJob(job)
+      })
+      .catch(console.error)
+    return () => { cancelled = true }
+  }, [highlightedRole])
 
   // Public market totals are aggregate context only. Filter choices are never
   // loaded globally; the separate effect below derives them from one research.

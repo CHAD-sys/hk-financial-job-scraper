@@ -157,7 +157,7 @@ button, a, input, select, [role="button"], [role="tab"] {
 }
 .resume-feature-spotlight h2 {
   max-width: 14ch;
-  margin-top: 0.85rem;
+  margin-top: 0.5rem;
   color: var(--color-ink);
   font-family: var(--font-display);
   font-size: clamp(2rem, 4vw, 3.5rem);
@@ -1644,4 +1644,805 @@ select.finex-input {
   .resume-manager__matches-link { width: 100%; margin-left: 0; justify-content: flex-start; padding-left: 0; }
   .resume-match-prompt a,
   .resume-match-prompt button { padding-left: 0; }
+}
+
+/* ── "This week at FinEx" — the rotating highlights band ─────────────────────
+   Structure follows the five-layer scene rule from the remotion-motion-graphics
+   skill, which is about video but describes exactly what stops a flat panel
+   reading cheap. Bottom to top:
+
+     1. mesh      .hl__mesh   two slowly drifting colour blobs
+     2. assets    .hl-card    the cards themselves
+     3. type      (in card)   gold chips, display titles
+     4. grade     .hl__grade  vignette, darkening the edges
+     5. grain     .hl__grain  fine noise over everything
+
+   Layers 4 and 5 are pointer-events:none so they tint without ever swallowing
+   a click meant for a card.
+
+   Rules that MUST survive any edit here:
+     - only `transform`/`opacity` animate (compositor-only, no reflow, no CLS),
+     - the track carries NO flex gap — spacing is margin on the cards, so the
+       -50% loop lands exactly on the seam,
+     - ONE hero colour glows, gold, on the hovered card only. Two glowing
+       things at once is the "Vegas" failure the same skill warns about,
+     - everything stops under prefers-reduced-motion, at the bottom.        */
+
+.hl {
+  --hl-gap: 0.8rem;
+  --hl-card-w: 18.25rem;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-top: 1px solid rgb(255 255 255 / 0.08);
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+  background: var(--color-masthead);
+  padding-block: 2.25rem;
+}
+.hl::before {
+  position: absolute;
+  z-index: 4;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-gold) 20%, var(--color-gold-star) 50%, var(--color-gold) 80%, transparent);
+  content: '';
+}
+
+/* ── Layer 1: the mesh ─────────────────────────────────────────────────────
+   Long, deliberately co-prime durations (37s / 43s) so the two blobs never
+   resynchronise into a visible pulse. This is the "idle elements breathe"
+   rule, applied to the BACKGROUND rather than the cards: the cards are
+   already travelling, and constant motion everywhere reads amateur. */
+.hl__mesh { position: absolute; z-index: 0; inset: 0; overflow: hidden; }
+.hl__blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.5;
+}
+.hl__blob--gold {
+  top: -40%; left: 4%;
+  height: 34rem; width: 34rem;
+  background: radial-gradient(circle, rgb(224 161 6 / 0.5), transparent 68%);
+  animation: hl-drift-a 37s ease-in-out infinite;
+}
+.hl__blob--blue {
+  right: 2%; bottom: -45%;
+  height: 30rem; width: 30rem;
+  background: radial-gradient(circle, rgb(56 116 220 / 0.42), transparent 68%);
+  animation: hl-drift-b 43s ease-in-out infinite;
+}
+@keyframes hl-drift-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(7vw, 12%, 0) scale(1.14); }
+}
+@keyframes hl-drift-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.08); }
+  50%      { transform: translate3d(-9vw, -14%, 0) scale(1); }
+}
+
+/* ── Layers 4 + 5: grade and grain ───────────────────────────────────────── */
+.hl__grade {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  background: radial-gradient(120% 80% at 50% 50%, transparent 42%, rgb(6 12 24 / 0.55) 100%);
+  pointer-events: none;
+}
+.hl__grain {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  /* feTurbulence rather than a raster tile: a few hundred bytes, resolution
+     independent, and it cannot 404. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  opacity: 0.055;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+.hl__inner { position: relative; z-index: 2; margin: 0 auto; max-width: 80rem; padding-inline: 1.5rem; }
+@media (min-width: 1024px) { .hl__inner { padding-inline: 2rem; } }
+.hl__layout { display: grid; grid-template-columns: 14.5rem minmax(0, 1fr); gap: 1.75rem; align-items: stretch; }
+
+/* ── The head, and the entrance ──────────────────────────────────────────
+   Three properties at once (opacity + translateY + scale), head before track,
+   because the motion skill forbids a lone fade and forbids everything
+   entering together. Both start hidden and are revealed by [data-shown],
+   which the IntersectionObserver sets. */
+.hl__head {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 15.5rem;
+  border-right: 1px solid rgb(255 255 255 / 0.13);
+  padding: 0.1rem 1.75rem 0.1rem 0;
+}
+.hl__live {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 0.45rem;
+  margin-bottom: 1.2rem;
+  color: rgb(248 250 252 / 0.6);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+.hl__live > span {
+  height: 0.45rem;
+  width: 0.45rem;
+  border-radius: 999px;
+  background: var(--color-gold-star);
+  box-shadow: 0 0 0 4px rgb(224 161 6 / 0.12);
+}
+.hl__eyebrow {
+  display: block;
+  color: var(--color-gold-star);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.hl__title {
+  margin-top: 0.25rem;
+  color: var(--color-ink-inverse);
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 3.4vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.hl__intro {
+  max-width: 24ch;
+  margin-top: 0.9rem;
+  color: rgb(248 250 252 / 0.64);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+.hl__all {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  margin-top: auto;
+  color: var(--color-gold-star);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.hl__all svg { transition: transform 200ms var(--ease-out-expo); }
+.hl__all:hover svg { transform: translateX(3px); }
+.hl__all:focus-visible { outline: 2px solid var(--color-gold-star); outline-offset: 3px; }
+.hl__head, .hl__viewport {
+  opacity: 0;
+  transform: translate3d(0, 18px, 0) scale(0.985);
+}
+.hl[data-shown] .hl__head,
+.hl[data-shown] .hl__viewport {
+  animation: hl-enter 620ms cubic-bezier(0.16, 0.9, 0.28, 1) forwards;
+}
+.hl[data-shown] .hl__viewport { animation-delay: 130ms; }
+@keyframes hl-enter {
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+/* ── The conveyor ────────────────────────────────────────────────────────── */
+.hl__viewport {
+  position: relative;
+  z-index: 2;
+  overflow: hidden;
+  margin-right: calc((100vw - min(100vw, 80rem)) / -2 - 2rem);
+  padding-block: 0.45rem;
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 91%, transparent 100%);
+          mask-image: linear-gradient(90deg, #000 0%, #000 91%, transparent 100%);
+}
+.hl__track {
+  display: flex;
+  width: max-content;
+  animation: hl-marquee 60s linear infinite reverse;
+  will-change: transform;
+}
+.hl__group { display: flex; }
+
+/* A reader can hold the rail still with the pointer, exactly as before. Do
+   not add :focus-within here: browser Back restores focus to the video link
+   and used to leave the whole rail frozen with no pointer over it. */
+.hl__viewport:hover .hl__track { animation-play-state: paused; }
+
+@keyframes hl-marquee {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+
+/* ── The card ────────────────────────────────────────────────────────────── */
+.hl-card {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  overflow: hidden;
+  flex: 0 0 var(--hl-card-w);
+  flex-direction: column;
+  width: var(--hl-card-w);
+  margin-right: var(--hl-gap);   /* spacing lives here, NOT as track gap */
+  border: 1px solid rgb(255 255 255 / 0.13);
+  min-height: 15.5rem;
+  border-radius: 0.35rem;
+  background:
+    linear-gradient(168deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.035) 55%),
+    rgb(11 22 40 / 0.5);
+  padding: 1.15rem;
+  color: var(--color-ink-inverse);
+  cursor: pointer;               /* the whole tile is the link */
+  text-decoration: none;
+  transition: transform 260ms cubic-bezier(0.16, 0.9, 0.28, 1),
+              border-color 260ms ease-out, box-shadow 260ms ease-out;
+}
+/* ONE hero colour, on ONE card at a time. */
+.hl-card:hover, .hl-card:focus-visible {
+  transform: translate3d(0, -4px, 0);
+  border-color: rgb(224 161 6 / 0.55);
+  box-shadow: 0 0 0 1px rgb(224 161 6 / 0.16), 0 18px 40px -12px rgb(0 0 0 / 0.6),
+              0 0 46px -12px rgb(224 161 6 / 0.4);
+}
+.hl-card--coach {
+  border-color: rgb(224 161 6 / 0.28);
+  background: linear-gradient(145deg, rgb(224 161 6 / 0.17), rgb(11 22 40 / 0.56) 62%);
+}
+.hl-card--video, .hl-card--course { padding: 0.65rem 0.65rem 1rem; }
+.hl-card:focus-visible { outline: 2px solid var(--color-gold-star); outline-offset: 3px; }
+
+/* A single specular sweep across the tile on hover. Transform-only, and it
+   runs once per hover rather than looping — a looping shine is a casino. */
+.hl-card__sheen {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 45%;
+  background: linear-gradient(100deg, transparent, rgb(255 255 255 / 0.11), transparent);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate3d(-150%, 0, 0);
+}
+.hl-card:hover .hl-card__sheen { animation: hl-sheen 900ms ease-out forwards; }
+@keyframes hl-sheen {
+  0%   { opacity: 0; transform: translate3d(-150%, 0, 0); }
+  15%  { opacity: 1; }
+  100% { opacity: 0; transform: translate3d(320%, 0, 0); }
+}
+
+.hl-card__crest { display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.85rem; }
+.hl-card__corner-icon { margin-left: auto; color: rgb(248 250 252 / 0.28); }
+/* The visual anchor a text-only card would otherwise lack. A monogram, never
+   a logo — we hold no brand assets and an invented mark is worse than none. */
+.hl-card__monogram {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  height: 2.6rem;
+  width: 2.6rem;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: 0.55rem;
+  background: linear-gradient(150deg, rgb(255 255 255 / 0.14), rgb(255 255 255 / 0.04));
+  color: rgb(248 250 252 / 0.9);
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.hl-card__monogram--accent {
+  border-color: rgb(224 161 6 / 0.45);
+  background: linear-gradient(150deg, rgb(224 161 6 / 0.3), rgb(224 161 6 / 0.08));
+  color: var(--color-gold-star);
+  border-radius: 999px;
+}
+
+.hl-card__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  color: var(--color-gold-star);
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+.hl-card__company {
+  overflow: hidden;
+  color: rgb(248 250 252 / 0.72);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hl-card__title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: var(--color-ink-inverse);
+  font-family: var(--font-display);
+  font-size: 1.08rem;
+  font-weight: 700;
+  line-height: 1.28;
+}
+.hl-card__title--tight { -webkit-line-clamp: 2; padding-inline: 0.45rem; font-size: 0.96rem; }
+.hl-card--video > .hl-card__eyebrow,
+.hl-card--course > .hl-card__eyebrow { margin-inline: 0.45rem; }
+.hl-card__body {
+  margin-top: 0.4rem;
+  color: rgb(248 250 252 / 0.62);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.hl-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: auto;              /* pins the CTA row to the card's foot, so
+                                    every card's action sits on ONE baseline
+                                    as the row travels. Do not add a second
+                                    margin-top below this — it silently wins. */
+  border-top: 1px solid rgb(255 255 255 / 0.09);
+  padding-top: 0.8rem;
+}
+.hl-card--video .hl-card__foot,
+.hl-card--course .hl-card__foot { margin-inline: 0.45rem; }
+.hl-card__meta {
+  overflow: hidden;
+  color: rgb(248 250 252 / 0.58);
+  font-size: 0.71rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hl-card__cta {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--color-gold-star);
+  font-size: 0.73rem;
+  font-weight: 700;
+}
+.hl-card__cta svg { transition: transform 240ms cubic-bezier(0.16, 0.9, 0.28, 1); }
+.hl-card:hover .hl-card__cta svg { transform: translateX(3px); }
+
+/* Ken Burns: every still gets a slow scale and pan, per the motion skill.
+   It sits on the img, not the frame, so the frame keeps its reserved aspect
+   ratio and nothing shifts while the image drifts. */
+.hl-card__media {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 0.85rem;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 0.2rem;
+  aspect-ratio: 2 / 1;
+  background: rgb(255 255 255 / 0.06);
+}
+.hl-card__media img {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  animation: hl-kenburns 24s ease-in-out infinite alternate;
+}
+@keyframes hl-kenburns {
+  from { transform: scale(1) translate3d(0, 0, 0); }
+  to   { transform: scale(1.11) translate3d(-2.5%, -2%, 0); }
+}
+.hl-card__play {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, rgb(11 22 40 / 0.15), rgb(11 22 40 / 0.55));
+  color: #fff;
+  transition: background-color 240ms ease-out;
+}
+.hl-card:hover .hl-card__play { background: rgb(11 22 40 / 0.25); }
+
+/* Says out loud that the person is invented. Removed with the seed data. */
+.hl-card__flag {
+  align-self: flex-start;
+  margin-top: 0.55rem;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 0.25rem;
+  background: rgb(255 255 255 / 0.07);
+  padding: 0.18rem 0.4rem;
+  color: rgb(248 250 252 / 0.55);
+  font-size: 0.62rem;
+}
+
+/* V2 concept — Weekly Drop.
+   THESIS: New opportunities behave like a live culture drop, not a corporate
+   noticeboard; the familiar dark glass-and-gold finance banner is refused.
+   OWN-WORLD: saturated cobalt field, white job tickets, acid coach cards,
+   coral course cards, black image-led video cards, hard offset shadows.
+   STORY: scan what is fresh, spot the content type instantly, open any card.
+   FIRST VIEWPORT: one full-width headline row over a continuous ticket rail.
+   FORM: a street-poster drop wall translated into an accessible web ticker. */
+.hl {
+  --hl-blue: #202d52;
+  --hl-blue-deep: #111a31;
+  --hl-acid: #e2bd68;
+  --hl-coral: #d98772;
+  --hl-mineral: #dbe5ee;
+  --hl-ink: #11111a;
+  --hl-paper: #fffef8;
+  --hl-card-w: 19rem;
+  border: 0;
+  background-color: var(--hl-blue);
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.028) 1px, transparent 1px),
+    radial-gradient(circle at 72% 12%, rgb(124 145 197 / 0.15), transparent 32rem);
+  background-size: 4rem 4rem, 4rem 4rem, auto;
+  /* One composed landing module: trim the outer breathing room so the second
+     rail is visible with the weekly edit on a standard laptop viewport. */
+  padding-block: 1.75rem 1.35rem;
+}
+.hl::before {
+  height: 0.125rem;
+  /* One confident FinEx gold rule. The former three-way stripe competed with
+     the page header before a visitor had even reached the live content. */
+  background: var(--hl-acid);
+}
+.hl__mesh, .hl__grade, .hl__grain { display: none; }
+.hl__layout { display: block; }
+.hl__head {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: 12rem minmax(19rem, 1fr);
+  align-items: end;
+  gap: 1.5rem;
+  border: 0;
+  margin-bottom: 1.2rem;
+  padding: 0;
+}
+.hl__head-side { align-self: end; }
+.hl__live {
+  margin-bottom: 0.8rem;
+  color: rgb(255 255 255 / 0.74);
+}
+.hl__live > span {
+  background: var(--hl-acid);
+  box-shadow: 0 0 0 4px rgb(226 189 104 / 0.14);
+}
+.hl__eyebrow { color: var(--hl-acid); font-size: 0.72rem; }
+.hl__edition {
+  display: block;
+  margin-top: 0.55rem;
+  color: rgb(255 255 255 / 0.46);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.hl__title {
+  margin: 0;
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: clamp(2.15rem, 4vw, 3.5rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+.hl__intro {
+  max-width: 28ch;
+  margin: 0;
+  color: rgb(255 255 255 / 0.82);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.hl__all {
+  gap: 0.55rem;
+  margin-top: 0.8rem;
+  color: var(--hl-acid);
+}
+.hl__viewport {
+  margin-inline: calc((100vw - min(100vw, 80rem)) / -2 - 2rem);
+  padding-block: 0.3rem 0.4rem;
+  -webkit-mask-image: none;
+          mask-image: none;
+}
+.hl__viewport,
+.hl__coach-viewport {
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+}
+.hl__viewport.is-dragging,
+.hl__coach-viewport.is-dragging { cursor: grabbing; }
+.hl__viewport.is-dragging .hl__track,
+.hl__coach-viewport.is-dragging .hl__coach-track { animation-play-state: paused; }
+.hl-card {
+  min-height: 13.75rem;
+  border: 2px solid var(--hl-ink);
+  border-radius: 0.65rem;
+  background: var(--hl-paper);
+  padding: 1.1rem;
+  color: var(--hl-ink);
+  box-shadow: 4px 4px 0 var(--hl-ink);
+  transform: rotate(-0.35deg);
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.hl-card:nth-child(even) { transform: rotate(0.45deg); }
+.hl-card:hover, .hl-card:focus-visible {
+  border-color: var(--hl-ink);
+  box-shadow: 6px 7px 0 var(--hl-ink);
+  transform: translate3d(0, -5px, 0) rotate(0deg);
+}
+.hl-card:focus-visible { outline: 3px solid var(--hl-acid); outline-offset: 3px; }
+.hl-card__sheen { display: none; }
+.hl-card__monogram {
+  border: 2px solid var(--hl-ink);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--hl-ink);
+  font-family: var(--font-sans);
+  font-weight: 800;
+}
+.hl-card__corner-icon { color: rgb(17 17 26 / 0.38); }
+.hl-card__eyebrow { color: var(--hl-blue-deep); font-size: 0.66rem; }
+.hl-card__company { color: rgb(17 17 26 / 0.64); }
+.hl-card__title {
+  color: var(--hl-ink);
+  font-family: var(--font-sans);
+  font-size: 1.18rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+.hl-card__body { color: rgb(17 17 26 / 0.7); }
+.hl-card__foot { border-top-color: rgb(17 17 26 / 0.16); }
+.hl-card__meta { color: rgb(17 17 26 / 0.58); }
+.hl-card__cta { color: var(--hl-blue-deep); }
+.hl-card__cta svg {
+  height: 1.35rem;
+  width: 1.35rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0.24rem;
+}
+.hl-card--coach {
+  background: var(--hl-mineral);
+  border-color: var(--hl-ink);
+}
+.hl-card--coach .hl-card__monogram--accent {
+  border-color: var(--hl-ink);
+  background: var(--hl-ink);
+  color: var(--hl-paper);
+}
+.hl-card__coach-photo {
+  flex: 0 0 auto;
+  width: 4.15rem;
+  height: 4.15rem;
+  border: 2px solid var(--hl-ink);
+  border-radius: 50%;
+  background: #c9ddf8;
+  object-fit: cover;
+  object-position: 50% 42%;
+  box-shadow: 3px 3px 0 var(--hl-ink);
+}
+.hl-card--course { background: var(--hl-coral); }
+.hl-card--video {
+  flex-basis: 21.5rem;
+  width: 21.5rem;
+  background: var(--hl-ink);
+  color: #fff;
+}
+.hl-card--video .hl-card__title { color: #fff; }
+.hl-card--video .hl-card__eyebrow,
+.hl-card--video .hl-card__cta { color: var(--hl-acid); }
+.hl-card--video .hl-card__meta { color: rgb(255 255 255 / 0.56); }
+.hl-card--video .hl-card__foot { border-top-color: rgb(255 255 255 / 0.18); }
+.hl-card__media { border: 0; border-radius: 0.35rem; }
+.hl-card__play { color: var(--hl-acid); }
+.hl-card__flag {
+  border-color: rgb(17 17 26 / 0.25);
+  background: rgb(255 255 255 / 0.38);
+  color: rgb(17 17 26 / 0.7);
+}
+
+/* The second rail is intentionally quieter and more compact than the weekly
+   edit above: it represents a deep bench of real people, not a second set of
+   competing hero stories. It has its own track so pausing a coach never stops
+   the roles, videos and training cards above. */
+.hl__coach-band {
+  margin-top: 0.85rem;
+  border-top: 1px solid rgb(255 255 255 / 0.2);
+  padding-top: 0.5rem;
+}
+.hl__coach-band-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 80rem;
+  margin: 0 auto 0.3rem;
+}
+.hl__coach-band-head > div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+}
+.hl__coach-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  color: var(--hl-acid);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.hl__coach-band-head p {
+  margin: 0;
+  color: rgb(255 255 255 / 0.7);
+  font-size: 0.82rem;
+}
+.hl__coach-band-head > a {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--hl-acid);
+  font-size: 0.78rem;
+  font-weight: 750;
+  text-decoration: none;
+}
+.hl__coach-band-head > a:hover { color: #fff; }
+.hl__coach-band-head > a:focus-visible { outline: 2px solid var(--hl-acid); outline-offset: 3px; }
+.hl__coach-viewport {
+  overflow: hidden;
+  margin-inline: calc((100vw - min(100vw, 80rem)) / -2 - 2rem);
+  padding-block: 0.2rem 0.25rem;
+}
+.hl__coach-track {
+  display: flex;
+  width: max-content;
+  animation: hl-coach-marquee 160s linear infinite reverse;
+  will-change: transform;
+}
+.hl__coach-viewport:hover .hl__coach-track { animation-play-state: paused; }
+@keyframes hl-coach-marquee {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+.hl__coach-group { display: flex; }
+.hl-coach-card {
+  display: flex;
+  width: 18.75rem;
+  min-height: 6.9rem;
+  align-items: center;
+  gap: 0.8rem;
+  margin-right: 0.8rem;
+  border: 2px solid var(--hl-ink);
+  border-radius: 0.55rem;
+  background: var(--hl-mineral);
+  box-shadow: 4px 4px 0 var(--hl-ink);
+  padding: 0.55rem;
+  color: var(--hl-ink);
+  text-decoration: none;
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1), background-color 220ms;
+}
+.hl-coach-card:nth-child(4n + 2) { background: #e9dfcd; }
+.hl-coach-card:nth-child(4n + 3) { background: #e4e7dd; }
+.hl-coach-card:hover, .hl-coach-card:focus-visible {
+  background: var(--hl-paper);
+  box-shadow: 6px 7px 0 var(--hl-ink);
+  transform: translate3d(0, -4px, 0);
+}
+.hl-coach-card:focus-visible { outline: 3px solid var(--hl-acid); outline-offset: 3px; }
+.hl-coach-card__photo-frame {
+  display: block;
+  overflow: hidden;
+  width: 4.4rem;
+  height: 4.4rem;
+  flex: 0 0 auto;
+  border: 2px solid var(--hl-ink);
+  border-radius: 50%;
+  background: var(--hl-paper);
+}
+.hl-coach-card__photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transform: scale(1.58);
+  transform-origin: 50% 20%;
+}
+.hl-coach-card__copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.16rem;
+}
+.hl-coach-card__name {
+  overflow: hidden;
+  font-size: 0.96rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hl-coach-card__role,
+.hl-coach-card__focus {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  color: rgb(17 17 26 / 0.7);
+  font-size: 0.67rem;
+  line-height: 1.3;
+  -webkit-line-clamp: 2;
+}
+.hl-coach-card__focus {
+  color: var(--hl-blue-deep);
+  font-size: 0.61rem;
+  font-weight: 800;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+  -webkit-line-clamp: 1;
+}
+.hl-coach-card__arrow {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: rgb(17 17 26 / 0.45);
+  transition: transform 180ms ease-out, color 180ms ease-out;
+}
+.hl-coach-card:hover .hl-coach-card__arrow { color: var(--hl-blue-deep); transform: translateX(3px); }
+
+@media (max-width: 807px) {
+  .hl { --hl-card-w: 17rem; padding-block: 1.75rem 1.5rem; }
+  .hl__head {
+    grid-template-columns: 1fr auto;
+    align-items: start;
+    gap: 0.7rem 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .hl__head > div:first-child { grid-column: 1 / -1; }
+  .hl__live { margin-bottom: 0.55rem; }
+  .hl__edition { display: none; }
+  .hl__title { grid-column: 1 / -1; font-size: clamp(2.25rem, 10vw, 3.15rem); }
+  .hl__head-side { grid-column: 1 / -1; display: flex; align-items: end; justify-content: space-between; gap: 1rem; }
+  .hl__intro { max-width: 23ch; font-size: 0.8rem; }
+  .hl__all { flex-shrink: 0; margin-top: 0; }
+  .hl__viewport { margin-inline: -1.5rem; }
+  .hl-card--video { flex-basis: 19rem; width: 19rem; }
+  .hl__coach-band { margin-top: 0.5rem; }
+  .hl__coach-band-head { align-items: start; margin-bottom: 0.45rem; }
+  .hl__coach-band-head > div { display: block; }
+  .hl__coach-band-head p { margin: 0.2rem 0 0; }
+  .hl__coach-band-head p { max-width: 21ch; }
+  .hl__coach-band-head > a { font-size: 0.7rem; }
+  .hl__coach-viewport { margin-inline: -1.5rem; }
+  .hl-coach-card { width: 16.6rem; min-height: 6.75rem; }
+  .hl-coach-card__photo-frame { width: 4.1rem; height: 4.1rem; }
+}
+
+/* Reduced motion: every animation off — drift, Ken Burns, sheen, entrance and
+   the conveyor itself. The band becomes a rail the reader drives, with the
+   duplicate group hidden so nothing is encountered twice. */
+@media (prefers-reduced-motion: reduce) {
+  .hl__viewport,
+  .hl__coach-viewport { cursor: auto; touch-action: auto; user-select: auto; }
+  .hl__viewport {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-mask-image: none;
+            mask-image: none;
+    padding-inline: 1.5rem;
+  }
+  .hl__track { animation: none; will-change: auto; }
+  .hl__coach-viewport { overflow-x: auto; scroll-snap-type: x mandatory; padding-inline: 1.5rem; }
+  .hl__coach-track { animation: none; will-change: auto; }
+  .hl__group[aria-hidden='true'] { display: none; }
+  .hl__coach-group[aria-hidden='true'] { display: none; }
+  .hl-card { scroll-snap-align: start; }
+  .hl-coach-card { scroll-snap-align: start; }
+  .hl__head, .hl__viewport { opacity: 1; transform: none; animation: none; }
+  .hl__blob, .hl-card__media img, .hl-card__sheen { animation: none; }
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Briefcase } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import Nav from '../components/Nav'
+import WeeklyHighlights from '../components/highlights/WeeklyHighlights'
 import ProductDoor from '../components/ProductDoor'
 import ResumeFeatureSpotlight from '../components/ResumeFeatureSpotlight'
 import useHashScroll from '../hooks/useHashScroll'
@@ -42,6 +43,7 @@ export default function LandingPage() {
       <script type="application/ld+json">{JSON.stringify(ORG_JSONLD)}</script>
       <Nav />
       <main id="main-content">
+        <WeeklyHighlights />
         <PortalHero />
         <ResumeFeatureSpotlight />
         <PostRoleStripe />

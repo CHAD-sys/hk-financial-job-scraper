@@ -157,6 +157,21 @@ jobs:
           fi
           python -m hk_jobs.daily_run "${ARGS[@]}"
 
+      # The banner remains an editorial surface: on Sunday in Hong Kong this
+      # sends Mohamed a diverse, >=HK$40k shortlist for the week starting the
+      # next morning. It uses the database produced by the run immediately
+      # above, so closed/hidden Roles can never be suggested from stale data.
+      - name: Email next week's highlight candidates
+        if: success() && github.event_name == 'schedule'
+        env:
+          NOTIFY_EMAILS: mohamedaminechahid@gmail.com
+        run: |
+          if [[ "$(TZ=Asia/Hong_Kong date +%u)" == "7" ]]; then
+            python -m hk_jobs.weekly_highlight_candidates --database data/jobs.db
+          else
+            echo "Not Sunday in Hong Kong; skipping highlight shortlist."
+          fi
+
       - name: Upload authoritative Daily Run Record
         if: always()
         uses: actions/upload-artifact@v4
