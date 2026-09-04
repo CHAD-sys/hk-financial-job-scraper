@@ -3,6 +3,7 @@ import {
   Activity,
   BarChart3,
   CalendarSync,
+  Building2,
   ClipboardCheck,
   IdCard,
   SquarePen,
@@ -25,6 +26,9 @@ const SECTIONS: SectionItem[] = [
   { href: '#daily-collection', label: 'Daily collection', detail: 'Today’s pipeline totals', icon: CalendarSync },
   { href: '#verification', label: 'Verification', detail: 'Submitted Role review', icon: ClipboardCheck },
   { href: '#accounts', label: 'Account directory', detail: 'Every Seeker and Employer', icon: IdCard, superAdminOnly: true },
+  // Ultimate-Admin-only for the same reason as the directory above it: this
+  // joins one Employer's identity to their submissions and their Roles.
+  { href: '#employer-view', label: 'Employer view', detail: 'One Employer’s own side', icon: Building2, superAdminOnly: true },
   // Not superAdminOnly since ADR 0019 — every admin may correct a Role, so
   // every admin needs the category that reaches the editor. The account
   // directory above stays Ultimate-Admin-only; that one did not change.

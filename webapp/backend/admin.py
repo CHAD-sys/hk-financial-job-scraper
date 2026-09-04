@@ -36,6 +36,7 @@ from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 import admin_intelligence
+import employer_view
 import employers_store
 import job_edit
 import job_read
@@ -490,6 +491,40 @@ def build_router(
         """Who read whose resume, and when. The other half of the route above —
         an audit trail nobody can read is not an audit trail."""
         return {"downloads": seekers_store.get_store().list_resume_downloads()}
+
+    # ── Ultimate Admin: the Employer's perspective ──────────────────────────
+    # Ultimate-Admin-only, matching the account directory it is reached from
+    # rather than the job-edit routes ADR 0019 widened: this joins an
+    # Employer's identity to their submissions and their Roles, which is the
+    # same personal-data posture as the directory, not a Role correction.
+
+    @router.get("/employers/{employer_id}/activity")
+    def employer_activity_route(
+        employer_id: str,
+        request: Request,
+        company: str = Query(
+            "",
+            max_length=150,
+            description="Override the company name Roles are attributed by",
+        ),
+        _admin: dict = Depends(require_super_admin),
+    ):
+        """One Employer's perspective — see employer_view.py's module docstring.
+
+        Fetched per Employer when a row expands, never bundled into
+        `/accounts`: it costs a queue read plus two jobs.db queries per
+        account, and folding it in would turn one flat directory query into an
+        N-employer fan-out — the same reasoning as
+        `get_seeker_interests_route` above.
+        """
+        employer = employers_store.get_store().get_employer(employer_id)
+        if employer is None:
+            raise HTTPException(status_code=404, detail="Employer not found")
+        queue = submissions.load_queue(_queue_path(request))
+        with get_db(request) as conn:
+            return employer_view.employer_activity(
+                conn, employer, queue, company=company.strip() or None
+            )
 
     # ── Admin: direct job edit ──────────────────────────────────────────────
     # Behind require_admin, not require_super_admin: every admin may correct a

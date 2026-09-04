@@ -4,6 +4,7 @@ import { Navigate } from 'react-router-dom'
 import Nav from '../components/Nav'
 import { submitRole } from '../api/client'
 import { useEmployerAuth } from '../auth/useEmployerAuth'
+import { useEmployerView } from '../employerView/useEmployerView'
 
 type Status = 'idle' | 'sending' | 'sent' | 'error'
 
@@ -45,6 +46,12 @@ const MAX = {
  */
 export default function PostRolePage() {
   const { employer, loading: authLoading } = useEmployerAuth()
+  // An Ultimate Admin previewing the Employer surface (employerView/). They
+  // reach this page WITHOUT an Employer session, so `employer` is null and
+  // every prefill below is empty — which is honest: there is no company
+  // here to prefill from. `preview` is what gates the write.
+  const { employerView } = useEmployerView()
+  const preview = !employer && employerView
   const [status, setStatus] = useState<Status>('idle')
   const [error, setError] = useState('')
 
@@ -57,11 +64,16 @@ export default function PostRolePage() {
   // is known, or a prefill arriving a beat after mount would be silently
   // dropped rather than shown.
   if (authLoading) return <div style={{ backgroundColor: 'var(--color-bg)', minHeight: '100dvh' }}><Nav /></div>
-  if (!employer) return <Navigate to="/employer/signin" state={{ from: '/post-a-role' }} replace />
+  if (!employer && !employerView) return <Navigate to="/employer/signin" state={{ from: '/post-a-role' }} replace />
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (status === 'sending') return
+    // The preview must never put a row in the moderation queue. The button
+    // below is disabled too; this is the half that holds if a form is
+    // submitted by keyboard, by autofill, or by a future edit to that
+    // button that forgets the flag.
+    if (preview) return
 
     const d = new FormData(e.currentTarget)
     const str = (k: string) => String(d.get(k) ?? '').trim()
@@ -174,7 +186,7 @@ export default function PostRolePage() {
                 <Field label="Company" htmlFor="pr-company">
                   <input
                     id="pr-company" name="company" type="text" required maxLength={MAX.company}
-                    defaultValue={employer.company_name} className="finex-input"
+                    defaultValue={employer?.company_name ?? ''} className="finex-input"
                   />
                 </Field>
                 <Field label="Location" htmlFor="pr-location">
@@ -226,14 +238,14 @@ export default function PostRolePage() {
                   <input
                     id="pr-name" name="contact_name" type="text" required
                     maxLength={MAX.contact_name} autoComplete="name"
-                    defaultValue={employer.contact_name} className="finex-input"
+                    defaultValue={employer?.contact_name ?? ''} className="finex-input"
                   />
                 </Field>
                 <Field label="Your email" htmlFor="pr-email" hint="We reply here. Never published.">
                   <input
                     id="pr-email" name="contact_email" type="email" required
                     maxLength={MAX.contact_email} autoComplete="email"
-                    defaultValue={employer.email} className="finex-input"
+                    defaultValue={employer?.email ?? ''} className="finex-input"
                   />
                 </Field>
               </div>
@@ -256,17 +268,18 @@ export default function PostRolePage() {
 
               <button
                 type="submit"
-                disabled={status === 'sending'}
+                disabled={status === 'sending' || preview}
                 className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded px-6 py-3 text-sm font-semibold sm:w-auto"
                 style={{
                   backgroundColor: 'var(--color-ink)',
                   color: 'var(--color-ink-inverse)',
-                  cursor: status === 'sending' ? 'wait' : 'pointer',
-                  opacity: status === 'sending' ? 0.7 : 1,
+                  cursor: preview ? 'not-allowed' : status === 'sending' ? 'wait' : 'pointer',
+                  opacity: status === 'sending' || preview ? 0.7 : 1,
                 }}
               >
-                {status === 'sending' ? 'Submitting…' : 'Submit for review'}
-                {status !== 'sending' && <Send size={15} strokeWidth={2} />}
+                {preview ? 'Submitting is disabled in Employer view'
+                  : status === 'sending' ? 'Submitting…' : 'Submit for review'}
+                {status !== 'sending' && !preview && <Send size={15} strokeWidth={2} />}
               </button>
             </form>
           </>

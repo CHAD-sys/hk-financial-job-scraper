@@ -5,6 +5,7 @@ import Nav from '../components/Nav'
 import AccountsDirectory from '../components/admin/AccountsDirectory'
 import AnalyticsOverview from '../components/admin/AnalyticsOverview'
 import AdminSectionNav from '../components/admin/AdminSectionNav'
+import EmployerPerspective from '../components/admin/EmployerPerspective'
 import JobEditor from '../components/admin/JobEditor'
 import OperationsCenter from '../components/admin/OperationsCenter'
 import SubmissionsPanel from '../components/admin/SubmissionsPanel'
@@ -288,6 +289,27 @@ export default function AdminPage() {
                   <p className="mt-3 text-sm">Loading the account directory…</p>
                 </div>
               </div>
+            )}
+          </section>
+        )}
+
+        {/* Ultimate Admin only, like the account directory above it — this
+            joins one Employer's identity to their submissions and their Roles.
+            It reuses that section's already-loaded accounts rather than
+            fetching the list twice; only the chosen Employer's activity is a
+            request of its own, and only once one is chosen. */}
+        {seeker?.is_super_admin && (
+          <section id="employer-view" className="mt-16 scroll-mt-28 border-t pt-12" style={{ borderColor: 'var(--color-border)' }}>
+            {accounts ? (
+              <EmployerPerspective employers={accounts.employers} />
+            ) : accountsError ? (
+              <div className="rounded-lg p-5 text-sm" role="status" style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-ink-muted)' }}>
+                {accountsError}
+              </div>
+            ) : (
+              <p className="rounded-lg p-5 text-sm" role="status" style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-ink-muted)' }}>
+                Loading Employer accounts…
+              </p>
             )}
           </section>
         )}

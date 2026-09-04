@@ -1422,6 +1422,80 @@ export async function fetchSeekerInterests(seekerId: string): Promise<AdminSeeke
   return res.json()
 }
 
+// ── Ultimate Admin: the Employer's perspective ────────────────────────────────
+// One Employer's whole side of FinEx — what they submitted, what became of it,
+// and what of theirs a visitor can actually browse to. Fetched per Employer,
+// never bundled into fetchAdminAccounts, for the same reason as Seeker
+// interests above. See webapp/backend/employer_view.py for the read model and,
+// in particular, for why `matched_by` and `standing` exist.
+
+/** How a submission was tied to this account. `email` is the strong claim (the
+ *  address was verified at registration); `company` is the weak one (the name
+ *  matched but the address did not). /api/post-role stores no employer_id, so
+ *  these two are all the evidence there is. */
+export type EmployerSubmissionMatch = 'email' | 'company'
+
+export interface EmployerSubmission {
+  id: string
+  title: string
+  company: string
+  location: string
+  employment_type: string
+  salary_range: string
+  apply_url: string
+  contact_email: string
+  contact_name: string
+  received_at: string
+  status: string
+  rejected_reason: string | null
+  approved_source_id: string | null
+  matched_by: EmployerSubmissionMatch
+}
+
+/** Why each of this Employer's Roles is, or is not, on the board. `on_board` is
+ *  the only state a visitor can browse to; `capped` is ADR 0035's per-employer
+ *  limit of 60, which is the one an Employer is most likely to write in about. */
+export interface EmployerStanding {
+  on_board: number
+  capped: number
+  aged_out: number
+  undated: number
+  hidden: number
+  duplicate: number
+  closed: number
+}
+
+export interface EmployerActivity {
+  employer: {
+    id: string
+    email: string
+    company_name: string
+    contact_name: string | null
+    email_verified: boolean
+    created_at: string | null
+    last_login_at: string | null
+  }
+  lens: {
+    company: string
+    overridden: boolean
+    matched_spellings: string[]
+  }
+  submissions: EmployerSubmission[]
+  standing: EmployerStanding
+  board_roles: Job[]
+  board_sample_size: number
+}
+
+export async function fetchEmployerActivity(
+  employerId: string,
+  company = '',
+): Promise<EmployerActivity> {
+  const query = company.trim() ? `?company=${encodeURIComponent(company.trim())}` : ''
+  const res = await apiFetch(`/api/admin/employers/${encodeURIComponent(employerId)}/activity${query}`)
+  if (!res.ok) throw new ApiError(res.status, `Could not load this Employer's activity (${res.status}).`)
+  return res.json()
+}
+
 // ── Admin: direct job edit ────────────────────────────────────────────────────
 // Behind is_admin since ADR 0019 (was is_super_admin only). The
 // wire shape mirrors webapp/backend/job_edit.py's raw dict(row) exactly: it is

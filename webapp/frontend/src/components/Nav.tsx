@@ -1,6 +1,6 @@
 import {
   Briefcase, Bookmark, Menu, X, ChevronDown, FileText, LogOut, ArrowUpRight, Building2,
-  LayoutDashboard, Search, UserRound,
+  Eye, LayoutDashboard, Search, UserRound,
 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
@@ -8,6 +8,7 @@ import { scrollToTop, scrollToHash } from '../utils/scroll'
 import type { Seeker, Employer } from '../api/client'
 import { useAuth } from '../auth/useAuth'
 import { useAdminMode } from '../adminMode/useAdminMode'
+import { useEmployerView } from '../employerView/useEmployerView'
 import { useEmployerAuth } from '../auth/useEmployerAuth'
 import { useSavedRoles } from '../savedRoles/useSavedRoles'
 
@@ -147,6 +148,12 @@ export default function Nav() {
   // set_super_admin() writes only its own column, so an Ultimate Admin granted
   // that bit alone would otherwise get no way back to the panel.
   const { adminMode, canUseAdminMode, setAdminMode } = useAdminMode()
+  // The Employer PREVIEW (employerView/EmployerViewProvider.tsx). Kept
+  // strictly separate from `employer` below it: that is a real session and
+  // this is an Ultimate Admin looking at the shell. Anywhere the two could
+  // be confused, the real session wins — the provider makes the preview
+  // unavailable while one exists.
+  const { employerView, setEmployerView } = useEmployerView()
   // The panel is an admin-view destination, so the row only carries it in admin
   // view. In Seeker view an admin's nav is a Seeker's nav, entry for entry.
   // ASF is the one exception: it reads seeker.is_super_admin directly, not
@@ -286,6 +293,32 @@ export default function Nav() {
       style={{ backgroundColor: 'var(--color-nav)', zIndex: 200 }}
       className="sticky top-0 w-full border-b border-white/10"
     >
+      {/* Unmissable, and above BOTH bars rather than inside either: an admin
+          who forgets they are in the preview will read every employer-shaped
+          affordance below as their own. Says what the preview is not, because
+          "you are an Employer" is exactly the wrong thing to infer. */}
+      {employerView && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-1.5 text-center text-xs font-medium"
+          style={{ backgroundColor: 'var(--color-gold)', color: '#1F1300' }}
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <Eye size={13} strokeWidth={2.5} aria-hidden="true" />
+            <strong>Employer view</strong> — previewing what an Employer sees. You are not
+            signed in as one, and submissions are disabled.
+          </span>
+          <button
+            type="button"
+            onClick={() => setEmployerView(false)}
+            className="cursor-pointer rounded px-2 py-0.5 text-xs font-semibold underline"
+            style={{ background: 'none', border: 'none', color: '#1F1300' }}
+          >
+            Leave Employer view
+          </button>
+        </div>
+      )}
+
       {/* ── Desktop: two tiers ──────────────────────────────────────────────
           Six links plus the action cluster no longer share one row without
           crowding, so the row splits by *kind* rather than hiding links in an
@@ -311,7 +344,7 @@ export default function Nav() {
               {/* Only for a signed-in Employer now — PostRolePage.tsx redirects
                   anyone else to /employer/signin, so a standing link nobody
                   anonymous could use would be a promise this bar could not keep. */}
-              {!employerAuthLoading && employer && (
+              {!employerAuthLoading && (employer || employerView) && (
                 <>
                   <Link
                     to="/post-a-role"
@@ -324,7 +357,13 @@ export default function Nav() {
                   >
                     Post a role
                   </Link>
-                  <EmployerMenu employer={employer} onSignOut={handleEmployerSignOut} />
+                  {/* EmployerMenu renders a real company's name, email and
+                      sign-out. A preview has none of those, and inventing them
+                      would be the one thing this feature must never do — so the
+                      preview gets its own chip instead of a dressed-up menu. */}
+                  {employer
+                    ? <EmployerMenu employer={employer} onSignOut={handleEmployerSignOut} />
+                    : <EmployerPreviewChip onLeave={() => setEmployerView(false)} />}
                 </>
               )}
 
@@ -469,7 +508,7 @@ export default function Nav() {
             ...primaryLinks,
             { label: 'Saved roles', to: '/saved' },
             // Same rule as the desktop bar: only for a signed-in Employer.
-            ...(!employerAuthLoading && employer ? [{ label: 'Post a role', to: '/post-a-role' }] : []),
+            ...(!employerAuthLoading && (employer || employerView) ? [{ label: 'Post a role', to: '/post-a-role' }] : []),
             // The account item(s), which the desktop bar keeps in its own slot.
             // Same `accountSlot` the desktop bar reads, so the two menus cannot
             // disagree about who is signed in — an Employer's own sign-out sits
@@ -795,6 +834,34 @@ function SeekerMenu({ seeker, onSignOut }: { seeker: Seeker; onSignOut: () => vo
  * submission form, nothing else), so this is company name in, sign out out,
  * and nothing invented in between.
  */
+/**
+ * The preview's stand-in for EmployerMenu.
+ *
+ * Deliberately NOT a menu, and deliberately carries no company name, address or
+ * sign-out: there is no Employer here to name, and a chip that invented one
+ * would make the preview look like a session. It says whose view this is and
+ * offers the way out, which is all a preview owes the reader.
+ */
+function EmployerPreviewChip({ onLeave }: { onLeave: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onLeave}
+      className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium"
+      style={{
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        border: '1px dashed rgba(255,255,255,0.35)',
+        color: 'var(--color-ink-inverse)',
+      }}
+    >
+      <Eye size={14} strokeWidth={2} aria-hidden="true" />
+      Employer preview
+      <X size={13} strokeWidth={2.5} aria-hidden="true" />
+      <span className="sr-only">Leave Employer view</span>
+    </button>
+  )
+}
+
 function EmployerMenu({ employer, onSignOut }: { employer: Employer; onSignOut: () => void }) {
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
