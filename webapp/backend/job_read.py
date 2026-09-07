@@ -1196,10 +1196,18 @@ def _to_summary(
     est_min = row["salary_estimated_min"]
     est_max = row["salary_estimated_max"]
     est_confidence = row["salary_estimated_confidence"]
-    # Seniority label hidden from non-admins, same fail-safe-default gating as
-    # the AI salary estimate above. `is_admin` defaults to False — every call
-    # site must opt IN, not opt out.
-    seniority = row["seniority"] if is_admin else None
+    # Seniority label is visible to EVERYONE again, same restoration as the AI
+    # salary estimate above and for the same reason: it was hidden from
+    # non-admins on 2026-08-27 by reusing this `is_admin` gate wholesale, and
+    # the 2026-09-03 audit that restored the salary estimate already verified
+    # seniority specifically — "a clean seniority gradient (24k junior -> 51k
+    # mid -> 70k senior -> 102k lead)" is that audit's own finding. Hiding it
+    # was never revisited when the audit landed, so it stayed None for every
+    # non-admin caller including internal ones: resume matching and Roles-for-
+    # you both score career-level fit off this field (resume_intelligence.
+    # score_resume_fit), and with it always None that entire scoring
+    # dimension was silently dead for every Seeker, not just the public badge.
+    seniority = row["seniority"]
     return JobSummary(
         source=row["source"],
         source_id=row["source_id"],

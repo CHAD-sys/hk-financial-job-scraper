@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from typing import Iterable, Sequence
 
 from job_read import JobSummary
-from resume_intelligence import ResumeEvidence, score_resume_fit
+from resume_intelligence import RESUME_MATCH_FLOOR, ResumeEvidence, score_resume_fit
 
 MODEL_VERSION = "signals-v3"
 MAX_RESUME_BONUS = 6.0
@@ -493,9 +493,16 @@ def _score(
     # Resume evidence is intentionally bounded below a settled search or an
     # explicit "More like this" profile. It helps surface plausible experience
     # fits without trapping someone in the field their resume happens to show.
+    #
+    # Gated at RESUME_MATCH_FLOOR, not the higher confident-match bar
+    # resume_intelligence uses for "Jobs based on your CV": a role-family-only
+    # match (worth 20, e.g. "Actuarial Manager" against an actuarial resume
+    # with no required_skill phrase copied verbatim) is real signal for a
+    # ranking nudge here even where it isn't confident enough to headline a
+    # dedicated match card.
     if resume_evidence is not None:
         fit = score_resume_fit(role, resume_evidence)
-        if fit.score >= 25:
+        if fit.score >= RESUME_MATCH_FLOOR:
             bonus = min(MAX_RESUME_BONUS, fit.score / 100 * MAX_RESUME_BONUS)
             score += bonus
             if fit.reasons:

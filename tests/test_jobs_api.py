@@ -314,15 +314,26 @@ def test_disclosed_salary_is_never_hidden_anonymous_or_admin(client):
 
 
 
-def test_seniority_is_hidden_from_an_anonymous_visitor(client):
+# Seniority was hidden from non-admins on 2026-08-27 by reusing the salary
+# estimate's is_admin gate wholesale. It was never un-gated when that same
+# gate was restored for the salary estimate on 2026-09-03 — even though that
+# restoration's own audit note verifies seniority specifically ("a clean
+# seniority gradient (24k junior -> 51k mid -> 70k senior -> 102k lead)") — so
+# it stayed None for every non-admin caller, INCLUDING internal ones:
+# role_feed/resume_intelligence score a resume's career-level fit off this
+# field, and with it always None that scoring dimension was silently dead for
+# every Seeker, not just the public badge. Restored 2026-09-07.
+
+
+def test_seniority_is_visible_to_an_anonymous_visitor(client):
     ib = _job(_get(client, page_size=100), "IB")
-    assert ib["seniority"] is None
+    assert ib["seniority"] == "senior"
 
 
-def test_seniority_is_hidden_from_a_signed_in_seeker(client):
+def test_seniority_is_visible_to_a_signed_in_seeker(client):
     _register_member(client)
     ib = _job(_get(client, page_size=100), "IB")
-    assert ib["seniority"] is None
+    assert ib["seniority"] == "senior"
 
 
 def test_seniority_is_visible_to_an_admin(client):
@@ -331,10 +342,10 @@ def test_seniority_is_visible_to_an_admin(client):
     assert ib["seniority"] == "senior"
 
 
-def test_seniority_gate_also_applies_to_the_detail_endpoint(client):
+def test_seniority_is_visible_on_the_detail_endpoint_to_everyone(client):
     anon_detail = _detail(client, "workday", "IB")
     assert anon_detail.status_code == 200
-    assert anon_detail.json()["seniority"] is None
+    assert anon_detail.json()["seniority"] == "senior"
 
     _register_admin(client)
     admin_detail = _detail(client, "workday", "IB")

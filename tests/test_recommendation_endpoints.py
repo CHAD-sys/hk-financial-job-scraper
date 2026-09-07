@@ -9,7 +9,7 @@ import zipfile
 import pytest
 from fastapi.testclient import TestClient
 
-from .support import enrichment, job, make_app, make_bundle, make_jobs_db
+from .support import days_ago, enrichment, job, make_app, make_bundle, make_jobs_db
 
 SEEKER = {
     "email": "seeker@example.com",
@@ -46,21 +46,27 @@ def recommendation_db(tmp_path):
                 source_id="SAVED",
                 company="HSBC",
                 title="Credit Risk Analyst",
-                posted_at="2026-08-07T00:00:00+00:00",
+                # Relative, not a fixed calendar date: board_visible_sql()'s
+                # one-month freshness window (ADR 0035) silently dropped
+                # ACTUARY below from the candidate pool once real time moved
+                # more than a month past this fixture's old hardcoded date,
+                # which surfaced as a spurious IndexError on resume-matches
+                # having nothing to rank rather than a scoring bug (2026-09-07).
+                posted_at=days_ago(3),
             ),
             job(
                 source="workday",
                 source_id="RISK",
                 company="Hang Seng Bank",
                 title="Senior Credit Risk Manager",
-                posted_at="2026-08-07T00:00:00+00:00",
+                posted_at=days_ago(3),
             ),
             job(
                 source="eightfold",
                 source_id="ACTUARY",
                 company="AIA",
                 title="Actuarial Manager",
-                posted_at="2026-08-06T00:00:00+00:00",
+                posted_at=days_ago(4),
             ),
         ],
         enrichments=[

@@ -991,14 +991,43 @@ def _posted_timestamp(value: str | None) -> float:
         return 0.0
 
 
+# The bar a match must clear to count as a confident recommendation. Below it,
+# `rank_resume_matches` still prefers RESUME_MATCH_FLOOR over showing nothing.
+CONFIDENT_MATCH_SCORE = 25
+
+# The floor below which a "match" carries no real signal and would mislead a
+# Seeker rather than help them — the fallback tier below never dips under it.
+# A single matched skill or a role-family match alone (worth 15 and 20 in
+# score_resume_fit) clear it; a severe seniority mismatch does not, even after
+# skill points, because that penalty is large enough to land well under 15
+# (see test_severe_seniority_mismatch_is_penalised_and_excluded_from_matches).
+RESUME_MATCH_FLOOR = 15
+
+
 def rank_resume_matches(
     candidates: Iterable[JobSummary], evidence: ResumeEvidence, *, limit: int = 6
 ) -> tuple[ResumeMatch, ...]:
-    """Return the strongest current Roles, diversified by employer."""
-    scored = [
-        ResumeMatch(role, fit.score, fit.reasons)
+    """Return the strongest current Roles, diversified by employer.
+
+    Never empty while an open candidate clears RESUME_MATCH_FLOOR. A resume
+    whose only alignment with a Role is professional family — the field
+    matches but no required_skill phrase appears verbatim on the page, e.g.
+    "Actuarial Manager" against a Role requiring "actuarial modelling" — used
+    to score exactly 20, one point short of the 25-point confident-match bar,
+    and get thrown away entirely: a real, several-page finance resume could
+    surface zero matches even though it named the right profession on line
+    one (2026-09-07). Below the floor a candidate has no real signal (a severe
+    seniority mismatch is penalised into single digits) and stays excluded —
+    "never empty" does not mean "show anything".
+    """
+    fits = [
+        (role, fit)
         for role in candidates
-        if not role.closed and (fit := score_resume_fit(role, evidence)).score >= 25
+        if not role.closed and (fit := score_resume_fit(role, evidence)).score >= RESUME_MATCH_FLOOR
+    ]
+    confident = [(role, fit) for role, fit in fits if fit.score >= CONFIDENT_MATCH_SCORE]
+    scored = [
+        ResumeMatch(role, fit.score, fit.reasons) for role, fit in (confident or fits)
     ]
     scored.sort(
         key=lambda item: (

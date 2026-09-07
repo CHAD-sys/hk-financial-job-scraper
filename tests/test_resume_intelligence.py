@@ -289,6 +289,46 @@ def test_severe_seniority_mismatch_is_penalised_and_excluded_from_matches():
     assert matches == ()
 
 
+def test_a_family_only_match_still_surfaces_instead_of_vanishing():
+    # "Jobs based on your CV" used to return nothing for a resume whose only
+    # alignment with a Role was its profession/title, with no required_skill
+    # phrase copied onto the page verbatim: score_resume_fit's role-family
+    # bonus is worth exactly 20, one point short of the 25-point confident-
+    # match bar rank_resume_matches filtered on, so the match was thrown away
+    # entirely (2026-09-07, reported against a real several-page finance CV).
+    # It must now fall back to RESUME_MATCH_FLOOR rather than showing nothing.
+    evidence = evidence_from_storage(
+        "Actuarial manager with insurance modelling experience",
+        {
+            "skills": ["actuarial modelling"],
+            "role_families": ["actuarial"],
+            "sectors": ["insurance"],
+        },
+    )
+    actuarial_role = role(
+        "actuary",
+        company="AIA",
+        sector="Insurance",
+        title="Actuarial Manager",
+        # Deliberately not "actuarial modelling" verbatim, so no skill phrase
+        # in the resume text matches it — the family bonus is the only signal.
+        required_skills=["pricing models"],
+    )
+    unrelated_role = role(
+        "reception",
+        company="HSBC",
+        title="Front Desk Receptionist",
+        required_skills=["customer service"],
+    )
+
+    fit = score_resume_fit(actuarial_role, evidence)
+    matches = rank_resume_matches([actuarial_role, unrelated_role], evidence)
+
+    assert fit.score == 20
+    assert "Relevant actuarial experience" in fit.reasons
+    assert [item.job.source_id for item in matches] == ["actuary"]
+
+
 # --- Realistic-CV regression fixtures -------------------------------------
 #
 # The two tests above this block pass only because their fixtures are phrased
