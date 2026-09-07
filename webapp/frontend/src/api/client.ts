@@ -151,6 +151,18 @@ export interface JobListResponse {
   jobs: Job[]
 }
 
+export interface WeeklyHighlightRole {
+  position: number
+  related_search: string
+  role: Job
+}
+
+export interface WeeklyHighlightsResponse {
+  week_start: string
+  week_end: string
+  roles: WeeklyHighlightRole[]
+}
+
 // ── ASF: Audit Salary Fixing (2026-08-21) ────────────────────────────────────
 // Ultimate-Admin-only. A separate filter/response shape from the board's
 // JobFilters/JobListResponse above, deliberately: this always prices as
@@ -611,6 +623,25 @@ export async function fetchJobDetail(
     { headers },
   )
   if (!res.ok) throw new Error(`Job detail fetch failed: ${res.status}`)
+  return res.json()
+}
+
+/** The ordered, write-once promotional Role set for the current HK week. */
+export async function fetchWeeklyHighlights(): Promise<WeeklyHighlightsResponse> {
+  const res = await apiFetch('/api/highlights')
+  if (!res.ok) throw new ApiError(res.status, 'Weekly highlights fetch failed')
+  return res.json()
+}
+
+/** Resolve one exact promotional Role on a direct page load. */
+export async function fetchWeeklyHighlightRole(
+  source: string,
+  sourceId: string,
+): Promise<Job> {
+  const res = await apiFetch(
+    `/api/highlights/roles/${encodeURIComponent(source)}/${encodeURIComponent(sourceId)}`,
+  )
+  if (!res.ok) throw new ApiError(res.status, 'Featured Role not found')
   return res.json()
 }
 

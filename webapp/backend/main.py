@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal, Optional
 from urllib.parse import quote_plus, urlparse
+from zoneinfo import ZoneInfo
 
 from fastapi import (
     APIRouter,
@@ -73,6 +74,7 @@ import learning_content  # noqa: E402
 import resume_intelligence  # noqa: E402
 import role_access  # noqa: E402
 import role_feed  # noqa: E402
+from hk_jobs import weekly_highlights  # noqa: E402
 from rate_limit import RateLimiter, RedisRateLimiter  # noqa: E402
 from sender import (  # noqa: E402
     Message,
@@ -185,6 +187,18 @@ class StatsResponse(BaseModel):
     top_skills: list[NameCount]
     top_companies: list[NameCount]
     internship_count: int
+
+
+class WeeklyHighlightRole(BaseModel):
+    position: int
+    related_search: str
+    role: JobSummary
+
+
+class WeeklyHighlightsResponse(BaseModel):
+    week_start: str
+    week_end: str
+    roles: list[WeeklyHighlightRole]
 
 
 # ── App ────────────────────────────────────────────────────────────────────────
@@ -408,6 +422,85 @@ def list_jobs(
         )
     _grant_role_access(request, result.jobs)
     return result
+
+
+# ── /api/highlights ───────────────────────────────────────────────────────────
+
+def _hong_kong_today():
+    return datetime.now(ZoneInfo("Asia/Hong_Kong")).date()
+
+
+@router.get(
+    "/api/highlights",
+    response_model=WeeklyHighlightsResponse,
+    tags=["highlights"],
+)
+def get_weekly_highlights(request: Request):
+    """Return the ordered, write-once Role selection for this Hong Kong week.
+
+    This is a legitimate public discovery path, so every returned Role receives
+    the same short-lived detail grant as a board search result. Resolution uses
+    ADDRESSABLE visibility: closing or de-duplicating a Role during the week
+    changes its truthful state, never its place in the promotion.
+    """
+    today = _hong_kong_today()
+    week_start, week_end = weekly_highlights.week_bounds(today)
+    seeker = _current_seeker(request)
+    roles: list[WeeklyHighlightRole] = []
+    with get_db(request) as conn:
+        refs = weekly_highlights.current_weekly_highlights(conn, as_of=today)
+        for ref in refs:
+            role = job_read.get_job(
+                conn,
+                ref.source,
+                ref.source_id,
+                visibility=Visibility.ADDRESSABLE,
+                is_admin=_is_admin_session(seeker),
+            )
+            if role is None:
+                continue
+            if role.source_tier in MEMBER_ONLY_TIERS and seeker is None:
+                continue
+            roles.append(
+                WeeklyHighlightRole(
+                    position=ref.position,
+                    related_search=ref.related_search,
+                    role=role,
+                )
+            )
+    _grant_role_access(request, (entry.role for entry in roles))
+    return WeeklyHighlightsResponse(
+        week_start=week_start.isoformat(),
+        week_end=week_end.isoformat(),
+        roles=roles,
+    )
+
+
+@router.get(
+    "/api/highlights/roles/{source}/{source_id}",
+    response_model=JobSummary,
+    tags=["highlights"],
+)
+def get_weekly_highlight_role(source: str, source_id: str, request: Request):
+    """Resolve exactly one Role, but only if this week's snapshot named it."""
+    today = _hong_kong_today()
+    seeker = _current_seeker(request)
+    with get_db(request) as conn:
+        if not weekly_highlights.is_current_weekly_highlight(
+            conn, source, source_id, as_of=today
+        ):
+            raise HTTPException(status_code=404, detail="Featured Role not found")
+        role = job_read.get_job(
+            conn,
+            source,
+            source_id,
+            visibility=Visibility.ADDRESSABLE,
+            is_admin=_is_admin_session(seeker),
+        )
+    if role is None or (role.source_tier in MEMBER_ONLY_TIERS and seeker is None):
+        raise HTTPException(status_code=404, detail="Featured Role not found")
+    _grant_role_access(request, [role])
+    return role
 
 
 # ── /api/recommendations + discovery signals ─────────────────────────────────

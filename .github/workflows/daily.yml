@@ -157,10 +157,10 @@ jobs:
           fi
           python -m hk_jobs.daily_run "${ARGS[@]}"
 
-      # The banner remains an editorial surface: on Sunday in Hong Kong this
-      # sends Mohamed a diverse, >=HK$40k shortlist for the week starting the
-      # next morning. It uses the database produced by the run immediately
-      # above, so closed/hidden Roles can never be suggested from stale data.
+      # Sunday's publish locks the coming week's diverse, >=HK$40k Role set
+      # into the database before it reaches Railway. This follow-up sends
+      # Mohamed that selection; the write-once lock makes reruns harmless and
+      # keeps the same Roles promoted from Monday through Sunday.
       - name: Email next week's highlight candidates
         if: success() && github.event_name == 'schedule'
         env:

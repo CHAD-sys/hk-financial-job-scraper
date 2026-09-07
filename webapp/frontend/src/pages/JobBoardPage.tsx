@@ -10,7 +10,7 @@ import type {
 import {
   DEFAULT_FILTERS, fetchJobs, fetchFilters, fetchStats,
   filtersToSearchParams, searchParamsToFilters,
-  countActiveFilters, recordDiscovery, hasResearchScope,
+  countActiveFilters, recordDiscovery, hasResearchScope, fetchWeeklyHighlightRole,
 } from '../api/client'
 import type { JobFilters } from '../api/client'
 import { useAuth } from '../auth/useAuth'
@@ -43,6 +43,7 @@ const SORT_OPTIONS = [
 
 export default function JobBoardPage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const location = useLocation()
 
   // Initialise state from URL (parsed once on mount)
   const [initial] = useState(() => searchParamsToFilters(searchParams))
@@ -51,8 +52,15 @@ export default function JobBoardPage() {
   const [highlightedRole] = useState(() => {
     const source = searchParams.get('role_source')
     const sourceId = searchParams.get('role_id')
-    const lookup = searchParams.get('role_lookup')
-    return source && sourceId && lookup ? { source, sourceId, lookup } : null
+    return source && sourceId ? { source, sourceId } : null
+  })
+  const [routedFeaturedRole] = useState(() => {
+    const candidate = (location.state as { featuredRole?: Job } | null)?.featuredRole
+    if (!candidate || !highlightedRole) return null
+    return candidate.source === highlightedRole.source
+      && candidate.source_id === highlightedRole.sourceId
+      ? candidate
+      : null
   })
 
   // The raw search text lives in its own state so the effects below can depend
@@ -70,7 +78,10 @@ export default function JobBoardPage() {
   const [employerCount, setEmployerCount] = useState<number | null>(null)
   const [sectorCount, setSectorCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null)
+  const [selectedJob, setSelectedJob] = useState<Job | null>(routedFeaturedRole)
+  const [highlightResolution, setHighlightResolution] = useState<
+    'idle' | 'loading' | 'unavailable'
+  >(highlightedRole && !routedFeaturedRole ? 'loading' : 'idle')
   const [editingJob, setEditingJob] = useState<Job | null>(null)
   // An admin who submitted the search box EMPTY, asking for the whole
   // catalogue. Its own state rather than a derived "is an admin and has no
@@ -94,31 +105,25 @@ export default function JobBoardPage() {
   const { adminMode } = useAdminMode()
   const canEdit = adminMode
 
-  // Discover the exact highlighted Role through Careers before opening it.
-  // This matters: detail reads require the short-lived access grant attached
-  // to a legitimate search result; a source/id pair alone is intentionally not
-  // permission. The main query independently fills the grid with Roles from
-  // the same desk, so the modal sits over useful alternatives.
+  // A normal banner tap carries the already-granted Role in router state and
+  // opens immediately. A pasted URL / hard refresh has no state, so it uses the
+  // narrow weekly resolver — never a fuzzy catalogue search — and says what is
+  // happening instead of leaving the visitor staring at an inert jobs grid.
   useEffect(() => {
-    if (!highlightedRole) return
+    if (!highlightedRole || routedFeaturedRole) return
     let cancelled = false
-    fetchJobs(
-      { ...DEFAULT_FILTERS, search: highlightedRole.lookup },
-      'relevance',
-      1,
-      PAGE_SIZE,
-    )
-      .then(response => {
+    setHighlightResolution('loading')
+    fetchWeeklyHighlightRole(highlightedRole.source, highlightedRole.sourceId)
+      .then(role => {
         if (cancelled) return
-        const job = response.jobs.find(candidate =>
-          candidate.source === highlightedRole.source
-          && candidate.source_id === highlightedRole.sourceId,
-        )
-        if (job) setSelectedJob(job)
+        setSelectedJob(role)
+        setHighlightResolution('idle')
       })
-      .catch(console.error)
+      .catch(() => {
+        if (!cancelled) setHighlightResolution('unavailable')
+      })
     return () => { cancelled = true }
-  }, [highlightedRole])
+  }, [highlightedRole, routedFeaturedRole])
 
   // Public market totals are aggregate context only. Filter choices are never
   // loaded globally; the separate effect below derives them from one research.
@@ -225,7 +230,6 @@ export default function JobBoardPage() {
   // when the last filter goes, so "Clear all" on a Role reached by deep link
   // does return to the hero. That is this page's existing behaviour, not
   // something this effect does.
-  const location = useLocation()
   useEffect(() => {
     if (!(location.state as { discover?: boolean } | null)?.discover) return
     backToSearch()
@@ -417,6 +421,22 @@ export default function JobBoardPage() {
 
       {/* ── Main content ────────────────────────────────────── */}
       <main id="main-content" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-5 sm:py-7">
+
+        {highlightResolution !== 'idle' && (
+          <div
+            role={highlightResolution === 'loading' ? 'status' : 'alert'}
+            className="mb-4 rounded-lg px-4 py-3 text-sm font-semibold"
+            style={{
+              border: '1px solid var(--color-border)',
+              backgroundColor: 'var(--color-surface)',
+              color: 'var(--color-ink-muted)',
+            }}
+          >
+            {highlightResolution === 'loading'
+              ? 'Opening this week’s featured Role…'
+              : 'This featured Role is unavailable. The related Roles below are still current.'}
+          </div>
+        )}
 
         {/* One Google-style result stream: every matching source falls into
             the same ranked grid. Source attribution remains on individual

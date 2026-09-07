@@ -31,12 +31,12 @@ def test_both_highlight_rails_are_pointer_swipeable():
     assert "touch-action: pan-y" in css
 
 
-def test_weekly_band_is_the_first_landing_content_after_navigation():
+def test_weekly_band_follows_the_portal_hero_on_the_landing_page():
     page = (ROOT / "webapp" / "frontend" / "src" / "pages" / "LandingPage.tsx").read_text(
         encoding="utf-8"
     )
 
-    assert page.index("<WeeklyHighlights />") < page.index("<PortalHero />")
+    assert page.index("<PortalHero />") < page.index("<WeeklyHighlights />")
 
 
 def test_weekly_header_is_a_single_clean_client_message():

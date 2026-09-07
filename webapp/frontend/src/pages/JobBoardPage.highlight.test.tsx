@@ -5,11 +5,13 @@ import type { Job, JobDetail } from '../api/client'
 
 const fetchJobs = vi.fn()
 const fetchJobDetail = vi.fn()
+const fetchWeeklyHighlightRole = vi.fn()
 
 vi.mock('../api/client', async importOriginal => ({
   ...(await importOriginal<typeof import('../api/client')>()),
   fetchJobs: (...args: unknown[]) => fetchJobs(...args),
   fetchJobDetail: (...args: unknown[]) => fetchJobDetail(...args),
+  fetchWeeklyHighlightRole: (...args: unknown[]) => fetchWeeklyHighlightRole(...args),
   fetchFilters: vi.fn().mockResolvedValue({ research_total: 1 }),
   fetchStats: vi.fn().mockResolvedValue({
     total_active_jobs: 100,
@@ -84,10 +86,8 @@ const featuredRole: JobDetail = {
 const { default: JobBoardPage } = await import('./JobBoardPage')
 
 beforeEach(() => {
-  fetchJobs.mockReset().mockImplementation(filters => Promise.resolve({
-    jobs: filters.search === featuredRole.title
-      ? [featuredRole]
-      : [{ ...featuredRole, source_id: 'related-role', title: 'Private Banker' }],
+  fetchJobs.mockReset().mockImplementation(() => Promise.resolve({
+    jobs: [{ ...featuredRole, source_id: 'related-role', title: 'Private Banker' }],
     total: 1,
     total_pages: 1,
     page: 1,
@@ -96,13 +96,18 @@ beforeEach(() => {
   // A guessed Role key is not permission to read the detail endpoint. The
   // page must discover the Role through Careers and use the issued grant.
   fetchJobDetail.mockReset().mockRejectedValue(new Error('Role access grant required'))
+  fetchWeeklyHighlightRole.mockReset().mockResolvedValue(featuredRole)
 })
 
 describe('featured Role deep links', () => {
-  it('opens the chosen Role and searches the grid for related Roles', async () => {
+  it('opens navigation state immediately without another resolver request', async () => {
     render(
       <MemoryRouter initialEntries={[
-        '/jobs?q=Private+Banking&role_source=linkedin&role_id=4443781178&role_lookup=International+Private+Bank%2C+Investor+for+China+Market%2C+Managing+Director',
+        {
+          pathname: '/jobs',
+          search: '?q=Private+Banking&role_source=linkedin&role_id=4443781178',
+          state: { featuredRole },
+        },
       ]}>
         <Routes><Route path="/jobs" element={<JobBoardPage />} /></Routes>
       </MemoryRouter>,
@@ -112,9 +117,44 @@ describe('featured Role deep links', () => {
       'International Private Bank, Investor for China Market, Managing Director',
     )
     expect(fetchJobDetail).not.toHaveBeenCalled()
+    expect(fetchWeeklyHighlightRole).not.toHaveBeenCalled()
     await waitFor(() => {
       expect(fetchJobs.mock.calls.some(call => call[0].search === 'Private Banking')).toBe(true)
-      expect(fetchJobs.mock.calls.some(call => call[0].search === featuredRole.title)).toBe(true)
     })
+  })
+
+  it('resolves an exact pinned Role on a direct reload and shows progress while waiting', async () => {
+    let resolveRole!: (role: JobDetail) => void
+    fetchWeeklyHighlightRole.mockReturnValueOnce(new Promise(resolve => { resolveRole = resolve }))
+
+    render(
+      <MemoryRouter initialEntries={[
+        '/jobs?q=Private+Banking&role_source=linkedin&role_id=4443781178',
+      ]}>
+        <Routes><Route path="/jobs" element={<JobBoardPage />} /></Routes>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('status')).toHaveTextContent(/opening this week.s featured role/i)
+    resolveRole(featuredRole)
+
+    expect(await screen.findByRole('complementary', { name: 'Open role' })).toHaveTextContent(
+      featuredRole.title,
+    )
+    expect(fetchWeeklyHighlightRole).toHaveBeenCalledWith('linkedin', '4443781178')
+    expect(fetchJobs.mock.calls.some(call => call[0].search === featuredRole.title)).toBe(false)
+  })
+
+  it('says when a stale or edited promotional link is unavailable', async () => {
+    fetchWeeklyHighlightRole.mockRejectedValueOnce(new Error('not found'))
+    render(
+      <MemoryRouter initialEntries={[
+        '/jobs?q=Private+Banking&role_source=linkedin&role_id=missing',
+      ]}>
+        <Routes><Route path="/jobs" element={<JobBoardPage />} /></Routes>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/featured role is unavailable/i)
   })
 })

@@ -1,8 +1,21 @@
-import { useEffect, useRef, useState } from 'react'
-import { ArrowRight, BriefcaseBusiness, GraduationCap, PlayCircle, Sparkles } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
+  ArrowRight,
+  BriefcaseBusiness,
+  GraduationCap,
+  ListVideo,
+  PlayCircle,
+  Sparkles,
+  TvMinimalPlay,
+} from 'lucide-react'
+import { fetchWeeklyHighlights, type WeeklyHighlightRole } from '../../api/client'
+import {
+  COMMITTEE_PLAYLIST_URL,
   COACH_HIGHLIGHTS,
-  WEEKLY_HIGHLIGHTS,
+  VIDEO_HIGHLIGHTS,
+  YOUTUBE_CHANNEL_URL,
+  mergeWeeklyHighlights,
   type CoachHighlight,
   type CourseHighlight,
   type Highlight,
@@ -19,8 +32,8 @@ import { useSwipeableMarquee } from './useSwipeableMarquee'
  * The landing page tells a visitor what FinEx *is*. It never showed them what
  * arrived *this week*, so a returning visitor had no reason to look twice and
  * a first-time visitor had no evidence the index is alive. This band is that
- * evidence, moving: the best new Roles, whoever just joined as a coach, the
- * newest video, the next course.
+ * evidence, moving: the best new Roles, useful FinEx conversations and the
+ * career coaches a visitor can learn from.
  *
  * THE CONVEYOR
  * ------------
@@ -158,7 +171,7 @@ function VideoCard({ item }: { item: VideoHighlight }) {
       </div>
       <CardEyebrow>{item.topic}</CardEyebrow>
       <h3 className="hl-card__title hl-card__title--tight">{item.title}</h3>
-      <CardAction label="Watch" meta={`New video · ${formatMonth(item.publishedAt)}`} />
+      <CardAction label="Watch" meta="FinEx Club · YouTube" />
     </>
   )
 }
@@ -183,31 +196,79 @@ function CourseCard({ item }: { item: CourseHighlight }) {
  * link. Not a div with an onClick: this has to be tabbable, middle-clickable
  * and openable in a new tab like any other link on the page.
  */
-function HighlightCard({ item }: { item: Highlight }) {
+function HighlightCard({ item, duplicate = false }: { item: Highlight; duplicate?: boolean }) {
   const external = item.href.startsWith('http')
-  return (
-    <a
-      className={`hl-card hl-card--${item.kind}`}
-      href={item.href}
-      {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-    >
+  const contents = (
+    <>
       <span className="hl-card__sheen" aria-hidden="true" />
       {item.kind === 'role' && <RoleCard item={item} />}
       {item.kind === 'coach' && <CoachCard item={item} />}
       {item.kind === 'video' && <VideoCard item={item} />}
       {item.kind === 'course' && <CourseCard item={item} />}
+    </>
+  )
+  if (item.kind === 'role') {
+    return (
+      <Link
+        className="hl-card hl-card--role"
+        to={item.href}
+        state={{ featuredRole: item.job }}
+        tabIndex={duplicate ? -1 : undefined}
+      >
+        {contents}
+      </Link>
+    )
+  }
+  return (
+    <a
+      className={`hl-card hl-card--${item.kind}`}
+      href={item.href}
+      tabIndex={duplicate ? -1 : undefined}
+      {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+    >
+      {contents}
     </a>
+  )
+}
+
+function RailStatusCard({
+  state,
+  retry,
+  duplicate = false,
+}: {
+  state: 'loading' | 'error'
+  retry: () => void
+  duplicate?: boolean
+}) {
+  if (state === 'loading') {
+    return (
+      <div className="hl-card hl-card--status" role={duplicate ? undefined : 'status'}>
+        <span className="hl-card__status-pulse" aria-hidden="true" />
+        <CardEyebrow>Weekly Roles</CardEyebrow>
+        <h3 className="hl-card__title">Loading this week’s picks…</h3>
+      </div>
+    )
+  }
+  return (
+    <div className="hl-card hl-card--status" role={duplicate ? undefined : 'alert'}>
+      <CardEyebrow>Weekly Roles</CardEyebrow>
+      <h3 className="hl-card__title">Couldn’t load this week’s Roles.</h3>
+      <button type="button" className="hl-card__retry" onClick={retry} tabIndex={duplicate ? -1 : undefined}>
+        Try again <ArrowRight size={13} aria-hidden="true" />
+      </button>
+    </div>
   )
 }
 
 /** The coach roster is a separate, denser rail. Its compact form makes the
  * people feel like an available network, rather than competing with a featured
  * Role or video for the same amount of editorial attention. */
-function CoachRailCard({ item }: { item: CoachHighlight }) {
+function CoachRailCard({ item, duplicate = false }: { item: CoachHighlight; duplicate?: boolean }) {
   return (
     <a
       className="hl-coach-card"
       href={item.href}
+      tabIndex={duplicate ? -1 : undefined}
       target="_blank"
       rel="noopener noreferrer"
     >
@@ -224,18 +285,73 @@ function CoachRailCard({ item }: { item: CoachHighlight }) {
   )
 }
 
+/** A compact landscape treatment keeps the video collection distinct from
+ * the large Role tickets while leaving enough of the thumbnail visible to
+ * recognise each conversation at marquee speed. */
+function VideoRailCard({ item, duplicate = false }: { item: VideoHighlight; duplicate?: boolean }) {
+  return (
+    <a
+      className="hl-video-card"
+      href={item.href}
+      tabIndex={duplicate ? -1 : undefined}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <span className="hl-video-card__media" aria-hidden="true">
+        <img src={item.thumbnail} alt="" loading="lazy" width={480} height={270} />
+        <span className="hl-video-card__play"><PlayCircle size={24} strokeWidth={1.7} /></span>
+      </span>
+      <span className="hl-video-card__copy">
+        <span className="hl-video-card__topic">{item.topic}</span>
+        <span className="hl-video-card__title">{item.title}</span>
+        <span className="hl-video-card__action">
+          Watch on YouTube <ArrowRight size={13} strokeWidth={2.4} aria-hidden="true" />
+        </span>
+      </span>
+    </a>
+  )
+}
+
 export default function WeeklyHighlights() {
   const viewportRef = useRef<HTMLDivElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
+  const videoViewportRef = useRef<HTMLDivElement>(null)
+  const videoTrackRef = useRef<HTMLDivElement>(null)
   const coachViewportRef = useRef<HTMLDivElement>(null)
   const coachTrackRef = useRef<HTMLDivElement>(null)
   const sectionRef = useRef<HTMLElement>(null)
   const [duration, setDuration] = useState(60)
+  const [videoDuration, setVideoDuration] = useState(130)
   const [coachDuration, setCoachDuration] = useState(160)
   const [shown, setShown] = useState(false)
+  const [weeklyRoles, setWeeklyRoles] = useState<WeeklyHighlightRole[]>([])
+  const [roleState, setRoleState] = useState<'loading' | 'ready' | 'error'>('loading')
+  const highlightRequest = useRef(0)
 
   useSwipeableMarquee(viewportRef, trackRef)
+  useSwipeableMarquee(videoViewportRef, videoTrackRef)
   useSwipeableMarquee(coachViewportRef, coachTrackRef)
+
+  const loadWeeklyRoles = useCallback(() => {
+    const request = ++highlightRequest.current
+    setRoleState('loading')
+    fetchWeeklyHighlights()
+      .then(response => {
+        if (highlightRequest.current !== request) return
+        setWeeklyRoles(response.roles)
+        setRoleState('ready')
+      })
+      .catch(() => {
+        if (highlightRequest.current !== request) return
+        setWeeklyRoles([])
+        setRoleState('error')
+      })
+  }, [])
+
+  useEffect(() => {
+    loadWeeklyRoles()
+    return () => { highlightRequest.current += 1 }
+  }, [loadWeeklyRoles])
 
   // Duration derives from the real rendered width so the band always travels
   // at ONE readable speed. A fixed duration would make the conveyor faster
@@ -247,6 +363,19 @@ export default function WeeklyHighlights() {
     const measure = () => {
       const half = track.scrollWidth / 2
       if (half > 0) setDuration(half / SPEED_PX_PER_SECOND)
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(track)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    const track = videoTrackRef.current
+    if (!track) return
+    const measure = () => {
+      const half = track.scrollWidth / 2
+      if (half > 0) setVideoDuration(half / (SPEED_PX_PER_SECOND * 0.82))
     }
     measure()
     const observer = new ResizeObserver(measure)
@@ -281,7 +410,8 @@ export default function WeeklyHighlights() {
     return () => io.disconnect()
   }, [])
 
-  const items = WEEKLY_HIGHLIGHTS
+  const items = mergeWeeklyHighlights(weeklyRoles)
+  const videos = VIDEO_HIGHLIGHTS
   const coaches = COACH_HIGHLIGHTS
 
   return (
@@ -312,13 +442,52 @@ export default function WeeklyHighlights() {
                   plus half a gap, so the loop would jump by half a gap every
                   cycle — the classic marquee stutter. No gap, no jump. */}
               <div className="hl__group">
+                {roleState !== 'ready' && <RailStatusCard state={roleState} retry={loadWeeklyRoles} />}
                 {items.map(item => <HighlightCard key={item.id} item={item} />)}
               </div>
-              {/* `inert`, not just aria-hidden: the copy is full of real anchors,
-                  and aria-hidden alone would leave sixteen invisible-but-tabbable
-                  links in the tab order. */}
-              <div className="hl__group" aria-hidden="true" inert>
-                {items.map(item => <HighlightCard key={`${item.id}-copy`} item={item} />)}
+              {/* The copy becomes visible for half of every seamless loop, so it
+                  must remain pointer-clickable. aria-hidden keeps it out of the
+                  accessibility tree and tabIndex=-1 on each link keeps it out
+                  of keyboard navigation without disabling mouse/touch clicks. */}
+              <div className="hl__group" aria-hidden="true">
+                {roleState !== 'ready' && (
+                  <RailStatusCard state={roleState} retry={loadWeeklyRoles} duplicate />
+                )}
+                {items.map(item => <HighlightCard key={`${item.id}-copy`} item={item} duplicate />)}
+              </div>
+            </div>
+          </div>
+
+          <div className="hl__video-band" aria-label="FinEx Club videos">
+            <div className="hl__video-band-head">
+              <div>
+                <span className="hl__video-kicker">
+                  <PlayCircle size={13} strokeWidth={2.4} aria-hidden="true" /> Watch FinEx
+                </span>
+                <p>Conversations, market insight and career perspective.</p>
+              </div>
+              <div className="hl__video-actions" aria-label="More FinEx Club videos">
+                <a href={YOUTUBE_CHANNEL_URL} target="_blank" rel="noopener noreferrer">
+                  <TvMinimalPlay size={15} strokeWidth={2.2} aria-hidden="true" /> YouTube channel
+                </a>
+                <a href={COMMITTEE_PLAYLIST_URL} target="_blank" rel="noopener noreferrer">
+                  <ListVideo size={15} strokeWidth={2.2} aria-hidden="true" /> Professional committees
+                </a>
+              </div>
+            </div>
+
+            <div ref={videoViewportRef} className="hl__video-viewport">
+              <div
+                ref={videoTrackRef}
+                className="hl__video-track"
+                style={{ animationDuration: `${videoDuration}s` }}
+              >
+                <div className="hl__video-group">
+                  {videos.map(item => <VideoRailCard key={item.id} item={item} />)}
+                </div>
+                <div className="hl__video-group" aria-hidden="true">
+                  {videos.map(item => <VideoRailCard key={`${item.id}-copy`} item={item} duplicate />)}
+                </div>
               </div>
             </div>
           </div>
@@ -334,15 +503,15 @@ export default function WeeklyHighlights() {
               </a>
             </div>
 
-            {/* This rail moves independently from the editorial drop. Hovering
+            {/* This rail moves independently from the Role and video rails. Hovering
                 it holds only the coaches, so each person remains easy to read. */}
             <div ref={coachViewportRef} className="hl__coach-viewport">
               <div ref={coachTrackRef} className="hl__coach-track" style={{ animationDuration: `${coachDuration}s` }}>
                 <div className="hl__coach-group">
                   {coaches.map(item => <CoachRailCard key={item.id} item={item} />)}
                 </div>
-                <div className="hl__coach-group" aria-hidden="true" inert>
-                  {coaches.map(item => <CoachRailCard key={`${item.id}-copy`} item={item} />)}
+                <div className="hl__coach-group" aria-hidden="true">
+                  {coaches.map(item => <CoachRailCard key={`${item.id}-copy`} item={item} duplicate />)}
                 </div>
               </div>
             </div>

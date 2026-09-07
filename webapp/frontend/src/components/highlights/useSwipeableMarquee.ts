@@ -25,7 +25,7 @@ export function nextMarqueeTime({
   return ((currentTime + deltaTime) % duration + duration) % duration
 }
 
-const DRAG_THRESHOLD_PX = 6
+const DRAG_THRESHOLD_PX = 12
 const CLICK_SUPPRESSION_MS = 500
 
 /** Make a continuously animated marquee directly scrub-able by mouse, pen or
@@ -68,7 +68,6 @@ export function useSwipeableMarquee(
       totalX = 0
       dragged = false
       animation.pause()
-      viewport.setPointerCapture(event.pointerId)
     }
 
     const onPointerMove = (event: PointerEvent) => {
@@ -77,11 +76,15 @@ export function useSwipeableMarquee(
       const deltaX = event.clientX - lastX
       lastX = event.clientX
       totalX += deltaX
-      if (Math.abs(totalX) >= DRAG_THRESHOLD_PX) {
+      let scrubDelta = deltaX
+      if (!dragged) {
+        if (Math.abs(totalX) < DRAG_THRESHOLD_PX) return
         dragged = true
+        scrubDelta = totalX
+        viewport.setPointerCapture(event.pointerId)
         viewport.classList.add('is-dragging')
-        event.preventDefault()
       }
+      event.preventDefault()
 
       const timing = animation.effect?.getTiming()
       const duration = typeof timing?.duration === 'number' ? timing.duration : 0
@@ -90,7 +93,7 @@ export function useSwipeableMarquee(
 
       animation.currentTime = nextMarqueeTime({
         currentTime,
-        deltaX,
+        deltaX: scrubDelta,
         duration,
         trackDistance: track.scrollWidth / 2,
         reversed,
@@ -132,8 +135,8 @@ export function useSwipeableMarquee(
 
     viewport.addEventListener('pointerdown', onPointerDown)
     viewport.addEventListener('pointermove', onPointerMove)
-    viewport.addEventListener('pointerup', finishPointer)
-    viewport.addEventListener('pointercancel', finishPointer)
+    window.addEventListener('pointerup', finishPointer)
+    window.addEventListener('pointercancel', finishPointer)
     viewport.addEventListener('click', onClick, true)
     viewport.addEventListener('dragstart', onDragStart)
 
@@ -141,8 +144,8 @@ export function useSwipeableMarquee(
       window.clearTimeout(clickResetTimer)
       viewport.removeEventListener('pointerdown', onPointerDown)
       viewport.removeEventListener('pointermove', onPointerMove)
-      viewport.removeEventListener('pointerup', finishPointer)
-      viewport.removeEventListener('pointercancel', finishPointer)
+      window.removeEventListener('pointerup', finishPointer)
+      window.removeEventListener('pointercancel', finishPointer)
       viewport.removeEventListener('click', onClick, true)
       viewport.removeEventListener('dragstart', onDragStart)
       viewport.removeEventListener('pointerleave', resume)

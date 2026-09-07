@@ -1,0 +1,126 @@
+"""The weekly rail is a locked discovery path, not a live board query."""
+
+from __future__ import annotations
+
+import sqlite3
+from datetime import date
+
+from fastapi.testclient import TestClient
+
+from hk_jobs.migrations import migrate_to_phase_42
+from hk_jobs.weekly_highlights import (
+    WeeklyHighlightRef,
+    current_weekly_highlights,
+    lock_weekly_highlights,
+    week_bounds,
+)
+from tests.support import enrichment, job, make_app, make_jobs_db
+
+
+def _make_highlight_client(tmp_path):
+    db = tmp_path / "jobs.db"
+    make_jobs_db(
+        db,
+        jobs=[
+            job(
+                source="workday",
+                source_id="FEATURED",
+                company="HSBC",
+                title="Featured Risk Director",
+                is_active=0,
+                closed_at=date.today().isoformat(),
+            ),
+            job(
+                source="workday",
+                source_id="OTHER",
+                company="Citi",
+                title="Other Risk Director",
+            ),
+        ],
+        enrichments=[
+            enrichment(
+                source="workday",
+                source_id="FEATURED",
+                job_category="Risk",
+                seniority="Director",
+                salary_estimated_min=90_000,
+                salary_estimated_max=120_000,
+                description_summary="Lead a regional risk function.",
+            ),
+            enrichment(
+                source="workday",
+                source_id="OTHER",
+                job_category="Risk",
+                seniority="Director",
+                salary_estimated_min=90_000,
+                salary_estimated_max=120_000,
+            ),
+        ],
+    )
+    migrate_to_phase_42(str(db))
+    start, _ = week_bounds(date.today())
+    lock_weekly_highlights(
+        db,
+        [WeeklyHighlightRef("workday", "FEATURED", "Risk")],
+        week_start=start,
+    )
+    return db, TestClient(make_app(db, cookie_secure=False))
+
+
+def test_weekly_snapshot_is_write_once_even_when_sunday_selection_changes(tmp_path):
+    db = tmp_path / "jobs.db"
+    make_jobs_db(
+        db,
+        jobs=[
+            job(source="workday", source_id="FIRST"),
+            job(source="workday", source_id="SECOND"),
+        ],
+    )
+    migrate_to_phase_42(str(db))
+    start, _ = week_bounds(date.today())
+
+    first = lock_weekly_highlights(
+        db,
+        [WeeklyHighlightRef("workday", "FIRST", "Risk")],
+        week_start=start,
+    )
+    second = lock_weekly_highlights(
+        db,
+        [WeeklyHighlightRef("workday", "SECOND", "Markets")],
+        week_start=start,
+    )
+
+    assert second == first
+    with sqlite3.connect(db) as conn:
+        assert current_weekly_highlights(conn, as_of=date.today()) == first
+
+
+def test_highlight_feed_keeps_a_closed_midweek_role_openable(tmp_path):
+    _, client = _make_highlight_client(tmp_path)
+
+    response = client.get("/api/highlights")
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert [entry["role"]["source_id"] for entry in body["roles"]] == ["FEATURED"]
+    featured = body["roles"][0]["role"]
+    assert featured["closed"] is True
+    assert featured["access_token"]
+
+    detail = client.get(
+        "/api/jobs/workday/FEATURED",
+        headers={"X-Role-Access": featured["access_token"]},
+    )
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["closed"] is True
+
+
+def test_exact_highlight_resolver_grants_only_this_weeks_pinned_roles(tmp_path):
+    _, client = _make_highlight_client(tmp_path)
+
+    featured = client.get("/api/highlights/roles/workday/FEATURED")
+    arbitrary = client.get("/api/highlights/roles/workday/OTHER")
+
+    assert featured.status_code == 200, featured.text
+    assert featured.json()["access_token"]
+    assert arbitrary.status_code == 404

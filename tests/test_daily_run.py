@@ -19,6 +19,8 @@ from hk_jobs.daily_run import (
     run_daily,
     run_reporters,
 )
+from hk_jobs.migrations import migrate_to_phase_42
+from tests.support import enrichment, job, make_jobs_db
 
 
 def test_profiles_share_one_phase_vocabulary_without_forcing_identical_work():
@@ -381,6 +383,95 @@ def test_hosted_adapter_restores_and_publishes_the_same_database(tmp_path):
     assert record.restore_sha256 == record.published_sha256
     assert published["headers"]["X-Pipeline-Run-Id"] == "hosted-transport"
     assert gzip.decompress(published["body"]) == paths.database.read_bytes()
+
+
+def test_sunday_publish_locks_next_weeks_highlights_before_upload(tmp_path):
+    database = tmp_path / "data/jobs.db"
+    database.parent.mkdir(parents=True)
+    make_jobs_db(
+        database,
+        jobs=[
+            job(
+                source="workday",
+                source_id="SUNDAY-PICK",
+                company="HSBC",
+                title="Markets Director",
+                posted_at="2026-09-05",
+            )
+        ],
+        enrichments=[
+            enrichment(
+                source="workday",
+                source_id="SUNDAY-PICK",
+                job_category="Markets",
+                seniority="Director",
+                salary_estimated_min=100_000,
+                salary_estimated_max=130_000,
+            )
+        ],
+    )
+    migrate_to_phase_42(str(database))
+    uploaded = {}
+
+    def post(_url, **kwargs):
+        uploaded["database"] = gzip.decompress(kwargs["files"]["snapshot"][1].read())
+        return httpx.Response(
+            200,
+            json={"published": True},
+            request=httpx.Request("POST", "https://railway.test/database"),
+        )
+
+    executor = CommandPhaseExecutor(
+        RuntimePaths(tmp_path, database, tmp_path / "data/jobs.jsonl"),
+        environ={
+            "PIPELINE_SYNC_TOKEN": "token",
+            "PIPELINE_DATABASE_SYNC_URL": "https://railway.test/database",
+        },
+        http_post=post,
+        now=lambda: datetime(2026, 9, 6, 4, tzinfo=timezone.utc),
+    )
+    record = DailyRunRecord.start("sunday-publish", profile_for("hosted"))
+
+    executor._publish(record)
+
+    uploaded_path = tmp_path / "uploaded.db"
+    uploaded_path.write_bytes(uploaded["database"])
+    with sqlite3.connect(uploaded_path) as conn:
+        assert conn.execute(
+            "SELECT week_start, source_id FROM weekly_highlight_roles"
+        ).fetchall() == [("2026-09-07", "SUNDAY-PICK")]
+
+
+def test_sunday_repair_publish_cannot_claim_the_weekly_highlight_lock(tmp_path):
+    database = tmp_path / "data/jobs.db"
+    database.parent.mkdir(parents=True)
+    make_jobs_db(database, jobs=[], enrichments=[])
+    migrate_to_phase_42(str(database))
+
+    def post(_url, **_kwargs):
+        return httpx.Response(
+            200,
+            json={"published": True},
+            request=httpx.Request("POST", "https://railway.test/database"),
+        )
+
+    executor = CommandPhaseExecutor(
+        RuntimePaths(tmp_path, database, tmp_path / "data/jobs.jsonl"),
+        environ={
+            "PIPELINE_SYNC_TOKEN": "token",
+            "PIPELINE_DATABASE_SYNC_URL": "https://railway.test/database",
+        },
+        http_post=post,
+        now=lambda: datetime(2026, 9, 6, 4, tzinfo=timezone.utc),
+    )
+    record = DailyRunRecord.start("sunday-repair", profile_for("repair"))
+
+    executor._publish(record)
+
+    with sqlite3.connect(database) as conn:
+        assert conn.execute(
+            "SELECT COUNT(*) FROM weekly_highlight_weeks"
+        ).fetchone() == (0,)
 
 
 def test_repair_is_the_smallest_profile_that_changes_production_without_a_model_call():

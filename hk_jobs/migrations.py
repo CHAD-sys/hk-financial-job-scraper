@@ -1339,6 +1339,109 @@ def migrate_to_phase_41(db_path: str) -> None:
         conn.close()
 
 
+_WEEKLY_HIGHLIGHT_BOOTSTRAP = (
+    ("linkedin", "4443781178", "Private Banking"),
+    ("efinancialcareers", "24612710", "Equity Finance Technology"),
+    ("efinancialcareers", "24666611", "Rates Trading"),
+    ("linkedin", "4442287464", "Fixed Income"),
+    ("linkedin", "4450262973", "Wealth Management"),
+    ("efinancialcareers", "24589080", "Debt Capital Markets"),
+    ("efinancialcareers", "22525899", "Investment Advisory"),
+    ("efinancialcareers", "24686254", "Marketing"),
+    ("linkedin", "4429043109", "People & Culture"),
+    ("linkedin", "4420274039", "Risk & Regulation"),
+    ("linkedin", "4424562303", "Legal"),
+)
+
+
+def migrate_to_phase_42(db_path: str) -> None:
+    """Add the write-once weekly promotion snapshot.
+
+    A board query cannot be the source for the banner: closing, de-duplication,
+    the per-employer cap and admin curation can all change it during the week.
+    The week marker plus ordered reference rows distinguish a deliberately
+    locked empty week from one that has never been selected.
+
+    The dated bootstrap preserves the already-approved 7–13 September 2026
+    rail when this migration first reaches the current database. References
+    absent from a smaller fixture/database are skipped; future weeks are
+    written by ``weekly_highlight_candidates`` before Sunday publication.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        with conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS weekly_highlight_weeks (
+                    week_start TEXT PRIMARY KEY,
+                    week_end   TEXT NOT NULL,
+                    locked_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS weekly_highlight_roles (
+                    week_start     TEXT NOT NULL,
+                    position       INTEGER NOT NULL,
+                    source         TEXT NOT NULL,
+                    source_id      TEXT NOT NULL,
+                    related_search TEXT NOT NULL,
+                    PRIMARY KEY (week_start, position),
+                    UNIQUE (week_start, source, source_id),
+                    FOREIGN KEY (week_start)
+                        REFERENCES weekly_highlight_weeks(week_start)
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_weekly_highlight_role_ref
+                ON weekly_highlight_roles (week_start, source, source_id)
+                """
+            )
+
+            bootstrap_locked = conn.execute(
+                "SELECT 1 FROM weekly_highlight_weeks WHERE week_start = '2026-09-07'"
+            ).fetchone()
+            placeholders = " OR ".join(
+                "(source = ? AND source_id = ?)"
+                for _ in _WEEKLY_HIGHLIGHT_BOOTSTRAP
+            )
+            parameters = tuple(
+                value
+                for source, source_id, _ in _WEEKLY_HIGHLIGHT_BOOTSTRAP
+                for value in (source, source_id)
+            )
+            has_bootstrap_role = conn.execute(
+                f"SELECT 1 FROM jobs WHERE {placeholders} LIMIT 1",
+                parameters,
+            ).fetchone()
+            if not bootstrap_locked and has_bootstrap_role:
+                conn.execute(
+                    """
+                    INSERT INTO weekly_highlight_weeks (week_start, week_end)
+                    VALUES ('2026-09-07', '2026-09-13')
+                    """
+                )
+                for position, (source, source_id, related_search) in enumerate(
+                    _WEEKLY_HIGHLIGHT_BOOTSTRAP
+                ):
+                    conn.execute(
+                        """
+                        INSERT INTO weekly_highlight_roles
+                            (week_start, position, source, source_id, related_search)
+                        SELECT '2026-09-07', ?, ?, ?, ?
+                        WHERE EXISTS (
+                            SELECT 1 FROM jobs WHERE source = ? AND source_id = ?
+                        )
+                        """,
+                        (position, source, source_id, related_search, source, source_id),
+                    )
+    finally:
+        conn.close()
+
+
 #: the whole of registering a new phase.
 #:
 #: Order is load-bearing beyond the obvious: 10 creates `jobs` before the seven
@@ -1379,6 +1482,7 @@ MIGRATIONS: tuple[tuple[int, Callable[[str], None]], ...] = (
     (39, migrate_to_phase_39),
     (40, migrate_to_phase_40),
     (41, migrate_to_phase_41),
+    (42, migrate_to_phase_42),
 )
 
 LATEST_PHASE = MIGRATIONS[-1][0]

@@ -43,8 +43,8 @@ export default function LandingPage() {
       <script type="application/ld+json">{JSON.stringify(ORG_JSONLD)}</script>
       <Nav />
       <main id="main-content">
-        <WeeklyHighlights />
         <PortalHero />
+        <WeeklyHighlights />
         <ResumeFeatureSpotlight />
         <PostRoleStripe />
       </main>

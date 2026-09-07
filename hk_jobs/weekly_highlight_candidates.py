@@ -1,11 +1,11 @@
 # ruff: noqa: E501 -- email-client-safe inline CSS is intentionally kept intact.
-"""Curate and email the strongest candidates for next week's highlight rail.
+"""Select, lock and email the strongest Roles for next week's highlight rail.
 
-This is deliberately an editorial shortlist, not automatic publishing. Every
-Sunday the latest database is filtered to Roles that a visitor can actually
-open, that were posted recently, and whose monthly salary floor is at least
-HK$40,000. The final pass rotates across pay levels and limits repetition by
-employer/category so one large bank cannot occupy the whole banner.
+Every Sunday the latest database is filtered to Roles that a visitor can
+actually open, that were posted recently, and whose monthly salary floor is at
+least HK$40,000. The final pass rotates across pay levels and limits repetition
+by employer/category so one large bank cannot occupy the whole banner. The
+ordered references are then write-once for the coming Monday-to-Sunday week.
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ from urllib.parse import urlencode
 
 from hk_jobs.board_visibility import board_visible_sql
 from hk_jobs.notifications import _send_email
+from hk_jobs.weekly_highlights import WeeklyHighlightRef, lock_weekly_highlights
 
 logger = logging.getLogger(__name__)
 
@@ -207,10 +208,30 @@ def _role_url(candidate: HighlightCandidate, site_url: str) -> str:
             "q": candidate.category,
             "role_source": candidate.source,
             "role_id": candidate.source_id,
-            "role_lookup": candidate.title,
         }
     )
     return f"{site_url.rstrip('/')}/jobs?{params}"
+
+
+def lock_next_week_highlights(
+    db_path: str | Path = "data/jobs.db",
+    *,
+    as_of: date | None = None,
+    limit: int = 12,
+) -> list[WeeklyHighlightRef]:
+    """Select and atomically lock the coming week's promotional Role refs."""
+    today = as_of or date.today()
+    candidates = select_weekly_highlight_candidates(db_path, as_of=today, limit=limit)
+    week_start, _ = _upcoming_week(today)
+    refs = [
+        WeeklyHighlightRef(
+            source=candidate.source,
+            source_id=candidate.source_id,
+            related_search=candidate.category,
+        )
+        for candidate in candidates
+    ]
+    return lock_weekly_highlights(db_path, refs, week_start=week_start)
 
 
 def build_weekly_highlight_email(
@@ -291,9 +312,23 @@ def send_weekly_highlight_candidates(
     site_url: str = DEFAULT_SITE_URL,
 ) -> bool:
     candidates = select_weekly_highlight_candidates(db_path, as_of=as_of, limit=limit)
+    today = as_of or date.today()
+    week_start, _ = _upcoming_week(today)
+    lock_weekly_highlights(
+        db_path,
+        [
+            WeeklyHighlightRef(
+                candidate.source,
+                candidate.source_id,
+                candidate.category,
+            )
+            for candidate in candidates
+        ],
+        week_start=week_start,
+    )
     subject, html, text = build_weekly_highlight_email(
         candidates,
-        as_of=as_of,
+        as_of=today,
         site_url=site_url,
     )
     logger.info("Sending %d weekly highlight candidates", len(candidates))

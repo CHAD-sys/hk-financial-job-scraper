@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
+from hk_jobs.migrations import migrate_to_phase_42
 from hk_jobs.weekly_highlight_candidates import (
     build_weekly_highlight_email,
+    lock_next_week_highlights,
     select_weekly_highlight_candidates,
 )
 from tests.support import enrichment, job, make_jobs_db
@@ -160,7 +162,7 @@ def test_email_names_the_upcoming_week_and_links_to_the_open_role(tmp_path):
     assert "Private Banking &lt;Director&gt;" in html
     assert "role_source=workday" in html
     assert "role_id=role-1" in html
-    assert "role_lookup=Private+Banking+%3CDirector%3E" in html
+    assert "role_lookup=" not in html
     assert "Private Banking <Director>" in text
     assert "HK$120k–140k/mo" in text
 
@@ -176,3 +178,34 @@ def test_daily_workflow_sends_only_mohamed_the_sunday_shortlist():
     assert "TZ=Asia/Hong_Kong date +%u" in workflow
     assert "python -m hk_jobs.weekly_highlight_candidates" in workflow
     assert "NOTIFY_EMAILS: mohamedaminechahid@gmail.com" in workflow
+
+
+def test_sunday_candidate_selection_is_the_locked_next_week_banner(tmp_path):
+    rows = [
+        _role(
+            "first",
+            company="JPMorgan",
+            title="Private Bank MD",
+            category="Private Banking",
+            salary_min=150_000,
+            posted_at="2026-09-05",
+        ),
+        _role(
+            "second",
+            company="Citi",
+            title="Credit VP",
+            category="Risk",
+            salary_min=85_000,
+            posted_at="2026-09-04",
+        ),
+    ]
+    db = tmp_path / "jobs.db"
+    make_jobs_db(db, jobs=[pair[0] for pair in rows], enrichments=[pair[1] for pair in rows])
+    migrate_to_phase_42(str(db))
+
+    locked = lock_next_week_highlights(db, as_of=date(2026, 9, 6), limit=2)
+
+    assert [(ref.source_id, ref.related_search) for ref in locked] == [
+        ("first", "Private Banking"),
+        ("second", "Risk"),
+    ]

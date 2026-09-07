@@ -1,33 +1,6 @@
-/**
- * V1 seed content for the "This week at FinEx" band.
- *
- * WHY THIS IS A FILE AND NOT AN ENDPOINT (yet)
- * -------------------------------------------
- * The four things the band shows do not share a source today, and two of them
- * have no source at all:
- *
- *   roles   — REAL. Curated by hand from jobs.db on 2026-09-04: open, primary,
- *             board-visible Roles posted inside two weeks, priced at or above
- *             the HK$40k floor the brief set, spread deliberately across pay
- *             levels (40k → 200k) and across desks rather than stacking the
- *             top payers. Every `source`/`source_id` is a live deep link.
- *   video   — REAL. Taken from /api/learning, which already serves the
- *             YouTube feed the Learning page renders.
- *   course  — REAL. Also /api/learning (its `events` half).
- *   coaches — REAL. The current 32-person FinEx Club coach roster, sourced
- *             from finexclub.org/career-coach on 2026-09-04. It deliberately
- *             lives in its own rail below the editorial drop, rather than
- *             interrupting the roles, videos and training cards.
- *
- * The point of V1 is to settle the SHAPE and the MOTION. Once those are
- * approved, roles should come from a `/api/highlights` read model (the same
- * board predicate the rest of the product uses, so the band can never feature
- * a Role a visitor cannot open), video and course from the Learning feed
- * already in `fetchLearningContent`, and the coach from wherever the club
- * decides coaches live.
- *
- * Until then: hand-written, dated, and honest about which half is which.
- */
+import type { Job, WeeklyHighlightRole } from '../../api/client'
+
+/** Static editorial material and adapters for the server-locked weekly Roles. */
 
 /** Every card is one of these four. The shell is shared; the body is not. */
 export type HighlightKind = 'role' | 'coach' | 'video' | 'course'
@@ -41,13 +14,13 @@ interface HighlightBase {
 
 export interface RoleHighlight extends HighlightBase {
   kind: 'role'
+  /** The exact granted Role travels through React Router state on normal taps. */
+  job: Job
   company: string
   title: string
   /** Editorial desk label. Deliberately NOT `job_category`, whose vocabulary
    *  ("Finance", "Other") is too coarse to be worth a chip on a hero card. */
   desk: string
-  salaryMin: number
-  salaryMax: number
   seniority: string
   location: string
 }
@@ -65,7 +38,6 @@ export interface VideoHighlight extends HighlightBase {
   title: string
   topic: string
   thumbnail: string
-  publishedAt: string
 }
 
 export interface CourseHighlight extends HighlightBase {
@@ -87,136 +59,70 @@ const coachImage = (asset: string, name: string) => {
   return `https://static.wixstatic.com/media/${asset}/v1/fill/w_280,h_280,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/${encodeURIComponent(name)}${extension}`
 }
 
-const roleHref = (
-  source: string,
-  sourceId: string,
-  relatedSearch: string,
-  title: string,
-  lookupSearch = title,
-) => {
+const roleHref = (source: string, sourceId: string, relatedSearch: string) => {
   const params = new URLSearchParams({
     q: relatedSearch,
     role_source: source,
     role_id: sourceId,
-    role_lookup: lookupSearch,
   })
   return `/jobs?${params.toString()}`
 }
 
-/**
- * The order IS the edit.
- *
- * A marquee is read in passing, so the sequence matters more than it would in
- * a grid: the biggest number leads, the non-role cards are spaced so a viewer
- * never sees two of the same kind in a row, and the pay levels rise and fall
- * rather than descending — a strictly descending list reads as "and now the
- * cheap ones" by the halfway point.
- */
-export const WEEKLY_HIGHLIGHTS: Highlight[] = [
-  {
-    id: 'role-jpm', kind: 'role', href: roleHref(
-      'linkedin', '4443781178', 'Private Banking',
-      'International Private Bank, Investor for China Market, Managing Director',
-    ),
-    company: 'JPMorganChase',
-    title: 'International Private Bank, Investor for China Market, Managing Director',
-    desk: 'Private Banking', salaryMin: 150000, salaryMax: 200000,
-    seniority: 'Managing Director', location: 'Hong Kong',
-  },
-  {
-    id: 'video-cuhk', kind: 'video',
-    href: 'https://www.youtube.com/watch?v=m5Bntb8ZMWY',
-    title: '與CUHK商學院助理院長對話：當代商業教育與高管教育如何擴展全球視野',
-    topic: 'FinEx Club', thumbnail: 'https://i2.ytimg.com/vi/m5Bntb8ZMWY/hqdefault.jpg',
-    publishedAt: '2026-08-30',
-  },
-  {
-    id: 'role-citi', kind: 'role', href: roleHref(
-      'efinancialcareers', '24612710', 'Equity Finance Technology',
-      'APAC Head of Equity Finance Technology',
-    ),
-    company: 'Citi', title: 'APAC Head of Equity Finance Technology',
-    desk: 'Equity Finance Technology', salaryMin: 120000, salaryMax: 150000,
-    seniority: 'Head of', location: 'Hong Kong',
-  },
-  {
-    id: 'role-dbs', kind: 'role', href: roleHref(
-      'efinancialcareers', '24666611', 'Rates Trading',
-      'SVP, Interest Rate Trader, Global Financial Markets',
-      'SVP, Interest Rate Trader, GFM',
-    ),
-    company: 'DBS Bank', title: 'SVP, Interest Rate Trader, Global Financial Markets',
-    desk: 'Rates Trading', salaryMin: 105000, salaryMax: 163500,
-    seniority: 'SVP', location: 'Hong Kong',
-  },
-  {
-    id: 'role-ubs', kind: 'role', href: roleHref(
-      'linkedin', '4442287464', 'Fixed Income', 'Fixed Income Structurer',
-    ),
-    company: 'UBS', title: 'Fixed Income Structurer',
-    desk: 'Fixed Income', salaryMin: 140000, salaryMax: 160000,
-    seniority: 'Senior', location: 'Hong Kong',
-  },
-  {
-    id: 'role-schroders', kind: 'role', href: roleHref(
-      'linkedin', '4450262973', 'Wealth Management', 'Client Director — Wealth, Hong Kong',
-    ),
-    company: 'Schroders', title: 'Client Director — Wealth, Hong Kong',
-    desk: 'Wealth Management', salaryMin: 119000, salaryMax: 140000,
-    seniority: 'Director', location: 'Hong Kong',
-  },
-  {
-    id: 'role-cmb', kind: 'role', href: roleHref(
-      'efinancialcareers', '24589080', 'Debt Capital Markets',
-      'Vice President, Debt Capital Markets',
-    ),
-    company: 'CMB Wing Lung Bank', title: 'Vice President, Debt Capital Markets',
-    desk: 'Debt Capital Markets', salaryMin: 125000, salaryMax: 166500,
-    seniority: 'Vice President', location: 'Hong Kong',
-  },
-  {
-    id: 'role-futu', kind: 'role', href: roleHref(
-      'efinancialcareers', '22525899', 'Investment Advisory', 'Investment Advisor',
-    ),
-    company: 'Futu Securities', title: 'Investment Advisor',
-    desk: 'Investment Advisory', salaryMin: 57000, salaryMax: 142500,
-    seniority: 'Mid-level', location: 'Hong Kong',
-  },
-  {
-    id: 'role-fidelity', kind: 'role', href: roleHref(
-      'efinancialcareers', '24686254', 'Marketing', 'Head of Marketing, Hong Kong',
-    ),
-    company: 'Fidelity International', title: 'Head of Marketing, Hong Kong',
-    desk: 'Marketing', salaryMin: 65000, salaryMax: 120000,
-    seniority: 'Head of', location: 'Hong Kong',
-  },
-  {
-    id: 'role-macquarie', kind: 'role', href: roleHref(
-      'linkedin', '4429043109', 'People & Culture',
-      'Regional People & Culture Transformation Lead',
-    ),
-    company: 'Macquarie Group', title: 'Regional People & Culture Transformation Lead',
-    desk: 'People & Culture', salaryMin: 90000, salaryMax: 110000,
-    seniority: 'Lead', location: 'Hong Kong',
-  },
-  {
-    id: 'role-deloitte', kind: 'role', href: roleHref(
-      'linkedin', '4420274039', 'Risk & Regulation',
-      'Manager / Senior Manager — Regulatory & Financial Risk',
-    ),
-    company: 'Deloitte', title: 'Manager / Senior Manager — Regulatory & Financial Risk',
-    desk: 'Risk & Regulation', salaryMin: 50000, salaryMax: 100000,
-    seniority: 'Senior Manager', location: 'Hong Kong',
-  },
-  {
-    id: 'role-gs-legal', kind: 'role', href: roleHref(
-      'linkedin', '4424562303', 'Legal',
-      'Legal, Global Banking & Markets, Vice President',
-    ),
-    company: 'Goldman Sachs', title: 'Legal, Global Banking & Markets, Vice President',
-    desk: 'Legal', salaryMin: 40000, salaryMax: 80000,
-    seniority: 'Vice President', location: 'Hong Kong',
-  },
+export function roleHighlightFromApi(entry: WeeklyHighlightRole): RoleHighlight {
+  const { role } = entry
+  return {
+    id: `role-${role.source}-${role.source_id}`,
+    kind: 'role',
+    href: roleHref(role.source, role.source_id, entry.related_search),
+    job: role,
+    company: role.company,
+    title: role.title_en || role.title,
+    desk: entry.related_search,
+    seniority: role.seniority || 'Experienced',
+    location: role.locations[0] || 'Hong Kong',
+  }
+}
+
+/** The Role rail mirrors the server's immutable editorial order exactly. */
+export function mergeWeeklyHighlights(entries: WeeklyHighlightRole[]): Highlight[] {
+  return entries.map(roleHighlightFromApi)
+}
+
+export const YOUTUBE_CHANNEL_URL = 'https://www.youtube.com/@finexclubhq'
+export const COMMITTEE_PLAYLIST_URL = 'https://www.youtube.com/playlist?list=PLr56SwqMOvcsbMULkrC2ArgIB4MeCjV70'
+
+const video = (id: string, title: string, topic: string): VideoHighlight => ({
+  id: `video-${id}`,
+  kind: 'video',
+  href: `https://www.youtube.com/watch?v=${id}`,
+  title,
+  topic,
+  thumbnail: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+})
+
+/** FinEx Club's requested video collection. The repeated SEVKQL6Ag8I URL in
+ * the source list is represented once, so the rail never shows a duplicate. */
+export const VIDEO_HIGHLIGHTS: VideoHighlight[] = [
+  video('alQ0eelrn1E', 'Part 2: Fed Rate Policy 2026 | Gold Sensitivity and Allocation', 'Macro & markets'),
+  video('qUuzybEQdlE', '【CEO Podcast】Eleanor Wan’s extraordinary career and the evolution of global asset management', 'CEO podcast'),
+  video('6g0FAqKApMM', '【Part 2】Leadership and career progression: from entry-level to board executive', 'Leadership'),
+  video('m5Bntb8ZMWY', '與CUHK商學院助理院長對話：當代商業教育與高管教育如何擴展全球視野', 'Executive education'),
+  video('B72UtQTBX3M', '哈佛金融高管人生逆轉的真實故事：毫無背景卻闖進 Harvard 與 UC Berkeley', 'Career stories'),
+  video('x1q7-q1Ebnc', 'Banking models, fintech, supply chains and advice to young bankers', 'Banking & fintech'),
+  video('lmePYW_eBjs', 'CEO Talk：數字資產與傳統金融如何交滙融合', 'Digital assets'),
+  video('ZJp5UK1wog0', 'APAC CEO Talk: the evolution and defining moments of asset servicing', 'Securities services'),
+  video('MCicagWuFGI', 'Part 2：私募世界創新型基金、投資分紅、透明度與風險管理', 'Private markets'),
+  video('SWVGD9z4iAI', 'Part 1：Private Equity and Private Credit in portfolio allocation', 'Private markets'),
+  video('K4aZUhRrYO8', 'Trustee CEO 解讀 2025 強積金資金流向、最佳基金與 2026 大事件', 'Pensions'),
+  video('1Q9Dzs3Ysv4', '直擊 Saudi FII 2025：第一視角分析中東市場與嶄新投資機遇', 'Global markets'),
+  video('TfmOMTNadeY', 'Treasurers’ Insight: navigating the work dynamics of finance executives', 'Treasury'),
+  video('yLVerwMgUb4', 'Accountant and Lawyer unlock the skills that make a great leader', 'Leadership'),
+  video('BcsaChO2z9A', '保險公司的精算部、投資部與風控部到底如何運作？', 'Insurance'),
+  video('Mc6Pc0GlpMI', 'Cambridge Professor on climate change and sustainability strategies', 'Sustainability'),
+  video('6hQHzK5Jd6A', '信託與法務：Unit Trust、Declaration of Trust 與 Private Trust 精解', 'Trust & legal'),
+  video('DrLhZQj2UGQ', 'Citi MD unpacks stablecoin’s impact on global banking and finance', 'Stablecoins'),
+  video('SEVKQL6Ag8I', 'Web3.0 大時代：銀行戰略佈署對抗鏈上交易衝擊', 'Web3'),
+  video('iZ1EyIODvaA', 'Web3.0：正確認識穩定幣、央行數字貨幣與代幣化存款', 'FinEx Research'),
 ]
 
 /** The full public FinEx Club coach roster. Each card keeps its official

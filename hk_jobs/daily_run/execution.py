@@ -21,6 +21,7 @@ import httpx
 from hk_jobs.daily_run.model import DailyRunRecord, PhaseStatus
 from hk_jobs.daily_run.registry import PhaseDefinition
 from hk_jobs.daily_run.runner import PhaseOutput
+from hk_jobs.weekly_highlight_candidates import lock_next_week_highlights
 
 
 @dataclass(frozen=True, slots=True)
@@ -315,6 +316,15 @@ class CommandPhaseExecutor:
         token = self.environ.get("PIPELINE_SYNC_TOKEN", "")
         if not url or not token:
             raise RuntimeError("Railway publication URL or token is not configured")
+        hong_kong_now = self._now().astimezone(ZoneInfo("Asia/Hong_Kong"))
+        if record.profile == "hosted" and hong_kong_now.isoweekday() == 7:
+            # This happens before the digest and gzip snapshot: the exact
+            # Sunday selection therefore reaches Railway in this publication,
+            # and every later pipeline run reads the same locked references.
+            lock_next_week_highlights(
+                self.paths.database,
+                as_of=hong_kong_now.date(),
+            )
         digest = self._sha256(self.paths.database)
         packed = tempfile.NamedTemporaryFile(prefix="daily-run-", suffix=".db.gz", delete=False)
         packed_path = Path(packed.name)
