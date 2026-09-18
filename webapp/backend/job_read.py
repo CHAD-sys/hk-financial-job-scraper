@@ -62,6 +62,9 @@ from pydantic import BaseModel
 
 import search_index
 from hk_jobs.board_visibility import board_visible_sql
+from hk_jobs.mt_classifier import MT_CANDIDATE_TITLE_TERMS, classify_mt_role, review_ambiguous_mt_role
+from hk_jobs.mt_employer_links import employer_destination_for
+from hk_jobs.sources import apply_rank
 from hk_jobs.sector_classify import sector_case_sql, sector_condition_sql
 
 # ── Connection requirements ───────────────────────────────────────────────────
@@ -171,7 +174,6 @@ MEMBER_ONLY_TIERS = frozenset({"boutique", "social"})
 PUBLIC_AUDIENCE_WHERE = (
     "COALESCE(j.source_tier, 'mainstream') NOT IN ('boutique', 'social')"
 )
-
 
 def scope_where(
     conn: sqlite3.Connection,
@@ -507,6 +509,10 @@ class JobSummary(BaseModel):
     years_experience_required: Optional[int] = None
     posted_at: Optional[str] = None
     url: str
+    #: Employer-first application routing is currently editorially curated for
+    #: the MT catalogue. Other Roles retain the source URL as their fallback.
+    application_destination: Literal["employer_role", "employer_vacancies", "intermediary"] = "intermediary"
+    application_label: str = "View or apply"
     is_internship: bool = False
     #: Wears the "New" badge — the source board flagged it AND it was posted
     #: within `NEW_BADGE_DAYS`. Derived here rather than left to the client to
@@ -1387,6 +1393,91 @@ def list_jobs(
     )
 
 
+def list_management_trainee_roles(
+    conn: sqlite3.Connection,
+    *,
+    audience: CatalogueAudience = CatalogueAudience.PUBLIC,
+) -> JobListResponse:
+    """Return every active public Management Trainee Role in ``jobs.db``.
+
+    This is an editorial discovery feed, not the normal board. MT intakes can
+    be valid for longer than the board's one-month browsing window, so it uses
+    the database lifecycle rule (active, primary, not hidden) without borrowing
+    ``Visibility.BOARD``'s age and per-employer cap. A normal pipeline
+    reconciliation still removes a Role once its source no longer returns it.
+    """
+    title_predicate = "(" + " OR ".join("LOWER(j.title) LIKE ?" for _ in MT_CANDIDATE_TITLE_TERMS) + ")"
+    conditions = ["j.is_active = 1", "j.is_primary = 1", "NOT j.admin_hidden", title_predicate]
+    if audience == CatalogueAudience.PUBLIC:
+        conditions.append(PUBLIC_AUDIENCE_WHERE)
+    where_sql = "WHERE " + " AND ".join(conditions)
+    params = list(MT_CANDIDATE_TITLE_TERMS)
+    order_sql = _order_sql(Sort.NEWEST, search_rowids=None)
+    rows = conn.execute(
+        f"{BASE_SELECT} {where_sql} ORDER BY {order_sql}", params,
+    ).fetchall()
+    classified = [
+        (row, classify_mt_role(str(row["company"]), str(row["title"])))
+        for row in rows
+    ]
+    classified = [(row, result) for row, result in classified if result.is_mt]
+
+    # The same programme can arrive through more than one board. One programme
+    # gets one card and one master destination; source ordering decides which
+    # copy wins rather than making applicants compare duplicate links.
+    unique: dict[tuple[str, str], sqlite3.Row] = {}
+    for row, result in classified:
+        programme_key = (
+            result.watchlist_company or str(row["company"]),
+            re.sub(r"[^a-z0-9]+", " ", str(row["title"]).lower()).strip(),
+        )
+        current = unique.get(programme_key)
+        if current is None or apply_rank(str(row["source"])) < apply_rank(str(current["source"])):
+            unique[programme_key] = row
+
+    def spotlight_rank(row: sqlite3.Row) -> tuple[int, int, str, str]:
+        """Put the broadest leadership tracks before specialist MT tracks."""
+        title = str(row["title"]).lower()
+        specialist = 1 if "wealth management trainee" in title else 0
+        manager_track = 0 if "manager trainee" in title else 1
+        return specialist, manager_track, str(row["company"]).lower(), str(row["title"]).lower()
+
+    rows = sorted(unique.values(), key=spotlight_rank)
+    summaries = []
+    for row in rows:
+        summary = _to_summary(row)
+        destination = employer_destination_for(str(row["company"]), str(row["title"]))
+        if destination is not None:
+            summary.url = destination.url
+            summary.application_destination = destination.kind
+            summary.application_label = destination.label
+        summaries.append(summary)
+    _attach_group_signals(conn, rows, summaries)
+    return JobListResponse(
+        total=len(summaries),
+        page=1,
+        page_size=len(summaries),
+        total_pages=1 if summaries else 0,
+        jobs=summaries,
+    )
+
+
+def list_ambiguous_management_trainee_roles(conn: sqlite3.Connection) -> list[dict[str, object]]:
+    """Potential MT Roles for Ultimate Admin review, never for public discovery."""
+    title_predicate = "(" + " OR ".join("LOWER(j.title) LIKE ?" for _ in MT_CANDIDATE_TITLE_TERMS) + ")"
+    rows = conn.execute(
+        f"{BASE_SELECT} WHERE j.is_active = 1 AND j.is_primary = 1 AND NOT j.admin_hidden "
+        f"AND {PUBLIC_AUDIENCE_WHERE} AND {title_predicate} ORDER BY {_order_sql(Sort.NEWEST, search_rowids=None)}",
+        list(MT_CANDIDATE_TITLE_TERMS),
+    ).fetchall()
+    results: list[dict[str, object]] = []
+    for row in rows:
+        review = review_ambiguous_mt_role(str(row["company"]), str(row["title"]))
+        if review is not None:
+            results.append({"job": _to_summary(row).model_dump(), "reason": review.reason, "watchlist_company": review.watchlist_company})
+    return results
+
+
 def salary_audit_rows(
     conn: sqlite3.Connection,
     filters: JobFilters,
@@ -1646,6 +1737,86 @@ def get_job(
         description_summary=row["description_summary"] or "",
         sources=_group_sources(conn, source, source_id),
     )
+
+
+def similar_public_jobs(
+    conn: sqlite3.Connection,
+    detail: JobDetail,
+    *,
+    limit: int = 3,
+) -> list[JobSummary]:
+    """Return a small, safe discovery set for a public Role page.
+
+    The public teaser is an addressable exception to the gated catalogue, but
+    its recommendations are still discovery. They therefore use the normal
+    BOARD lifecycle rule and PUBLIC audience instead of exposing closed,
+    duplicate, boutique, or recruiter-posted Roles beside it.
+
+    A broad recent window is scored in Python because the useful signals are
+    already present on ``JobSummary``. Category and sector carry most weight;
+    seniority and overlapping skills refine the order. ``list_jobs`` supplies
+    newest-first input, so ties stay fresh without another date parser here.
+    """
+    if limit <= 0:
+        return []
+
+    filters = JobFilters.of(sectors=[detail.sector]) if detail.sector else JobFilters()
+    candidates = list_jobs(
+        conn,
+        filters,
+        sort=Sort.NEWEST,
+        page_size=max(72, limit * 12),
+        visibility=Visibility.BOARD,
+        audience=CatalogueAudience.PUBLIC,
+    ).jobs
+    current_ref = (detail.source, detail.source_id)
+    current_skills = {skill.casefold() for skill in detail.required_skills}
+
+    ignored_title_words = {
+        "and", "assistant", "associate", "director", "for", "head", "hong",
+        "kong", "lead", "manager", "officer", "senior", "the", "vice",
+    }
+
+    def title_terms(value: str) -> set[str]:
+        return {
+            term
+            for term in re.findall(r"[a-z0-9]+", value.casefold())
+            if len(term) > 2 and term not in ignored_title_words
+        }
+
+    current_title_terms = title_terms(detail.title)
+
+    def signals(candidate: JobSummary) -> tuple[int, bool]:
+        candidate_skills = {skill.casefold() for skill in candidate.required_skills}
+        skill_overlap = len(current_skills & candidate_skills)
+        title_overlap = len(current_title_terms & title_terms(candidate.title))
+        same_category = bool(
+            detail.job_category and candidate.job_category == detail.job_category
+        )
+        meaningful = (
+            (same_category and (skill_overlap > 0 or title_overlap > 0))
+            or skill_overlap >= 2
+            or title_overlap >= 2
+        )
+        score = (
+            (8 if detail.job_category and candidate.job_category == detail.job_category else 0)
+            + (5 if detail.sector and candidate.sector == detail.sector else 0)
+            + (3 if detail.seniority and candidate.seniority == detail.seniority else 0)
+            + min(6, skill_overlap * 2)
+            + min(4, title_overlap * 2)
+            + (1 if candidate.company == detail.company else 0)
+        )
+        return score, meaningful
+
+    eligible: list[tuple[int, JobSummary]] = []
+    for candidate in candidates:
+        if (candidate.source, candidate.source_id) == current_ref:
+            continue
+        score, meaningful = signals(candidate)
+        if meaningful:
+            eligible.append((score, candidate))
+    ranked = sorted(eligible, reverse=True, key=lambda item: item[0])[:limit]
+    return [candidate for _score, candidate in ranked]
 
 
 def list_sitemap_refs(conn: sqlite3.Connection) -> list[sqlite3.Row]:

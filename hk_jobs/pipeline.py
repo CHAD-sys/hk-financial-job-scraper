@@ -361,31 +361,50 @@ def _retry_failed_companies(
     random gap between companies — precisely so we don't recreate the parallel
     burst that caused the blocks. Successful retries are swapped into the results;
     companies that still come back empty keep their (protected) existing jobs.
+
+    Keyed on (slug, source), never on slug alone. A slug is not unique in
+    companies.yaml by design — a company cross-posted on, say, Workday AND
+    LinkedIn AND eFinancialCareers has three separate entries sharing one slug
+    (the cross-posting feature `hk_jobs/sources.py` describes), and each
+    produces its own CompanyResult. Keying by slug alone collapsed those three
+    results down to whichever one happened to finish last in
+    ThreadPoolExecutor's completion order, discarding the other two from
+    `results` before it ever reached `record_pipeline_company_runs` — DBS Bank,
+    AIA, FWD and Sun Life's successful Workday runs were disappearing this way
+    on every run that had at least one zero-result company anywhere (nearly
+    every run — `longtail` alone zeroes ~59% of the time), silently blinding
+    the "per-company evidence used for source reliability reporting" for every
+    cross-posted company. The jobs themselves were always stored correctly —
+    `_run_company` upserts to the DB before this function ever runs — only the
+    reporting row vanished. This has no bearing on which source's `apply_url`
+    wins for a cross-posted vacancy; that ranking is `sources.APPLY_ORDER` /
+    `storage.reconcile_cross_posted`, a separate pass over the `jobs` table
+    that never reads `results`.
     """
     failed = [r for r in results if r.total_fetched == 0]
     if not failed:
         return results
 
-    slug_to_cfg = {c.slug: c for c in companies}
+    cfg_by_key = {(c.slug, c.adapter): c for c in companies}
     logger.info(
         "Retry pass: %d companies returned 0 jobs, retrying one at a time: %s",
-        len(failed), ", ".join(r.slug for r in failed),
+        len(failed), ", ".join(f"{r.slug}/{r.source}" for r in failed),
     )
 
-    by_slug = {r.slug: r for r in results}
+    by_key = {(r.slug, r.source): r for r in results}
     for r in failed:
-        cfg = slug_to_cfg.get(r.slug)
+        cfg = cfg_by_key.get((r.slug, r.source))
         if cfg is None:
             continue
         time.sleep(random.uniform(COMPANY_DELAY_MIN, COMPANY_DELAY_MAX))
         retry = _run_company(cfg, store, run_time, args, db_lock=db_lock)
         if retry.total_fetched > 0:
             logger.info("Retry succeeded for %s: %d jobs", cfg.name, retry.total_fetched)
-            by_slug[r.slug] = retry
+            by_key[(r.slug, r.source)] = retry
         else:
             logger.warning("Retry still failed for %s (0 jobs)", cfg.name)
 
-    return list(by_slug.values())
+    return list(by_key.values())
 
 
 class _NullLock:

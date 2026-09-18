@@ -1,5 +1,6 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import type { WeeklyHighlightRole } from '../../api/client'
 import WeeklyHighlights from './WeeklyHighlights'
@@ -64,15 +65,20 @@ describe('weekly highlight destinations', () => {
 
   it('offers direct access to the FinEx channel and professional committees playlist', () => {
     const container = document.createElement('div')
-    container.innerHTML = renderToStaticMarkup(createElement(WeeklyHighlights))
+    container.innerHTML = renderToStaticMarkup(
+      createElement(MemoryRouter, null, createElement(WeeklyHighlights)),
+    )
 
     expect(container.querySelector(`a[href="${YOUTUBE_CHANNEL_URL}"]`)).not.toBeNull()
     expect(container.querySelector(`a[href="${COMMITTEE_PLAYLIST_URL}"]`)).not.toBeNull()
+    expect(container.querySelector('a[href="/career-coaches"]')).toHaveTextContent('Find the right career counsellor')
   })
 
   it('keeps the seamless duplicate cards pointer-clickable but out of keyboard navigation', () => {
     const container = document.createElement('div')
-    container.innerHTML = renderToStaticMarkup(createElement(WeeklyHighlights))
+    container.innerHTML = renderToStaticMarkup(
+      createElement(MemoryRouter, null, createElement(WeeklyHighlights)),
+    )
 
     const duplicateGroups = container.querySelectorAll(
       '.hl__group[aria-hidden="true"], .hl__video-group[aria-hidden="true"], .hl__coach-group[aria-hidden="true"]',

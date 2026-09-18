@@ -23,6 +23,7 @@ RUNTIME_SALARY_FILES = (
     "employer_compensation_segments.json",
     "disclosed_salary_evidence.json",
 )
+MT_WATCHLIST_SOURCE = Path("webapp/frontend/src/content/managementTraineePrograms.ts")
 
 
 def _remove_generated_path(path: Path) -> None:
@@ -61,6 +62,18 @@ def _stage_salary_data(project_root: Path, backend_dir: Path) -> None:
         _replace_tree(staged_source, backend_dir / "salary_guidlines", ignore=lambda *_: set())
 
 
+def _stage_mt_watchlist(project_root: Path, backend_dir: Path) -> None:
+    """Stage the workbook-derived company registry needed by MT discovery."""
+    source = project_root / MT_WATCHLIST_SOURCE
+    if not source.is_file():
+        raise FileNotFoundError(f"MT watchlist source is missing: {source}")
+    with tempfile.TemporaryDirectory(prefix="mt-watchlist-") as temporary:
+        staged = Path(temporary) / "mt_watchlist"
+        staged.mkdir()
+        shutil.copy2(source, staged / source.name)
+        _replace_tree(staged, backend_dir / "mt_watchlist", ignore=lambda *_: set())
+
+
 def _validate_staged_salary_runtime(project_root: Path, backend_dir: Path) -> None:
     source_anchor = project_root / "salary_guidlines" / RUNTIME_SALARY_FILES[0]
     staged_anchor = backend_dir / "salary_guidlines" / RUNTIME_SALARY_FILES[0]
@@ -89,6 +102,7 @@ def prepare_backend_deploy(
     package_ignore = shutil.ignore_patterns("__pycache__", "*.pyc", "graphify-out")
     _replace_tree(project_root / "hk_jobs", backend_dir / "hk_jobs", ignore=package_ignore)
     _stage_salary_data(project_root, backend_dir)
+    _stage_mt_watchlist(project_root, backend_dir)
 
     if include_frontend:
         _replace_tree(

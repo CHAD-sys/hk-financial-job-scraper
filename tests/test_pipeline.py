@@ -34,9 +34,9 @@ from hk_jobs.storage import JobStore
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
-def _job(source_id: str = "J-001", company_slug: str = "aia-hk") -> Job:
+def _job(source_id: str = "J-001", company_slug: str = "aia-hk", source: str = "workday") -> Job:
     return Job(
-        source="workday",
+        source=source,
         source_id=source_id,
         company="AIA Hong Kong",
         company_slug=company_slug,
@@ -208,6 +208,53 @@ def test_run_company_filter(tmp_path: Path, monkeypatch):
     assert len(results) == 1
     assert results[0].slug == "aia-hk"
     assert calls == ["aia-hk"]
+
+
+# ── retry pass / cross-posted companies ─────────────────────────────────────
+#
+# A slug is not unique in companies.yaml by design: a company cross-posted on
+# more than one source (e.g. DBS Bank on both Workday and LinkedIn) gets one
+# entry per source, all sharing the same slug, and `run()` produces one
+# CompanyResult per entry. `_retry_failed_companies` used to key its lookup on
+# slug alone, so whenever anything ELSE in the run returned 0 jobs (triggering
+# the retry pass at all), it silently collapsed every same-slug CompanyResult
+# down to whichever one happened to finish last -- discarding the rest from
+# `results`, and from there from `pipeline_company_runs`, even though every
+# source's jobs were already stored correctly.
+
+def test_run_reports_every_source_for_a_cross_posted_company(tmp_path: Path, monkeypatch):
+    """RED before keying the retry pass on (slug, source): DBS Bank's Workday
+    and LinkedIn results shared slug 'dbs-hk', and a third, unrelated company
+    returning 0 jobs was enough to trigger the retry pass and collapse the two
+    DBS results into one."""
+    workday_cfg = _cfg("dbs-hk", "workday")
+    linkedin_cfg = _cfg("dbs-hk", "linkedin")
+    zero_cfg = _cfg("other-co", "jobsdb")  # anything at 0 jobs triggers the retry pass
+
+    monkeypatch.setattr(
+        "hk_jobs.pipeline.load_companies",
+        _load_companies([workday_cfg, linkedin_cfg, zero_cfg]),
+    )
+
+    def build_adapter(self):
+        if self.slug == "dbs-hk" and self.adapter == "workday":
+            return _MockAdapter([_job("W-1", "dbs-hk", source="workday")])
+        if self.slug == "dbs-hk" and self.adapter == "linkedin":
+            return _MockAdapter([
+                _job("L-1", "dbs-hk", source="linkedin"),
+                _job("L-2", "dbs-hk", source="linkedin"),
+            ])
+        return _MockAdapter([])  # other-co: always 0, so the retry pass runs
+
+    monkeypatch.setattr(CompanyConfig, "build_adapter", build_adapter)
+
+    results = run(_args(_db(tmp_path)))
+
+    dbs_results = [r for r in results if r.slug == "dbs-hk"]
+    assert {r.source for r in dbs_results} == {"workday", "linkedin"}
+    by_source = {r.source: r for r in dbs_results}
+    assert by_source["workday"].total_fetched == 1
+    assert by_source["linkedin"].total_fetched == 2
 
 
 # ── export ────────────────────────────────────────────────────────────────────

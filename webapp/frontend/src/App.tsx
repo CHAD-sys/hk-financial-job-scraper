@@ -13,6 +13,8 @@ import SavedJobsPage from './pages/SavedJobsPage'
 import AboutPage from './pages/AboutPage'
 import PostRolePage from './pages/PostRolePage'
 import LearningPage from './pages/LearningPage'
+import ManagementTraineePage from './pages/ManagementTraineePage'
+import CareerCoachesPage from './pages/CareerCoachesPage'
 import SignInChooserPage from './pages/SignInChooserPage'
 import SignInPage from './pages/SignInPage'
 import RegisterPage from './pages/RegisterPage'
@@ -131,6 +133,8 @@ export default function App() {
               <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/jobs" element={<JobBoardPage />} />
               <Route path="/learning" element={<LearningPage />} />
+              <Route path="/management-trainee" element={<ManagementTraineePage />} />
+              <Route path="/career-coaches" element={<CareerCoachesPage />} />
               <Route element={<DefaultTitleLayout />}>
                 <Route path="/saved" element={<SavedJobsPage />} />
                 <Route path="/post-a-role" element={<PostRolePage />} />
@@ -142,7 +146,8 @@ export default function App() {
                 <Route path="/verify" element={<VerifyEmailPage />} />
                 <Route path="/account" element={<AccountPage />} />
                 <Route path="/admin" element={<AdminPage />} />
-                <Route path="/asf" element={<AsfPage />} />
+                <Route path="/validate" element={<AsfPage />} />
+                <Route path="/asf" element={<Navigate to="/validate" replace />} />
                 <Route path="/employer/register" element={<EmployerRegisterPage />} />
                 <Route path="/employer/signin" element={<EmployerSignInPage />} />
                 <Route path="/employer/forgot-password" element={<EmployerForgotPasswordPage />} />

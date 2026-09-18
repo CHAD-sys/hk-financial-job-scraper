@@ -51,6 +51,27 @@ beforeAll(() => {
 })
 
 describe('JobDetailModal compensation', () => {
+  it('links the normal detail flow to the permanent Role page', async () => {
+    vi.mocked(fetchJobDetail).mockResolvedValue(detail)
+    render(
+      <JobDetailModal
+        job={recruiterAccountingOfficer}
+        saved={false}
+        onToggleSave={() => {}}
+        onClose={() => {}}
+      />,
+    )
+
+    const actionGroup = screen.getByRole('group', { name: 'Role actions', hidden: true })
+    expect(actionGroup).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /open role page/i, hidden: true })).toHaveAttribute(
+      'href',
+      '/jobs/linkedin_posts/7472314676593471489',
+    )
+    expect(screen.getByRole('link', { name: /view the original linkedin post/i, hidden: true }))
+      .toHaveAttribute('href', 'https://linkedin.example/post')
+  })
+
   it('labels disclosed Hong Kong salary fields as monthly, including recruiter posts', async () => {
     vi.mocked(fetchJobDetail).mockResolvedValue(detail)
     render(
@@ -90,5 +111,26 @@ describe('JobDetailModal compensation', () => {
     )
 
     expect(await screen.findByText(/up to HK\$720k\/yr/i)).toBeInTheDocument()
+  })
+
+  it('does not expose seniority or source-board labels in the role view', async () => {
+    vi.mocked(fetchJobDetail).mockResolvedValue({
+      ...detail,
+      title: 'Management Trainee Programme',
+      seniority: 'junior',
+      sources: ['linkedin'],
+    })
+    render(
+      <JobDetailModal
+        job={{ ...recruiterAccountingOfficer, title: 'Management Trainee Programme', seniority: 'junior', source: 'linkedin' }}
+        saved={false}
+        onToggleSave={() => {}}
+        onClose={() => {}}
+      />,
+    )
+    expect(await screen.findByText('Management Trainee Programme')).toBeInTheDocument()
+    expect(screen.queryByText('Seniority')).not.toBeInTheDocument()
+    expect(screen.queryByText('Listed on')).not.toBeInTheDocument()
+    expect(screen.queryByText('LinkedIn')).not.toBeInTheDocument()
   })
 })

@@ -112,6 +112,8 @@ export interface Job {
   years_experience_required: number | null
   posted_at: string | null
   url: string
+  application_destination?: 'employer_role' | 'employer_vacancies' | 'intermediary'
+  application_label?: string
   is_internship: boolean
   description_excerpt: string
   /** Why this card appears in the current search; absent outside search results. */
@@ -161,6 +163,33 @@ export interface WeeklyHighlightsResponse {
   week_start: string
   week_end: string
   roles: WeeklyHighlightRole[]
+}
+
+export interface BannerCandidate {
+  source: string
+  source_id: string
+  company: string
+  title: string
+  category: string
+  seniority: string
+  posted_at: string
+  salary_min: number
+  salary_max: number
+  salary_confidence: string
+}
+
+export interface BannerValidationQueue {
+  week_start: string
+  week_end: string
+  locked: boolean
+  roles: BannerCandidate[]
+  approved: Array<{ source: string; source_id: string; related_search: string; position: number }>
+}
+
+export interface MTAmbiguousCandidate {
+  job: Job
+  reason: string
+  watchlist_company: string
 }
 
 // ── ASF: Audit Salary Fixing (2026-08-21) ────────────────────────────────────
@@ -555,6 +584,13 @@ export async function fetchJobs(
   return res.json()
 }
 
+/** Active MT and graduate pathways from the same jobs database as the board. */
+export async function fetchManagementTraineeRoles(): Promise<JobListResponse> {
+  const res = await apiFetch('/api/management-trainee/roles')
+  if (!res.ok) throw new Error(`Management Trainee roles fetch failed: ${res.status}`)
+  return res.json()
+}
+
 export async function fetchSalaryAuditJobs(
   filters: SalaryAuditFilters,
   sort: string,
@@ -642,6 +678,26 @@ export async function fetchWeeklyHighlightRole(
     `/api/highlights/roles/${encodeURIComponent(source)}/${encodeURIComponent(sourceId)}`,
   )
   if (!res.ok) throw new ApiError(res.status, 'Featured Role not found')
+  return res.json()
+}
+
+export async function fetchBannerValidationQueue(): Promise<BannerValidationQueue> {
+  const res = await apiFetch('/api/admin/validate/banner-candidates')
+  if (!res.ok) throw new ApiError(res.status, 'Could not load banner validation')
+  return res.json()
+}
+
+export async function approveBannerCandidates(roles: Array<Pick<BannerCandidate, 'source' | 'source_id'>>): Promise<BannerValidationQueue> {
+  const res = await apiFetch('/api/admin/validate/banner-candidates/approve', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roles }),
+  })
+  if (!res.ok) throw new ApiError(res.status, 'Could not approve next week’s banner')
+  return res.json()
+}
+
+export async function fetchMTAmbiguousCandidates(): Promise<{ roles: MTAmbiguousCandidate[] }> {
+  const res = await apiFetch('/api/admin/validate/mt-candidates')
+  if (!res.ok) throw new ApiError(res.status, 'Could not load MT validation')
   return res.json()
 }
 

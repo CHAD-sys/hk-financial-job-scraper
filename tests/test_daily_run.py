@@ -385,7 +385,7 @@ def test_hosted_adapter_restores_and_publishes_the_same_database(tmp_path):
     assert gzip.decompress(published["body"]) == paths.database.read_bytes()
 
 
-def test_sunday_publish_locks_next_weeks_highlights_before_upload(tmp_path):
+def test_sunday_publish_does_not_auto_publish_unreviewed_highlights(tmp_path):
     database = tmp_path / "data/jobs.db"
     database.parent.mkdir(parents=True)
     make_jobs_db(
@@ -437,9 +437,7 @@ def test_sunday_publish_locks_next_weeks_highlights_before_upload(tmp_path):
     uploaded_path = tmp_path / "uploaded.db"
     uploaded_path.write_bytes(uploaded["database"])
     with sqlite3.connect(uploaded_path) as conn:
-        assert conn.execute(
-            "SELECT week_start, source_id FROM weekly_highlight_roles"
-        ).fetchall() == [("2026-09-07", "SUNDAY-PICK")]
+        assert conn.execute("SELECT COUNT(*) FROM weekly_highlight_roles").fetchone() == (0,)
 
 
 def test_sunday_repair_publish_cannot_claim_the_weekly_highlight_lock(tmp_path):
@@ -522,8 +520,16 @@ def test_every_registered_profile_can_actually_be_asked_for():
 # had happened. Nothing compared calls made against rows written, so a total
 # outage looked like a normal night for two days running.
 
-def _enrichment_fixture(tmp_path, *, calls: int, writes_rows: bool):
-    """A database with the two tables the guard reads, and a fake pipeline run."""
+def _enrichment_fixture(tmp_path, *, calls: int, processed: int, writes_rows: bool):
+    """A database with the two tables the guard reads, and a fake pipeline run.
+
+    `calls` and `processed` are independent on purpose: `calls` is how many
+    attempts the API layer counted as billed, `processed` (= enriched + failed,
+    hk_jobs/enrichment.py) is how many rows the batch loop actually iterated.
+    2026-09-15 is the case where they diverge — every one of 187 attempts died
+    on an HTTP 402 before being counted as a call, so `calls` was 0 while
+    `processed` was 187.
+    """
     database = tmp_path / "data" / "jobs.db"
     database.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(database) as conn:
@@ -548,7 +554,7 @@ def _enrichment_fixture(tmp_path, *, calls: int, writes_rows: bool):
                 conn.execute(
                     "INSERT INTO ai_usage VALUES (?,?,?,?,?,?,?,?,?,?)",
                     ("enrich-1", "deepseek_enrichment", "deepseek-v4-flash", calls,
-                     302, 0, 0, 0, 0.2077, "2026-08-19T21:44:57+00:00"),
+                     processed, 0, 0, 0, 0.2077, "2026-08-19T21:44:57+00:00"),
                 )
                 if writes_rows:
                     conn.execute(
@@ -569,7 +575,7 @@ def _enrichment_fixture(tmp_path, *, calls: int, writes_rows: bool):
 
 def test_enrichment_that_burns_calls_and_writes_nothing_fails_the_run(tmp_path):
     """RED before this guard: 906 calls, 0 rows, and a green dashboard."""
-    executor = _enrichment_fixture(tmp_path, calls=906, writes_rows=False)
+    executor = _enrichment_fixture(tmp_path, calls=906, processed=906, writes_rows=False)
 
     record = run_daily("local", "enrich-1", executor)
 
@@ -580,7 +586,7 @@ def test_enrichment_that_burns_calls_and_writes_nothing_fails_the_run(tmp_path):
 
 
 def test_enrichment_that_writes_rows_succeeds_and_reports_the_count(tmp_path):
-    executor = _enrichment_fixture(tmp_path, calls=906, writes_rows=True)
+    executor = _enrichment_fixture(tmp_path, calls=906, processed=906, writes_rows=True)
 
     record = run_daily("local", "enrich-1", executor)
 
@@ -590,10 +596,28 @@ def test_enrichment_that_writes_rows_succeeds_and_reports_the_count(tmp_path):
 
 
 def test_a_night_with_nothing_to_enrich_is_not_a_failure(tmp_path):
-    """No calls and no rows is a quiet night, not an outage. The guard only fires
-    when money was spent and nothing came back."""
-    executor = _enrichment_fixture(tmp_path, calls=0, writes_rows=False)
+    """No calls, no rows processed, no rows written is a quiet night, not an
+    outage. The guard only fires when a batch was actually fetched and nothing
+    came back."""
+    executor = _enrichment_fixture(tmp_path, calls=0, processed=0, writes_rows=False)
 
     record = run_daily("local", "enrich-1", executor)
 
     assert record.phase("deepseek").status is PhaseStatus.SUCCESS
+
+
+def test_enrichment_where_every_attempt_dies_before_being_counted_as_a_call_fails_the_run(tmp_path):
+    """RED before this fix: 2026-09-15, DeepSeek returned HTTP 402 "Insufficient
+    Balance" on every one of 187 queued roles. Every attempt died before the API
+    layer counted it as a billed `call`, so `calls` was 0 -- indistinguishable,
+    under the old `calls and not written` guard, from a quiet night with nothing
+    queued. The run reported `Nothing new to enrich` and published green while
+    187 roles sat unpriced."""
+    executor = _enrichment_fixture(tmp_path, calls=0, processed=187, writes_rows=False)
+
+    record = run_daily("local", "enrich-1", executor)
+
+    deepseek = record.phase("deepseek")
+    assert deepseek.status is PhaseStatus.FAILED
+    assert "187" in (deepseek.detail or "")
+    assert record.status is not RunStatus.SUCCESS

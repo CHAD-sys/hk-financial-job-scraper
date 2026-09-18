@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { accountSlotFor, primaryLinksFor } from './Nav'
+import {
+  accountSlotFor,
+  CAREER_DEVELOPMENT_LINKS,
+  MARKET_RESEARCH_LINK,
+  primaryLinksFor,
+} from './Nav'
 
 /**
  * Admins get one extra destination in the primary row; Ultimate Admin gets a
@@ -16,10 +21,23 @@ import { accountSlotFor, primaryLinksFor } from './Nav'
  * though they see "Admin panel".
  */
 describe('primaryLinksFor', () => {
-  const SIX = ['Home', 'Careers', 'Consultation', 'Learning', 'Market Research', 'About']
+  const FIVE = ['Home', 'Careers', 'Learning', 'Market Research', 'About']
+
+  it('keeps local career-development routes in their own persistent menu', () => {
+    expect(CAREER_DEVELOPMENT_LINKS).toEqual([
+      { label: 'Management Trainee programmes', to: '/management-trainee' },
+      { label: 'Career coaches', to: '/career-coaches' },
+    ])
+  })
+
+  it('keeps Market Research as the sole external primary destination', () => {
+    expect(MARKET_RESEARCH_LINK).toEqual(
+      { label: 'Market Research', to: 'https://www.finexclub.org/research', external: true },
+    )
+  })
 
   it('adds one Admin panel destination for administrators', () => {
-    expect(primaryLinksFor(true, false).map(link => link.label)).toEqual([...SIX, 'Admin panel'])
+    expect(primaryLinksFor(true, false).map(link => link.label)).toEqual([...FIVE, 'Admin panel'])
   })
 
   it('points that destination at the panel', () => {
@@ -28,33 +46,33 @@ describe('primaryLinksFor', () => {
   })
 
   it('does not expose the Admin panel destination to ordinary seekers', () => {
-    expect(primaryLinksFor(false, false).map(link => link.label)).toEqual(SIX)
+    expect(primaryLinksFor(false, false).map(link => link.label)).toEqual(FIVE)
   })
 
-  it('leaves the six shared destinations untouched for admins', () => {
+  it('leaves the five shared destinations untouched for admins', () => {
     // The extra entry is an ADDITION. An admin must not lose or reorder the
     // product's own navigation on their way to the panel.
-    expect(primaryLinksFor(true, false).slice(0, 6).map(link => link.label)).toEqual(SIX)
+    expect(primaryLinksFor(true, false).slice(0, 5).map(link => link.label)).toEqual(FIVE)
   })
 
-  it('adds ASF for Ultimate Admin, after Admin panel', () => {
+  it('adds Validate for Ultimate Admin, after Admin panel', () => {
     expect(primaryLinksFor(true, true).map(link => link.label))
-      .toEqual([...SIX, 'Admin panel', 'ASF'])
+      .toEqual([...FIVE, 'Admin panel', 'Validate'])
   })
 
-  it('points ASF at /asf', () => {
-    const asf = primaryLinksFor(true, true).find(link => link.label === 'ASF')
-    expect(asf?.to).toBe('/asf')
+  it('points Validate at /validate', () => {
+    const validate = primaryLinksFor(true, true).find(link => link.label === 'Validate')
+    expect(validate?.to).toBe('/validate')
   })
 
   it('adds ASF even when isAdmin is false — the two bits are independent', () => {
     // A super-admin-only account (is_super_admin without is_admin) must still
     // see ASF, even though it would not see "Admin panel".
-    expect(primaryLinksFor(false, true).map(link => link.label)).toEqual([...SIX, 'ASF'])
+    expect(primaryLinksFor(false, true).map(link => link.label)).toEqual([...FIVE, 'Validate'])
   })
 
   it('never exposes ASF to a plain administrator', () => {
-    expect(primaryLinksFor(true, false).map(link => link.label)).not.toContain('ASF')
+    expect(primaryLinksFor(true, false).map(link => link.label)).not.toContain('Validate')
   })
 })
 

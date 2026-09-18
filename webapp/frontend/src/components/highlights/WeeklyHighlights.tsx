@@ -127,7 +127,7 @@ function RoleCard({ item }: { item: RoleHighlight }) {
         <BriefcaseBusiness className="hl-card__corner-icon" size={20} strokeWidth={1.5} aria-hidden="true" />
       </div>
       <h3 className="hl-card__title">{item.title}</h3>
-      <CardAction label="View role" meta={`${item.seniority} · ${item.location}`} />
+      <CardAction label="View role" meta={item.location} />
     </>
   )
 }
@@ -498,9 +498,9 @@ export default function WeeklyHighlights() {
                 <span className="hl__coach-kicker"><Sparkles size={13} strokeWidth={2.4} aria-hidden="true" /> Meet the coaches</span>
                 <p>{coaches.length} finance leaders, ready to share what they know.</p>
               </div>
-              <a href="https://www.finexclub.org/career-coach" target="_blank" rel="noopener noreferrer">
-                Explore all coaches <ArrowRight size={14} aria-hidden="true" />
-              </a>
+              <Link to="/career-coaches">
+                Find the right career counsellor <ArrowRight size={14} aria-hidden="true" />
+              </Link>
             </div>
 
             {/* This rail moves independently from the Role and video rails. Hovering

@@ -15,20 +15,21 @@ import { useSavedRoles } from '../savedRoles/useSavedRoles'
 /**
  * Primary navigation.
  *
- * Consultation points off-site to the Club's mentor programme
- * (finexclub.org/mentor-program) — external, with the same treatment as Market
- * Research. Careers and Learning are real pages and navigate normally.
+ * The persistent Career development menu keeps Management Trainee programmes
+ * and Career coaches together as local FinEx Careers destinations. Market
+ * Research is the one outbound destination and is visibly treated as an
+ * external link.
  *
  * Home points at the portal (the "Asia's 1st Premier Career Centre" statement).
  * The wordmark also goes there, but an explicit Home is what most people look
  * for, and the two hash links below make it genuinely useful: once you have
- * scrolled to Consultation the URL is still `/`, so Home is the way back up.
+ * scrolled away from the portal hero the URL is still `/`, so Home is the way
+ * back up.
  *
- * Six items plus the right-hand cluster (Post a role, Saved, account) no
- * longer fit one desktop row, so on lg+ the bar splits in two: a slim utility
- * strip carrying identity and account actions, and a full-width nav row below
- * it. Nothing is hidden behind an overflow menu — a link the user cannot see
- * is a link they will not click. Mobile keeps its single row and flat menu.
+ * The direct product links, two purpose-led menus, and right-hand cluster
+ * (Post a role, Saved, account) use two desktop tiers: a slim utility strip
+ * carries identity and account actions, while the full-width nav row carries
+ * navigation. Mobile preserves the same hierarchy in one flat menu.
  *
  * "Sign in" points at /get-started, a chooser between the two separate
  * account kinds (SignInChooserPage.tsx), not straight at the Seeker form —
@@ -55,13 +56,23 @@ import { useSavedRoles } from '../savedRoles/useSavedRoles'
 
 export type PrimaryLink = { label: string; to: string; external?: boolean }
 
+export const MARKET_RESEARCH_LINK: PrimaryLink = {
+  label: 'Market Research',
+  to: 'https://www.finexclub.org/research',
+  external: true,
+}
+
 const LINKS: PrimaryLink[] = [
   { label: 'Home', to: '/' },
   { label: 'Careers', to: '/jobs' },
-  { label: 'Consultation', to: 'https://www.finexclub.org/mentor-program', external: true },
   { label: 'Learning', to: '/learning' },
-  { label: 'Market Research', to: 'https://www.finexclub.org/research', external: true },
+  MARKET_RESEARCH_LINK,
   { label: 'About', to: '/about' },
+]
+
+export const CAREER_DEVELOPMENT_LINKS: PrimaryLink[] = [
+  { label: 'Management Trainee programmes', to: '/management-trainee' },
+  { label: 'Career coaches', to: '/career-coaches' },
 ]
 
 /**
@@ -124,7 +135,7 @@ export function accountSlotFor(
 
 export function primaryLinksFor(isAdmin: boolean, isSuperAdmin: boolean): PrimaryLink[] {
   const links = isAdmin ? [...LINKS, { label: 'Admin panel', to: '/admin' }] : [...LINKS]
-  if (isSuperAdmin) links.push({ label: 'ASF', to: '/asf' })
+  if (isSuperAdmin) links.push({ label: 'Validate', to: '/validate' })
   return links
 }
 
@@ -161,6 +172,18 @@ export default function Nav() {
   const primaryLinks = primaryLinksFor(
     !authLoading && adminMode, !authLoading && Boolean(seeker?.is_super_admin),
   )
+  // Career development belongs directly after the job board: it is the natural
+  // next step after finding a role. The remaining product links support that
+  // journey, with Market Research retaining its explicit external treatment.
+  const corePrimaryLinks = primaryLinks.filter(link => link.label === 'Home' || link.label === 'Careers')
+  const supportingPrimaryLinks = primaryLinks.filter(link => link.label !== 'Home' && link.label !== 'Careers')
+  const mobileUtilityLinks: PrimaryLink[] = [
+    { label: 'Saved roles', to: '/saved' },
+    ...(!employerAuthLoading && (employer || employerView) ? [{ label: 'Post a role', to: '/post-a-role' }] : []),
+    ...(accountSlot === 'seeker' ? [{ label: 'Resume & account', to: '/account' }]
+      : accountSlot === 'sign-in' ? [{ label: 'Sign in', to: '/get-started' }]
+      : []),
+  ]
 
   // Where sign-in should return to. The board is public, so nobody is ever sent
   // here by a wall — they came from a page they were reading and should land
@@ -431,7 +454,7 @@ export default function Nav() {
             {/* items-stretch, not items-center: each link fills the row so its
                 underline lands on the bar's bottom edge. */}
             <nav className="flex h-11 items-stretch gap-8 xl:gap-10" aria-label="Primary navigation">
-              {primaryLinks.map(({ label, to, external }) =>
+              {corePrimaryLinks.map(({ label, to, external }) =>
                 external ? (
                   <a
                     key={label}
@@ -458,6 +481,45 @@ export default function Nav() {
                       color: isActive(to) ? 'var(--color-ink-inverse)' : 'rgba(248,250,252,0.6)',
                       // gold-star, not gold: DESIGN.md flags the darker gold as
                       // illegible on the navy bar.
+                      borderBottom: `2px solid ${isActive(to) ? 'var(--color-gold-star)' : 'transparent'}`,
+                    }}
+                  >
+                    {label}
+                  </Link>
+                ),
+              )}
+              <NavigationMenu
+                label="Career development"
+                links={CAREER_DEVELOPMENT_LINKS}
+                isActive={to => isActive(to)}
+                linkState={linkState}
+                onLinkClick={handleClick}
+              />
+              {supportingPrimaryLinks.map(({ label, to, external }) =>
+                external ? (
+                  <a
+                    key={label}
+                    href={to}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-sm font-medium no-underline transition-colors duration-150"
+                    style={{
+                      color: 'rgba(248,250,252,0.6)',
+                      borderBottom: '2px solid transparent',
+                    }}
+                  >
+                    {label}
+                    <ArrowUpRight size={13} strokeWidth={2} aria-hidden="true" />
+                  </a>
+                ) : (
+                  <Link
+                    key={label}
+                    to={to}
+                    state={linkState(to)}
+                    onClick={e => handleClick(e, to)}
+                    className="flex items-center text-sm font-medium no-underline transition-colors duration-150"
+                    style={{
+                      color: isActive(to) ? 'var(--color-ink-inverse)' : 'rgba(248,250,252,0.6)',
                       borderBottom: `2px solid ${isActive(to) ? 'var(--color-gold-star)' : 'transparent'}`,
                     }}
                   >
@@ -527,47 +589,25 @@ export default function Nav() {
           style={{ backgroundColor: 'var(--color-nav)' }}
           aria-label="Mobile navigation"
         >
-          {[
-            ...primaryLinks,
-            { label: 'Saved roles', to: '/saved' },
-            // Same rule as the desktop bar: only for a signed-in Employer.
-            ...(!employerAuthLoading && (employer || employerView) ? [{ label: 'Post a role', to: '/post-a-role' }] : []),
-            // The account item(s), which the desktop bar keeps in its own slot.
-            // Same `accountSlot` the desktop bar reads, so the two menus cannot
-            // disagree about who is signed in — an Employer's own sign-out sits
-            // at the bottom of this menu, so 'employer' contributes nothing here.
-            ...(accountSlot === 'seeker' ? [{ label: 'Resume & account', to: '/account' }]
-              : accountSlot === 'sign-in' ? [{ label: 'Sign in', to: '/get-started' }]
-              : []),
-          ].map(({ label, to, external }) =>
-            external ? (
-              <a
-                key={label}
-                href={to}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setOpen(false)}
-                className="flex min-h-11 items-center text-sm font-medium no-underline"
-                style={{ color: 'rgba(248,250,252,0.8)' }}
-              >
-                {label}
-              </a>
-            ) : (
-              <Link
-                key={label}
-                to={to}
-                state={linkState(to)}
-                onClick={e => {
-                  setOpen(false)
-                  handleClick(e, to)
-                }}
-                className="flex min-h-11 items-center text-sm font-medium no-underline"
-                style={{ color: 'rgba(248,250,252,0.8)' }}
-              >
-                {label}
-              </Link>
-            ),
-          )}
+          {corePrimaryLinks.map(link => (
+            <MobileNavigationLink key={link.label} link={link} linkState={linkState} onNavigate={() => setOpen(false)} onLinkClick={handleClick} />
+          ))}
+
+          <MobileNavigationGroup
+            label="Career development"
+            links={CAREER_DEVELOPMENT_LINKS}
+            linkState={linkState}
+            onLinkClick={(event, to) => {
+              setOpen(false)
+              handleClick(event, to)
+            }}
+          />
+          {supportingPrimaryLinks.map(link => (
+            <MobileNavigationLink key={link.label} link={link} linkState={linkState} onNavigate={() => setOpen(false)} onLinkClick={handleClick} />
+          ))}
+          {mobileUtilityLinks.map(link => (
+            <MobileNavigationLink key={link.label} link={link} linkState={linkState} onNavigate={() => setOpen(false)} onLinkClick={handleClick} />
+          ))}
 
           {seeker && (
             <button
@@ -597,6 +637,148 @@ export default function Nav() {
         </nav>
       )}
     </header>
+  )
+}
+
+function NavigationMenu({
+  label,
+  links,
+  isActive,
+  linkState,
+  onLinkClick,
+}: {
+  label: string
+  links: PrimaryLink[]
+  isActive: (to: string) => boolean
+  linkState: (to: string) => Record<string, unknown> | undefined
+  onLinkClick: (event: React.MouseEvent, to: string) => void
+}) {
+  const active = links.some(link => !link.external && isActive(link.to))
+
+  return (
+    <details className="group relative flex items-stretch">
+      <summary
+        className="flex cursor-pointer list-none items-center gap-1 text-sm font-medium transition-colors duration-150 [&::-webkit-details-marker]:hidden"
+        style={{
+          color: active ? 'var(--color-ink-inverse)' : 'rgba(248,250,252,0.6)',
+          borderBottom: `2px solid ${active ? 'var(--color-gold-star)' : 'transparent'}`,
+        }}
+      >
+        {label}
+        <ChevronDown size={14} strokeWidth={2} aria-hidden="true" className="transition-transform duration-150 group-open:rotate-180" />
+      </summary>
+      <div className="absolute left-0 top-full z-50 hidden min-w-60 border border-white/15 bg-[var(--color-nav)] p-1.5 shadow-xl group-open:block">
+        {links.map(link => link.external ? (
+          <a
+            key={link.label}
+            href={link.to}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex min-h-10 items-center justify-between gap-4 px-3 text-sm font-medium no-underline transition-colors hover:bg-white/10"
+            style={{ color: 'rgba(248,250,252,0.82)' }}
+          >
+            {link.label}
+            <ArrowUpRight size={14} strokeWidth={2} aria-hidden="true" />
+          </a>
+        ) : (
+          <Link
+            key={link.label}
+            to={link.to}
+            state={linkState(link.to)}
+            onClick={event => onLinkClick(event, link.to)}
+            className="flex min-h-10 items-center px-3 text-sm font-medium no-underline transition-colors hover:bg-white/10"
+            style={{ color: 'rgba(248,250,252,0.82)' }}
+          >
+            {link.label}
+          </Link>
+        ))}
+      </div>
+    </details>
+  )
+}
+
+function MobileNavigationGroup({
+  label,
+  links,
+  linkState,
+  onLinkClick,
+}: {
+  label: string
+  links: PrimaryLink[]
+  linkState: (to: string) => Record<string, unknown> | undefined
+  onLinkClick: (event: React.MouseEvent, to: string) => void
+}) {
+  return (
+    <section className="border-t border-white/10 pt-3" aria-label={label}>
+      <h2 className="mb-1 text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: 'rgba(248,250,252,0.48)' }}>{label}</h2>
+      {links.map(link => link.external ? (
+        <a
+          key={link.label}
+          href={link.to}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex min-h-11 items-center justify-between text-sm font-medium no-underline"
+          style={{ color: 'rgba(248,250,252,0.8)' }}
+        >
+          {link.label}
+          <ArrowUpRight size={14} strokeWidth={2} aria-hidden="true" />
+        </a>
+      ) : (
+        <Link
+          key={link.label}
+          to={link.to}
+          state={linkState(link.to)}
+          onClick={event => onLinkClick(event, link.to)}
+          className="flex min-h-11 items-center text-sm font-medium no-underline"
+          style={{ color: 'rgba(248,250,252,0.8)' }}
+        >
+          {link.label}
+        </Link>
+      ))}
+    </section>
+  )
+}
+
+function MobileNavigationLink({
+  link,
+  linkState,
+  onNavigate,
+  onLinkClick,
+}: {
+  link: PrimaryLink
+  linkState: (to: string) => Record<string, unknown> | undefined
+  onNavigate: () => void
+  onLinkClick: (event: React.MouseEvent, to: string) => void
+}) {
+  if (link.external) {
+    return (
+      <a
+        href={link.to}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={onNavigate}
+        className="flex min-h-11 items-center justify-between text-sm font-medium no-underline"
+        style={{ color: 'rgba(248,250,252,0.8)' }}
+      >
+        {link.label}
+        <ArrowUpRight size={14} strokeWidth={2} aria-hidden="true" />
+      </a>
+    )
+  }
+
+  return (
+    <Link
+      to={link.to}
+      state={linkState(link.to)}
+      onClick={event => {
+        onNavigate()
+        onLinkClick(event, link.to)
+      }}
+      className="flex min-h-11 items-center text-sm font-medium no-underline"
+      style={{ color: 'rgba(248,250,252,0.8)' }}
+    >
+      {link.label}
+    </Link>
   )
 }
 

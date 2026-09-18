@@ -38,7 +38,7 @@ from fastapi.testclient import TestClient
 
 from .support import days_ago, enrichment, job, make_app, make_bundle, make_jobs_db
 
-_INDEXABLE = ["/", "/about", "/jobs", "/learning", "/get-started", "/post-a-role",
+_INDEXABLE = ["/", "/about", "/jobs", "/learning", "/career-coaches", "/get-started", "/post-a-role",
               "/privacy"]
 
 

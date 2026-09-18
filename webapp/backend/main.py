@@ -19,7 +19,7 @@ import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal, Optional, Sequence
 from urllib.parse import quote_plus, urlparse
 from zoneinfo import ZoneInfo
 
@@ -424,6 +424,17 @@ def list_jobs(
     return result
 
 
+@router.get("/api/management-trainee/roles", response_model=JobListResponse, tags=["jobs"])
+def list_management_trainee_roles(request: Request):
+    """The active MT and graduate-programme feed used by the MT directory."""
+    seeker = _current_seeker(request)
+    audience = CatalogueAudience.MEMBER if seeker is not None else CatalogueAudience.PUBLIC
+    with get_db(request) as conn:
+        result = job_read.list_management_trainee_roles(conn, audience=audience)
+    _grant_role_access(request, result.jobs)
+    return result
+
+
 # ── /api/highlights ───────────────────────────────────────────────────────────
 
 def _hong_kong_today():
@@ -457,7 +468,10 @@ def get_weekly_highlights(request: Request):
                 visibility=Visibility.ADDRESSABLE,
                 is_admin=_is_admin_session(seeker),
             )
-            if role is None:
+            # The home-page banner is a live promise, not an archive. A role
+            # may have been approved for this week's rail and then close; omit
+            # it rather than advertising a role a Seeker cannot apply for.
+            if role is None or role.closed:
                 continue
             if role.source_tier in MEMBER_ONLY_TIERS and seeker is None:
                 continue
@@ -960,7 +974,7 @@ def _job_posting_jsonld(detail: JobDetail, canonical_url: str) -> dict:
     return posting
 
 
-def _salary_line(detail: JobDetail) -> str:
+def _salary_line(detail: JobSummary) -> str:
     lo, hi = detail.salary_hkd_min, detail.salary_hkd_max
     estimated = False
     if not (lo or hi):
@@ -971,6 +985,14 @@ def _salary_line(detail: JobDetail) -> str:
     period = "mo" if (detail.salary_period or "month") == "month" else "yr"
     amount = f"HK${lo:,}–{hi:,}/{period}" if lo and hi else f"HK${lo or hi:,}/{period}"
     return f"{amount} (AI-estimated)" if estimated else amount
+
+
+def _is_management_trainee(detail: JobDetail) -> bool:
+    return bool(re.search(
+        r"management\s*trainee|graduate\s*trainee|trainee\s*programme|trainee\s*program",
+        " ".join(filter(None, (detail.title, detail.title_en, detail.job_category))),
+        re.IGNORECASE,
+    ))
 
 
 def _provenance(detail: JobDetail) -> str:
@@ -990,7 +1012,7 @@ def _provenance(detail: JobDetail) -> str:
     claimed to hire for anyone.
     """
     source = SOURCES_BY_NAME.get(detail.source)
-    where = f" It was published on {html.escape(source.label)}." if source else ""
+    where = f" It was published on {html.escape(source.label)}." if source and not _is_management_trainee(detail) else ""
     return (
         '<aside class="provenance">'
         "<p><strong>FinEx Careers is an independent job board</strong>, published by "
@@ -1029,7 +1051,66 @@ def _onward_links(detail: JobDetail) -> str:
     return '<nav class="secondary">' + " &middot; ".join(links) + "</nav>"
 
 
-def _job_teaser_html(detail: JobDetail, canonical_url: str) -> str:
+def _posted_label(value: Optional[str]) -> str:
+    if not value:
+        return "Not specified"
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return value
+    return parsed.strftime("%d %b %Y").lstrip("0")
+
+
+def _similar_roles_html(roles: Sequence[JobSummary]) -> str:
+    cards = []
+    for role in roles:
+        href = _job_teaser_path(role.source, role.source_id, role.title, role.company)
+        location = ", ".join(role.locations) or "Hong Kong"
+        salary = _salary_line(role)
+        category = role.job_category or role.sector
+        detail_bits = [location]
+        if salary:
+            detail_bits.append(salary)
+        cards.append(
+            f"""
+            <a class="similar-card" href="{html.escape(href)}">
+              <span class="similar-card__topline">
+                <span>{html.escape(category)}</span>
+                <span aria-hidden="true">&#8599;</span>
+              </span>
+              <h3>{html.escape(role.title)}</h3>
+              <p class="similar-card__company">{html.escape(role.company)}</p>
+              <p class="similar-card__details">{html.escape(" · ".join(detail_bits))}</p>
+            </a>
+            """
+        )
+    if len(cards) < 3:
+        cards.append(
+            '<a class="similar-card similar-card--empty" href="/jobs">'
+            '<span class="similar-card__topline"><span>FinEx Careers</span>'
+            '<span aria-hidden="true">&#8599;</span></span>'
+            '<h3>Explore current finance roles</h3>'
+            '<p class="similar-card__company">Browse the live Hong Kong market</p>'
+            '</a>'
+        )
+    return "".join(cards)
+
+
+# DIRECTION CONTRACT — shareable Role page
+# THESIS: Make one Role easy to understand, trust, share, and act on; refuse the
+# old modal/dead-end teaser and the overloaded portal pattern.
+# OWN-WORLD: FinEx navy, warm white, restrained gold and blue, crisp rules,
+# minimal radius, generous spacing; no invented category band or faux-luxury.
+# STORY: Identify the Role → read the short AI brief → inspect essentials →
+# share or sign in → continue through genuinely similar live Roles.
+# FIRST VIEWPORT: One real header and one asymmetric dark hero: Role on the
+# left, salary and two actions on the right. No second navigation strip.
+# FORM: Approved Option A, simplified into a modern market brief (seed 097820e5).
+def _job_teaser_html(
+    detail: JobDetail,
+    canonical_url: str,
+    similar_roles: Sequence[JobSummary] = (),
+) -> str:
     location = ", ".join(detail.locations) or "Hong Kong"
     title = html.escape(detail.title)
     company = html.escape(detail.company)
@@ -1038,7 +1119,7 @@ def _job_teaser_html(detail: JobDetail, canonical_url: str) -> str:
     )
     salary = html.escape(_salary_line(detail))
     skills = "".join(
-        f'<span class="pill">{html.escape(s)}</span>' for s in detail.required_skills[:8]
+        f'<span class="pill">{html.escape(s)}</span>' for s in detail.required_skills[:6]
     )
     robots_directive = "noindex,follow" if detail.closed else "index,follow"
     jsonld_block = ""
@@ -1049,16 +1130,47 @@ def _job_teaser_html(detail: JobDetail, canonical_url: str) -> str:
             + "</script>"
         )
     status_banner = (
-        '<p class="closed-banner">This role has closed. '
-        '<a href="/jobs">Search current openings</a>.</p>'
+        '<div class="closed-banner"><strong>This role is awaiting an update.</strong> '
+        '<a href="/jobs">Browse current openings</a></div>'
         if detail.closed
         else ""
     )
-    facts = " &middot; ".join(
-        html.escape(p) for p in [detail.seniority, location, detail.job_category] if p
+    hero_facts = "".join(
+        f"<span>{html.escape(value)}</span>"
+        for value in [location, detail.job_category or detail.sector]
+        if value
     )
+    detail_rows = [
+        ("Work style", (detail.remote_type or "Not specified").replace("_", " ").title()),
+        ("Posted", _posted_label(detail.posted_at)),
+    ]
+    details = "".join(
+        f"<div><dt>{html.escape(label)}</dt><dd>{html.escape(value)}</dd></div>"
+        for label, value in detail_rows
+    )
+    primary_action = (
+        '<a class="primary-action" href="/jobs">Browse open roles</a>'
+        if detail.closed
+        else '<a class="primary-action" href="/get-started">Sign in to apply</a>'
+    )
+    salary_block = (
+        f'<p class="salary-label">Monthly salary</p>'
+        f'<p class="salary-value">{salary}</p>'
+        if salary
+        else '<p class="salary-label">Salary</p>'
+        '<p class="salary-value">Not specified</p>'
+    )
+    summary = (
+        '<p id="role-summary" class="role-summary" '
+        'data-description-source="ai-summary">'
+        f"{html.escape(detail.description_summary)}</p>"
+        if detail.description_summary
+        else '<p class="summary-pending">The short FinEx AI summary is being prepared.</p>'
+    )
+    similar_cards = _similar_roles_html(similar_roles)
     onward = _onward_links(detail)
     provenance = _provenance(detail)
+    share_url = html.escape(canonical_url, quote=True)
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -1077,57 +1189,363 @@ def _job_teaser_html(detail: JobDetail, canonical_url: str) -> str:
 <meta name="twitter:card" content="summary" />
 {jsonld_block}
 <style>
-  :root {{ color-scheme: light; }}
+  :root {{
+    color-scheme: light;
+    --navy: #0B1628;
+    --masthead: #16223A;
+    --paper: #FFFDF9;
+    --surface: #FFFFFF;
+    --ink: #0B1628;
+    --muted: #526174;
+    --faint: #8290A2;
+    --border: #DDE3EA;
+    --blue: #1E3A8A;
+    --gold: #9A6F00;
+  }}
+  * {{ box-sizing: border-box; }}
+  html {{ scroll-behavior: smooth; }}
   body {{
-    margin: 0; background: #FFFDF9; color: #0B1628;
-    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 16px/1.65 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
   }}
-  header {{ background: #0B1628; padding: 20px 24px; }}
-  header a {{ color: #FBF0D3; text-decoration: none; font-weight: 600; letter-spacing: .02em; }}
-  main {{ max-width: 640px; margin: 0 auto; padding: 40px 24px 64px; }}
-  h1 {{ font: 700 28px/1.3 Georgia, "Playfair Display", serif; margin: 0 0 6px; }}
-  .company {{ font-size: 18px; color: #475569; margin: 0 0 14px; }}
-  .facts {{ color: #475569; margin: 0 0 18px; }}
-  .salary {{
-    display: inline-block; background: #FBF0D3; color: #9A6F00; font-weight: 600;
-    padding: 6px 14px; border-radius: 999px; margin: 0 0 22px;
+  a {{ color: inherit; }}
+  a:focus-visible, button:focus-visible {{ outline: 3px solid #93C5FD; outline-offset: 3px; }}
+  .skip-link {{
+    position: fixed; z-index: 100; top: -64px; left: 16px; background: white;
+    padding: 10px 14px; color: var(--navy); font-size: 14px; font-weight: 700;
   }}
+  .skip-link:focus {{ top: 16px; }}
+  .site-header {{ background: var(--navy); border-bottom: 1px solid rgb(255 255 255 / .12); }}
+  .site-header__inner {{
+    width: min(1180px, calc(100% - 48px)); min-height: 72px; margin: 0 auto;
+    display: flex; align-items: center; gap: 40px;
+  }}
+  .wordmark {{
+    display: inline-flex; align-items: center; gap: 10px; color: white;
+    text-decoration: none; white-space: nowrap;
+  }}
+  .wordmark-mark {{
+    width: 32px; height: 32px; display: inline-flex; align-items: center;
+    justify-content: center; border-radius: 4px; background: var(--gold); color: white;
+  }}
+  .wordmark-name {{
+    color: white; font: 600 18px/1 Georgia, "Playfair Display", serif;
+    letter-spacing: -.025em;
+  }}
+  .wordmark-name em {{ color: #C89B3C; font-style: italic; }}
+  .wordmark-mark svg {{
+    width: 16px; height: 16px; fill: none; stroke: currentColor;
+    stroke-linecap: round; stroke-linejoin: round; stroke-width: 2;
+  }}
+  .primary-nav {{ display: flex; align-items: center; gap: 28px; margin-left: auto; }}
+  .primary-nav a {{ color: #CBD5E1; text-decoration: none; font-size: 14px; font-weight: 550; }}
+  .primary-nav a:hover {{ color: white; }}
+  .header-signin {{
+    min-height: 44px; display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid rgb(255 255 255 / .34); padding: 0 18px; color: white;
+    text-decoration: none; font-size: 14px; font-weight: 650; border-radius: 4px;
+  }}
+  .header-signin:hover {{ border-color: white; background: rgb(255 255 255 / .07); }}
+  .role-hero {{ background: var(--masthead); color: white; }}
+  .role-hero__inner {{
+    width: min(1180px, calc(100% - 48px)); margin: 0 auto; padding: 54px 0 60px;
+    display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 84px; align-items: end;
+  }}
+  .back-link {{
+    display: inline-block; margin-bottom: 28px; color: #CBD5E1; text-decoration: none;
+    font-size: 14px; font-weight: 600;
+  }}
+  .back-link:hover {{ color: white; }}
+  .hero-company {{ margin: 0 0 10px; color: #F2CE82; font-size: 17px; font-weight: 650; }}
+  h1 {{
+    max-width: 760px; margin: 0;
+    font: 720 clamp(2.1rem, 3.7vw, 3rem)/1.12 Inter, -apple-system,
+      BlinkMacSystemFont, "Segoe UI", sans-serif;
+    letter-spacing: -.03em; text-wrap: balance;
+  }}
+  .hero-facts {{
+    display: flex; flex-wrap: wrap; gap: 0; margin-top: 25px;
+    color: #CBD5E1; font-size: 15px;
+  }}
+  .hero-facts span + span::before {{
+    content: ""; display: inline-block; width: 4px; height: 4px;
+    margin: 0 12px 3px; border-radius: 50%; background: #8290A2;
+  }}
+  .action-panel {{ border-top: 1px solid rgb(255 255 255 / .25); padding-top: 22px; }}
+  .salary-label {{
+    margin: 0 0 4px; color: #CBD5E1; font-size: 12px; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase;
+  }}
+  .salary-value {{ margin: 0 0 20px; color: white; font-size: 19px; font-weight: 700; }}
+  .primary-action, .share-button {{
+    width: 100%; min-height: 48px; display: inline-flex; align-items: center;
+    justify-content: center; border-radius: 4px;
+    font: 700 14px/1 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    cursor: pointer; text-decoration: none;
+  }}
+  .primary-action {{ background: white; color: var(--navy); border: 1px solid white; }}
+  .primary-action:hover {{ background: #EEF2F7; }}
+  .share-button {{
+    margin-top: 10px; border: 1px solid rgb(255 255 255 / .34);
+    background: transparent; color: white;
+  }}
+  .share-button:hover {{ border-color: white; background: rgb(255 255 255 / .07); }}
+  .share-status {{
+    min-height: 20px; margin: 8px 0 0; color: #CBD5E1;
+    font-size: 12px; text-align: center;
+  }}
+  main {{ display: block; }}
+  .page-shell {{ width: min(1180px, calc(100% - 48px)); margin: 0 auto; padding: 64px 0 80px; }}
+  .closed-banner {{
+    margin: 0 0 42px; border: 1px solid #CBD5E1; background: #F1EFEA;
+    padding: 15px 18px; color: #334155;
+  }}
+  .closed-banner a {{ color: var(--blue); font-weight: 650; }}
+  .brief-grid {{
+    display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(280px, .8fr);
+    gap: 88px; align-items: start;
+  }}
+  h2 {{
+    margin: 0;
+    font: 720 27px/1.25 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    letter-spacing: -.025em;
+  }}
+  .summary-note {{ margin: 9px 0 0; color: var(--faint); font-size: 12px; font-weight: 650; }}
+  .role-summary {{
+    max-width: 68ch; margin: 25px 0 0; color: #29374A;
+    font-size: 18px; line-height: 1.75;
+  }}
+  .summary-pending {{ color: var(--muted); margin-top: 25px; }}
+  .skills {{ margin-top: 40px; }}
+  .skills h3 {{ margin: 0 0 14px; font-size: 14px; }}
   .pill {{
-    display: inline-block; border: 1px solid #E2E8F0; border-radius: 999px;
-    padding: 4px 12px; margin: 0 8px 8px 0; font-size: 13px; color: #475569;
+    display: inline-block; margin: 0 7px 8px 0; border: 1px solid var(--border);
+    border-radius: 999px; background: var(--surface); padding: 7px 12px; color: #3F4D60;
+    font-size: 13px; line-height: 1.2;
   }}
-  .summary {{ margin: 22px 0; }}
-  .closed-banner {{ background: #F1EFEA; color: #334155; padding: 12px 16px; border-radius: 8px; }}
-  .cta {{
-    display: inline-block; background: #1E3A8A; color: #F8FAFC; text-decoration: none;
-    font-weight: 600; padding: 12px 24px; border-radius: 8px; margin-top: 12px;
+  .role-details {{
+    border-top: 3px solid var(--navy); background: var(--surface);
+    padding: 23px 25px 8px; box-shadow: 0 8px 24px rgb(11 22 40 / .06);
   }}
-  .secondary {{ margin-top: 16px; }}
-  .secondary a {{ color: #1E3A8A; }}
+  .role-details h2 {{
+    font: 700 16px/1.3 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    letter-spacing: 0;
+  }}
+  .role-details dl {{ margin: 16px 0 0; }}
+  .role-details dl > div {{
+    display: grid; grid-template-columns: 96px 1fr; gap: 14px;
+    padding: 13px 0; border-top: 1px solid var(--border);
+  }}
+  .role-details dt {{ color: var(--faint); font-size: 12px; font-weight: 650; }}
+  .role-details dd {{
+    margin: 0; color: #29374A; font-size: 13px; font-weight: 600; text-align: right;
+  }}
+  .similar-section {{ margin-top: 76px; padding-top: 54px; border-top: 1px solid var(--border); }}
+  .similar-heading {{
+    display: flex; align-items: end; justify-content: space-between;
+    gap: 32px; margin-bottom: 28px;
+  }}
+  .similar-heading p {{ max-width: 54ch; margin: 9px 0 0; color: var(--muted); }}
+  .all-roles-link {{
+    color: var(--blue); font-size: 14px; font-weight: 700;
+    text-decoration: none; white-space: nowrap;
+  }}
+  .all-roles-link:hover {{ text-decoration: underline; text-underline-offset: 4px; }}
+  .similar-grid {{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }}
+  .similar-card {{
+    min-height: 235px; display: flex; flex-direction: column; border: 1px solid var(--border);
+    background: var(--surface); padding: 24px; color: var(--ink); text-decoration: none;
+    box-shadow: 0 1px 2px rgb(11 22 40 / .04);
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+  }}
+  .similar-card:hover {{
+    transform: translateY(-3px); border-color: #AAB6C4;
+    box-shadow: 0 12px 28px rgb(11 22 40 / .09);
+  }}
+  .similar-card__topline {{
+    display: flex; justify-content: space-between; gap: 16px;
+    color: var(--blue); font-size: 12px; font-weight: 700;
+  }}
+  .similar-card h3 {{
+    margin: 30px 0 7px;
+    font: 720 19px/1.38 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    letter-spacing: -.015em; text-wrap: balance;
+  }}
+  .similar-card__company {{ margin: 0; color: #3F4D60; font-size: 14px; font-weight: 650; }}
+  .similar-card__details {{
+    margin: auto 0 0; padding-top: 24px; color: var(--muted); font-size: 13px;
+  }}
+  .similar-card--empty {{ grid-column: 1 / -1; min-height: 180px; }}
+  .secondary {{ margin-top: 24px; color: var(--muted); font-size: 13px; }}
+  .secondary a {{ color: var(--blue); text-underline-offset: 3px; }}
   .provenance {{
-    margin-top: 34px; padding-top: 18px; border-top: 1px solid #E2E8F0;
-    font-size: 13px; line-height: 1.6; color: #64748B;
+    max-width: 78ch; margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--border);
+    color: #6B7789; font-size: 12px; line-height: 1.65;
   }}
-  .provenance p {{ margin: 0 0 8px; }}
-  .provenance a {{ color: #1E3A8A; }}
+  .provenance p {{ margin: 0 0 6px; }}
+  .provenance a {{ color: var(--blue); }}
+  .site-footer {{ background: var(--navy); color: #94A3B8; }}
+  .site-footer__inner {{
+    width: min(1180px, calc(100% - 48px)); margin: 0 auto; padding: 26px 0;
+    display: flex; justify-content: space-between; gap: 24px; font-size: 12px;
+  }}
+  .site-footer a {{ color: #CBD5E1; text-decoration: none; }}
+  @media (max-width: 820px) {{
+    .primary-nav {{ display: none; }}
+    .site-header__inner {{ min-height: 64px; gap: 18px; }}
+    .header-signin {{ margin-left: auto; min-height: 40px; }}
+    .role-hero__inner {{ grid-template-columns: 1fr; gap: 38px; padding: 38px 0 44px; }}
+    .brief-grid {{ grid-template-columns: 1fr; gap: 46px; }}
+    .similar-grid {{ grid-template-columns: 1fr; }}
+    .similar-card {{ min-height: 205px; }}
+  }}
+  @media (max-width: 560px) {{
+    .site-header__inner, .role-hero__inner,
+    .page-shell, .site-footer__inner {{ width: min(100% - 32px, 1180px); }}
+    h1 {{ font-size: clamp(1.9rem, 8vw, 2.45rem); }}
+    .page-shell {{ padding: 46px 0 60px; }}
+    .similar-section {{ margin-top: 58px; padding-top: 42px; }}
+    .similar-heading {{ display: block; }}
+    .all-roles-link {{ display: inline-block; margin-top: 15px; }}
+    .site-footer__inner {{ display: block; }}
+    .site-footer__inner span {{ display: block; margin-top: 5px; }}
+  }}
+  @media (prefers-reduced-motion: reduce) {{
+    html {{ scroll-behavior: auto; }}
+    .similar-card {{ transition: none; }}
+  }}
 </style>
 </head>
 <body>
-<header><a href="/">FinEx Careers</a></header>
-<main>
-  <h1>{title}</h1>
-  <p class="company">{company}</p>
-  {f'<p class="facts">{facts}</p>' if facts else ""}
-  {f'<p class="salary">{salary}</p>' if salary else ""}
-  {status_banner}
-  {f'<p class="summary">{html.escape(detail.description_summary)}</p>' if detail.description_summary else ""}
-  <div>{skills}</div>
-  <div>
-    <a class="cta" href="/get-started">Sign in to see the full description &amp; apply</a>
+<a class="skip-link" href="#main-content">Skip to job content</a>
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="wordmark" href="/" aria-label="FinEx Careers home">
+      <span class="wordmark-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+          <rect width="20" height="14" x="2" y="6" rx="2"></rect>
+        </svg>
+      </span>
+      <span class="wordmark-name">FinEx <em>Careers</em></span>
+    </a>
+    <nav class="primary-nav" aria-label="Primary">
+      <a href="/jobs">Careers</a>
+      <a href="/learning">Learning</a>
+      <a href="/about">About</a>
+    </nav>
+    <a class="header-signin" href="/get-started">Sign in</a>
   </div>
-  {onward}
-  {provenance}
+</header>
+<main id="main-content" tabindex="-1">
+  <section class="role-hero" aria-labelledby="role-title">
+    <div class="role-hero__inner">
+      <div>
+        <a class="back-link" href="/jobs">&#8592; All roles</a>
+        <p class="hero-company">{company}</p>
+        <h1 id="role-title">{title}</h1>
+        <div class="hero-facts">{hero_facts}</div>
+      </div>
+      <aside class="action-panel" aria-label="Role actions">
+        {salary_block}
+        {primary_action}
+        <button class="share-button" type="button" data-share-url="{share_url}">Share role</button>
+        <p class="share-status" id="share-status" aria-live="polite"></p>
+      </aside>
+    </div>
+  </section>
+  <div class="page-shell">
+    {status_banner}
+    <section class="brief-grid" aria-label="Role brief">
+      <article>
+        <h2>About the role</h2>
+        <p class="summary-note">FinEx AI summary</p>
+        {summary}
+        {f'<div class="skills"><h3>Core skills</h3><div>{skills}</div></div>' if skills else ""}
+      </article>
+      <aside class="role-details">
+        <h2>Role details</h2>
+        <dl>{details}</dl>
+      </aside>
+    </section>
+    <section class="similar-section" id="similar-roles" aria-labelledby="similar-title">
+      <div class="similar-heading">
+        <div>
+          <h2 id="similar-title">Similar roles</h2>
+          <p>More live opportunities matched by discipline and skills.</p>
+        </div>
+        <a class="all-roles-link" href="/jobs">Explore all roles &#8594;</a>
+      </div>
+      <div class="similar-grid">{similar_cards}</div>
+    </section>
+    {onward}
+    {provenance}
+  </div>
 </main>
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <strong>FinEx Careers</strong>
+    <span>Built for Hong Kong finance professionals.</span>
+  </div>
+</footer>
+<script>
+  (() => {{
+    const button = document.querySelector('.share-button');
+    const status = document.querySelector('#share-status');
+    if (!button || !status) return;
+    let resetTimer;
+
+    const announce = (message, label = 'Share role') => {{
+      window.clearTimeout(resetTimer);
+      status.textContent = message;
+      button.textContent = label;
+      resetTimer = window.setTimeout(() => {{
+        button.textContent = 'Share role';
+        status.textContent = '';
+      }}, 2200);
+    }};
+
+    const fallbackCopy = (value) => {{
+      const input = document.createElement('textarea');
+      input.value = value;
+      input.setAttribute('readonly', '');
+      input.style.position = 'fixed';
+      input.style.opacity = '0';
+      document.body.appendChild(input);
+      input.select();
+      const copied = document.execCommand('copy');
+      input.remove();
+      return copied;
+    }};
+
+    button.addEventListener('click', async () => {{
+      const url = button.dataset.shareUrl;
+      if (!url) return;
+      if (navigator.share) {{
+        try {{
+          await navigator.share({{ title: document.title, url }});
+          announce('Shared');
+          return;
+        }} catch (error) {{
+          if (error && error.name === 'AbortError') return;
+        }}
+      }}
+      try {{
+        if (navigator.clipboard && window.isSecureContext) {{
+          await navigator.clipboard.writeText(url);
+        }} else if (!fallbackCopy(url)) {{
+          throw new Error('Copy unavailable');
+        }}
+        announce('Link copied', 'Copied');
+      }} catch (_error) {{
+        status.textContent = 'Copy the link from your address bar';
+      }}
+    }});
+  }})();
+</script>
 </body>
 </html>"""
 
@@ -1183,6 +1601,11 @@ _ROUTE_META: dict[str, tuple[str, str]] = {
         "Learning & Events for HK Finance — FinEx Careers",
         "Professional learning from the Financial Executive Club: training strands, "
         "a video library and upcoming events for Hong Kong finance professionals.",
+    ),
+    "/career-coaches": (
+        "Career Coaches by Finance Expertise | FinEx Careers",
+        "Find a FinEx career coach by domain expertise, from accounting and risk to "
+        "markets, investment, wealth, custody and digital assets.",
     ),
     "/get-started": (
         "Create Your Free FinEx Careers Account",
@@ -1766,6 +2189,9 @@ def job_teaser(source: str, source_id: str, slug: str, request: Request):
         return _spa_shell(request)
     with get_db(request) as conn:
         detail = job_read.get_job(conn, source, source_id, visibility=Visibility.ADDRESSABLE)
+        similar_roles = (
+            job_read.similar_public_jobs(conn, detail, limit=3) if detail is not None else []
+        )
     if detail is None:
         raise HTTPException(status_code=404, detail="Job not found")
     canonical_slug = _job_slug(detail.title, detail.company)
@@ -1773,7 +2199,7 @@ def job_teaser(source: str, source_id: str, slug: str, request: Request):
         return RedirectResponse(f"/jobs/{source}/{source_id}/{canonical_slug}", status_code=301)
     canonical_url = f"{_public_base(request)}/jobs/{source}/{source_id}/{canonical_slug}"
     return _noindex_if_off_canonical(
-        request, HTMLResponse(_job_teaser_html(detail, canonical_url))
+        request, HTMLResponse(_job_teaser_html(detail, canonical_url, similar_roles))
     )
 
 

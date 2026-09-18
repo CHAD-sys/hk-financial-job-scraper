@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   X, Bookmark, ExternalLink, MapPin, Briefcase,
   GraduationCap, DollarSign, Tag, Calendar, EyeOff, ShieldCheck,
-  Archive,
+  Archive, Share2, Check,
 } from 'lucide-react'
 import type { Job, JobDetail, LinkedInPostSignals } from '../api/client'
 import { fetchJobDetail } from '../api/client'
@@ -10,8 +10,9 @@ import SourceBadges from './SourceBadges'
 import { useModalHistoryGuard } from '../hooks/useModalHistoryGuard'
 import {
   formatSalary, formatEstimatedSalary, timeAgo, getSectorColor,
-  getSeniorityColor, formatRemoteType, shortLocation, displayCompany,
+  formatRemoteType, shortLocation, displayCompany, isManagementTraineeRole,
 } from '../utils/format'
+import { rolePagePath, rolePageUrl } from '../utils/roleUrl'
 
 interface Props {
   job: Job
@@ -123,7 +124,7 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
           <div className="px-6 py-5 flex flex-col gap-5">
 
             {/* Job boards this vacancy is listed on (detail view only) */}
-            <SourceBadges sources={detail?.sources ?? [job.source]} />
+            {!isManagementTraineeRole(d) && <SourceBadges sources={detail?.sources ?? [job.source]} />}
 
             {job.source_tier === 'social' && (
               <RecruiterAttribution
@@ -142,7 +143,6 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
               />
             )}
 
-            <SeniorityBadge seniority={job.seniority} />
             {/* Withheld on a Recruiter Post — there is no job description behind
                 these, only a few lines of social copy, so they are the model's
                 guess rather than the employer's requirement. Same rule as the
@@ -225,6 +225,7 @@ function ModalHeader({
       </div>
 
       <div className="flex items-center gap-2 flex-shrink-0">
+        <ShareButton job={job} title={displayTitle} />
         <button
           type="button"
           onClick={() => onToggleSave(job)}
@@ -252,6 +253,73 @@ function ModalHeader({
         </button>
       </div>
     </div>
+  )
+}
+
+// ── Share ──────────────────────────────────────────────────────────────────
+//
+// The permanent, public link for one Role. It points at the SEO teaser route
+// (`GET /jobs/{source}/{source_id}` — main.py) rather than this SPA URL: that
+// route needs no session and no Role-access grant (ADR 0018's one deliberate
+// exception), so a link pasted into WhatsApp/Slack/email resolves for anyone,
+// signed in or not, and unfurls with real title/company/salary via its OG
+// tags. It 301s to the canonical `/{slug}` path itself, so the bare
+// source/source_id pair below is all a share link ever needs to carry.
+
+function roleShareUrl(source: string, sourceId: string): string {
+  return rolePageUrl(source, sourceId)
+}
+
+function ShareButton({ job, title }: { job: Job; title: string }) {
+  const [copied, setCopied] = useState(false)
+  const timeoutRef = useRef<number | null>(null)
+
+  useEffect(() => () => { if (timeoutRef.current) window.clearTimeout(timeoutRef.current) }, [])
+
+  const handleShare = async () => {
+    const url = roleShareUrl(job.source, job.source_id)
+    const shareText = `${title} at ${displayCompany(job.company, job.source_tier)}`
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: shareText, url })
+        return
+      } catch {
+        // Cancelled or unsupported mid-call — fall through to clipboard copy.
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      if (timeoutRef.current) window.clearTimeout(timeoutRef.current)
+      timeoutRef.current = window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      window.prompt('Copy this link:', url)
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleShare}
+      className="flex items-center gap-1.5 rounded px-3 py-2 text-sm font-medium transition-colors duration-150 cursor-pointer"
+      style={{
+        border: '1px solid var(--color-border)',
+        color: copied ? 'var(--color-success)' : 'var(--color-ink-muted)',
+        backgroundColor: copied ? 'var(--color-success-bg)' : 'var(--color-surface)',
+      }}
+    >
+      {copied ? (
+        <>
+          <Check size={14} strokeWidth={2} />
+          Copied!
+        </>
+      ) : (
+        <>
+          <Share2 size={14} strokeWidth={1.8} />
+          Share
+        </>
+      )}
+    </button>
   )
 }
 
@@ -307,7 +375,7 @@ function RecruiterAttribution({ signals }: { signals: LinkedInPostSignals | unde
   )
 }
 
-// ── Meta grid: location / work type / seniority / etc. ───────────────────────
+// ── Meta grid: location / work type / etc. ───────────────────────────────────
 
 function MetaGrid({ d }: { d: Job | JobDetail }) {
   return (
@@ -319,8 +387,6 @@ function MetaGrid({ d }: { d: Job | JobDetail }) {
         { icon: MapPin, label: 'Location', val: shortLocation(d.locations) },
         { icon: Briefcase, label: 'Work type', val: formatRemoteType(d.remote_type) || '—' },
         // Omitted entirely (not '—') when null: hidden from non-admins, same
-        // as SeniorityBadge above and JobCard's meta row.
-        ...(d.seniority ? [{ icon: Tag, label: 'Seniority', val: d.seniority }] : []),
         { icon: Tag, label: 'Category', val: d.job_category ?? '—' },
         { icon: GraduationCap, label: 'Experience', val: d.years_experience_required != null ? `${d.years_experience_required}+ yrs` : '—' },
         { icon: Calendar, label: 'Posted', val: timeAgo(d.posted_at) },
@@ -430,26 +496,9 @@ function EstimatedSalary({
         <p className="text-xs mt-0.5" style={{ color: 'var(--color-ink-faint)' }}>
           {verified
             ? 'Reviewed and set by the FinEx team — still not disclosed by the employer.'
-            : 'Estimated from role, seniority & market — not disclosed by the employer.'}
+            : 'Estimated from role and market — not disclosed by the employer.'}
         </p>
       </div>
-    </div>
-  )
-}
-
-// ── Seniority badge ───────────────────────────────────────────────────────────
-
-function SeniorityBadge({ seniority }: { seniority: string | null }) {
-  const senColor = getSeniorityColor(seniority)
-  if (!senColor || !seniority) return null
-  return (
-    <div className="flex items-center gap-2">
-      <span
-        className="inline-flex items-center rounded px-3 py-1 text-xs font-semibold uppercase tracking-wider"
-        style={{ backgroundColor: senColor.bg, color: senColor.text }}
-      >
-        {seniority}
-      </span>
     </div>
   )
 }
@@ -541,21 +590,13 @@ function ApplyFooter({ job }: { job: Job }) {
         className="flex-shrink-0 px-6 py-4"
         style={{ borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)' }}
       >
-        <a
-          href={job.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex w-full items-center justify-center gap-2 rounded py-3 text-sm font-semibold transition-colors duration-200 cursor-pointer"
-          style={{ backgroundColor: '#6B4EFF', color: '#fff' }}
-          onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#5A3FE0')}
-          onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#6B4EFF')}
-        >
-          View the original LinkedIn post
-          <ExternalLink size={15} strokeWidth={2} />
-        </a>
-        <p className="text-center text-xs mt-2" style={{ color: 'var(--color-ink-faint)' }}>
-          There is no formal application for this Role. Respond to the post itself.
-        </p>
+        <RoleActionDeck
+          job={job}
+          destinationHref={job.url}
+          destinationLabel="View the original LinkedIn post"
+          destinationHint="Respond to the recruiter’s post"
+          destinationTone="social"
+        />
       </div>
     )
   }
@@ -565,21 +606,60 @@ function ApplyFooter({ job }: { job: Job }) {
       className="flex-shrink-0 px-6 py-4"
       style={{ borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)' }}
     >
+      <RoleActionDeck
+        job={job}
+        destinationHref={job.url}
+        destinationLabel="Apply on company site"
+        destinationHint="Employer site · opens a new tab"
+        destinationTone="apply"
+      />
+    </div>
+  )
+}
+
+function RoleActionDeck({
+  job,
+  destinationHref,
+  destinationLabel,
+  destinationHint,
+  destinationTone,
+}: {
+  job: Job
+  destinationHref: string
+  destinationLabel: string
+  destinationHint: string
+  destinationTone: 'apply' | 'social'
+}) {
+  return (
+    <div className="role-action-deck" role="group" aria-label="Role actions">
       <a
-        href={job.url}
+        href={destinationHref}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex w-full items-center justify-center gap-2 rounded py-3 text-sm font-semibold transition-colors duration-200 cursor-pointer"
-        style={{ backgroundColor: '#059669', color: '#fff' }}
-        onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#047857')}
-        onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.backgroundColor = '#059669')}
+        className={`role-action role-action--${destinationTone}`}
       >
-        Apply on company site
-        <ExternalLink size={15} strokeWidth={2} />
+        <span className="role-action__icon" aria-hidden="true">
+          <ExternalLink size={16} strokeWidth={1.9} />
+        </span>
+        <span className="role-action__copy">
+          <span className="role-action__label">{destinationLabel}</span>
+          <span className="role-action__hint">{destinationHint}</span>
+        </span>
       </a>
-      <p className="text-center text-xs mt-2" style={{ color: 'var(--color-ink-faint)' }}>
-        Opens the employer's careers page in a new tab
-      </p>
+
+      <a
+        href={rolePagePath(job.source, job.source_id)}
+        className="role-action role-action--page"
+        aria-label={`Open Role page for ${job.title_en || job.title}`}
+      >
+        <span className="role-action__icon" aria-hidden="true">
+          <ExternalLink size={16} strokeWidth={1.9} />
+        </span>
+        <span className="role-action__copy">
+          <span className="role-action__label">Open Role page</span>
+          <span className="role-action__hint">Permanent FinEx link · easy to share</span>
+        </span>
+      </a>
     </div>
   )
 }
@@ -607,10 +687,10 @@ function ClosedFooter({ job }: { job: Job }) {
         }}
       >
         <Archive size={15} strokeWidth={2} aria-hidden="true" />
-        No longer accepting applications
+        To be updated
       </div>
       <p className="text-center text-xs mt-2" style={{ color: 'var(--color-ink-faint)' }}>
-        This Role has closed since it was posted. It stays in your Saved Roles so
+        This Role is awaiting a status update. It stays in your Saved Roles so
         you can look back at what you applied to.
       </p>
       {job.url && (

@@ -30,6 +30,11 @@ def client(tmp_path):
         job(source="workday", source_id="MAIN", company="HSBC",
             title="Credit Risk Analyst", posted_at=days_ago(1),
             description_clean="SECRET FULL DESCRIPTION mainstream."),
+        job(source="workday", source_id="RELATED", company="DBS",
+            title="Market Risk Associate", posted_at=days_ago(4),
+            locations='["Hong Kong"]'),
+        job(source="workday", source_id="WEAK", company="Example Bank",
+            title="Personal Assistant", posted_at=days_ago(5)),
         job(source="longtail", source_id="BOUT", company="Harbour Capital",
             title="Treasury Analyst", source_tier="boutique",
             posted_at=days_ago(2), description_clean="SECRET FULL DESCRIPTION boutique."),
@@ -44,7 +49,17 @@ def client(tmp_path):
     enrichments = [
         enrichment(source="workday", source_id="MAIN",
                    description_summary="Analyse credit risk at HSBC.",
-                   salary_hkd_min=40_000, salary_hkd_max=60_000),
+                   salary_hkd_min=40_000, salary_hkd_max=60_000,
+                   seniority="Mid level", job_category="Risk",
+                   required_skills='["Credit risk", "Financial analysis"]'),
+        enrichment(source="workday", source_id="RELATED",
+                   description_summary="Support market risk monitoring at DBS.",
+                   seniority="Mid level", job_category="Risk",
+                   required_skills='["Market risk", "Financial analysis"]'),
+        enrichment(source="workday", source_id="WEAK",
+                   description_summary="Provide administrative support.",
+                   seniority="Mid level", job_category="Risk",
+                   required_skills='["Calendar management"]'),
         enrichment(source="longtail", source_id="BOUT",
                    description_summary="Manage treasury operations."),
         enrichment(source="linkedin_posts", source_id="SOC",
@@ -112,6 +127,27 @@ def test_teaser_never_leaks_the_full_description(client):
     resp = client.get("/jobs/workday/MAIN/credit-risk-analyst-hsbc")
     assert "SECRET FULL DESCRIPTION" not in resp.text
     assert "Analyse credit risk at HSBC." in resp.text  # the summary is fine
+
+
+def test_teaser_is_a_shareable_ai_brief_with_room_for_similar_roles(client):
+    resp = client.get("/jobs/workday/MAIN/credit-risk-analyst-hsbc")
+
+    assert 'id="role-summary"' in resp.text
+    assert 'data-description-source="ai-summary"' in resp.text
+    assert 'href="#main-content"' in resp.text
+    assert 'id="main-content"' in resp.text
+    assert (
+        'data-share-url="http://testserver/jobs/workday/MAIN/credit-risk-analyst-hsbc"'
+        in resp.text
+    )
+    assert 'id="similar-roles"' in resp.text
+    assert "Market Risk Associate" in resp.text
+    assert '/jobs/workday/RELATED/market-risk-associate-dbs' in resp.text
+    assert "Personal Assistant" not in resp.text
+    assert "Treasury Analyst" not in resp.text  # boutique discovery stays gated
+    assert "Risk Manager" not in resp.text  # recruiter-post discovery stays gated
+    assert 'class="wordmark-mark"' in resp.text
+    assert resp.text.count("<header") == 1
 
 
 def test_teaser_has_jobposting_structured_data(client):

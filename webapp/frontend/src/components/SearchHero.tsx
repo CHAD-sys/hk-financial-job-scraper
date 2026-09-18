@@ -165,6 +165,23 @@ export default function SearchHero({
           recruiters and jobs not available on major job portals.
         </p>
 
+        <div className="mb-7 flex flex-wrap items-center justify-center gap-3 text-sm" style={{ color: 'var(--color-ink-muted)' }}>
+          <span>Starting your career?</span>
+          <a
+            href="/management-trainee"
+            className="inline-flex min-h-11 items-center gap-2 rounded px-4 py-2 font-semibold no-underline"
+            style={{
+              border: '1px solid var(--color-border-strong)',
+              backgroundColor: 'var(--color-surface)',
+              color: 'var(--color-blue)',
+              boxShadow: 'var(--shadow-card)',
+            }}
+          >
+            View MT programmes
+            <ArrowRight size={15} aria-hidden="true" />
+          </a>
+        </div>
+
         {/* ── The search field ───────────────────────────────────────────────
             The single primary affordance on this screen. Nothing else here is
             styled to compete with it. */}

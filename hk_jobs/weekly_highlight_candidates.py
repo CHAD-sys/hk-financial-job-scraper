@@ -313,19 +313,8 @@ def send_weekly_highlight_candidates(
 ) -> bool:
     candidates = select_weekly_highlight_candidates(db_path, as_of=as_of, limit=limit)
     today = as_of or date.today()
-    week_start, _ = _upcoming_week(today)
-    lock_weekly_highlights(
-        db_path,
-        [
-            WeeklyHighlightRef(
-                candidate.source,
-                candidate.source_id,
-                candidate.category,
-            )
-            for candidate in candidates
-        ],
-        week_start=week_start,
-    )
+    # The email is a shortlist, not publication. Ultimate Admin locks the
+    # selected refs from the Validate workspace after reviewing this list.
     subject, html, text = build_weekly_highlight_email(
         candidates,
         as_of=today,

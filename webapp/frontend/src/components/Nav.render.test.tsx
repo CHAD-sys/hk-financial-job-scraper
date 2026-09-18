@@ -61,6 +61,16 @@ beforeEach(() => {
 })
 
 describe('Nav — Employer view switch', () => {
+  it('keeps career development local and Market Research explicitly external', () => {
+    renderNav()
+
+    expect(screen.getByText('Career development')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Management Trainee programmes' })).toHaveAttribute('href', '/management-trainee')
+    expect(screen.getByRole('link', { name: 'Career coaches' })).toHaveAttribute('href', '/career-coaches')
+    expect(screen.getByRole('link', { name: /Market Research/ })).toHaveAttribute('target', '_blank')
+    expect(screen.queryByRole('link', { name: /Consultation/ })).not.toBeInTheDocument()
+  })
+
   it('is absent for anyone who could not use it', () => {
     renderNav()
     expect(screen.queryByRole('button', { name: /Employer view/ })).not.toBeInTheDocument()

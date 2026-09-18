@@ -44,6 +44,7 @@ _PAGE_FOR_ROUTE = {
     "/": "LandingPage.tsx",
     "/about": "AboutPage.tsx",
     "/learning": "LearningPage.tsx",
+    "/career-coaches": "CareerCoachesPage.tsx",
     "/privacy": "PrivacyPage.tsx",
 }
 _LAYOUT_ROUTES = {"/get-started", "/post-a-role"}

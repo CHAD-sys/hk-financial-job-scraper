@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import JobCard from './JobCard'
 import type { Job } from '../api/client'
 
@@ -61,9 +61,36 @@ const recruiterPost: Job = {
 const noop = () => {}
 
 describe('JobCard', () => {
+  it('drags the permanent Role URL into another browser window', () => {
+    render(<JobCard job={base} saved={false} onToggleSave={noop} onClick={noop} />)
+
+    const roleLink = screen.getByRole('link', { name: 'Vice President, Credit Risk at HSBC' })
+    expect(roleLink).toHaveAttribute('href', '/jobs/jobsdb/1')
+
+    const setData = vi.fn()
+    fireEvent.dragStart(roleLink, { dataTransfer: { setData, effectAllowed: '' } })
+    expect(setData).toHaveBeenCalledWith('text/uri-list', 'http://localhost:3000/jobs/jobsdb/1')
+    expect(setData).toHaveBeenCalledWith('text/plain', 'http://localhost:3000/jobs/jobsdb/1')
+  })
+
   it('shows where the Role was retrieved from', () => {
     render(<JobCard job={base} saved={false} onToggleSave={noop} onClick={noop} />)
     expect(screen.getByText('JobsDB')).toBeTruthy()
+  })
+
+  it('makes career coaching discoverable on an open Role', () => {
+    render(<JobCard job={{ ...base, company: 'Citi' }} saved={false} onToggleSave={noop} onClick={noop} />)
+    expect(screen.getByRole('link', { name: 'Career coaching' })).toHaveAttribute('href', 'https://www.finexcareers.com/career-coaches')
+  })
+
+  it('recommends Morris Hui on the specified employer Roles', () => {
+    render(<JobCard job={base} saved={false} onToggleSave={noop} onClick={noop} />)
+    expect(screen.getByRole('link', { name: 'Career coaching with Morris Hui, CFA' })).toHaveAttribute('href', 'https://www.finexclub.org/morris-hui')
+  })
+
+  it('does not promote coaching on a closed Role', () => {
+    render(<JobCard job={{ ...base, closed: true }} saved={false} onToggleSave={noop} onClick={noop} />)
+    expect(screen.queryByRole('link', { name: /coach/i })).toBeNull()
   })
 
   it('explains why a searched Role matched', () => {
@@ -129,9 +156,15 @@ describe('JobCard', () => {
     expect(screen.getByText('Citi')).toBeTruthy()
   })
 
-  it('says CLOSED once, loudly, rather than twice in small print', () => {
+  it('uses a calm update-needed label once, rather than repeating a closed status', () => {
     render(<JobCard job={{ ...base, closed: true }} saved onToggleSave={noop} onClick={noop} />)
-    expect(screen.getAllByText('Closed')).toHaveLength(1)
+    expect(screen.getAllByText('To be updated')).toHaveLength(1)
+    expect(screen.queryByText('Closed')).toBeNull()
+  })
+
+  it('keeps seniority available to filters but out of the role card', () => {
+    render(<JobCard job={base} saved={false} onToggleSave={noop} onClick={noop} />)
+    expect(screen.queryByText('senior', { exact: true })).toBeNull()
   })
 
   it('drops market signals on a closed Role — they claim it is still open', () => {

@@ -1,11 +1,13 @@
 import { Bookmark, MapPin, Briefcase, Clock, Star, Flame, Sparkles, Repeat2, Users, EyeOff, ShieldCheck, Archive, SquarePen } from 'lucide-react'
 import type { Job, LinkedInPostSignals } from '../api/client'
 import { SourceTag } from './SourceBadges'
+import CareerCoachingTag from './CareerCoachingTag'
 import {
   formatSalary, formatEstimatedSalary, timeAgo, monogram, displayCompany,
   getSectorColor,
-  formatRemoteType, shortLocation,
+  formatRemoteType, shortLocation, isManagementTraineeRole,
 } from '../utils/format'
+import { rolePagePath } from '../utils/roleUrl'
 
 interface Props {
   job: Job
@@ -128,8 +130,10 @@ export default function JobCard({ job, saved, onToggleSave, onClick, onEdit }: P
           the eye has to parse every row to find out which ones belong
           together. */}
       <div className="flex flex-col gap-2">
-        {/* A real button whose hit-area is stretched over the whole card, so
-            the card is clickable AND keyboard/screen-reader operable. */}
+        {/* A real link whose hit-area is stretched over the whole card. A
+            normal click is intercepted to keep the board's quick-detail
+            panel; dragging, modifier-clicking, copying, and the browser's
+            context menu all carry the permanent public Role URL. */}
         <h3
           className="text-lg font-semibold leading-snug line-clamp-2"
           style={{
@@ -138,14 +142,25 @@ export default function JobCard({ job, saved, onToggleSave, onClick, onEdit }: P
             letterSpacing: '-0.01em',
           }}
         >
-          <button
-            type="button"
-            onClick={() => onClick(job)}
+          <a
+            href={rolePagePath(job.source, job.source_id)}
+            draggable
+            onClick={event => {
+              if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+              event.preventDefault()
+              onClick(job)
+            }}
+            onDragStart={event => {
+              const url = event.currentTarget.href
+              event.dataTransfer.effectAllowed = 'link'
+              event.dataTransfer.setData('text/uri-list', url)
+              event.dataTransfer.setData('text/plain', url)
+            }}
             className="text-left cursor-pointer after:absolute after:inset-0 after:content-['']"
             aria-label={`${displayTitle} at ${company}`}
           >
             {displayTitle}
-          </button>
+          </a>
         </h3>
 
         {job.match_reason && <MatchReason reason={job.match_reason} />}
@@ -164,6 +179,8 @@ export default function JobCard({ job, saved, onToggleSave, onClick, onEdit }: P
       {!job.closed && job.source_tier !== 'social' && (
         <SignalBadges boardSignals={job.board_signals} isNew={job.is_new} />
       )}
+
+      {!job.closed && <CareerCoachingTag company={job.company} />}
 
       <CardFooter job={job} />
     </article>
@@ -362,26 +379,11 @@ function CardHeader({
   )
 }
 
-// ── Meta row: seniority / location / work type / internship ──────────────────
+// ── Meta row: location / work type / internship ──────────────────────────────
 
 function MetaRow({ job }: { job: Job }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-      {/* Seniority — set, not filled.
-          It used to be one of five coloured pills (navy / blue / slate / gold /
-          grey), which spent five of the card's colours on a field that is
-          already ranked by its own words: nobody needs a hue to know LEAD sits
-          above JUNIOR. Small caps with wide tracking gives it the same
-          at-a-glance weight typographically, and hands five colours back. */}
-      {job.seniority && (
-        <span
-          className="text-xs font-bold uppercase"
-          style={{ color: 'var(--color-ink)', fontSize: '11px', letterSpacing: '0.12em' }}
-        >
-          {job.seniority}
-        </span>
-      )}
-
       {/* Location */}
       <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--color-ink-muted)' }}>
         <MapPin size={11} strokeWidth={1.8} />
@@ -404,7 +406,7 @@ function MetaRow({ job }: { job: Job }) {
       {/* Where this Role was retrieved from. Sits at the end of the meta row
           rather than the head of it: provenance qualifies everything to its
           left, and is the last thing you want when scanning, not the first. */}
-      <SourceTag source={job.source} />
+      {!isManagementTraineeRole(job) && <SourceTag source={job.source} />}
 
       {/* Internship — an outline, not amber. It is a category of role, not a
           warning, and it was the only yellow in the interface. */}
@@ -634,7 +636,7 @@ function ClosedBanner() {
           letterSpacing: '0.16em',
         }}
       >
-        Closed
+        To be updated
       </span>
     </div>
   )

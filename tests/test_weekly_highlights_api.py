@@ -95,24 +95,14 @@ def test_weekly_snapshot_is_write_once_even_when_sunday_selection_changes(tmp_pa
         assert current_weekly_highlights(conn, as_of=date.today()) == first
 
 
-def test_highlight_feed_keeps_a_closed_midweek_role_openable(tmp_path):
+def test_highlight_feed_never_advertises_a_closed_role_on_the_homepage(tmp_path):
     _, client = _make_highlight_client(tmp_path)
 
     response = client.get("/api/highlights")
 
     assert response.status_code == 200, response.text
     body = response.json()
-    assert [entry["role"]["source_id"] for entry in body["roles"]] == ["FEATURED"]
-    featured = body["roles"][0]["role"]
-    assert featured["closed"] is True
-    assert featured["access_token"]
-
-    detail = client.get(
-        "/api/jobs/workday/FEATURED",
-        headers={"X-Role-Access": featured["access_token"]},
-    )
-    assert detail.status_code == 200, detail.text
-    assert detail.json()["closed"] is True
+    assert body["roles"] == []
 
 
 def test_exact_highlight_resolver_grants_only_this_weeks_pinned_roles(tmp_path):

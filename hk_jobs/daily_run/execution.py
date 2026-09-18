@@ -208,17 +208,30 @@ class CommandPhaseExecutor:
         self._pipeline(*arguments)
         written = self._enrichments_written_since(newest_before)
         calls = self._enrichment_calls(record.run_id)
+        processed = self._enrichment_roles_processed(record.run_id)
 
-        # Money spent, nothing produced. This is the assertion whose absence let
-        # the 2026-08-19 outage pass for a normal night: 906 calls, every one
-        # truncated at max_tokens, zero rows written, phase green, run published.
-        # Deliberately NOT "calls == 0 is a failure" — a night with nothing stale
-        # to enrich legitimately makes no calls at all.
-        if calls and not written:
+        # Work attempted, nothing produced. This is the assertion whose absence
+        # let two outages pass for a normal night:
+        #   2026-08-19 — 906 calls, every one truncated at max_tokens, 0 written.
+        #   2026-09-15 — DeepSeek returned HTTP 402 "Insufficient Balance" on
+        #     every one of 187 queued roles; every attempt died before the API
+        #     layer counted it as a billed `call`, so `calls` was ALSO 0 that
+        #     night. Gating on `calls` alone missed it: the phase reported
+        #     "Nothing new to enrich" — indistinguishable from a quiet night —
+        #     for a run that had 187 roles queued and wrote zero of them.
+        # `processed` (= enriched + failed, hk_jobs/enrichment.py) is set
+        # whenever a non-empty batch was fetched, regardless of whether any
+        # individual attempt made it far enough to register as a `call`, so it
+        # catches both shapes of "we tried and wrote nothing."
+        # Deliberately NOT "processed == 0 is a failure" — a night with nothing
+        # stale to enrich legitimately fetches an empty batch and processes 0.
+        if processed and not written:
             raise RuntimeError(
-                f"DeepSeek made {calls} calls and wrote 0 enrichments. "
-                "The estimator is failing on every role — check for truncation "
-                "(TruncatedAnswer in the pipeline log) before the next run."
+                f"DeepSeek processed {processed} role(s) ({calls} counted as "
+                "billed API calls) and wrote 0 enrichments. The estimator is "
+                "failing on every role — check for truncation (TruncatedAnswer "
+                "in the pipeline log) or an API error (e.g. insufficient "
+                "balance) before the next run."
             )
 
         detail = f"Enriched {written} Roles" if written else "Nothing new to enrich"
@@ -258,6 +271,19 @@ class CommandPhaseExecutor:
     def _enrichment_calls(self, run_id: str) -> int:
         return int(self._query_one(
             "SELECT COALESCE(SUM(calls),0) FROM ai_usage "
+            "WHERE run_id=? AND phase='deepseek_enrichment'",
+            (run_id,),
+        ) or 0)
+
+    def _enrichment_roles_processed(self, run_id: str) -> int:
+        # `roles_processed` (= enriched + failed, hk_jobs/enrichment.py) is set
+        # even when every attempt died before the API layer counted it as a
+        # billed `call` — e.g. every request in the batch got HTTP 402
+        # "Insufficient Balance" (2026-09-15: 187 processed, 0 calls, 0 written,
+        # phase reported "Nothing new to enrich"). `calls` alone cannot see that
+        # batch existed at all, so the guard below reads this instead.
+        return int(self._query_one(
+            "SELECT COALESCE(SUM(roles_processed),0) FROM ai_usage "
             "WHERE run_id=? AND phase='deepseek_enrichment'",
             (run_id,),
         ) or 0)
@@ -317,14 +343,9 @@ class CommandPhaseExecutor:
         if not url or not token:
             raise RuntimeError("Railway publication URL or token is not configured")
         hong_kong_now = self._now().astimezone(ZoneInfo("Asia/Hong_Kong"))
-        if record.profile == "hosted" and hong_kong_now.isoweekday() == 7:
-            # This happens before the digest and gzip snapshot: the exact
-            # Sunday selection therefore reaches Railway in this publication,
-            # and every later pipeline run reads the same locked references.
-            lock_next_week_highlights(
-                self.paths.database,
-                as_of=hong_kong_now.date(),
-            )
+        # A shortlist is no longer an editorial decision. Ultimate Admin locks
+        # next week's selection from Validate; a missed review means an empty
+        # banner, never an automatic publication.
         digest = self._sha256(self.paths.database)
         packed = tempfile.NamedTemporaryFile(prefix="daily-run-", suffix=".db.gz", delete=False)
         packed_path = Path(packed.name)

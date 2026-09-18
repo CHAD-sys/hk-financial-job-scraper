@@ -132,6 +132,13 @@ export function getSeniorityColor(seniority: string | null) {
   return SENIORITY_COLOR[seniority.toLowerCase()] ?? { bg: '#F1F5F9', text: '#475569' }
 }
 
+/** MT roles use a curated presentation; source-board provenance stays hidden. */
+export function isManagementTraineeRole(job: Pick<{ title: string; title_en?: string | null; job_category?: string | null }, 'title' | 'title_en' | 'job_category'>) {
+  return /management\s*trainee|graduate\s*trainee|trainee\s*programme|trainee\s*program/i.test(
+    [job.title, job.title_en, job.job_category].filter(Boolean).join(' '),
+  )
+}
+
 export function formatRemoteType(r: string | null): string {
   if (!r) return ''
   const map: Record<string, string> = {

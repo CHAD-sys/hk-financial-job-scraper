@@ -5,6 +5,8 @@ import Nav from '../components/Nav'
 import WeeklyHighlights from '../components/highlights/WeeklyHighlights'
 import ProductDoor from '../components/ProductDoor'
 import ResumeFeatureSpotlight from '../components/ResumeFeatureSpotlight'
+import MTAnnouncementBand from '../components/MTAnnouncementBand'
+import MTProgrammeShowcase from '../components/MTProgrammeShowcase'
 import useHashScroll from '../hooks/useHashScroll'
 import { fetchStats } from '../api/client'
 import { SUBSCRIBER_LINE } from '../content/featuredVideos'
@@ -43,7 +45,9 @@ export default function LandingPage() {
       <script type="application/ld+json">{JSON.stringify(ORG_JSONLD)}</script>
       <Nav />
       <main id="main-content">
+        <MTAnnouncementBand />
         <PortalHero />
+        <MTProgrammeShowcase />
         <WeeklyHighlights />
         <ResumeFeatureSpotlight />
         <PostRoleStripe />
@@ -98,8 +102,8 @@ function PortalHero() {
 
   return (
     <section aria-labelledby="portal-heading" className="relative overflow-hidden">
-      {/* Grid texture + gold top rule, carried over from the previous hero —
-          the identity stays even though the structure is entirely new. */}
+      {/* The quiet grid texture carries the visual identity without adding
+          another horizontal rule beneath the announcement capsule. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0"
@@ -110,8 +114,6 @@ function PortalHero() {
           opacity: 0.45,
         }}
       />
-      <div aria-hidden="true" className="absolute inset-x-0 top-0 h-0.5" style={{ backgroundColor: 'var(--color-gold)' }} />
-
       <div className="relative mx-auto max-w-7xl px-6 lg:px-8 pt-14 pb-16 sm:pt-20 lg:pt-24">
         <span
           className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase"
@@ -294,6 +296,7 @@ function LandingFooter() {
         <nav className="flex flex-wrap gap-x-6 gap-y-2" aria-label="Footer navigation">
           <FooterLink to="/jobs">Browse roles</FooterLink>
           <FooterLink to={CONSULTATION_URL}>Consultation</FooterLink>
+          <FooterLink to="/career-coaches">Career coaches</FooterLink>
           <FooterLink to="/learning">Learning</FooterLink>
           <FooterLink to="/post-a-role">Post a role</FooterLink>
           <FooterLink to="/about">About</FooterLink>
