@@ -746,7 +746,7 @@ button, a, input, select, [role="button"], [role="tab"] {
 .mt-logo-band__item { display: inline-flex; min-width: 9.5rem; height: 4.5rem; flex-direction: column; align-items: center; justify-content: center; gap: 0.28rem; border-right: 1px solid var(--color-border); padding: 0.55rem 1rem; color: var(--color-ink-muted); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.03em; text-align: center; }
 .mt-logo-band__item > span:last-child { display: -webkit-box; max-width: 8rem; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 1; line-height: 1.2; white-space: normal; }
 .mt-logo-band__item img, .mt-logo-band__item .mt-open-employers__wordmark { display: block; width: 5.75rem; height: 2rem; object-fit: contain; object-position: center; }
-.mt-logo-band__item .mt-open-employers__wordmark { display: flex; align-items: center; justify-content: center; color: var(--color-ink); font-family: var(--font-display); font-size: 0.72rem; line-height: 0.95; }
+.mt-logo-band__item .mt-open-employers__wordmark { display: flex; max-width: 7rem; align-items: center; justify-content: center; overflow: hidden; color: var(--color-ink); font-family: var(--font-display); font-size: 0.64rem; line-height: 0.95; text-overflow: ellipsis; white-space: nowrap; }
 @keyframes mt-logo-band-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 .mt-opening { scroll-margin-top: 7rem; }
 .mt-openings { border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
