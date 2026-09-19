@@ -63,9 +63,26 @@ data/jobs.db
 data/jobs.db-shm
 data/jobs.db-wal
 
-# graphify local cache (keep graph artifacts, drop cache)
+# graphify local cache (keep graph artifacts, drop cache). `.vocab.txt` is a
+# regenerable wordlist derived from the graph for query expansion — same family
+# as the .graphify_* files, just without the prefix.
 graphify-out/cache/
 graphify-out/.graphify_*
+graphify-out/.vocab.txt
+
+# graphify per-run snapshots. Every run writes a dated directory carrying a
+# full ~11 MB graph.json; 25 of them had accumulated to 274 MB against a 129 MB
+# .git, and `origin` fans out to the PUBLIC CHAD-sys mirror, so tracking them
+# triples the repo permanently and in history. The current graph at
+# graphify-out/ (GRAPH_REPORT.md, graph.json, manifest.json) stays tracked —
+# that is the one a reader wants. Dated dirs already committed before this rule
+# keep their history; .gitignore does not untrack what is already tracked.
+graphify-out/20??-??-??/
+
+# graphify session memory — 129 markdown transcripts of past conversations,
+# filenames included. Local recall aid, not source, and not something to
+# publish to a public mirror.
+graphify-out/memory/
 
 # PocketBase (verification mirror) — binary + local data, not source
 pocketbase/
