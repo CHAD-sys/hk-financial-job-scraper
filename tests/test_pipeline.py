@@ -22,7 +22,7 @@ needs a helper to state it. `_args()` returns a `PipelineArgs`, which supplies
 production's default for every setting a test does not name.
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from hk_jobs.cli import PipelineArgs
@@ -255,6 +255,47 @@ def test_run_reports_every_source_for_a_cross_posted_company(tmp_path: Path, mon
     by_source = {r.source: r for r in dbs_results}
     assert by_source["workday"].total_fetched == 1
     assert by_source["linkedin"].total_fetched == 2
+
+
+def test_job_history_totals_a_cross_posted_company_across_its_sources(tmp_path: Path):
+    """RED before record_scrape_snapshot summed per company: `job_history` is
+    keyed (company_id, scraped_date) with no source dimension, so same-slug
+    results were written one at a time and the last writer won.
+
+    The order below is the one that mattered in production: the employer's
+    LinkedIn entry finds nothing today, its Workday entry finds 294, and the
+    empty one is written last. Under last-wins that stored job_count=0 for a
+    company with 294 live roles — which notifications.py reports as a
+    zero-yield company, and which makes the next day's delta meaningless.
+    Driven directly rather than through run(), because through the pipeline
+    the losing source is decided by ThreadPoolExecutor completion order, and a
+    test that depends on a race proves nothing.
+    """
+    import sqlite3
+
+    from hk_jobs.analytics import record_scrape_snapshot
+    from hk_jobs.pipeline import CompanyResult
+
+    db = _db(tmp_path)
+    results = [
+        CompanyResult("DBS Bank (Hong Kong)", "dbs-hk", 294, 1, 293, 3, 426.8, source="workday"),
+        CompanyResult("DBS Bank (Hong Kong)", "dbs-hk", 0, 0, 0, 0, 70.9, source="linkedin"),
+    ]
+
+    record_scrape_snapshot(db, results, date(2026, 9, 18))
+
+    conn = sqlite3.connect(db)
+    try:
+        rows = conn.execute(
+            "SELECT job_count FROM job_history WHERE company_id='dbs-hk'"
+        ).fetchall()
+    finally:
+        conn.close()
+
+    # One row for the employer, carrying the total across its sources — never
+    # the empty LinkedIn result overwriting the real Workday one.
+    assert len(rows) == 1
+    assert rows[0][0] == 294
 
 
 # ── export ────────────────────────────────────────────────────────────────────

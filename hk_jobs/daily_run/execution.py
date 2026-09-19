@@ -204,11 +204,21 @@ class CommandPhaseExecutor:
         if limit:
             arguments.extend(["--enrich-limit", limit])
 
+        # BOTH sides of the guard below are deltas across this one phase call.
+        # `ai_usage` rows are keyed (run_id, phase, model) and GitHub's "Re-run
+        # jobs" REUSES GITHUB_RUN_ID, so a cumulative read would see the previous
+        # attempt's totals: a re-run that legitimately has nothing left to enrich
+        # would read processed>0 (stale) against written==0 (correct) and fail a
+        # run that was fine. Measuring before and after keeps the comparison
+        # about what THIS call did, the way `newest_before` already does for
+        # `written`.
         newest_before = self._newest_enrichment()
+        processed_before = self._enrichment_roles_processed(record.run_id)
+        calls_before = self._enrichment_calls(record.run_id)
         self._pipeline(*arguments)
         written = self._enrichments_written_since(newest_before)
-        calls = self._enrichment_calls(record.run_id)
-        processed = self._enrichment_roles_processed(record.run_id)
+        calls = self._enrichment_calls(record.run_id) - calls_before
+        processed = self._enrichment_roles_processed(record.run_id) - processed_before
 
         # Work attempted, nothing produced. This is the assertion whose absence
         # let two outages pass for a normal night:
@@ -225,7 +235,7 @@ class CommandPhaseExecutor:
         # catches both shapes of "we tried and wrote nothing."
         # Deliberately NOT "processed == 0 is a failure" — a night with nothing
         # stale to enrich legitimately fetches an empty batch and processes 0.
-        if processed and not written:
+        if processed > 0 and not written:
             raise RuntimeError(
                 f"DeepSeek processed {processed} role(s) ({calls} counted as "
                 "billed API calls) and wrote 0 enrichments. The estimator is "

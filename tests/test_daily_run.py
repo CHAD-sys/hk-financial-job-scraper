@@ -520,7 +520,15 @@ def test_every_registered_profile_can_actually_be_asked_for():
 # had happened. Nothing compared calls made against rows written, so a total
 # outage looked like a normal night for two days running.
 
-def _enrichment_fixture(tmp_path, *, calls: int, processed: int, writes_rows: bool):
+def _enrichment_fixture(
+    tmp_path,
+    *,
+    calls: int,
+    processed: int,
+    writes_rows: bool,
+    logs_usage: bool = True,
+    preexisting: tuple[int, int] | None = None,
+):
     """A database with the two tables the guard reads, and a fake pipeline run.
 
     `calls` and `processed` are independent on purpose: `calls` is how many
@@ -529,6 +537,12 @@ def _enrichment_fixture(tmp_path, *, calls: int, processed: int, writes_rows: bo
     2026-09-15 is the case where they diverge — every one of 187 attempts died
     on an HTTP 402 before being counted as a call, so `calls` was 0 while
     `processed` was 187.
+
+    `logs_usage=False` models the empty-batch path: `EnrichmentPipeline.run`
+    returns at "No unenriched jobs — nothing to do" BEFORE `ai_usage.record()`,
+    so a quiet night writes no usage row at all. `preexisting` seeds a row under
+    the SAME run_id, which is what a GitHub "Re-run jobs" sees — it reuses
+    GITHUB_RUN_ID, so the previous attempt's totals are already in the table.
     """
     database = tmp_path / "data" / "jobs.db"
     database.parent.mkdir(parents=True, exist_ok=True)
@@ -546,16 +560,24 @@ def _enrichment_fixture(tmp_path, *, calls: int, processed: int, writes_rows: bo
                                       prompt_cache_miss_tokens INTEGER, completion_tokens INTEGER,
                                       estimated_cost_usd REAL, recorded_at TEXT)"""
         )
+        if preexisting is not None:
+            prior_calls, prior_processed = preexisting
+            conn.execute(
+                "INSERT INTO ai_usage VALUES (?,?,?,?,?,?,?,?,?,?)",
+                ("enrich-1", "deepseek_enrichment", "deepseek-v4-flash", prior_calls,
+                 prior_processed, 0, 0, 0, 0.4155, "2026-08-19T20:11:03+00:00"),
+            )
 
     def run_command(command, **_kwargs):
         joined = " ".join(command)
         if "--enrich" in joined:
             with sqlite3.connect(database) as conn:
-                conn.execute(
-                    "INSERT INTO ai_usage VALUES (?,?,?,?,?,?,?,?,?,?)",
-                    ("enrich-1", "deepseek_enrichment", "deepseek-v4-flash", calls,
-                     processed, 0, 0, 0, 0.2077, "2026-08-19T21:44:57+00:00"),
-                )
+                if logs_usage:
+                    conn.execute(
+                        "INSERT INTO ai_usage VALUES (?,?,?,?,?,?,?,?,?,?)",
+                        ("enrich-1", "deepseek_enrichment", "deepseek-v4-flash", calls,
+                         processed, 0, 0, 0, 0.2077, "2026-08-19T21:44:57+00:00"),
+                    )
                 if writes_rows:
                     conn.execute(
                         "INSERT INTO job_enrichments VALUES "
@@ -621,3 +643,45 @@ def test_enrichment_where_every_attempt_dies_before_being_counted_as_a_call_fail
     assert deepseek.status is PhaseStatus.FAILED
     assert "187" in (deepseek.detail or "")
     assert record.status is not RunStatus.SUCCESS
+
+
+def test_a_rerun_with_nothing_left_to_enrich_is_not_a_failure(tmp_path):
+    """GitHub's "Re-run jobs" reuses GITHUB_RUN_ID, so the previous attempt's
+    ai_usage row is still in the table under this run_id. A re-run that finds
+    nothing left to enrich writes no usage row of its own (the empty-batch path
+    returns before ai_usage.record()), so a CUMULATIVE read would see the old
+    attempt's 300 processed against 0 written and fail a run that was fine.
+    Both sides of the guard are deltas across this phase call for that reason."""
+    executor = _enrichment_fixture(
+        tmp_path,
+        calls=0,
+        processed=0,
+        writes_rows=False,
+        logs_usage=False,          # nothing queued this time
+        preexisting=(645, 300),    # the earlier attempt, same run_id
+    )
+
+    record = run_daily("local", "enrich-1", executor)
+
+    deepseek = record.phase("deepseek")
+    assert deepseek.status is PhaseStatus.SUCCESS
+    assert deepseek.detail == "Nothing new to enrich"
+
+
+def test_a_rerun_that_does_work_still_reports_only_its_own_numbers(tmp_path):
+    """The delta must not leak the previous attempt's totals into this one's
+    report either: a re-run that enriches writes its own rows, and the detail
+    should describe this call, not the sum of both attempts."""
+    executor = _enrichment_fixture(
+        tmp_path,
+        calls=12,
+        processed=4,
+        writes_rows=True,
+        preexisting=(645, 300),
+    )
+
+    record = run_daily("local", "enrich-1", executor)
+
+    deepseek = record.phase("deepseek")
+    assert deepseek.status is PhaseStatus.SUCCESS
+    assert "1" in (deepseek.detail or "")

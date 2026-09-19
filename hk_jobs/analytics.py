@@ -50,7 +50,33 @@ def record_scrape_snapshot(
       declining if delta < -2
       stable    otherwise
       new       if no yesterday row exists
+
+    Results are summed per company BEFORE anything is written. `job_history` is
+    keyed (company_id, scraped_date) with no source dimension, but a company
+    cross-posted on several boards has one entry per source in companies.yaml
+    (see hk_jobs/sources.py) and therefore one CompanyResult per source.
+    Writing those one at a time let the last writer win, so the stored count was
+    whichever source happened to finish last in ThreadPoolExecutor's completion
+    order — a race. That made every derived number unsafe: the day-over-day
+    delta could compare one source's count today against a different source's
+    count yesterday, and a company whose LinkedIn entry returned 0 while its
+    Workday entry returned 294 could be stored as job_count=0, which
+    notifications.py then reported as a zero-yield company.
+
+    Summing is the employer-level number this table is read as: how many
+    listings we found for this employer today, across every source we scrape.
+    It does double-count a vacancy genuinely posted on two boards; that is
+    known and accepted here — collapsing cross-posted duplicates is
+    `JobStore.reconcile_cross_posted`'s job over the `jobs` table, not a daily
+    per-employer count's.
     """
+    totals: dict[str, dict] = {}
+    for r in results:
+        if not r.ok:
+            continue  # skip timed-out / errored companies
+        entry = totals.setdefault(r.slug, {"name": r.name, "count": 0})
+        entry["count"] += r.total_fetched
+
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     try:
@@ -58,13 +84,9 @@ def record_scrape_snapshot(
         yesterday_str = (scraped_date - timedelta(days=1)).isoformat()
 
         with conn:
-            for r in results:
-                if not r.ok:
-                    continue  # skip timed-out / errored companies
-
-                company_id = r.slug
-                company_name = r.name
-                today_count = r.total_fetched
+            for company_id, totalled in totals.items():
+                company_name = totalled["name"]
+                today_count = totalled["count"]
 
                 # ── trend vs previous day ──────────────────────────────────
                 prev = conn.execute(
