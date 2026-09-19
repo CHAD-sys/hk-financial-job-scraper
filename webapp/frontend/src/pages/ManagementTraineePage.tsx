@@ -6,7 +6,7 @@ import MTOpenEmployerBanner, { type MTOpenEmployer } from '../components/MTOpenE
 import MTProgrammeCard from '../components/MTProgrammeCard'
 import { fetchManagementTraineeRoles, type Job } from '../api/client'
 import { MT_OPENINGS } from '../content/mtOpenings'
-import { LINKED_MT_PROGRAMMES, MT_INDUSTRIES, MT_PROGRAMMES } from '../content/managementTraineePrograms'
+import { LINKED_MT_PROGRAMMES, MT_INDUSTRIES, MT_PROGRAMMES, mtEmployerKey } from '../content/managementTraineePrograms'
 
 const STATUS_FILTERS = ['All statuses', 'Open now', 'Not currently open'] as const
 
@@ -83,18 +83,24 @@ export default function ManagementTraineePage() {
     return () => window.clearTimeout(timeout)
   }, [highlightedOpening])
 
+  const employers = useMemo(() => openEmployers(liveRoles), [liveRoles])
+  const activeEmployerKeys = useMemo(
+    () => new Set(employers.map(employer => mtEmployerKey(employer.company))),
+    [employers],
+  )
   const programmes = useMemo(() => {
     const term = query.trim().toLocaleLowerCase()
     return MT_PROGRAMMES.filter(programme => {
       const matchesIndustry = industry === 'All industries' || programme.industry === industry
       const matchesQuery = !term || `${programme.company} ${programme.companyChinese}`.toLocaleLowerCase().includes(term)
+      const isOpen = programme.application?.status === 'open'
+        || activeEmployerKeys.has(mtEmployerKey(programme.company))
       const matchesStatus = status === 'All statuses'
-        || (status === 'Open now' && programme.application?.status === 'open')
-        || (status === 'Not currently open' && programme.application?.status !== 'open')
+        || (status === 'Open now' && isOpen)
+        || (status === 'Not currently open' && !isOpen)
       return matchesIndustry && matchesQuery && matchesStatus
     })
-  }, [industry, query, status])
-  const employers = useMemo(() => openEmployers(liveRoles), [liveRoles])
+  }, [activeEmployerKeys, industry, query, status])
 
   return (
     <div className="mt-directory-page">
@@ -234,12 +240,19 @@ export default function ManagementTraineePage() {
           </div>
 
             <div className="mt-directory-notice" role="note">
-            <strong>Directory status is evidence-led.</strong> {LINKED_MT_PROGRAMMES.length} employers are linked. “Not currently open” means no current opening has been verified—it does not claim that an employer has ended its programme.
+            <strong>Directory status is evidence-led.</strong> {LINKED_MT_PROGRAMMES.length} employers are linked. Status combines verified programme checks with the active roles listed above. “Not currently open” means no current opening is listed—it does not claim that an employer has ended its programme.
           </div>
 
           {programmes.length ? (
             <div className="mt-directory-grid">
-              {programmes.map(programme => <MTProgrammeCard key={programme.id} programme={programme} compact />)}
+              {programmes.map(programme => (
+                <MTProgrammeCard
+                  key={programme.id}
+                  programme={programme}
+                  compact
+                  liveActive={activeEmployerKeys.has(mtEmployerKey(programme.company))}
+                />
+              ))}
             </div>
           ) : (
             <div className="mt-directory-empty">

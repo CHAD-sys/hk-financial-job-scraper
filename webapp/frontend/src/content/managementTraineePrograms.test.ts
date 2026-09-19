@@ -4,6 +4,7 @@ import {
   LINKED_MT_PROGRAMMES,
   MT_INDUSTRIES,
   MT_PROGRAMMES,
+  mtEmployerKey,
   selectMasterApplicationUrl,
   VERIFIED_MT_PROGRAMMES,
 } from './managementTraineePrograms'
@@ -53,5 +54,12 @@ describe('management trainee programme directory', () => {
       'https://example.com/careers/internships',
       'https://example.com/job/management-trainee',
     ])).toBe('https://example.com/job/management-trainee')
+  })
+
+  it('reconciles source-specific employer names to one status identity', () => {
+    expect(mtEmployerKey('The Hong Kong Jockey Club (HKJC)')).toBe('hkjc')
+    expect(mtEmployerKey('The Hong Kong Jockey Club')).toBe('hkjc')
+    expect(mtEmployerKey('Hong Kong Monetary Authority (HKMA)')).toBe('hkma')
+    expect(mtEmployerKey('Bank Of China (Hong Kong) Limited')).toBe('bochk')
   })
 })

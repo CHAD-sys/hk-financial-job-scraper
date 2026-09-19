@@ -61,7 +61,15 @@ describe('MTProgrammeCard', () => {
       },
     }} />)
 
-    expect(document.querySelector('.mt-programme-card__deadline')).toHaveTextContent('Open · Closes 25 Oct 2026')
+    expect(document.querySelector('.mt-programme-card__deadline')).toHaveTextContent('Open now · Closes 25 Oct 2026')
     expect(screen.getByText(/checked 14 sept 2026/i)).toBeInTheDocument()
+  })
+
+  it('shows a current live opening even when the directory snapshot has no open status', () => {
+    render(<MTProgrammeCard programme={programme} liveActive />)
+
+    expect(document.querySelector('.mt-programme-card__deadline')).toHaveTextContent(
+      'Open now · Active role listed above · deadline not stated',
+    )
   })
 })

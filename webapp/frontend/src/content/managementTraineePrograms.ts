@@ -27,6 +27,34 @@ export interface MTProgramme {
   application?: MTApplicationSnapshot
 }
 
+/**
+ * Stable employer identity shared by curated links, live Role records, and
+ * the evergreen directory. Source feeds use slightly different legal names
+ * (for example, "The Hong Kong Jockey Club" versus "... (HKJC)"); status
+ * reconciliation must not treat those as different employers.
+ */
+const MT_EMPLOYER_ALIASES: Readonly<Record<string, string>> = {
+  'the hong kong jockey club': 'hkjc',
+  'hong kong jockey club': 'hkjc',
+  'hong kong monetary authority': 'hkma',
+  'hang seng bank': 'hang-seng-bank',
+  'hang lung properties': 'hang-lung-properties',
+  'bank of china hong kong': 'bochk',
+  'bank of china hong kong limited': 'bochk',
+  'bank of china limited': 'bochk',
+  'boc international': 'boci',
+}
+
+export function mtEmployerKey(company: string): string {
+  const normalized = company
+    .toLocaleLowerCase()
+    .replace(/[([].*?[\])]/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+
+  return MT_EMPLOYER_ALIASES[normalized] ?? normalized
+}
+
 type MTProgrammeRow = Omit<MTProgramme, 'applicationUrls'>
 
 export function selectMasterApplicationUrl(

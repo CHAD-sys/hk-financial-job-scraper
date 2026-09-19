@@ -3,14 +3,25 @@ import type { MTProgramme } from '../content/managementTraineePrograms'
 
 const CONSULTATION_URL = 'https://www.finexclub.org/mentor-program'
 
-export default function MTProgrammeCard({ programme, compact = false }: { programme: MTProgramme; compact?: boolean }) {
+export default function MTProgrammeCard({
+  programme,
+  compact = false,
+  liveActive = false,
+}: {
+  programme: MTProgramme
+  compact?: boolean
+  /** True when a current live or curated MT role exists for this employer. */
+  liveActive?: boolean
+}) {
   const applicationLink = programme.masterApplicationUrl ?? programme.applicationUrls[0]
   const application = programme.application
-  const deadline = application?.deadline
+  const verifiedOpen = application?.status === 'open'
+  const openNow = liveActive || verifiedOpen
+  const deadline = verifiedOpen && application?.deadline
     ? `Closes ${new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Hong_Kong' }).format(new Date(`${application.deadline}T00:00:00+08:00`))}`
-    : application?.status === 'open' ? 'Deadline not stated'
+    : openNow ? liveActive ? 'Active role listed above · deadline not stated' : 'Deadline not stated'
       : 'No verified active intake'
-  const statusLabel = application?.status === 'open' ? 'Open'
+  const statusLabel = openNow ? 'Open now'
     : application?.status === 'closed' ? 'To be updated'
       : application?.status === 'upcoming' ? 'Upcoming'
         : application?.status === 'unavailable' ? 'Link unavailable'
@@ -21,7 +32,7 @@ export default function MTProgrammeCard({ programme, compact = false }: { progra
 
   return (
     <article className={`mt-programme-card${compact ? ' mt-programme-card--compact' : ''}`}>
-      <div className={`mt-programme-card__deadline ${application?.status === 'open' ? 'mt-programme-card__deadline--open' : 'mt-programme-card__deadline--inactive'}`}>
+      <div className={`mt-programme-card__deadline ${openNow ? 'mt-programme-card__deadline--open' : 'mt-programme-card__deadline--inactive'}`}>
         <CalendarClock size={18} aria-hidden="true" />
         <span><strong>{statusLabel}</strong> · {deadline}</span>
       </div>

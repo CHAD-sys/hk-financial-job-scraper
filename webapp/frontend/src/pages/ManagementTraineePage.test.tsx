@@ -39,4 +39,29 @@ describe('ManagementTraineePage live board feed', () => {
     expect(screen.getAllByRole('link', { name: 'Career coaching' }).length).toBeGreaterThan(0)
     expect(screen.getByText(/1 active role from the careers database/i)).toBeInTheDocument()
   })
+
+  it('reconciles directory cards with curated openings for the same employer', async () => {
+    fetchManagementTraineeRoles.mockResolvedValue({
+      total: 1, page: 1, page_size: 1, total_pages: 1,
+      jobs: [{
+        source: 'linkedin', source_id: 'hkma-1', company: 'Hong Kong Monetary Authority (HKMA)',
+        title: 'Manager Trainee (2027 Intake)', locations: ['Hong Kong'],
+        posted_at: '2026-09-12T00:00:00+00:00', url: 'https://example.test/hkma',
+      }],
+    })
+
+    render(<ManagementTraineePage />)
+    expect(await screen.findByText(/1 active role from the careers database/i)).toBeInTheDocument()
+
+    for (const company of [
+      'Hang Seng Bank',
+      'Hang Lung Properties',
+      'The Hong Kong Jockey Club (HKJC)',
+      'Hong Kong Monetary Authority (HKMA)',
+    ]) {
+      const card = screen.getByRole('heading', { name: company }).closest('article')
+      expect(card).toHaveTextContent('Open now')
+      expect(card).not.toHaveTextContent('Not currently open')
+    }
+  })
 })
