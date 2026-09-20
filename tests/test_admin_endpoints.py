@@ -425,9 +425,12 @@ def test_operations_dashboard_is_admin_only_and_degrades_truthfully(
     response = admin_client.get("/api/admin/intelligence")
     assert response.status_code == 200
     body = response.json()["operations"]
+    # Mirrors PROFILES["hosted"]. `linkedin_fetch` joined it once the scheduled
+    # run started polling the watchlist it promotes from; the dashboard showing
+    # a phase per profile step is what makes a silent one visible.
     assert [phase["key"] for phase in body["run"]["phases"]] == [
         "restore", "scrape", "descriptions", "deepseek", "salary_audit",
-        "linkedin_promote", "publish",
+        "linkedin_fetch", "linkedin_promote", "publish",
     ]
     assert all(phase["status"] == "not_recorded" for phase in body["run"]["phases"])
     assert body["ai_cost"] is None  # Ultimate-Admin-only; see the test below

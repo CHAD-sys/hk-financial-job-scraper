@@ -58,6 +58,20 @@ def _profile(name: str, *keys: str) -> ExecutionProfile:
 
 
 PROFILES: dict[str, ExecutionProfile] = {
+    # `linkedin_fetch` belongs here, not only in `local`. Without it `hosted`
+    # ran `linkedin_promote` over a queue nothing was filling: promote only
+    # classifies posts already fetched, so the Secret Market served whatever
+    # the last local run happened to leave behind. The scheduled workflow
+    # hard-codes PROFILE=hosted, so in production the watchlist was never
+    # polled at all — `run_cadence` (which `claim_run` upserts on EVERY
+    # `--fetch-posts` invocation, due or not) held zero rows, and
+    # `vendor_costs` / `recruiter_fetch_state` both stopped dead on
+    # 2026-08-04. ADR 0031 and CLAUDE.md meanwhile describe the poll as
+    # running every pipeline run; this is the line that makes that true.
+    #
+    # It sits immediately before `linkedin_promote` so a post fetched tonight
+    # is classified tonight, and it is OPTIONAL: a missing APIFY_API_TOKEN or
+    # a vendor outage records a WARNING and the nightly carries on.
     "hosted": _profile(
         "hosted",
         "restore",
@@ -65,6 +79,7 @@ PROFILES: dict[str, ExecutionProfile] = {
         "descriptions",
         "deepseek",
         "salary_audit",
+        "linkedin_fetch",
         "linkedin_promote",
         "publish",
     ),

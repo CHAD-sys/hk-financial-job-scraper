@@ -33,6 +33,7 @@ def test_profiles_share_one_phase_vocabulary_without_forcing_identical_work():
         "descriptions",
         "deepseek",
         "salary_audit",
+        "linkedin_fetch",
         "linkedin_promote",
         "publish",
     ]
@@ -48,6 +49,29 @@ def test_profiles_share_one_phase_vocabulary_without_forcing_identical_work():
         "backup",
     ]
     assert hosted.phase("scrape") == local.phase("scrape")
+
+
+def test_the_scheduled_profile_actually_polls_the_watchlist_it_promotes_from():
+    """RED before linkedin_fetch was added to `hosted`: the scheduled workflow
+    hard-codes PROFILE=hosted, and hosted ran `linkedin_promote` over a queue
+    nothing was filling — promote only classifies posts already fetched. In
+    production the watchlist was therefore never polled at all: `run_cadence`
+    held zero rows despite `claim_run` upserting on every `--fetch-posts`
+    invocation, and vendor_costs / recruiter_fetch_state both stopped on
+    2026-08-04, while ADR 0031 and CLAUDE.md described a poll running every
+    pipeline run. Fetching must also come BEFORE promoting, or a post fetched
+    tonight waits a day to be classified."""
+    keys = [phase.key for phase in profile_for("hosted").phases]
+
+    assert "linkedin_fetch" in keys
+    assert keys.index("linkedin_fetch") < keys.index("linkedin_promote")
+
+
+def test_the_watchlist_poll_cannot_fail_the_nightly_run():
+    """It depends on a third-party vendor and a secret the repo may not have,
+    so it is OPTIONAL: a missing APIFY_API_TOKEN or an Apify outage records a
+    WARNING and the run carries on to publish."""
+    assert not profile_for("hosted").phase("linkedin_fetch").required
 
 
 def test_enrich_only_is_the_smallest_profile_that_changes_production():

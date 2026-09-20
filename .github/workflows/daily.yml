@@ -82,6 +82,16 @@ jobs:
       # Hard stop in dollars, enforced in-process by hk_jobs/ai_budget.py. The
       # Role limit above is only a proxy for cost; this is the actual cap.
       DEEPSEEK_RUN_BUDGET_USD: ${{ (github.event_name == 'workflow_dispatch' && inputs.enrich_budget) || '4.00' }}
+      # The Secret Market watchlist poll (hk_jobs/posts/, ADR 0012 + 0031).
+      # Apify performs the LinkedIn access, never this runner, so unlike the
+      # Indeed adapter it is not affected by the datacenter IP being blocked.
+      # Spend is bounded twice over: hk_jobs/posts/budget.py refuses new calls
+      # once month-to-date hits the $30 cap, and billing is per RESULT, which
+      # the measured steady state puts near $0.71/month.
+      #
+      # If this secret is absent the `linkedin_fetch` phase is OPTIONAL — it
+      # records a WARNING and the nightly run continues unaffected.
+      APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN }}
       PIPELINE_SYNC_TOKEN: ${{ secrets.PIPELINE_SYNC_TOKEN }}
       PIPELINE_DATABASE_SYNC_URL: https://finex-careers.up.railway.app/api/admin/pipeline/database
       PIPELINE_OPERATIONS_URL: https://finex-careers.up.railway.app/api/admin/pipeline/operations
