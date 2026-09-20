@@ -1320,6 +1320,9 @@ export interface AdminOperationsDashboard {
 }
 
 export interface AdminAnalyticsOverview {
+  /** What the dashboard MEASURES: every open vacancy, deduped. */
+  total_analysis_roles: number
+  /** How much of that a visitor can actually reach (ADR 0035 board). */
   total_board_roles: number
   total_active_rows: number
   cross_posting_rate_pct: number

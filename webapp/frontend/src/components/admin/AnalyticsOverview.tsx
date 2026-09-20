@@ -38,9 +38,9 @@ function SectionHeading({ title, description }: { title: string; description: st
 function MarketPulse({ overview }: { overview: AdminAnalyticsOverview }) {
   const metrics = [
     {
-      label: 'Live board roles',
-      value: overview.total_board_roles.toLocaleString(),
-      detail: `${overview.total_active_rows.toLocaleString()} source listings before reconciliation`,
+      label: 'Vacancies tracked',
+      value: overview.total_analysis_roles.toLocaleString(),
+      detail: `${overview.total_board_roles.toLocaleString()} currently on the public board · ${overview.total_active_rows.toLocaleString()} source listings before reconciliation`,
     },
     {
       label: 'Median estimated salary',
@@ -50,7 +50,7 @@ function MarketPulse({ overview }: { overview: AdminAnalyticsOverview }) {
     {
       label: 'Duplicate listings suppressed',
       value: `${overview.cross_posting_rate_pct}%`,
-      detail: `${overview.duplicate_rows_suppressed.toLocaleString()} copies removed from the board view`,
+      detail: `${overview.duplicate_rows_suppressed.toLocaleString()} copies of a vacancy already counted under another source`,
     },
     {
       label: 'Top-five employer share',
@@ -105,7 +105,7 @@ function AnalystReadout({ overview }: { overview: AdminAnalyticsOverview }) {
           {overview.cross_posting_rate_pct}% of active listings are duplicate copies.
         </p>
         <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
-          Reconciliation suppresses {overview.duplicate_rows_suppressed.toLocaleString()} copies, so syndicated vacancies count once on the public board.
+          Reconciliation suppresses {overview.duplicate_rows_suppressed.toLocaleString()} copies, so a vacancy syndicated across several boards is counted once here.
         </p>
       </article>
       <article className="p-5" style={{ backgroundColor: 'var(--color-surface)' }}>
