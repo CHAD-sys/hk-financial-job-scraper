@@ -7,7 +7,7 @@ from __future__ import annotations
 import sqlite3
 from datetime import date
 
-from .support import make_jobs_db
+from .support import job, make_jobs_db
 
 import admin_intelligence
 
@@ -276,3 +276,59 @@ def test_a_source_that_returned_nothing_at_all_is_failed_even_with_no_errors(
     assert got["failed"] == 0
     assert got["roles_found"] == 0
     assert got["status"] == "failed"
+
+
+def test_market_intelligence_measures_the_catalogue_not_the_shop_window(tmp_path):
+    """RED before ANALYSIS_WHERE: every dimension was computed over BOARD_WHERE,
+    so the numbers described the board's curation rather than the market. The
+    board keeps one calendar month and at most 60 Roles per employer (ADR 0035),
+    which flattens every mega-poster to exactly 60 — an employer chart drawn on
+    it is a row of identical bars — and halves the sample every percentile and
+    concentration index is computed from.
+
+    Here one employer holds 70 open Roles, 8 of them posted well outside the
+    board's window. The board can show at most 60; the market has 70.
+    """
+    path = tmp_path / "jobs.db"
+    jobs = []
+    for i in range(62):  # inside the window, but past the 60-per-employer cap
+        jobs.append(
+            job(source="workday", source_id=f"IN{i}", company="Mega Bank",
+                title="Analyst", posted_at="2026-09-18T00:00:00+00:00",
+                is_active=1, is_primary=1)
+        )
+    for i in range(8):  # open, but older than the board's one-month window
+        jobs.append(
+            job(source="workday", source_id=f"OLD{i}", company="Mega Bank",
+                title="Analyst", posted_at="2026-01-05T00:00:00+00:00",
+                is_active=1, is_primary=1)
+        )
+    # A cross-posted duplicate of a real vacancy: the ONE thing that stays
+    # excluded, because counting it would double-count a single job.
+    jobs.append(
+        job(source="jobsdb", source_id="DUP1", company="Mega Bank", title="Analyst",
+            posted_at="2026-09-18T00:00:00+00:00", is_active=1, is_primary=0,
+            cross_posted=1)
+    )
+    make_jobs_db(path, jobs=jobs)
+
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    overview = admin_intelligence._analytics_overview(conn)
+
+    # The board is capped; the analysis corpus is not.
+    assert overview["total_board_roles"] == 60
+    assert overview["total_analysis_roles"] == 70
+
+    # The employer is reported at its real size, not at the cap.
+    counts = {c["name"]: c["count"] for c in overview["top_companies"]}
+    assert counts["Mega Bank"] == 70
+
+    # The duplicate is the only row excluded, and it is named as a duplicate
+    # rather than silently folded into "curation".
+    assert overview["total_active_rows"] == 71
+    assert overview["duplicate_rows_suppressed"] == 1
+
+    # A share of a corpus can never exceed the corpus.
+    for key, value in overview["data_quality"].items():
+        assert value <= 100.0, f"{key} exceeded 100%: {value}"

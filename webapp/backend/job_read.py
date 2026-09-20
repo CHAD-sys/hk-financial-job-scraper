@@ -150,6 +150,29 @@ def has_research_scope(query: Optional[str]) -> bool:
 #: table aliased `j`.
 BOARD_WHERE = board_visible_sql(with_hidden=False)
 
+#: What ADMIN MARKET INTELLIGENCE measures: every vacancy we currently hold
+#: open, one row per real vacancy. NOT the board, and deliberately so.
+#:
+#: The board is a curated shop window — one calendar month, at most 60 Roles per
+#: employer (ADR 0035). Those are display decisions, and measuring the market
+#: through them reports the decisions back instead of the market: every
+#: mega-poster flattens to exactly 60, so an employer chart drawn over
+#: `BOARD_WHERE` shows a row of identical bars that describe the cap, and the
+#: sample drops from ~5,000 vacancies to ~2,180 for no analytical gain. Salary
+#: percentiles, sector mix, seniority mix and concentration all inherit the same
+#: distortion.
+#:
+#: `is_primary = 1` stays because a cross-posted copy is the SAME vacancy seen
+#: on a second board: counting both double-counts one job, which is the one
+#: error that would make these numbers worse rather than merely narrower.
+#: Nothing else is excluded — age, the per-employer cap and `admin_hidden` are
+#: all board curation, not facts about the market.
+#:
+#: This is admin-only. The public headline stat still counts the board on
+#: purpose (ADR 0039: the number a visitor is shown is the number they can
+#: open), and `live_count_where()` below is untouched by this.
+ANALYSIS_WHERE = "j.is_active = 1 AND j.is_primary = 1"
+
 #: There is no with-hidden variant here any more. ADR 0032's Hidden state is
 #: still WRITTEN (`job_edit.py` sets `admin_hidden`) and still excluded from
 #: every board read, but the Ultimate-Admin filter that could pull hidden Roles

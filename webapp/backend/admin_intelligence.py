@@ -17,7 +17,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import seekers_store
-from job_read import BOARD_WHERE, EMPLOYER_DIMENSION_WHERE, SECTOR_SQL
+from job_read import ANALYSIS_WHERE, BOARD_WHERE, EMPLOYER_DIMENSION_WHERE, SECTOR_SQL
 
 from hk_jobs.daily_run.model import DailyRunRecord
 from hk_jobs.daily_run.registry import profile_for
@@ -682,7 +682,14 @@ def _market_movers(conn: sqlite3.Connection) -> dict[str, Any]:
 def _analytics_overview(conn: sqlite3.Connection) -> dict[str, Any]:
     total_active_all = _scalar(conn, "SELECT COUNT(*) FROM jobs WHERE is_active=1")
     total_board = _scalar(conn, f"SELECT COUNT(*) FROM jobs j WHERE {BOARD_WHERE}")
-    cross_posted_rows = max(0, total_active_all - total_board)
+    # Every dimension below is measured over ANALYSIS_WHERE, not the board. See
+    # its definition in job_read: the board's one-month window and 60-per-employer
+    # cap are display decisions, and measuring through them reports those
+    # decisions back — employers flatten to a row of identical 60s and the sample
+    # halves. `total_board` is kept alongside so the dashboard can still say how
+    # much of this corpus a visitor can actually reach.
+    total_analysis = _scalar(conn, f"SELECT COUNT(*) FROM jobs j WHERE {ANALYSIS_WHERE}")
+    cross_posted_rows = max(0, total_active_all - total_analysis)
     cross_posting_rate_pct = (
         round(100.0 * cross_posted_rows / total_active_all, 1) if total_active_all else 0.0
     )
@@ -714,7 +721,7 @@ def _analytics_overview(conn: sqlite3.Connection) -> dict[str, Any]:
             conn,
             f"""
             SELECT sector, COUNT(*) AS cnt FROM (
-              SELECT ({SECTOR_SQL}) AS sector FROM jobs j WHERE {BOARD_WHERE}
+              SELECT ({SECTOR_SQL}) AS sector FROM jobs j WHERE {ANALYSIS_WHERE}
             ) sub GROUP BY sector ORDER BY cnt DESC
             """,
         )
@@ -726,7 +733,7 @@ def _analytics_overview(conn: sqlite3.Connection) -> dict[str, Any]:
             conn,
             "SELECT e.seniority, COUNT(*) AS cnt FROM job_enrichments e "
             "JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id "
-            f"WHERE {BOARD_WHERE} AND e.seniority IS NOT NULL "
+            f"WHERE {ANALYSIS_WHERE} AND e.seniority IS NOT NULL "
             "GROUP BY e.seniority ORDER BY cnt DESC",
         )
     }
@@ -737,7 +744,7 @@ def _analytics_overview(conn: sqlite3.Connection) -> dict[str, Any]:
             conn,
             "SELECT e.remote_type, COUNT(*) AS cnt FROM job_enrichments e "
             "JOIN jobs j ON j.source=e.source AND j.source_id=e.source_id "
-            f"WHERE {BOARD_WHERE} AND e.remote_type IS NOT NULL "
+            f"WHERE {ANALYSIS_WHERE} AND e.remote_type IS NOT NULL "
             "GROUP BY e.remote_type ORDER BY cnt DESC",
         )
     }
@@ -758,7 +765,7 @@ def _analytics_overview(conn: sqlite3.Connection) -> dict[str, Any]:
         raw_company_rows = _rows(
             conn,
             f"SELECT j.company_slug, j.company, COUNT(*) AS cnt FROM jobs j "
-            f"WHERE {BOARD_WHERE} AND {EMPLOYER_DIMENSION_WHERE} "
+            f"WHERE {ANALYSIS_WHERE} AND {EMPLOYER_DIMENSION_WHERE} "
             f"GROUP BY j.company_slug, j.company",
         )
         canonical: dict[str, dict[str, Any]] = {}
@@ -777,21 +784,23 @@ def _analytics_overview(conn: sqlite3.Connection) -> dict[str, Any]:
             for row in _rows(
                 conn,
                 f"SELECT j.company, COUNT(*) AS cnt FROM jobs j "
-                f"WHERE {BOARD_WHERE} AND {EMPLOYER_DIMENSION_WHERE} "
+                f"WHERE {ANALYSIS_WHERE} AND {EMPLOYER_DIMENSION_WHERE} "
                 f"GROUP BY j.company",
             )
         ]
-    company_shares = [100.0 * r["cnt"] / total_board for r in company_rows] if total_board else []
+    company_shares = (
+        [100.0 * r["cnt"] / total_analysis for r in company_rows] if total_analysis else []
+    )
     top_companies = [
         {"name": r["company"], "count": r["cnt"]}
         for r in sorted(company_rows, key=lambda r: -r["cnt"])[:12]
     ]
     top5_share_pct = (
         round(
-            100.0 * sum(sorted((r["cnt"] for r in company_rows), reverse=True)[:5]) / total_board,
+            100.0 * sum(sorted((r["cnt"] for r in company_rows), reverse=True)[:5]) / total_analysis,
             1,
         )
-        if total_board
+        if total_analysis
         else 0.0
     )
     concentration_hhi = _herfindahl(company_shares)
@@ -806,7 +815,7 @@ def _analytics_overview(conn: sqlite3.Connection) -> dict[str, Any]:
                e.salary_estimated_min AS smin, e.salary_estimated_max AS smax
         FROM job_enrichments e JOIN jobs j
           ON j.source = e.source AND j.source_id = e.source_id
-        WHERE {BOARD_WHERE} AND e.salary_estimated_min IS NOT NULL
+        WHERE {ANALYSIS_WHERE} AND e.salary_estimated_min IS NOT NULL
           AND e.salary_estimated_max IS NOT NULL
         """,
     )
@@ -839,7 +848,7 @@ def _analytics_overview(conn: sqlite3.Connection) -> dict[str, Any]:
         SELECT COALESCE(e.salary_estimated_confidence, 'unknown') AS conf, COUNT(*) AS cnt
         FROM job_enrichments e JOIN jobs j
           ON j.source = e.source AND j.source_id = e.source_id
-        WHERE {BOARD_WHERE} AND e.salary_estimated_min IS NOT NULL
+        WHERE {ANALYSIS_WHERE} AND e.salary_estimated_min IS NOT NULL
           AND e.salary_estimated_max IS NOT NULL
         GROUP BY conf
         """,
@@ -856,7 +865,7 @@ def _analytics_overview(conn: sqlite3.Connection) -> dict[str, Any]:
         conn,
         "SELECT e.required_skills FROM job_enrichments e JOIN jobs j "
         "ON j.source=e.source AND j.source_id=e.source_id "
-        f"WHERE {BOARD_WHERE}",
+        f"WHERE {ANALYSIS_WHERE}",
     ):
         try:
             skills = json.loads(row["required_skills"] or "[]")
@@ -878,7 +887,9 @@ def _analytics_overview(conn: sqlite3.Connection) -> dict[str, Any]:
     top_skills = []
     for key, count in skill_counts.most_common(12):
         spelling = skill_spellings[key].most_common(1)[0][0]
-        top_skills.append({"name": spelling, "count": count, "share_pct": _pct(count, total_board)})
+        top_skills.append(
+            {"name": spelling, "count": count, "share_pct": _pct(count, total_analysis)}
+        )
 
     sector_total = sum(by_sector.values())
     dominant_sector_name, dominant_sector_count = (
@@ -890,17 +901,18 @@ def _analytics_overview(conn: sqlite3.Connection) -> dict[str, Any]:
     )
     description_count = _scalar(
         conn,
-        f"SELECT COUNT(*) FROM jobs j WHERE {BOARD_WHERE} AND TRIM(j.description_clean) <> ''",
+        f"SELECT COUNT(*) FROM jobs j WHERE {ANALYSIS_WHERE} AND TRIM(j.description_clean) <> ''",
     )
     enrichment_count = _scalar(
         conn,
         "SELECT COUNT(*) FROM job_enrichments e JOIN jobs j "
         "ON j.source=e.source AND j.source_id=e.source_id "
-        f"WHERE {BOARD_WHERE}",
+        f"WHERE {ANALYSIS_WHERE}",
     )
 
     return {
         "total_board_roles": total_board,
+        "total_analysis_roles": total_analysis,
         "total_active_rows": total_active_all,
         "cross_posting_rate_pct": cross_posting_rate_pct,
         "duplicate_rows_suppressed": cross_posted_rows,
@@ -935,15 +947,15 @@ def _analytics_overview(conn: sqlite3.Connection) -> dict[str, Any]:
         },
         "remote_friendly_pct": _pct(remote_friendly, remote_classified),
         "data_quality": {
-            "description_coverage_pct": _pct(description_count, total_board),
-            "enrichment_coverage_pct": _pct(enrichment_count, total_board),
-            "salary_coverage_pct": _pct(len(salary_midpoints), total_board),
+            "description_coverage_pct": _pct(description_count, total_analysis),
+            "enrichment_coverage_pct": _pct(enrichment_count, total_analysis),
+            "salary_coverage_pct": _pct(len(salary_midpoints), total_analysis),
             "high_confidence_salary_pct": _pct(
                 salary_confidence.get("high", 0), len(salary_midpoints)
             ),
-            "skills_coverage_pct": _pct(roles_with_skills, total_board),
-            "seniority_coverage_pct": _pct(sum(by_seniority.values()), total_board),
-            "workplace_coverage_pct": _pct(remote_classified, total_board),
+            "skills_coverage_pct": _pct(roles_with_skills, total_analysis),
+            "seniority_coverage_pct": _pct(sum(by_seniority.values()), total_analysis),
+            "workplace_coverage_pct": _pct(remote_classified, total_analysis),
         },
         "market_movers": _market_movers(conn),
     }
