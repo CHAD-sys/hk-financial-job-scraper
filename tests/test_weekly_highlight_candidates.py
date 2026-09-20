@@ -7,7 +7,7 @@ from datetime import date, timedelta
 from hk_jobs.migrations import migrate_to_phase_42
 from hk_jobs.weekly_highlight_candidates import (
     build_weekly_highlight_email,
-    lock_next_week_highlights,
+    save_next_week_highlights,
     select_weekly_highlight_candidates,
 )
 from tests.support import enrichment, job, make_jobs_db
@@ -116,6 +116,27 @@ def test_selects_recent_visible_roles_above_the_40k_floor_across_pay_levels(tmp_
     assert all(candidate.salary_min >= 40_000 for candidate in candidates)
 
 
+def test_candidate_carries_the_review_summary_and_live_destination(tmp_path):
+    row, enriched = _role(
+        "review-me",
+        company="HSBC",
+        title="Regional Risk Director",
+        category="Risk",
+        salary_min=100_000,
+        apply_url="https://careers.example.test/roles/review-me",
+    )
+    enriched["description_summary"] = (
+        "Lead regional risk governance and advise senior stakeholders across Asia."
+    )
+    db = tmp_path / "jobs.db"
+    make_jobs_db(db, jobs=[row], enrichments=[enriched])
+
+    candidate = select_weekly_highlight_candidates(db, as_of=date.today(), limit=1)[0]
+
+    assert candidate.description_summary == enriched["description_summary"]
+    assert candidate.apply_url == "https://careers.example.test/roles/review-me"
+
+
 def test_shortlist_limits_one_employer_dominating_the_email(tmp_path):
     rows = [
         _role(
@@ -180,7 +201,7 @@ def test_daily_workflow_sends_only_mohamed_the_sunday_shortlist():
     assert "NOTIFY_EMAILS: mohamedaminechahid@gmail.com" in workflow
 
 
-def test_sunday_candidate_selection_is_the_locked_next_week_banner(tmp_path):
+def test_sunday_candidate_selection_is_saved_for_next_weeks_banner(tmp_path):
     rows = [
         _role(
             "first",
@@ -203,9 +224,9 @@ def test_sunday_candidate_selection_is_the_locked_next_week_banner(tmp_path):
     make_jobs_db(db, jobs=[pair[0] for pair in rows], enrichments=[pair[1] for pair in rows])
     migrate_to_phase_42(str(db))
 
-    locked = lock_next_week_highlights(db, as_of=date(2026, 9, 6), limit=2)
+    saved = save_next_week_highlights(db, as_of=date(2026, 9, 6), limit=2)
 
-    assert [(ref.source_id, ref.related_search) for ref in locked] == [
+    assert [(ref.source_id, ref.related_search) for ref in saved] == [
         ("first", "Private Banking"),
         ("second", "Risk"),
     ]

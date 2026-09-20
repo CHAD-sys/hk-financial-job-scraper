@@ -1,15 +1,10 @@
-"""Write-once weekly Role selections for the landing-page promotion rail.
+"""Editable weekly Role selections for the landing-page promotion rail.
 
-The public board is intentionally live: Roles can close, become a secondary
-cross-post, fall beyond an employer cap, or be hidden by an administrator. A
-weekly promotion is different. Once FinEx presents a Role as one of the week's
-picks, changing that list halfway through the week makes the landing page and
-Sunday email disagree and leaves visitors chasing a moving target.
-
-This module stores references, not copies of Role content. The reference list
-is write-once for a Monday-to-Sunday Hong Kong week; the API resolves those
-references with ADDRESSABLE visibility, so a Role that closes on Wednesday is
-still shown through Sunday with its truthful ``closed`` state.
+This module stores references, not copies of Role content. Ultimate Admin can
+replace the ordered selection at any time during its Monday-to-Sunday Hong
+Kong week. The public API resolves those references with ADDRESSABLE
+visibility, so a Role that closes after selection remains truthful about its
+``closed`` state until an administrator removes or replaces it.
 """
 
 from __future__ import annotations
@@ -56,17 +51,17 @@ def _read_week(conn: sqlite3.Connection, week_start: date) -> list[WeeklyHighlig
     ]
 
 
-def lock_weekly_highlights(
+def save_weekly_highlights(
     db_path: str | Path,
     refs: Iterable[WeeklyHighlightRef],
     *,
     week_start: date,
 ) -> list[WeeklyHighlightRef]:
-    """Lock one week's ordered refs, returning the original set on every rerun.
+    """Replace one week's ordered refs and return the newly saved selection.
 
-    ``BEGIN IMMEDIATE`` serializes two Sunday processes before either checks the
-    marker row. The separate week marker is important: an empty selection is a
-    deliberate locked result too and cannot silently fill later in the week.
+    ``BEGIN IMMEDIATE`` makes replacement atomic, including a deliberate empty
+    selection. The week marker remains separate so callers can distinguish an
+    empty saved selection from a week that has never been curated.
     """
     if week_start.weekday() != 0:
         raise ValueError("week_start must be a Monday")
@@ -79,21 +74,17 @@ def lock_weekly_highlights(
     conn = sqlite3.connect(str(db_path), timeout=30)
     try:
         conn.execute("BEGIN IMMEDIATE")
-        locked = conn.execute(
-            "SELECT 1 FROM weekly_highlight_weeks WHERE week_start = ?",
-            (week_start.isoformat(),),
-        ).fetchone()
-        if locked:
-            existing = _read_week(conn, week_start)
-            conn.commit()
-            return existing
-
         conn.execute(
             """
             INSERT INTO weekly_highlight_weeks (week_start, week_end)
             VALUES (?, ?)
+            ON CONFLICT(week_start) DO UPDATE SET week_end = excluded.week_end
             """,
             (week_start.isoformat(), week_end.isoformat()),
+        )
+        conn.execute(
+            "DELETE FROM weekly_highlight_roles WHERE week_start = ?",
+            (week_start.isoformat(),),
         )
         conn.executemany(
             """
@@ -126,9 +117,22 @@ def current_weekly_highlights(
     *,
     as_of: date,
 ) -> list[WeeklyHighlightRef]:
-    """Read the immutable selection for the week containing ``as_of``."""
+    """Read the current selection for the week containing ``as_of``."""
     week_start, _ = week_bounds(as_of)
     return _read_week(conn, week_start)
+
+
+def has_saved_weekly_highlights(
+    conn: sqlite3.Connection,
+    *,
+    as_of: date,
+) -> bool:
+    """Whether the week has been curated, even when its selection is empty."""
+    week_start, _ = week_bounds(as_of)
+    return conn.execute(
+        "SELECT 1 FROM weekly_highlight_weeks WHERE week_start = ?",
+        (week_start.isoformat(),),
+    ).fetchone() is not None
 
 
 def is_current_weekly_highlight(
@@ -138,7 +142,7 @@ def is_current_weekly_highlight(
     *,
     as_of: date,
 ) -> bool:
-    """Whether an exact Role reference belongs to this week's locked set."""
+    """Whether an exact Role reference belongs to this week's selection."""
     week_start, _ = week_bounds(as_of)
     return conn.execute(
         """

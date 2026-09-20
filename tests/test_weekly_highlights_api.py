@@ -1,4 +1,4 @@
-"""The weekly rail is a locked discovery path, not a live board query."""
+"""The weekly rail is curated explicitly, not inferred from a live board query."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from hk_jobs.migrations import migrate_to_phase_42
 from hk_jobs.weekly_highlights import (
     WeeklyHighlightRef,
     current_weekly_highlights,
-    lock_weekly_highlights,
+    save_weekly_highlights,
     week_bounds,
 )
 from tests.support import enrichment, job, make_app, make_jobs_db
@@ -59,7 +59,7 @@ def _make_highlight_client(tmp_path):
     )
     migrate_to_phase_42(str(db))
     start, _ = week_bounds(date.today())
-    lock_weekly_highlights(
+    save_weekly_highlights(
         db,
         [WeeklyHighlightRef("workday", "FEATURED", "Risk")],
         week_start=start,
@@ -67,7 +67,7 @@ def _make_highlight_client(tmp_path):
     return db, TestClient(make_app(db, cookie_secure=False))
 
 
-def test_weekly_snapshot_is_write_once_even_when_sunday_selection_changes(tmp_path):
+def test_weekly_selection_can_be_replaced_after_the_first_save(tmp_path):
     db = tmp_path / "jobs.db"
     make_jobs_db(
         db,
@@ -79,20 +79,38 @@ def test_weekly_snapshot_is_write_once_even_when_sunday_selection_changes(tmp_pa
     migrate_to_phase_42(str(db))
     start, _ = week_bounds(date.today())
 
-    first = lock_weekly_highlights(
+    first = save_weekly_highlights(
         db,
         [WeeklyHighlightRef("workday", "FIRST", "Risk")],
         week_start=start,
     )
-    second = lock_weekly_highlights(
+    second = save_weekly_highlights(
         db,
         [WeeklyHighlightRef("workday", "SECOND", "Markets")],
         week_start=start,
     )
 
-    assert second == first
+    assert second != first
     with sqlite3.connect(db) as conn:
-        assert current_weekly_highlights(conn, as_of=date.today()) == first
+        assert current_weekly_highlights(conn, as_of=date.today()) == second
+
+
+def test_weekly_selection_can_be_cleared_after_it_was_saved(tmp_path):
+    db = tmp_path / "jobs.db"
+    make_jobs_db(db, jobs=[job(source="workday", source_id="FIRST")])
+    migrate_to_phase_42(str(db))
+    start, _ = week_bounds(date.today())
+    save_weekly_highlights(
+        db,
+        [WeeklyHighlightRef("workday", "FIRST", "Risk")],
+        week_start=start,
+    )
+
+    saved = save_weekly_highlights(db, [], week_start=start)
+
+    assert saved == []
+    with sqlite3.connect(db) as conn:
+        assert current_weekly_highlights(conn, as_of=date.today()) == []
 
 
 def test_highlight_feed_never_advertises_a_closed_role_on_the_homepage(tmp_path):

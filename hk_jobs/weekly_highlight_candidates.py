@@ -1,11 +1,11 @@
 # ruff: noqa: E501 -- email-client-safe inline CSS is intentionally kept intact.
-"""Select, lock and email the strongest Roles for next week's highlight rail.
+"""Select, save and email the strongest Roles for next week's highlight rail.
 
 Every Sunday the latest database is filtered to Roles that a visitor can
 actually open, that were posted recently, and whose monthly salary floor is at
 least HK$40,000. The final pass rotates across pay levels and limits repetition
 by employer/category so one large bank cannot occupy the whole banner. The
-ordered references are then write-once for the coming Monday-to-Sunday week.
+ordered references remain editable throughout the coming week.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from urllib.parse import urlencode
 
 from hk_jobs.board_visibility import board_visible_sql
 from hk_jobs.notifications import _send_email
-from hk_jobs.weekly_highlights import WeeklyHighlightRef, lock_weekly_highlights
+from hk_jobs.weekly_highlights import WeeklyHighlightRef, save_weekly_highlights
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +45,8 @@ class HighlightCandidate:
     salary_min: int
     salary_max: int
     salary_confidence: str
+    description_summary: str
+    apply_url: str
 
     @property
     def salary_band(self) -> str:
@@ -69,6 +71,8 @@ def _candidate_from_row(row: sqlite3.Row) -> HighlightCandidate:
         salary_min=salary_min,
         salary_max=max(salary_min, salary_max),
         salary_confidence=row["salary_confidence"] or "unknown",
+        description_summary=row["description_summary"] or "",
+        apply_url=row["apply_url"] or "",
     )
 
 
@@ -155,7 +159,9 @@ def select_weekly_highlight_candidates(
                 COALESCE(e.salary_hkd_min, e.salary_estimated_min) AS salary_min,
                 COALESCE(e.salary_hkd_max, e.salary_estimated_max,
                          e.salary_hkd_min, e.salary_estimated_min) AS salary_max,
-                COALESCE(NULLIF(e.salary_estimated_confidence, ''), 'unknown') AS salary_confidence
+                COALESCE(NULLIF(e.salary_estimated_confidence, ''), 'unknown') AS salary_confidence,
+                COALESCE(NULLIF(TRIM(e.description_summary), ''), '') AS description_summary,
+                COALESCE(NULLIF(TRIM(j.apply_url), ''), j.url, '') AS apply_url
             FROM jobs j
             JOIN job_enrichments e
               ON e.source = j.source AND e.source_id = j.source_id
@@ -213,13 +219,13 @@ def _role_url(candidate: HighlightCandidate, site_url: str) -> str:
     return f"{site_url.rstrip('/')}/jobs?{params}"
 
 
-def lock_next_week_highlights(
+def save_next_week_highlights(
     db_path: str | Path = "data/jobs.db",
     *,
     as_of: date | None = None,
     limit: int = 12,
 ) -> list[WeeklyHighlightRef]:
-    """Select and atomically lock the coming week's promotional Role refs."""
+    """Select and atomically replace the coming week's promotional Role refs."""
     today = as_of or date.today()
     candidates = select_weekly_highlight_candidates(db_path, as_of=today, limit=limit)
     week_start, _ = _upcoming_week(today)
@@ -231,7 +237,7 @@ def lock_next_week_highlights(
         )
         for candidate in candidates
     ]
-    return lock_weekly_highlights(db_path, refs, week_start=week_start)
+    return save_weekly_highlights(db_path, refs, week_start=week_start)
 
 
 def build_weekly_highlight_email(
@@ -313,8 +319,8 @@ def send_weekly_highlight_candidates(
 ) -> bool:
     candidates = select_weekly_highlight_candidates(db_path, as_of=as_of, limit=limit)
     today = as_of or date.today()
-    # The email is a shortlist, not publication. Ultimate Admin locks the
-    # selected refs from the Validate workspace after reviewing this list.
+    # The email is a shortlist, not publication. Ultimate Admin saves and can
+    # later revise the selected refs from the Validate workspace.
     subject, html, text = build_weekly_highlight_email(
         candidates,
         as_of=today,

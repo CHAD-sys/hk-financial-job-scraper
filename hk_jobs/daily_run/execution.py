@@ -21,7 +21,6 @@ import httpx
 from hk_jobs.daily_run.model import DailyRunRecord, PhaseStatus
 from hk_jobs.daily_run.registry import PhaseDefinition
 from hk_jobs.daily_run.runner import PhaseOutput
-from hk_jobs.weekly_highlight_candidates import lock_next_week_highlights
 
 
 @dataclass(frozen=True, slots=True)
@@ -352,8 +351,7 @@ class CommandPhaseExecutor:
         token = self.environ.get("PIPELINE_SYNC_TOKEN", "")
         if not url or not token:
             raise RuntimeError("Railway publication URL or token is not configured")
-        hong_kong_now = self._now().astimezone(ZoneInfo("Asia/Hong_Kong"))
-        # A shortlist is no longer an editorial decision. Ultimate Admin locks
+        # A shortlist is no longer an editorial decision. Ultimate Admin saves
         # next week's selection from Validate; a missed review means an empty
         # banner, never an automatic publication.
         digest = self._sha256(self.paths.database)

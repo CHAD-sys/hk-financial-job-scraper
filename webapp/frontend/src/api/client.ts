@@ -176,12 +176,14 @@ export interface BannerCandidate {
   salary_min: number
   salary_max: number
   salary_confidence: string
+  description_summary: string
+  apply_url: string
 }
 
 export interface BannerValidationQueue {
   week_start: string
   week_end: string
-  locked: boolean
+  saved: boolean
   roles: BannerCandidate[]
   approved: Array<{ source: string; source_id: string; related_search: string; position: number }>
 }
@@ -662,7 +664,7 @@ export async function fetchJobDetail(
   return res.json()
 }
 
-/** The ordered, write-once promotional Role set for the current HK week. */
+/** The ordered, editable promotional Role set for the current HK week. */
 export async function fetchWeeklyHighlights(): Promise<WeeklyHighlightsResponse> {
   const res = await apiFetch('/api/highlights')
   if (!res.ok) throw new ApiError(res.status, 'Weekly highlights fetch failed')
@@ -687,12 +689,11 @@ export async function fetchBannerValidationQueue(): Promise<BannerValidationQueu
   return res.json()
 }
 
-export async function approveBannerCandidates(roles: Array<Pick<BannerCandidate, 'source' | 'source_id'>>): Promise<BannerValidationQueue> {
-  const res = await apiFetch('/api/admin/validate/banner-candidates/approve', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roles }),
+export async function saveBannerCandidates(roles: Array<Pick<BannerCandidate, 'source' | 'source_id'>>): Promise<void> {
+  const res = await apiFetch('/api/admin/validate/banner-candidates', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roles }),
   })
-  if (!res.ok) throw new ApiError(res.status, 'Could not approve next week’s banner')
-  return res.json()
+  if (!res.ok) throw new ApiError(res.status, 'Could not save next week’s banner')
 }
 
 export async function fetchMTAmbiguousCandidates(): Promise<{ roles: MTAmbiguousCandidate[] }> {

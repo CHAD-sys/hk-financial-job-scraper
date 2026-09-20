@@ -1119,6 +1119,48 @@ def test_editors_route_lists_admins_who_have_corrected_a_salary(super_admin_clie
     assert any(e["id"] == admin_id and e["email"] == ADMIN["email"] for e in editors)
 
 
+def test_banner_validation_stays_editable_and_includes_review_evidence(
+    super_admin_client, migrated_jobs_db,
+):
+    with sqlite3.connect(migrated_jobs_db) as conn:
+        conn.execute(
+            """
+            INSERT INTO job_enrichments (
+                source, source_id, seniority, job_category,
+                salary_estimated_min, salary_estimated_max,
+                salary_estimated_confidence, description_summary
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "workday", "W1", "mid", "Risk", 75_000, 95_000, "high",
+                "Review regional credit risk and advise senior stakeholders.",
+            ),
+        )
+
+    queue = super_admin_client.get("/api/admin/validate/banner-candidates")
+
+    assert queue.status_code == 200, queue.text
+    role = queue.json()["roles"][0]
+    assert role["description_summary"].startswith("Review regional credit risk")
+    assert role["apply_url"] == "https://x.test/apply"
+
+    first_save = super_admin_client.put(
+        "/api/admin/validate/banner-candidates",
+        json={"roles": [{"source": role["source"], "source_id": role["source_id"]}]},
+    )
+    clear = super_admin_client.put(
+        "/api/admin/validate/banner-candidates",
+        json={"roles": []},
+    )
+    reloaded = super_admin_client.get("/api/admin/validate/banner-candidates")
+
+    assert first_save.status_code == 200, first_save.text
+    assert clear.status_code == 200, clear.text
+    assert clear.json()["approved"] == []
+    assert reloaded.json()["saved"] is True
+    assert reloaded.json()["approved"] == []
+
+
 def test_salary_audit_route_works_on_a_volume_that_predates_phase_36(
     super_admin_client, migrated_jobs_db,
 ):

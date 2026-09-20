@@ -29,6 +29,7 @@ import hmac
 import json
 import re
 import sqlite3
+from dataclasses import asdict
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Callable
@@ -44,7 +45,6 @@ import learning_content
 import pipeline_publish
 import seekers_store
 import submissions
-from job_read import JobFilters, Sort
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -57,12 +57,18 @@ from fastapi import (
     Request,
     UploadFile,
 )
+from job_read import JobFilters, Sort
 from starlette.background import BackgroundTask
 from starlette.responses import FileResponse, Response
 
 from hk_jobs.daily_run.model import DailyRunRecord
 from hk_jobs.weekly_highlight_candidates import _upcoming_week, select_weekly_highlight_candidates
-from hk_jobs.weekly_highlights import WeeklyHighlightRef, current_weekly_highlights, lock_weekly_highlights
+from hk_jobs.weekly_highlights import (
+    WeeklyHighlightRef,
+    current_weekly_highlights,
+    has_saved_weekly_highlights,
+    save_weekly_highlights,
+)
 
 _HONG_KONG = ZoneInfo("Asia/Hong_Kong")
 
@@ -671,32 +677,42 @@ def build_router(
 
     @router.get("/validate/banner-candidates")
     def banner_candidates_route(request: Request, _admin: dict = Depends(require_super_admin)):
-        """The machine shortlist for next week; it is not public until approved."""
+        """The machine shortlist and current editable selection for next week."""
         today = datetime.now(_HONG_KONG).date()
         week_start, week_end = _upcoming_week(today)
         with get_db(request) as conn:
-            locked = current_weekly_highlights(conn, as_of=week_start)
+            approved = current_weekly_highlights(conn, as_of=week_start)
+            saved = has_saved_weekly_highlights(conn, as_of=week_start)
         candidates = select_weekly_highlight_candidates(cfg(request).jobs_db, as_of=today)
         return {
             "week_start": week_start.isoformat(),
             "week_end": week_end.isoformat(),
-            "locked": bool(locked),
-            "roles": [candidate.__dict__ for candidate in candidates],
-            "approved": [{"source": ref.source, "source_id": ref.source_id, "related_search": ref.related_search, "position": ref.position} for ref in locked],
+            "saved": saved,
+            "roles": [asdict(candidate) for candidate in candidates],
+            "approved": [
+                {
+                    "source": ref.source,
+                    "source_id": ref.source_id,
+                    "related_search": ref.related_search,
+                    "position": ref.position,
+                }
+                for ref in approved
+            ],
         }
 
+    @router.put("/validate/banner-candidates")
     @router.post("/validate/banner-candidates/approve")
-    def approve_banner_candidates_route(
+    def save_banner_candidates_route(
         request: Request,
         payload: dict[str, Any] = Body(...),
         _admin: dict = Depends(require_super_admin),
     ):
-        """Lock an Ultimate Admin's selected candidates for the coming week."""
+        """Replace the coming week's selection with an Ultimate Admin's choice."""
         today = datetime.now(_HONG_KONG).date()
         week_start, week_end = _upcoming_week(today)
         selected = payload.get("roles")
-        if not isinstance(selected, list) or not selected:
-            raise HTTPException(status_code=400, detail="Choose at least one role for next week's banner")
+        if not isinstance(selected, list):
+            raise HTTPException(status_code=400, detail="Banner roles must be a list")
         available = {
             (candidate.source, candidate.source_id): candidate
             for candidate in select_weekly_highlight_candidates(cfg(request).jobs_db, as_of=today)
@@ -708,12 +724,28 @@ def build_router(
             key = (str(raw.get("source", "")), str(raw.get("source_id", "")))
             candidate = available.get(key)
             if candidate is None:
-                raise HTTPException(status_code=400, detail="Every selection must be in the current validation queue")
-            refs.append(WeeklyHighlightRef(candidate.source, candidate.source_id, candidate.category))
-        locked = lock_weekly_highlights(cfg(request).jobs_db, refs, week_start=week_start)
-        if [(ref.source, ref.source_id) for ref in locked] != [(ref.source, ref.source_id) for ref in refs]:
-            raise HTTPException(status_code=409, detail="Next week's banner is already locked")
-        return {"week_start": week_start.isoformat(), "week_end": week_end.isoformat(), "approved": [{"source": ref.source, "source_id": ref.source_id, "related_search": ref.related_search, "position": ref.position} for ref in locked]}
+                raise HTTPException(
+                    status_code=400,
+                    detail="Every selection must be in the current validation queue",
+                )
+            refs.append(
+                WeeklyHighlightRef(candidate.source, candidate.source_id, candidate.category)
+            )
+        saved = save_weekly_highlights(cfg(request).jobs_db, refs, week_start=week_start)
+        return {
+            "week_start": week_start.isoformat(),
+            "week_end": week_end.isoformat(),
+            "saved": True,
+            "approved": [
+                {
+                    "source": ref.source,
+                    "source_id": ref.source_id,
+                    "related_search": ref.related_search,
+                    "position": ref.position,
+                }
+                for ref in saved
+            ],
+        }
 
     @router.get("/validate/mt-candidates")
     def mt_candidates_route(request: Request, _admin: dict = Depends(require_super_admin)):
