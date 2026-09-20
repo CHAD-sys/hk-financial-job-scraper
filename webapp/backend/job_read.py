@@ -103,6 +103,14 @@ class Visibility(str, Enum):
     BOARD = "board"
     #: Addressing a specific (source, source_id). Any copy, any state.
     ADDRESSABLE = "addressable"
+    #: The Ultimate Admin's recruiter desk: every open Recruiter Post, with none
+    #: of the board's curation applied. These rows are the Secret Market — posts
+    #: by headhunters rather than employers (`source_tier='social'`, written by
+    #: hk_jobs/posts/promote.py) — and the board's own rules hide almost all of
+    #: them: the one-month window alone leaves 0 of 245 visible today, because
+    #: the watchlist poll had not run since 2026-08-04. A desk for reading what
+    #: we actually hold cannot be built on the predicate that hides it.
+    RECRUITER_DESK = "recruiter_desk"
 
 
 class CatalogueAudience(str, Enum):
@@ -186,6 +194,10 @@ ANALYSIS_WHERE = "j.is_active = 1 AND j.is_primary = 1"
 _VISIBILITY_SQL: dict[Visibility, Optional[str]] = {
     Visibility.BOARD: BOARD_WHERE,
     Visibility.ADDRESSABLE: None,
+    # Open Recruiter Posts, every one of them. `is_primary` is deliberately not
+    # required: a recruiter post is a headhunter's own advert, not a copy of an
+    # employer's listing, so there is no duplicate to suppress here.
+    Visibility.RECRUITER_DESK: "j.is_active = 1 AND j.source_tier = 'social'",
 }
 
 #: There is no separate headline predicate any more. See `live_count_where`.

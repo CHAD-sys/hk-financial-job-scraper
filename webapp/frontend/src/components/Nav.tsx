@@ -135,7 +135,10 @@ export function accountSlotFor(
 
 export function primaryLinksFor(isAdmin: boolean, isSuperAdmin: boolean): PrimaryLink[] {
   const links = isAdmin ? [...LINKS, { label: 'Admin panel', to: '/admin' }] : [...LINKS]
-  if (isSuperAdmin) links.push({ label: 'Validate', to: '/validate' })
+  if (isSuperAdmin) {
+    links.push({ label: 'Validate', to: '/validate' })
+    links.push({ label: 'Recruiter desk', to: '/recruiter-desk' })
+  }
   return links
 }
 

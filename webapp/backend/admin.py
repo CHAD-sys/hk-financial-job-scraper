@@ -647,6 +647,54 @@ def build_router(
                 resolve_admin=seekers_store.get_store().get_seeker,
             )
 
+    # ── The recruiter desk (Secret Market), 2026-09-20 ──────────────────────
+    # Ultimate-Admin-only, and deliberately NOT board-scoped. These are
+    # Recruiter Posts — headhunters' own adverts, promoted from the LinkedIn
+    # watchlist by hk_jobs/posts/promote.py and marked source_tier='social'.
+    # The board's one-month window hides effectively all of them (0 of 245 were
+    # visible on the day this was built, the watchlist poll having been dark
+    # since 2026-08-04), so a desk for reading what we actually hold cannot be
+    # built on the predicate that hides it — hence Visibility.RECRUITER_DESK.
+    #
+    # It reuses list_jobs rather than growing a parallel reader: the same
+    # search, sort, pagination and JobListResponse the board already has, with
+    # one predicate swapped. `boost_recruiter_posts` is pointless here (every
+    # row is one) and `demote_unpriced` is left off on purpose — this desk
+    # exists partly to FIND the unpriced ones.
+
+    @router.get("/recruiter-roles", response_model=job_read.JobListResponse)
+    def recruiter_roles_route(
+        request: Request,
+        search: str = Query("", max_length=200),
+        companies: list[str] = Query(default=[]),
+        seniority: list[str] = Query(default=[]),
+        skills: list[str] = Query(default=[]),
+        salary_min: int | None = Query(None),
+        salary_max: int | None = Query(None),
+        posted_within_days: int | None = Query(None),
+        has_ai_estimate: bool | None = Query(None),
+        sort: Sort = Query(Sort.NEWEST),
+        page: int = Query(1, ge=1),
+        page_size: int = Query(24, ge=1, le=100),
+        _admin: dict = Depends(require_super_admin),
+    ):
+        filters = JobFilters.of(
+            search=search, companies=companies, seniority=seniority, skills=skills,
+            salary_min=salary_min, salary_max=salary_max,
+            posted_within_days=posted_within_days, has_ai_estimate=has_ai_estimate,
+        )
+        with get_db(request) as conn:
+            return job_read.list_jobs(
+                conn,
+                filters,
+                sort=sort,
+                page=page,
+                page_size=page_size,
+                visibility=job_read.Visibility.RECRUITER_DESK,
+                audience=job_read.CatalogueAudience.MEMBER,
+                is_admin=True,
+            )
+
     @router.get("/salary-audit/editors")
     def salary_audit_editors_route(
         request: Request, _admin: dict = Depends(require_super_admin),

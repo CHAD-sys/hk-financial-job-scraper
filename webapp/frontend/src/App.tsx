@@ -21,6 +21,7 @@ import RegisterPage from './pages/RegisterPage'
 import AccountPage from './pages/AccountPage'
 import AdminPage from './pages/AdminPage'
 import AsfPage from './pages/AsfPage'
+import RecruiterDeskPage from './pages/RecruiterDeskPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
@@ -147,6 +148,7 @@ export default function App() {
                 <Route path="/account" element={<AccountPage />} />
                 <Route path="/admin" element={<AdminPage />} />
                 <Route path="/validate" element={<AsfPage />} />
+                <Route path="/recruiter-desk" element={<RecruiterDeskPage />} />
                 <Route path="/asf" element={<Navigate to="/validate" replace />} />
                 <Route path="/employer/register" element={<EmployerRegisterPage />} />
                 <Route path="/employer/signin" element={<EmployerSignInPage />} />

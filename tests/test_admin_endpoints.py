@@ -1182,3 +1182,46 @@ def test_salary_audit_route_works_on_a_volume_that_predates_phase_36(
     r2 = super_admin_client.get("/api/admin/salary-audit/editors")
     assert r2.status_code == 200
     assert r2.json() == []
+
+
+def test_recruiter_desk_is_ultimate_admin_only(admin_client, seeker_client):
+    """An ordinary admin is not enough: the desk is require_super_admin, the
+    same gate as ASF."""
+    assert seeker_client.get("/api/admin/recruiter-roles").status_code == 403
+    assert admin_client.get("/api/admin/recruiter-roles").status_code == 403
+
+
+def test_recruiter_desk_shows_posts_the_board_hides(tmp_path, dist, _seekers_env):
+    """RED before Visibility.RECRUITER_DESK: the desk had to be built on the
+    board predicate, which hides a Recruiter Post as soon as it is a month old
+    — 0 of 245 were reachable the day this was written, the watchlist having
+    been dark since 2026-08-04. A desk for reading what we hold cannot be built
+    on the rule that hides it."""
+    path = tmp_path / "recruiter_jobs.db"
+    make_jobs_db(
+        path,
+        jobs=[
+            # Open, but far outside the board's one-month window.
+            job(source="linkedin_posts", source_id="P1", company="Confidential via Acme Search",
+                title="Head of Credit Risk", source_tier="social",
+                posted_at="2026-03-02T00:00:00+00:00", is_active=1, is_primary=1),
+            # An ordinary employer listing: must never appear on this desk.
+            job(source="workday", source_id="W1", company="HSBC", title="Analyst",
+                source_tier="mainstream", posted_at="2026-09-18T00:00:00+00:00",
+                is_active=1, is_primary=1),
+        ],
+    )
+    client = TestClient(make_app(path, dist, tmp_path, cookie_secure=False))
+    client.post("/api/auth/register", json=ADMIN)
+    import seekers_store
+
+    store = seekers_store.get_store()
+    row = store.get_seeker_by_email(ADMIN["email"])
+    store.set_admin(row["id"], True)
+    store.set_super_admin(row["id"], True)
+
+    body = client.get("/api/admin/recruiter-roles").json()
+
+    assert body["total"] == 1
+    assert body["jobs"][0]["source_id"] == "P1"
+    assert {j["source_tier"] for j in body["jobs"]} == {"social"}

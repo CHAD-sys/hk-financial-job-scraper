@@ -55,9 +55,18 @@ describe('primaryLinksFor', () => {
     expect(primaryLinksFor(true, false).slice(0, 5).map(link => link.label)).toEqual(FIVE)
   })
 
-  it('adds Validate for Ultimate Admin, after Admin panel', () => {
+  it('adds Validate and the Recruiter desk for Ultimate Admin, after Admin panel', () => {
     expect(primaryLinksFor(true, true).map(link => link.label))
-      .toEqual([...FIVE, 'Admin panel', 'Validate'])
+      .toEqual([...FIVE, 'Admin panel', 'Validate', 'Recruiter desk'])
+  })
+
+  it('points the Recruiter desk at /recruiter-desk', () => {
+    const desk = primaryLinksFor(true, true).find(link => link.label === 'Recruiter desk')
+    expect(desk?.to).toBe('/recruiter-desk')
+  })
+
+  it('never exposes the Recruiter desk to a plain administrator', () => {
+    expect(primaryLinksFor(true, false).map(link => link.label)).not.toContain('Recruiter desk')
   })
 
   it('points Validate at /validate', () => {
@@ -68,7 +77,8 @@ describe('primaryLinksFor', () => {
   it('adds ASF even when isAdmin is false — the two bits are independent', () => {
     // A super-admin-only account (is_super_admin without is_admin) must still
     // see ASF, even though it would not see "Admin panel".
-    expect(primaryLinksFor(false, true).map(link => link.label)).toEqual([...FIVE, 'Validate'])
+    expect(primaryLinksFor(false, true).map(link => link.label))
+      .toEqual([...FIVE, 'Validate', 'Recruiter desk'])
   })
 
   it('never exposes ASF to a plain administrator', () => {

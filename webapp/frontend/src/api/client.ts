@@ -644,6 +644,34 @@ export async function fetchSalaryAuditJobs(
   return res.json()
 }
 
+/**
+ * The Ultimate Admin's recruiter desk: every open Recruiter Post, with none of
+ * the board's curation applied.
+ *
+ * These are headhunters' own adverts (source_tier='social'), and the board's
+ * one-month window hides effectively all of them — 0 of 245 were reachable the
+ * day this was added. Returns the ordinary JobListResponse the board already
+ * renders; only the server-side predicate differs.
+ */
+export async function fetchRecruiterRoles(
+  { search = '', sort = 'newest', page = 1, pageSize = 24 }: {
+    search?: string
+    sort?: string
+    page?: number
+    pageSize?: number
+  } = {},
+): Promise<JobListResponse> {
+  const p = new URLSearchParams()
+  if (search.trim()) p.set('search', search.trim())
+  p.set('sort', sort)
+  p.set('page', String(page))
+  p.set('page_size', String(pageSize))
+
+  const res = await apiFetch(`/api/admin/recruiter-roles?${p}`)
+  if (!res.ok) throw new Error(`Recruiter roles fetch failed: ${res.status}`)
+  return res.json()
+}
+
 export async function fetchSalaryAuditEditors(): Promise<SalaryEditor[]> {
   const res = await apiFetch('/api/admin/salary-audit/editors')
   if (!res.ok) throw new Error(`Salary audit editors fetch failed: ${res.status}`)
