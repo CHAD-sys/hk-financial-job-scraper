@@ -43,7 +43,11 @@ CREATE TABLE job_enrichments (
     -- ADR 0036: _fetch_unenriched also selects a Role carrying NO salary figure,
     -- whatever its prompt_version. Rows here default to "already priced" so the
     -- staleness tests below keep testing staleness and nothing else.
-    salary_estimated_min INTEGER DEFAULT 40000, salary_hkd_min INTEGER
+    salary_estimated_min INTEGER DEFAULT 40000, salary_hkd_min INTEGER,
+    -- Arm (4) selects a Role whose card summary is empty. These rows default to
+    -- "already summarised", for the same reason the salary above defaults to
+    -- priced: otherwise every staleness test here would also be a summary test.
+    description_summary TEXT DEFAULT 'A summary.', enriched_at TEXT
 );
 """
 

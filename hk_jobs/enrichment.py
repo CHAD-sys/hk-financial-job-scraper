@@ -91,6 +91,17 @@ def _clean_title_en(value: Any) -> str | None:
 _MAX_SUMMARY_SENTENCES = 3
 _MAX_SUMMARY_WORDS = 55  # ~50 with a little slack; hard safety net if the model overshoots
 
+#: How long a Role with a description but no card summary waits before the
+#: nightly run offers it to the model again (arm (4) in `_fetch_unenriched`).
+#:
+#: A week, not a night. Some postings are employer boilerplate with no role
+#: content, and the model will decline to summarise them however many times it
+#: is asked — arm (3) already proved that a candidate rule with no floor
+#: re-enriches the same unfixable rows forever. At the 2026-09 board this is
+#: ~35 Roles, so a weekly retry is a handful of calls rather than a standing
+#: nightly charge, and a refusal that was merely transient still heals.
+SUMMARY_RETRY_DAYS = 7
+
 
 def _clean_summary(value: Any) -> str:
     """
@@ -390,11 +401,13 @@ class EnrichmentPipeline:
         # something that should happen as a side effect of a wording change.
         accepted = {PROMPT_VERSION, *salary.ACCEPTED_PRIOR_VERSIONS}
         accepted_sql = ", ".join("'" + v.replace("'", "''") + "'" for v in sorted(accepted))
-        # Three ways a Role is a candidate on an ordinary run (docs/adr/0036):
+        # Four ways a Role is a candidate on an ordinary run (docs/adr/0036):
         #   1. it has no enrichment row at all;
         #   2. its enrichment predates the current PROMPT_VERSION and is not
         #      grandfathered in salary.ACCEPTED_PRIOR_VERSIONS;
         #   3. it carries NO salary figure — no AI estimate and no disclosed one.
+        #   4. it has a description but no card summary, and has not been
+        #      retried for SUMMARY_RETRY_DAYS.
         #
         # (3) excludes internships. They are deliberately left unpriced (owner
         # decision 2026-09-03, docs/adr/0037): the anchors file publishes a
@@ -410,13 +423,40 @@ class EnrichmentPipeline:
         # the only way to reach them was a full --re-enrich that would also
         # churn the rows that were fine. An unpriced Role is cheap to retry and
         # there is nothing on it to damage.
+        # (4) exists because arms 1-3 cannot see this shape at all. A Role that
+        # was priced, on the current prompt, carrying a full description and an
+        # EMPTY description_summary satisfies none of them, so nothing ever
+        # retried it: 35 board Roles were showing a card with no summary line,
+        # some enriched as recently as the night before this was written. The
+        # model had simply returned "" for description_summary (and usually for
+        # required_skills with it) while answering seniority, category and
+        # salary normally — most often on a posting whose text is employer
+        # boilerplate with no role content to summarise.
+        #
+        # There is no cheaper repair available: the employer's own text is not
+        # publishable (job_read.PUBLISHABLE_DESCRIPTION), so the card cannot
+        # fall back to an excerpt. Only another model call can fill it.
+        #
+        # The retry WINDOW is the point. Arm (3) needed an internship exclusion
+        # precisely because a row that can never satisfy it gets re-enriched
+        # every single night forever; a summary the model declines to write is
+        # the same trap. Spacing retries means a genuinely unsummarisable Role
+        # costs one call a week rather than one a night, while a transient
+        # refusal still heals on its own.
+        summary_retry = (
+            "OR (TRIM(COALESCE(e.description_summary, '')) = '' "
+            "    AND TRIM(COALESCE(j.description_clean, '')) <> '' "
+            f"    AND (e.enriched_at IS NULL "
+            f"         OR e.enriched_at < datetime('now', '-{SUMMARY_RETRY_DAYS} days')))"
+        )
         enriched_filter = (
             ""
             if (re_enrich or boutique_only)
             else f"AND (e.source_id IS NULL OR e.prompt_version IS NULL "
                  f"OR e.prompt_version NOT IN ({accepted_sql}) "
                  f"OR (e.salary_estimated_min IS NULL AND e.salary_hkd_min IS NULL "
-                 f"     AND NOT is_internship(j.title)))"
+                 f"     AND NOT is_internship(j.title)) "
+                 f"{summary_retry})"
         )
         # ADR 0034: estimation never targets a Role that isn't on the board.
         # board_visible_sql() is the exact predicate webapp/backend/job_read.py's
