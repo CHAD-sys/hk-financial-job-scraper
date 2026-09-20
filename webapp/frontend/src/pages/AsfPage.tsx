@@ -11,11 +11,18 @@ import {
   type MTAmbiguousCandidate,
 } from '../api/client'
 
-const hkDate = (value: string) => new Intl.DateTimeFormat('en-HK', {
+const HK_DATE = new Intl.DateTimeFormat('en-HK', {
   day: 'numeric',
   month: 'short',
   timeZone: 'Asia/Hong_Kong',
-}).format(new Date(`${value}T00:00:00+08:00`))
+})
+
+function hkDate(value: string): string {
+  const parsed = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? `${value}T00:00:00+08:00`
+    : value)
+  return Number.isNaN(parsed.getTime()) ? 'Unknown date' : HK_DATE.format(parsed)
+}
 
 /** Ultimate Admin's editorial gate. Nothing here publishes automatically. */
 export default function AsfPage() {

@@ -23,7 +23,7 @@ const ROLES = [
   {
     source: 'workday', source_id: 'risk-director', company: 'HSBC',
     title: 'Regional Risk Director', category: 'Risk', seniority: 'Director',
-    posted_at: '2026-09-18', salary_min: 100_000, salary_max: 130_000,
+    posted_at: '2026-09-18T12:00:00+00:00', salary_min: 100_000, salary_max: 130_000,
     salary_confidence: 'high',
     description_summary: 'Lead regional risk governance and advise senior stakeholders across Asia.',
     apply_url: 'https://careers.example.test/roles/risk-director',
@@ -66,6 +66,7 @@ describe('Ultimate Admin publication validation', () => {
     const markets = screen.getByRole('checkbox', { name: /Markets Vice President/ })
     expect(risk).toBeChecked()
     expect(markets).not.toBeChecked()
+    expect(screen.getByText(/posted 18 Sept/)).toBeInTheDocument()
     expect(screen.getByText(/Lead regional risk governance/)).toBeInTheDocument()
     expect(screen.getByText('No description summary available yet.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Check live posting for Regional Risk Director/ }))
