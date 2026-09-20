@@ -63,26 +63,19 @@ data/jobs.db
 data/jobs.db-shm
 data/jobs.db-wal
 
-# graphify local cache (keep graph artifacts, drop cache). `.vocab.txt` is a
-# regenerable wordlist derived from the graph for query expansion — same family
-# as the .graphify_* files, just without the prefix.
-graphify-out/cache/
-graphify-out/.graphify_*
-graphify-out/.vocab.txt
-
-# graphify per-run snapshots. Every run writes a dated directory carrying a
-# full ~11 MB graph.json; 25 of them had accumulated to 274 MB against a 129 MB
-# .git, and `origin` fans out to the PUBLIC CHAD-sys mirror, so tracking them
-# triples the repo permanently and in history. The current graph at
-# graphify-out/ (GRAPH_REPORT.md, graph.json, manifest.json) stays tracked —
-# that is the one a reader wants. Dated dirs already committed before this rule
-# keep their history; .gitignore does not untrack what is already tracked.
-graphify-out/20??-??-??/
-
-# graphify session memory — 129 markdown transcripts of past conversations,
-# filenames included. Local recall aid, not source, and not something to
-# publish to a public mirror.
-graphify-out/memory/
+# graphify — entirely local, never committed (2026-09-20).
+#
+# It is a derived artefact: every run rebuilds it from the source tree, so the
+# repo was carrying 35 MB of tracked output that nothing builds FROM. The root
+# graph.json alone is ~12 MB and is rewritten in full by every run, against a
+# .git already at 129 MB that mirrors to a PUBLIC repo — each refresh commit
+# added another copy to history permanently. The per-run dated snapshots (274 MB
+# unstaged when this was written) and graphify-out/memory/ (transcripts of past
+# sessions, not source) were never appropriate to publish at all.
+#
+# Regenerate locally with the graphify skill; nothing in the build, the tests or
+# the deploy reads these files.
+graphify-out/
 
 # PocketBase (verification mirror) — binary + local data, not source
 pocketbase/
