@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import json
 import sys
+from unittest import mock
 from datetime import datetime, timezone
 from pathlib import Path
 
 BACKEND = Path(__file__).resolve().parent.parent / "webapp" / "backend"
 sys.path.insert(0, str(BACKEND))
 
+import recommendations  # noqa: E402
 from job_read import JobSummary  # noqa: E402
 from recommendations import employer_key, rank_roles  # noqa: E402
 from resume_intelligence import (  # noqa: E402
@@ -186,7 +188,7 @@ def _resume_evidence(text: str):
     return evidence_from_storage(text, analysis.as_dict())
 
 
-def test_resume_fit_is_capped_and_a_settled_career_change_search_can_override_it():
+def test_the_cv_ranks_the_one_feed_and_a_settled_career_change_search_still_overrides_it():
     risk = _role(
         "risk",
         company="Hang Seng Bank",
@@ -230,8 +232,17 @@ def test_resume_fit_is_capped_and_a_settled_career_change_search_can_override_it
         resume_evidence=evidence,
     )
 
+    # ONE panel. With no board activity yet, the CV carries the whole ranking
+    # rather than nudging a feed built from nothing — it used to be capped at
+    # six points (MAX_RESUME_BONUS) beside unbounded signal weights, which is
+    # what a separate "jobs based on your CV" list existed to work around.
     assert resume_only.items[0].job.source_id == "risk"
-    assert resume_only.items[0].score <= 7.5  # six-point cap + 1.5 freshness
+    assert resume_only.items[0].score > resume_only.items[1].score
+
+    # And the invariant that cap was protecting survives without it: someone
+    # deliberately moving into a new field is not overruled by the field their
+    # CV happens to record. A settled search is half the blend, and here it is
+    # the only thing the actuarial role matches.
     assert changing_field.items[0].job.source_id == "actuary"
     assert changing_field.personalized is True
 
@@ -354,3 +365,74 @@ def test_dismissed_roles_and_hidden_employers_are_not_eligible():
     )
 
     assert [item.job.source_id for item in result.items] == ["visible"]
+
+
+def test_the_cv_and_the_searches_are_weighted_against_each_other_not_stacked():
+    """The one-panel contract (owner decision, 2026-09-21).
+
+    There is no separate CV list any more. A CV changes how THIS feed ranks,
+    with `RESUME_WEIGHT` of the relevance and searches taking the rest — so
+    moving the knob has to move the answer, in the direction it says.
+
+    Goes red against the old design, where the resume was a flat additive
+    bonus capped at six points and no weight existed to move.
+    """
+    cv_role = _role(
+        "cv",
+        company="Hang Seng Bank",
+        title="Credit Risk Manager",
+        sector="Banking",
+        seniority="mid",
+        required_skills=["credit risk", "financial modelling", "SQL"],
+    )
+    searched_role = _role(
+        "searched",
+        company="AIA",
+        title="Actuarial Manager",
+        sector="Insurance",
+        seniority="senior",
+        required_skills=["actuarial modelling"],
+    )
+    evidence = _resume_evidence(
+        "Credit Risk Manager with 6 years in banking, credit risk, "
+        "financial modelling and SQL."
+    )
+
+    def top(weight: float) -> str:
+        with mock.patch.object(recommendations, "RESUME_WEIGHT", weight):
+            result = rank_roles(
+                [cv_role, searched_role],
+                saved_roles=[],
+                discovery_events=[_event("actuarial", {"sectors": ["Insurance"]})],
+                saved_refs=set(),
+                page=1,
+                page_size=2,
+                now=NOW,
+                resume_evidence=evidence,
+            )
+        return result.items[0].job.source_id
+
+    # All the weight on the search they actually ran; all of it on the CV.
+    assert top(0.0) == "searched"
+    assert top(1.0) == "cv"
+
+
+def test_a_seeker_with_no_cv_is_ranked_entirely_by_what_they_did_here():
+    """`1 - RESUME_WEIGHT` must not quietly shrink a signals-only feed: the
+    absent side hands its whole share over rather than scaling the other down."""
+    role_a = _role("a", sector="Insurance", title="Actuarial Manager")
+    role_b = _role("b", sector="Banking", title="Credit Risk Manager")
+
+    result = rank_roles(
+        [role_b, role_a],
+        saved_roles=[],
+        discovery_events=[_event("actuarial", {"sectors": ["Insurance"]})],
+        saved_refs=set(),
+        page=1,
+        page_size=2,
+        now=NOW,
+    )
+
+    assert result.items[0].job.source_id == "a"
+    # Full marks for matching every signal they have, not half of them.
+    assert result.items[0].score >= recommendations.RELEVANCE_SCALE

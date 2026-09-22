@@ -16,6 +16,11 @@ BACKEND = Path(__file__).resolve().parent.parent / "webapp" / "backend"
 sys.path.insert(0, str(BACKEND))
 
 from resume_intelligence import (  # noqa: E402
+    CONFIDENT_MATCH_SCORE,
+    FAMILY_POINTS,
+    RESUME_MATCH_FLOOR,
+    _deglue,
+    glue_score,
     DOCX_MEDIA_TYPE,
     _dated_spans,
     _heading_kind,
@@ -219,7 +224,15 @@ def test_strong_matches_prioritise_observable_evidence_and_diversify_employers()
         [unrelated, same_employer, second_employer, matching], evidence, limit=2
     )
 
-    assert fit.score >= 80
+    # The contract here is ORDERING and diversification, not an absolute
+    # number. Since scoring became rarity-weighted, an absolute score depends
+    # on `vocabulary_mined.json` — a 286 KB artifact regenerated from the live
+    # catalogue by `scripts/mine_vocabulary.py` — so pinning one would make
+    # this test fail every time the board's skill mix drifts, which is a fact
+    # about the market and not a regression. The floor stays as a smoke check
+    # that a textbook match still reads as a strong one.
+    assert fit.score >= CONFIDENT_MATCH_SCORE * 2
+    assert fit.score > score_resume_fit(unrelated, evidence).score
     assert "credit risk" in fit.matched_skills
     assert any(reason.startswith("Skills aligned") for reason in fit.reasons)
     assert [item.job.source_id for item in matches] == ["risk", "model"]
@@ -324,7 +337,12 @@ def test_a_family_only_match_still_surfaces_instead_of_vanishing():
     fit = score_resume_fit(actuarial_role, evidence)
     matches = rank_resume_matches([actuarial_role, unrelated_role], evidence)
 
-    assert fit.score == 20
+    # The family match alone, with no skill hits behind it. Asserted against
+    # the constant rather than a literal: what matters is that a title-only
+    # match still scores and still clears RESUME_MATCH_FLOOR, not what the
+    # tuning happens to be this month.
+    assert fit.score == FAMILY_POINTS
+    assert fit.score >= RESUME_MATCH_FLOOR
     assert "Relevant actuarial experience" in fit.reasons
     assert [item.job.source_id for item in matches] == ["actuary"]
 
@@ -642,3 +660,153 @@ def test_credentials_beside_the_name_are_kept():
     )
 
     assert {"cfa", "acca", "ctp"} <= set(analysis.certifications)
+
+
+# ── PDF extraction: choosing a mode, and repairing what no mode can fix ──────
+
+def test_glue_score_counts_words_run_together():
+    assert glue_score("Managed the credit risk book for the APAC region.") == 0
+    assert glue_score("Developedtheportfoliooptimisationframeworkforovernight") == 1
+
+
+def test_extraction_prefers_the_mode_that_did_not_glue_words_together():
+    """Layout mode is better UNLESS it ran the words together.
+
+    pypdf's layout mode places glyphs by coordinate, and on a PDF whose fonts
+    carry no usable advance widths (LaTeX output, typically) it emits whole
+    phrases with no spaces. A real CV measured here produced 10 glued runs in
+    layout and ZERO in plain, losing both employer names with them — and the
+    old code returned layout the moment it cleared 40 characters, so plain was
+    unreachable for any PDF that produced text at all.
+    """
+    glued = "VicePresidentinAPACequitiestradingacrosssystematictrading " * 3
+    clean = "Vice President in APAC equities trading across systematic trading " * 3
+    assert glue_score(glued) > glue_score(clean)
+    assert min([(glue_score(glued), 0, glued), (glue_score(clean), 1, clean)])[2] == clean
+
+
+def test_deglue_recovers_an_employer_name_from_a_run_together_token():
+    """`MorganStanley` is 13 characters — far short of "suspiciously long" —
+    and losing it costs the whole sector signal, so case boundaries are split
+    at any length."""
+    recovered = _deglue("Worked at MorganStanley and HongKong before that")
+    assert "morgan stanley" in recovered.casefold()
+    assert "hong kong" in recovered.casefold()
+
+
+def test_deglue_leaves_a_short_mixed_case_brand_alone():
+    """The >=3-per-part guard stops `PwC` becoming `Pw C`."""
+    assert "Pw C" not in _deglue("Audit experience at PwC in Hong Kong")
+
+
+def test_deglue_asks_the_vocabulary_what_is_inside_an_unsplittable_run():
+    """A run that is still glued after case-splitting is all lowercase: there
+    is no structure left to split on, so the finance vocabulary probes it."""
+    run = "Developedtheportfoliooptimisationframeworkusedtomanageovernightinventory"
+    recovered = _deglue(run).casefold()
+    assert "portfolio optimisation" in recovered
+    assert "overnight inventory" in recovered
+
+
+def test_deglue_never_edits_the_candidates_own_words():
+    """Repairs are appended, never substituted — so a wrong split cannot
+    destroy a spelling the matcher would otherwise have found."""
+    original = "Worked at MorganStanley"
+    assert _deglue(original).startswith(original)
+
+
+def test_deglue_is_a_no_op_on_text_that_was_extracted_cleanly():
+    clean = "Vice President, APAC equities trading. Built quantitative models."
+    assert _deglue(clean) == clean
+
+
+# ── Rarity, internships and recency ─────────────────────────────────────────
+
+def test_a_generic_skill_match_is_worth_far_less_than_a_specialist_one():
+    """The fix for a Morgan Stanley quant whose best match was a Compliance
+    Manager, scored on "english", "training" (from "strength training", in his
+    hobbies) and "mathematics" (his degree). Every matched skill used to be a
+    flat 15 points regardless of what it told us."""
+    evidence = evidence_from_storage(
+        "Quantitative Strategist running statistical arbitrage and market making "
+        "with stakeholder management across the desk.",
+        {"skills": [], "role_families": [], "sectors": [], "years_experience": 8,
+         "seniority": "senior", "certifications": []},
+    )
+    specialist = role("q", title="Analyst", required_skills=["statistical arbitrage"])
+    generic = role("g", title="Analyst", required_skills=["stakeholder management"])
+
+    assert score_resume_fit(specialist, evidence).score > score_resume_fit(generic, evidence).score
+
+
+def test_a_skill_everybody_asks_for_scores_nothing_at_all():
+    evidence = evidence_from_storage(
+        "Fluent in English. Enjoys strength training and chess.",
+        {"skills": [], "role_families": [], "sectors": [], "years_experience": 8,
+         "seniority": "senior", "certifications": []},
+    )
+    fit = score_resume_fit(
+        role("noise", title="Analyst", required_skills=["english", "training"]), evidence
+    )
+    assert fit.score == 0
+    assert not any(reason.startswith("Skills aligned") for reason in fit.reasons)
+
+
+def test_an_internship_is_not_offered_to_someone_years_past_it():
+    """An internship is a different KIND of posting, not a rung an experienced
+    person could step down to, and the seniority ladder cannot express that:
+    a 2027 Global Markets Summer Analyst scored 66 and ranked SECOND among a
+    Morgan Stanley VP's matches, on "programming" and "engineering".
+    `is_internship` was already derived on every Role; nothing read it."""
+    evidence = evidence_from_storage(
+        "Vice President. Eight years in systematic trading, Python and Java.",
+        {"skills": [], "role_families": [], "sectors": [], "years_experience": 8,
+         "seniority": "senior", "certifications": []},
+    )
+    internship = role(
+        "summer",
+        title="Global Markets Sales & Trading Summer Analyst",
+        seniority="junior",
+        is_internship=True,
+        required_skills=["python", "java", "systematic trading"],
+    )
+
+    assert score_resume_fit(internship, evidence).score == 0
+    assert rank_resume_matches([internship], evidence) == ()
+
+
+def test_a_student_is_still_shown_internships():
+    evidence = evidence_from_storage(
+        "Penultimate year student. Python and Java coursework.",
+        {"skills": [], "role_families": [], "sectors": [], "years_experience": 0,
+         "seniority": "junior", "certifications": []},
+    )
+    internship = role(
+        "summer", title="Summer Analyst", seniority="junior", is_internship=True,
+        required_skills=["python", "java"],
+    )
+
+    assert score_resume_fit(internship, evidence).score > 0
+
+
+def test_the_desk_you_run_today_outweighs_the_one_you_left_years_ago():
+    """A Morgan Stanley quant reads as `quantitative, trading, ... data`, where
+    `data` comes from a Data Scientist job he left in 2018. Scoring that like
+    his current desk put HR Technology & Analytics roles among his best
+    matches. CVs are written newest-first, so position is the recency signal."""
+    career = (
+        "vice president, quantitative strategist, morgan stanley, 2021 to present. "
+        "led systematic trading and alpha research for the apac central risk book. "
+        + "managed market making strategy and portfolio optimisation across desks. " * 8
+        + "data scientist, a startup, 2017 to 2018. built nlp models for product titles."
+    )
+    evidence = evidence_from_storage(
+        career,
+        {"skills": [], "role_families": ["quantitative", "data"], "sectors": [],
+         "years_experience": 8, "seniority": "senior", "certifications": []},
+    )
+
+    quant_role = role("q", title="Quantitative Strategist", required_skills=[])
+    data_role = role("d", title="Data Scientist", required_skills=[])
+
+    assert score_resume_fit(quant_role, evidence).score > score_resume_fit(data_role, evidence).score

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Job, ResumeMatchesResponse, Seeker } from '../api/client'
+import type { Job, Seeker } from '../api/client'
 
 const SEEKER: Seeker = {
   id: 's-1',
@@ -126,10 +126,7 @@ const personalized = {
   ],
 }
 
-function renderSubject(
-  onSelect = vi.fn(),
-  resumeMatches: ResumeMatchesResponse | null = null,
-) {
+function renderSubject(onSelect = vi.fn()) {
   return {
     onSelect,
     ...render(
@@ -138,7 +135,6 @@ function renderSubject(
           saved={() => false}
           onToggleSave={vi.fn()}
           onSelect={onSelect}
-          resumeMatches={resumeMatches}
         />
       </MemoryRouter>,
     ),
@@ -168,26 +164,38 @@ describe('Roles for you', () => {
     expect(screen.queryByText(/Built from/)).not.toBeInTheDocument()
   })
 
-  it('merges resume matches into Roles for you without a second category', async () => {
-    const resumeMatches: ResumeMatchesResponse = {
-      has_resume: true,
-      resume_uploaded_at: '2026-08-10T10:00:00Z',
-      model_version: 'resume-signals-v1',
-      items: [{
-        job: makeJob({ source_id: 'CV1', title: 'Portfolio Risk Manager' }),
-        match_score: 88,
-        reasons: ['Skills aligned: portfolio risk, sql'],
-      }],
-    }
+  it('ranks CV-influenced Roles inside the one feed, with no second list', async () => {
+    // The blend happens on the server now: `/api/me/recommendations` weights
+    // the CV at `recommendations.RESUME_WEIGHT` and searches at the rest, and
+    // returns ONE ranking. The client used to fetch a second endpoint and pin
+    // its results above the feed as their own block, which meant a Seeker read
+    // two rankings of the same board — and a Role both agreed on could only
+    // appear in one of them.
+    fetchRecommendations.mockResolvedValue({
+      ...personalized,
+      items: [
+        {
+          job: makeJob({ source_id: 'CV1', title: 'Portfolio Risk Manager' }),
+          score: 88,
+          reasons: ['Resume alignment: Skills aligned: portfolio risk, sql'],
+          feedback: [],
+        },
+        ...personalized.items,
+      ],
+    })
 
-    renderSubject(vi.fn(), resumeMatches)
+    renderSubject()
 
     expect(await screen.findByRole('heading', { name: 'Roles for you' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Where your experience stands out' })).not.toBeInTheDocument()
     expect(screen.getByText('Portfolio Risk Manager')).toBeInTheDocument()
-    expect(screen.getByText('88%')).toBeInTheDocument()
-    expect(screen.getByText('Skills aligned: portfolio risk, sql')).toBeInTheDocument()
-    expect(screen.getByText(/strongest experience matches/)).toBeInTheDocument()
+    expect(screen.getByText('Credit Risk Analyst')).toBeInTheDocument()
+    // Every card in the list looks the same. A "why" strip on the CV-influenced
+    // ones alone would draw the two categories back inside the single list,
+    // and this feed deliberately carries no per-card reason strips at all
+    // (see the sibling test) — what the ranking is built from is stated once,
+    // for the whole feed, by RecommendationContext.
+    expect(screen.queryByText(/^Resume alignment/)).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Manage resume' })).toHaveAttribute('href', '/account')
   })
 

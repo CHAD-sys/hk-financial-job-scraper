@@ -24,6 +24,10 @@ from job_read import CatalogueAudience, JobFilters, JobSummary, Sort, Visibility
 from pydantic import BaseModel, Field
 
 _CANDIDATE_WINDOW = 1_000
+#: The evidence-directed leg. Separate from the recency window because it is a
+#: different question — "what matches this person", not "what is new" — and
+#: because it is only ever paid for by a Seeker who has given us evidence.
+_TARGETED_WINDOW = 600
 _MAX_FEED_PAGES = 10
 
 
@@ -63,9 +67,35 @@ class ResumeMatches(BaseModel):
     items: tuple[ResumeMatchItem, ...] = Field(default_factory=tuple)
 
 
-def _candidates(conn: sqlite3.Connection) -> list[JobSummary]:
-    """The one bounded, newest-first candidate policy for seeker suggestions."""
-    return job_read.list_jobs(
+def _candidates(
+    conn: sqlite3.Connection,
+    *,
+    evidence: "resume_intelligence.ResumeEvidence | None" = None,
+) -> list[JobSummary]:
+    """The one bounded candidate policy for seeker suggestions — two legs.
+
+    **Recency**, newest-first, exactly as before. It is what a Seeker with no
+    evidence yet gets, and it keeps a feed that already has evidence open to
+    things just posted.
+
+    **Evidence-directed**, and this is the new half. The recency leg is a
+    1,000-Role slice of an 1,813-Role board: 45% of what a Seeker could be
+    shown was unreachable, and which 45% depended on nothing but posting date.
+    A Morgan Stanley quant's ideal role posted three weeks ago simply was not
+    a candidate — not ranked low, not a candidate. Widening the slice is the
+    obvious fix and the wrong one: it costs linearly and still misses anything
+    past the new edge.
+
+    So instead we ask the board directly for the Roles this Seeker's evidence
+    points at — their rarest skills, in the catalogue's own spelling, across
+    the WHOLE board with no recency bound (see
+    `resume_intelligence.retrieval_terms`). Retrieval becomes a function of
+    relevance rather than of date, and the union stays bounded.
+
+    Ordering within the union does not matter: every candidate is scored, and
+    the score decides. This returns a POOL, not a ranking.
+    """
+    pool = job_read.list_jobs(
         conn,
         JobFilters(),
         sort=Sort.NEWEST,
@@ -74,6 +104,26 @@ def _candidates(conn: sqlite3.Connection) -> list[JobSummary]:
         visibility=Visibility.BOARD,
         audience=CatalogueAudience.MEMBER,
     ).jobs
+
+    terms = resume_intelligence.retrieval_terms(evidence) if evidence else ()
+    if not terms:
+        return pool
+
+    targeted = job_read.list_jobs(
+        conn,
+        JobFilters(skills=terms),
+        sort=Sort.NEWEST,
+        page=1,
+        page_size=_TARGETED_WINDOW,
+        visibility=Visibility.BOARD,
+        audience=CatalogueAudience.MEMBER,
+    ).jobs
+
+    seen = {(role.source, role.source_id) for role in pool}
+    pool.extend(
+        role for role in targeted if (role.source, role.source_id) not in seen
+    )
+    return pool
 
 
 def _refs(rows: list[dict]) -> list[tuple[str, str]]:
@@ -136,7 +186,7 @@ def rank_for_seeker(
     if not has_relevance_evidence:
         return SeekerRanking(ranked=None, saved_role_count=0, activity_count=0)
 
-    candidates = _candidates(conn)
+    candidates = _candidates(conn, evidence=resume_evidence)
     saved_roles = job_read.jobs_by_refs(conn, saved_order, visibility=Visibility.ADDRESSABLE)
     more_like_roles = job_read.jobs_by_refs(
         conn, more_like_order, visibility=Visibility.ADDRESSABLE
@@ -288,7 +338,9 @@ def resume_matches_for_seeker(
         )
 
     evidence = resume_intelligence.evidence_from_storage(row["text_content"], row["analysis"])
-    matches = resume_intelligence.rank_resume_matches(_candidates(conn), evidence, limit=safe_limit)
+    matches = resume_intelligence.rank_resume_matches(
+        _candidates(conn, evidence=evidence), evidence, limit=safe_limit
+    )
     return ResumeMatches(
         has_resume=True,
         resume_uploaded_at=str(row["uploaded_at"]),

@@ -5,7 +5,6 @@ import type {
   Job,
   FiltersResponse,
   JobListResponse,
-  ResumeMatchesResponse,
 } from '../api/client'
 import {
   DEFAULT_FILTERS, fetchJobs, fetchFilters, fetchStats,
@@ -28,7 +27,7 @@ import JobDetailModal from '../components/JobDetailModal'
 import StatCard from '../components/StatCard'
 import SearchHero from '../components/SearchHero'
 import RecommendedRoles from '../components/RecommendedRoles'
-import ResumeMatches from '../components/ResumeMatches'
+import ResumePrompt from '../components/ResumePrompt'
 import MemberRoleNotice from '../components/MemberRoleNotice'
 import AdminJobEditDrawer from '../components/AdminJobEditDrawer'
 
@@ -88,7 +87,6 @@ export default function JobBoardPage() {
   // query": arriving at /jobs as an admin must still land on the hero, exactly
   // as it does for a Seeker. Browsing everything is a thing you ask for.
   const [adminBrowse, setAdminBrowse] = useState(false)
-  const [resumeMatches, setResumeMatches] = useState<ResumeMatchesResponse | null>(null)
   const { toggle: toggleSave, isSaved } = useSavedRoles()
   const { seeker, loading: authLoading } = useAuth()
 
@@ -360,14 +358,11 @@ export default function JobBoardPage() {
               boxShadow: 'var(--shadow-float)',
             }}
           >
-            <ResumeMatches
-              onResolved={setResumeMatches}
-            />
+            <ResumePrompt />
             <RecommendedRoles
               saved={isSaved}
               onToggleSave={toggleSave}
               onSelect={setSelectedJob}
-              resumeMatches={resumeMatches}
             />
             <IndexStats
               boardTotal={boardTotal}

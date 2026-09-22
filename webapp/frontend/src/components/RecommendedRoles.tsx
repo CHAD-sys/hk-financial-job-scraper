@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  BadgeCheck,
   LoaderCircle,
   RefreshCw,
   ShieldCheck,
@@ -15,7 +14,6 @@ import type {
   Job,
   RecommendedRole,
   RecommendationsResponse,
-  ResumeMatchesResponse,
 } from '../api/client'
 import {
   fetchRecommendations,
@@ -33,7 +31,6 @@ interface Props {
   saved: (job: Job) => boolean
   onToggleSave: (job: Job) => void
   onSelect: (job: Job) => void
-  resumeMatches?: ResumeMatchesResponse | null
 }
 
 interface ToastState {
@@ -48,7 +45,6 @@ export default function RecommendedRoles({
   saved,
   onToggleSave,
   onSelect,
-  resumeMatches = null,
 }: Props) {
   const { seeker, loading: authLoading } = useAuth()
   const seekerId = seeker?.id
@@ -202,13 +198,19 @@ export default function RecommendedRoles({
 
   if (!authLoading && !seeker) return null
 
-  const experienceMatches = resumeMatches?.has_resume ? resumeMatches.items : []
-  const experienceRefs = new Set(experienceMatches.map(item => roleKey(item.job)))
-  const recommendedItems = (feed?.items ?? []).filter(
-    item => !experienceRefs.has(roleKey(item.job)),
-  )
-  const hasResume = Boolean(resumeMatches?.has_resume)
-  const hasRoles = experienceMatches.length > 0 || recommendedItems.length > 0
+  // ONE ranked list. The CV no longer produces a separate block pinned above
+  // the feed — it is `recommendations.RESUME_WEIGHT` of how every card here is
+  // scored, with searches and saved Roles carrying the rest. Two lists meant
+  // showing a Seeker two rankings of the same board and leaving them to work
+  // out which to believe; worse, a Role could only ever appear in one of them,
+  // so the strongest candidates — the ones both the CV and their searches
+  // agreed on — were silently demoted out of the feed by the de-duplication
+  // that kept the blocks apart.
+  const recommendedItems = feed?.items ?? []
+  const hasResume = Boolean(feed?.items.some(item =>
+    (item.reasons ?? []).some(reason => reason.startsWith('Resume alignment')),
+  ))
+  const hasRoles = recommendedItems.length > 0
 
   return (
     <section className="mb-10 sm:mb-14" aria-labelledby="roles-for-you-heading">
@@ -263,21 +265,6 @@ export default function RecommendedRoles({
         </FeedMessage>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-live="polite">
-          {experienceMatches.map(item => (
-            <article key={`resume__${roleKey(item.job)}`} className="resume-match-card">
-              <JobCard
-                job={item.job}
-                saved={saved(item.job)}
-                onToggleSave={onToggleSave}
-                onClick={onSelect}
-              />
-              <p className="resume-match-card__reason">
-                <BadgeCheck size={14} className="shrink-0" aria-hidden="true" />
-                <strong>{item.match_score}%</strong>
-                {item.reasons[0] || 'Relevant experience found in your resume'}
-              </p>
-            </article>
-          ))}
           {recommendedItems.map(item => {
             const key = roleKey(item.job)
             const moreLikeActive = (item.feedback ?? []).includes('more_like')

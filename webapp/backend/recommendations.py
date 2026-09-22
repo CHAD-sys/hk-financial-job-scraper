@@ -22,8 +22,23 @@ from typing import Iterable, Sequence
 from job_read import JobSummary
 from resume_intelligence import RESUME_MATCH_FLOOR, ResumeEvidence, score_resume_fit
 
-MODEL_VERSION = "signals-v3"
-MAX_RESUME_BONUS = 6.0
+MODEL_VERSION = "signals-v4"
+
+#: ── The one panel ───────────────────────────────────────────────────────────
+#: How much of a Seeker's relevance comes from their CV once they have uploaded
+#: one; searches and behaviour carry `1 - RESUME_WEIGHT`. There is no separate
+#: "jobs based on your CV" list any more — a CV changes how this feed is
+#: ranked, it does not spawn a second feed beside it.
+#:
+#: THE TUNING KNOB. 0.0 ignores the CV entirely; 1.0 ignores everything the
+#: Seeker has actually done on the board. An even split is the default because
+#: the two say genuinely different things — a CV is what someone IS, a search
+#: is what they want NEXT — and neither deserves to silently outrank the other.
+RESUME_WEIGHT = 0.5
+
+#: Blended relevance is a fraction in [0, 1]; this puts the published score on
+#: a 0–100 scale, which is what the card already renders as a percentage.
+RELEVANCE_SCALE = 100.0
 
 _WORD_RE = re.compile(r"[a-z0-9+#.]{2,}")
 _ENTITY_NOISE = re.compile(
@@ -140,7 +155,7 @@ def _add_more_like_signals(signals: list[_Signal], role: JobSummary) -> None:
                     _normalise(value),
                     str(value),
                     weight,
-                    f"Similar to a Role you asked to see more of",
+                    "Similar to a Role you asked to see more of",
                 )
             )
     for skill in role.required_skills[:12]:
@@ -469,6 +484,7 @@ def _score(
     signals: Sequence[_Signal],
     now: datetime,
     resume_evidence: ResumeEvidence | None = None,
+    signal_capacity: float = 0.0,
 ) -> RankedRole:
     haystack = " ".join(
         filter(
@@ -484,31 +500,46 @@ def _score(
         )
     )
     reasons: dict[str, float] = {}
-    score = _freshness(role, now)
+
+    # ── Leg 1: what they have DONE here. Searches, saved Roles, clicks. ──────
+    # Normalised by what this Seeker's signals could possibly have scored, so
+    # the result is a fraction of their own profile rather than a raw sum.
+    # Without that there is nothing to weight AGAINST: a signal total is
+    # unbounded and grows with how much someone has used the board, while a
+    # resume fit is capped at 100, and blending the two directly would mean
+    # the CV quietly mattering less the longer somebody had been a member.
+    signal_hit = 0.0
     for signal in signals:
         if _matches(signal, role, haystack, now=now):
-            score += signal.weight
+            signal_hit += signal.weight
             reasons[signal.reason] = reasons.get(signal.reason, 0.0) + signal.weight
+    signal_relevance = (signal_hit / signal_capacity) if signal_capacity > 0 else 0.0
 
-    # Resume evidence is intentionally bounded below a settled search or an
-    # explicit "More like this" profile. It helps surface plausible experience
-    # fits without trapping someone in the field their resume happens to show.
-    #
-    # Gated at RESUME_MATCH_FLOOR, not the higher confident-match bar
-    # resume_intelligence uses for "Jobs based on your CV": a role-family-only
-    # match (worth 20, e.g. "Actuarial Manager" against an actuarial resume
-    # with no required_skill phrase copied verbatim) is real signal for a
-    # ranking nudge here even where it isn't confident enough to headline a
-    # dedicated match card.
-    if resume_evidence is not None:
+    # ── Leg 2: what they ARE. The CV. ───────────────────────────────────────
+    resume_relevance = 0.0
+    has_resume = resume_evidence is not None
+    if has_resume:
         fit = score_resume_fit(role, resume_evidence)
-        if fit.score >= RESUME_MATCH_FLOOR:
-            bonus = min(MAX_RESUME_BONUS, fit.score / 100 * MAX_RESUME_BONUS)
-            score += bonus
-            if fit.reasons:
-                reason = f"Resume alignment: {fit.reasons[0]}"
-                reasons[reason] = reasons.get(reason, 0.0) + bonus
+        resume_relevance = fit.score / 100.0
+        if fit.score >= RESUME_MATCH_FLOOR and fit.reasons:
+            reasons[f"Resume alignment: {fit.reasons[0]}"] = fit.score / 100.0
 
+    # ── The blend ───────────────────────────────────────────────────────────
+    # One panel, two sources of evidence, explicit weights. Whichever side is
+    # ABSENT hands its whole share to the other, so a Seeker with only a CV is
+    # ranked wholly by it and a Seeker with only searches is ranked wholly by
+    # those — rather than both being scaled down toward nothing by a weight
+    # whose counterpart does not exist.
+    if has_resume and signal_capacity > 0:
+        relevance = (
+            (1.0 - RESUME_WEIGHT) * signal_relevance + RESUME_WEIGHT * resume_relevance
+        )
+    elif has_resume:
+        relevance = resume_relevance
+    else:
+        relevance = signal_relevance
+
+    score = relevance * RELEVANCE_SCALE + _freshness(role, now)
     matched = bool(reasons)
     ordered_reasons = tuple(
         reason for reason, _ in sorted(reasons.items(), key=lambda item: (-item[1], item[0]))[:2]
@@ -588,8 +619,17 @@ def rank_roles(
         and (role.source, role.source_id) not in dismissed
         and employer_key(role.company) not in hidden_employers
     ]
+    # What this Seeker's signals could score if a Role matched every one of
+    # them. Computed once: it is a property of the person, not of the Role.
+    signal_capacity = sum(signal.weight for signal in signals)
     ranked = [
-        _score(role, signals, moment, resume_evidence=resume_evidence)
+        _score(
+            role,
+            signals,
+            moment,
+            resume_evidence=resume_evidence,
+            signal_capacity=signal_capacity,
+        )
         for role in eligible
     ]
     ranked.sort(

@@ -43,7 +43,7 @@ vi.mock('../components/Pagination', () => ({ default: () => null }))
 vi.mock('../components/StatCard', () => ({ default: () => null }))
 vi.mock('../components/SearchHero', () => ({ default: () => <div>Search</div> }))
 vi.mock('../components/RecommendedRoles', () => ({ default: () => null }))
-vi.mock('../components/ResumeMatches', () => ({ default: () => null }))
+vi.mock('../components/ResumePrompt', () => ({ default: () => null }))
 vi.mock('../components/MemberRoleNotice', () => ({ default: () => null }))
 vi.mock('../components/AdminJobEditDrawer', () => ({ default: () => null }))
 vi.mock('../components/JobDetailModal', () => ({
