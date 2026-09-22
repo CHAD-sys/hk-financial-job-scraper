@@ -58,7 +58,7 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Callable, Iterable, Literal, Optional, Sequence
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 import search_index
 from hk_jobs.board_visibility import board_visible_sql
@@ -568,6 +568,40 @@ class JobSummary(BaseModel):
     #: Short-lived proof that this Role reached the caller through an allowed
     #: discovery path. Issued at the HTTP edge; jobs.db never stores it.
     access_token: Optional[str] = None
+
+    #: Every one of these five is written by AI enrichment into a column
+    #: DECLARED `INTEGER` — and SQLite gives a column type AFFINITY, not type
+    #: enforcement. When a value cannot be narrowed to an integer without
+    #: losing information, SQLite keeps the float and says nothing. Postgres
+    #: would have rejected it at the door; SQLite hands it back on read, where
+    #: pydantic v2 is the first component in the whole chain that actually
+    #: enforces anything, and raises.
+    #:
+    #: That is not hypothetical. The prompt asks for `<integer or null>`, which
+    #: is a request to a language model, not a constraint on one: DeepSeek
+    #: answered `7.5` for one OCBC posting on 2026-09-08 and every JobSummary
+    #: read of that row raised. The row sat at ~position 850 of the board, past
+    #: anything `/api/jobs` pages to, so the board looked healthy while
+    #: `/api/me/resume-matches` and `/api/me/recommendations` — which both pull
+    #: a 1,000-row candidate window through `role_feed._candidates` — returned
+    #: 500 for every Seeker.
+    #:
+    #: Floor rather than round: these are thresholds a Seeker is measured
+    #: against, and "7.5 years required" must not exclude the person with 7.
+    #: The write path coerces too (`hk_jobs/enrichment.py`); this is the guard
+    #: that makes a read of ALREADY-STORED data safe, which no write-side fix
+    #: can do retroactively.
+    @field_validator(
+        "salary_hkd_min",
+        "salary_hkd_max",
+        "salary_estimated_min",
+        "salary_estimated_max",
+        "years_experience_required",
+        mode="before",
+    )
+    @classmethod
+    def _floor_stored_float(cls, value: object) -> object:
+        return math.floor(value) if isinstance(value, float) else value
 
 
 class JobDetail(JobSummary):

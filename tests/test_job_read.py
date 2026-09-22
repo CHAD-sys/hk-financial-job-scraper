@@ -1465,3 +1465,34 @@ def test_the_salary_filter_reads_an_annual_figure_as_monthly(periods):
 def test_a_monthly_figure_is_left_alone_by_the_filter(periods):
     found = _ids(list_jobs(periods, JobFilters(salary_min=150_000), page_size=10).jobs)
     assert found == ["MONTHLY"]
+
+
+def test_a_fractional_years_required_does_not_take_down_the_read_model(tmp_path):
+    """SQLite has type AFFINITY, not enforcement: an INTEGER column stores 7.5 as
+    REAL when it cannot narrow it losslessly. One such row (DeepSeek answered
+    "7.5" to a prompt asking for an integer) made every JobSummary read raise,
+    which took `/api/me/resume-matches` and `/api/me/recommendations` down —
+    both pull a 1,000-row candidate window and so both reached the bad row.
+    """
+    path = tmp_path / "jobs.db"
+    make_jobs_db(
+        path,
+        jobs=[job(source="jobsdb", source_id="FRACTION", title="Portfolio Manager")],
+        enrichments=[enrichment(source="jobsdb", source_id="FRACTION")],
+    )
+    conn = sqlite3.connect(path)
+    conn.execute(
+        "UPDATE job_enrichments SET years_experience_required = 7.5 "
+        "WHERE source_id = 'FRACTION'"
+    )
+    conn.commit()
+    prepare(conn)
+
+    stored = conn.execute(
+        "SELECT typeof(years_experience_required) FROM job_enrichments"
+    ).fetchone()[0]
+    assert stored == "real", "precondition: SQLite really does keep the float"
+
+    listed = list_jobs(conn, JobFilters(), page=1, page_size=10)
+    assert [j.source_id for j in listed.jobs] == ["FRACTION"]
+    assert listed.jobs[0].years_experience_required == 7

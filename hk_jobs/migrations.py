@@ -1449,6 +1449,49 @@ def migrate_to_phase_42(db_path: str) -> None:
 #: before 27 and 28 add columns to them; 12 creates `job_enrichments` before 29
 #: restamps rows in it; and 32 reads BOTH `jobs` and `job_enrichments` to fill
 #: the search index, so it has to sit after 10 and 12.
+def migrate_to_phase_43(db_path: str) -> None:
+    """Floor any AI-written number SQLite stored as a float in an INTEGER column.
+
+    A column's declared type in SQLite is an AFFINITY, not a constraint: given
+    a value it cannot narrow to an integer without losing information, it keeps
+    the float and raises nothing. The enrichment prompt asks the model for
+    `<integer or null>`, which is a request to a language model rather than a
+    constraint on one, and nothing between the two enforced it.
+
+    DeepSeek answered `7.5` for one OCBC posting on 2026-09-08. It stored
+    cleanly and broke on READ eleven days later, when `JobSummary` — the first
+    component in the chain that enforces anything — refused it. That row sat
+    around position 850 of the board, past anything `/api/jobs` pages to, so
+    the board looked healthy while `/api/me/resume-matches` and
+    `/api/me/recommendations`, which both pull a 1,000-row candidate window,
+    returned 500 for every Seeker.
+
+    `hk_jobs/enrichment.py` now coerces on write and `job_read.JobSummary`
+    floors on read. This is the third leg: it repairs rows already on disk, in
+    every environment the migration ledger reaches, so the data is correct and
+    not merely survivable. Floor rather than round — these are thresholds a
+    Seeker is measured against, and "7.5 years required" must not exclude the
+    person with 7.
+    """
+    columns = (
+        "years_experience_required",
+        "salary_hkd_min",
+        "salary_hkd_max",
+        "salary_estimated_min",
+        "salary_estimated_max",
+    )
+    conn = sqlite3.connect(db_path)
+    try:
+        with conn:
+            for column in columns:
+                conn.execute(
+                    f"UPDATE job_enrichments SET {column} = CAST({column} AS INTEGER) "
+                    f"WHERE typeof({column}) = 'real'"
+                )
+    finally:
+        conn.close()
+
+
 MIGRATIONS: tuple[tuple[int, Callable[[str], None]], ...] = (
     (10, migrate_to_phase_10),
     (11, migrate_to_phase_11),
@@ -1483,6 +1526,7 @@ MIGRATIONS: tuple[tuple[int, Callable[[str], None]], ...] = (
     (40, migrate_to_phase_40),
     (41, migrate_to_phase_41),
     (42, migrate_to_phase_42),
+    (43, migrate_to_phase_43),
 )
 
 LATEST_PHASE = MIGRATIONS[-1][0]

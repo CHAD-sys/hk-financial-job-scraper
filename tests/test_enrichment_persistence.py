@@ -154,3 +154,43 @@ def test_manually_edited_row_survives_even_a_forced_re_enrich(db: Path):
     EnrichmentPipeline(db_path=str(db), api_key="test").run(re_enrich=True)
 
     assert _estimate(db, "jobsdb") == (55000, 65000, "high")
+
+
+def test_a_fractional_model_answer_is_stored_as_a_whole_number(db: Path, monkeypatch):
+    """The prompt asks for `<integer or null>`; the model is free to ignore that.
+
+    DeepSeek answered `7.5` for one OCBC posting on 2026-09-08. SQLite gives a
+    column type AFFINITY, not enforcement, so `years_experience_required
+    INTEGER` stored the float without complaint, and the break only surfaced on
+    READ, eleven days later, when pydantic refused it and took both personalised
+    surfaces down. Goes red if any of these three fields loses its coercion —
+    `salary_estimated_*` had it from the start and these three never did.
+    """
+    fractional = dict(_MODEL_ANSWER)
+    fractional.update(
+        years_experience=7.5, salary_hkd_min=62_500.5, salary_hkd_max=91_000.75
+    )
+
+    class _FractionalEnricher(_StubEnricher):
+        def _enrich_with_retry(self, _title, _company, _description, seniority=None,
+                                company_slug=None):
+            return dict(fractional)
+
+    monkeypatch.setattr(enrichment_module, "DeepSeekEnricher", _FractionalEnricher)
+    EnrichmentPipeline(str(db), api_key="test").run(limit=10)
+
+    conn = sqlite3.connect(db)
+    try:
+        rows = conn.execute(
+            "SELECT typeof(years_experience_required), years_experience_required, "
+            "typeof(salary_hkd_min), salary_hkd_min, "
+            "typeof(salary_hkd_max), salary_hkd_max FROM job_enrichments"
+        ).fetchall()
+    finally:
+        conn.close()
+
+    assert rows, "precondition: the run stored something"
+    for kind_y, years, kind_lo, lo, kind_hi, hi in rows:
+        assert (kind_y, years) == ("integer", 7)
+        assert (kind_lo, lo) == ("integer", 62_500)
+        assert (kind_hi, hi) == ("integer", 91_000)

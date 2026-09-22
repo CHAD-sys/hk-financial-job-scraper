@@ -57,7 +57,20 @@ _VALID_CONFIDENCE = {"low", "medium", "high"}
 
 
 def _coerce_int(value: Any) -> int | None:
-    """Salary estimates may come back as int, float, str, or null — coerce to int|None."""
+    """Coerce a model-supplied number to int|None — int, float, str or null.
+
+    EVERY integer field the model fills goes through this, not just the salary
+    estimates it was written for. The prompt asks for `<integer or null>`, but
+    that is a request to a language model, not a constraint on one, and the
+    column's declared `INTEGER` type does not enforce it either: SQLite gives a
+    column type AFFINITY, so a value it cannot narrow losslessly is stored as a
+    float and no error is raised. DeepSeek answered `7.5` for one OCBC posting
+    on 2026-09-08; it stored fine and then broke every read of that row, taking
+    `/api/me/resume-matches` and `/api/me/recommendations` down for eleven days
+    (see the floor validator on `job_read.JobSummary`, which is the other half
+    of this — it makes reads of already-stored rows safe, which no write-side
+    fix can do retroactively).
+    """
     if value is None:
         return None
     try:
@@ -322,11 +335,11 @@ class EnrichmentPipeline:
                                 (
                                     row["source"], row["source_id"],
                                     data.get("seniority"),
-                                    data.get("years_experience"),
+                                    _coerce_int(data.get("years_experience")),
                                     json.dumps(data.get("skills", [])),
                                     data.get("remote_type"),
-                                    data.get("salary_hkd_min"),
-                                    data.get("salary_hkd_max"),
+                                    _coerce_int(data.get("salary_hkd_min")),
+                                    _coerce_int(data.get("salary_hkd_max")),
                                     data.get("job_category"),
                                     datetime.now(UTC).isoformat(),
                                     _MODEL,
