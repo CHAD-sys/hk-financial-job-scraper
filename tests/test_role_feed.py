@@ -9,9 +9,18 @@ import job_read
 import role_feed
 import seekers_store
 
-from .support import enrichment, job, make_jobs_db
+from .support import days_ago, enrichment, job, make_jobs_db
 
-NOW = datetime(2026, 8, 11, 12, 0, tzinfo=timezone.utc)
+#: Anchored to the real clock, not a fixed date, because the BOARD predicate
+#: these fixtures must satisfy is not: `board_visible_sql()` filters on
+#: `date('now', '-1 month')` in SQL. Pinned dates gave this file a shelf life —
+#: the fixtures below were posted 9–10 August 2026, aged off the board around
+#: 10 September, and took the three tests here red with an empty candidate set.
+#: They stayed red for eleven days, which is exactly how long the outage in
+#: `job_read.JobSummary` (a stored float taking both personalised surfaces
+#: down) went unnoticed. Anything whose subject is not expiry dates itself
+#: with `days_ago`, per the helper's own docstring.
+NOW = datetime.now(timezone.utc).replace(microsecond=0)
 
 
 def _jobs_database(tmp_path):
@@ -24,21 +33,21 @@ def _jobs_database(tmp_path):
                 source_id="SAVED",
                 company="HSBC",
                 title="Credit Risk Analyst",
-                posted_at="2026-08-10T00:00:00+00:00",
+                posted_at=days_ago(1),
             ),
             job(
                 source="workday",
                 source_id="RISK",
                 company="Hang Seng Bank",
                 title="Senior Credit Risk Manager",
-                posted_at="2026-08-09T00:00:00+00:00",
+                posted_at=days_ago(2),
             ),
             job(
                 source="eightfold",
                 source_id="ACTUARY",
                 company="AIA",
                 title="Actuarial Manager",
-                posted_at="2026-08-08T00:00:00+00:00",
+                posted_at=days_ago(3),
             ),
         ],
         enrichments=[
