@@ -48,7 +48,14 @@ function openEmployers(liveRoles: readonly Job[] | null): MTOpenEmployer[] {
   ]
   const employers = new Map<string, EmployerEntry>()
   for (const entry of entries) {
-    const key = entry.company.trim().toLocaleLowerCase()
+    // `mtEmployerKey`, not the raw name. This list merges two feeds — live
+    // scraped Roles and the curated openings — and they spell the same employer
+    // differently ("The Hong Kong Jockey Club" against "Hong Kong Jockey Club
+    // (HKJC)"), which is exactly why MT_EMPLOYER_ALIASES exists. Keying on the
+    // lowercased name showed one employer as two banner entries and counted its
+    // programmes twice, while the directory below already resolved the same
+    // employer correctly through this function.
+    const key = mtEmployerKey(entry.company)
     const current = employers.get(key)
     employers.set(key, !current
       ? { ...entry, roleCount: 1 }

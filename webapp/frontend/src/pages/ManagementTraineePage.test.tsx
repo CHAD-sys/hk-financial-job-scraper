@@ -64,4 +64,29 @@ describe('ManagementTraineePage live board feed', () => {
       expect(card).not.toHaveTextContent('Not currently open')
     }
   })
+
+  it('counts one employer once when the two feeds spell its name differently', async () => {
+    // The curated openings carry "The Hong Kong Jockey Club"; a scrape of the
+    // same programme can arrive as "Hong Kong Jockey Club (HKJC)". Keying the
+    // banner on the lowercased name made that two open employers with the
+    // programme counted twice, while the directory below — which goes through
+    // mtEmployerKey — already treated them as one. MT_EMPLOYER_ALIASES exists
+    // for exactly this, and the banner now uses it.
+    fetchManagementTraineeRoles.mockResolvedValue({
+      total: 1, page: 1, page_size: 1, total_pages: 1,
+      jobs: [{
+        source: 'linkedin', source_id: 'hkjc-mt', company: 'Hong Kong Jockey Club (HKJC)',
+        title: '2027 Management Trainee Programme', locations: ['Hong Kong'],
+        posted_at: '2026-09-18T00:00:00+00:00', url: 'https://example.test/hkjc',
+      }],
+    })
+
+    render(<ManagementTraineePage />)
+    await screen.findByRole('heading', { name: 'Active roles in FinEx Careers' })
+
+    const jockeyClubEntries = screen.getAllByRole('link', {
+      name: /most urgent active role at .*jockey club/i,
+    })
+    expect(jockeyClubEntries).toHaveLength(1)
+  })
 })
