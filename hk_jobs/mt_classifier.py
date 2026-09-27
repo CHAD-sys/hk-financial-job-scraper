@@ -30,6 +30,22 @@ MT_CANDIDATE_TITLE_TERMS = (
     "%manager trainee%",
 )
 
+#: The watchlist is extracted from a TypeScript file by regex, and the file
+#: already carries two different shapes (69 array rows plus 2 object entries),
+#: so the format has drifted once already. The parse failing is not the real
+#: hazard — a parse that half-succeeds is. Every classification gate here is
+#: "company must be on the watchlist", so a regex that silently matches nothing
+#: does not raise: it rejects every Role in turn and the MT feed simply goes
+#: dark, looking exactly like a quiet week with no open programmes.
+#:
+#: This floor turns that into a loud failure. It is a "the format broke"
+#: threshold, deliberately far below the ~71 entries the workbook holds, so
+#: retiring a handful of employers never trips it while a reformat that drops
+#: the quoting style or the row shape does. Raising is the right outcome even
+#: though it surfaces as a failed request on the MT page: a visibly broken feed
+#: gets fixed, and a silently empty one has already been shipping for weeks.
+MIN_WATCHLIST_COMPANIES = 40
+
 _ROW_COMPANY = re.compile(r"\['([^']+)',\s*'[^']+'(?:,\s*true)?\]")
 _OBJECT_COMPANY = re.compile(r"^\s*company:\s*'([^']+)'", re.MULTILINE)
 _PAREN_CONTENT = re.compile(r"[\[(]([^\])]+)[\])]")
@@ -93,6 +109,15 @@ def watchlist_company_aliases() -> dict[str, str]:
             if existing and existing != company:
                 raise ValueError(f"Ambiguous MT watchlist alias: {alias!r}")
             aliases[alias] = company
+    distinct = len(set(aliases.values()))
+    if distinct < MIN_WATCHLIST_COMPANIES:
+        raise RuntimeError(
+            f"MT watchlist parse yielded only {distinct} companies from "
+            f"{PROGRAMMES_FILE.name} (floor is {MIN_WATCHLIST_COMPANIES}). The "
+            "file's format has almost certainly changed — check the quoting and "
+            "row shape against _ROW_COMPANY / _OBJECT_COMPANY. Left unchecked "
+            "this rejects every Role and the MT feed goes silently dark."
+        )
     return aliases
 
 
