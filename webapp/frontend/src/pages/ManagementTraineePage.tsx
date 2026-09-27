@@ -23,6 +23,26 @@ function formatPostedAt(date: string | null) {
   }).format(new Date(date))}`
 }
 
+/**
+ * Whether a curated opening can still be applied to, from the only evidence the
+ * entry carries: its stated deadline.
+ *
+ * The badge used to read "Open" unconditionally for every entry, which outlived
+ * the fact it claimed — a deadline of 31 Oct still rendered as "Open" in
+ * November. An entry with no stated deadline earns no claim either way, the
+ * same rule mtApplicationStatus.ts applies: a status is only publishable when
+ * something says so.
+ */
+export function openingDeadlineState(
+  deadline: string | undefined,
+  now: Date = new Date(),
+): 'open' | 'closed' | 'unstated' {
+  if (!deadline) return 'unstated'
+  // End of the deadline day in Hong Kong: a deadline of the 31st is still live
+  // on the 31st.
+  return new Date(`${deadline}T23:59:59+08:00`).getTime() >= now.getTime() ? 'open' : 'closed'
+}
+
 function openingId(key: string) {
   return `mt-opening-${key.replace(/[^a-z0-9]+/gi, '-').replace(/(^-|-$)/g, '').toLocaleLowerCase()}`
 }
@@ -43,7 +63,13 @@ function openEmployers(liveRoles: readonly Job[] | null): MTOpenEmployer[] {
     ...MT_OPENINGS.map(opening => ({
       company: opening.company,
       targetId: openingId(opening.id),
-      urgency: opening.deadline ? new Date(`${opening.deadline}T00:00:00+08:00`).getTime() : Number.MAX_SAFE_INTEGER,
+      // Sooner deadline = more urgent, so a smaller timestamp wins. A deadline
+      // that has already passed therefore used to win outright and promote a
+      // closed intake to the top of the banner as the most urgent thing on the
+      // page. A closed one now sorts behind everything still open.
+      urgency: opening.deadline && openingDeadlineState(opening.deadline) === 'open'
+        ? new Date(`${opening.deadline}T00:00:00+08:00`).getTime()
+        : Number.MAX_SAFE_INTEGER,
     })),
   ]
   const employers = new Map<string, EmployerEntry>()
@@ -194,7 +220,24 @@ export default function ManagementTraineePage() {
                   return (
                   <li id={id} key={opening.id} tabIndex={-1} className={`mt-opening${selected ? ' mt-opening--selected' : ''}`}>
                     {selected && <span className="mt-opening__selection" role="status">Selected from employer gallery</span>}
-                    <div className="mt-opening__status" aria-label="Application currently open">Open</div>
+                    {(() => {
+                      const state = openingDeadlineState(opening.deadline)
+                      const label = state === 'open'
+                        ? 'Open'
+                        : state === 'closed' ? 'Closed' : 'Deadline not stated'
+                      return (
+                        <div
+                          className={`mt-opening__status mt-opening__status--${state}`}
+                          aria-label={state === 'open'
+                            ? 'Application open until the stated deadline'
+                            : state === 'closed'
+                              ? 'Stated deadline has passed'
+                              : 'No deadline stated by the employer'}
+                        >
+                          {label}
+                        </div>
+                      )
+                    })()}
                     <div className="mt-opening__role">
                       <p>{opening.company}</p>
                       <h3>{opening.role}</h3>
@@ -203,6 +246,10 @@ export default function ManagementTraineePage() {
                     <div className="mt-opening__meta">
                       <span><MapPin size={15} aria-hidden="true" /> {opening.location}</span>
                       <span><CalendarClock size={15} aria-hidden="true" /> {opening.deadline ? `Closes ${formatDate(opening.deadline)}` : 'Deadline not stated'}</span>
+                      {/* When this was last checked by hand. Shown rather than
+                          implied: these entries are verified in batches, and a
+                          reader deserves to judge the age of the claim. */}
+                      <span>Checked {formatDate(opening.verifiedAt)}</span>
                     </div>
                     <CareerCoachingTag company={opening.company} />
                     <a href={opening.applicationUrl} target="_blank" rel="noopener noreferrer" aria-label={`${opening.applicationLabel ?? 'Apply now'}: ${opening.role} at ${opening.company}`}>
