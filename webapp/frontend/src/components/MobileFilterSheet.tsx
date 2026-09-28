@@ -65,7 +65,7 @@ export default function MobileFilterSheet({
   return (
     <dialog
       ref={dialogRef}
-      className="mobile-filter-sheet fixed inset-0 flex flex-col md:hidden"
+      className="mobile-filter-sheet fixed inset-0 flex flex-col"
       style={{ zIndex: 300, backgroundColor: 'var(--color-bg)' }}
       aria-label="Filters"
     >

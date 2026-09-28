@@ -6,6 +6,7 @@ import EmployerAuthProvider from './auth/EmployerAuthProvider'
 import SavedRolesProvider from './savedRoles/SavedRolesProvider'
 import AdminModeProvider from './adminMode/AdminModeProvider'
 import EmployerViewProvider from './employerView/EmployerViewProvider'
+import DeviceModeProvider from './deviceMode/DeviceModeProvider'
 import LandingPage from './pages/LandingPage'
 import PrivacyPage from './pages/PrivacyPage'
 import JobBoardPage from './pages/JobBoardPage'
@@ -117,53 +118,55 @@ export default function App() {
   }, [])
 
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <EmployerAuthProvider>
-          <SavedRolesProvider>
-            {/* Inside AuthProvider: whether Admin Mode is even available is a
-                function of the signed-in Seeker's privilege bits. */}
-            <AdminModeProvider>
-            {/* Inside BOTH auth providers: availability is a function of the
-                Seeker's Ultimate-Admin bit AND of there being no real
-                Employer session to conflict with. */}
-            <EmployerViewProvider>
-            <Routes>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/about" element={<AboutPage />} />
-              <Route path="/privacy" element={<PrivacyPage />} />
-              <Route path="/jobs" element={<JobBoardPage />} />
-              <Route path="/learning" element={<LearningPage />} />
-              <Route path="/management-trainee" element={<ManagementTraineePage />} />
-              <Route path="/career-coaches" element={<CareerCoachesPage />} />
-              <Route element={<DefaultTitleLayout />}>
-                <Route path="/saved" element={<SavedJobsPage />} />
-                <Route path="/post-a-role" element={<PostRolePage />} />
-                <Route path="/get-started" element={<SignInChooserPage />} />
-                <Route path="/signin" element={<SignInPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                <Route path="/reset-password" element={<ResetPasswordPage />} />
-                <Route path="/verify" element={<VerifyEmailPage />} />
-                <Route path="/account" element={<AccountPage />} />
-                <Route path="/admin" element={<AdminPage />} />
-                <Route path="/validate" element={<AsfPage />} />
-                <Route path="/recruiter-desk" element={<RecruiterDeskPage />} />
-                <Route path="/asf" element={<Navigate to="/validate" replace />} />
-                <Route path="/employer/register" element={<EmployerRegisterPage />} />
-                <Route path="/employer/signin" element={<EmployerSignInPage />} />
-                <Route path="/employer/forgot-password" element={<EmployerForgotPasswordPage />} />
-                <Route path="/employer/reset-password" element={<EmployerResetPasswordPage />} />
-                <Route path="/employer/verify" element={<EmployerVerifyEmailPage />} />
-              </Route>
-              <Route path="/choose-view" element={<Navigate to="/admin" replace />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-            </EmployerViewProvider>
-            </AdminModeProvider>
-          </SavedRolesProvider>
-        </EmployerAuthProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <DeviceModeProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <EmployerAuthProvider>
+            <SavedRolesProvider>
+              {/* Inside AuthProvider: whether Admin Mode is even available is a
+                  function of the signed-in Seeker's privilege bits. */}
+              <AdminModeProvider>
+                {/* Inside BOTH auth providers: availability is a function of the
+                    Seeker's Ultimate-Admin bit AND of there being no real
+                    Employer session to conflict with. */}
+                <EmployerViewProvider>
+                  <Routes>
+                    <Route path="/" element={<LandingPage />} />
+                    <Route path="/about" element={<AboutPage />} />
+                    <Route path="/privacy" element={<PrivacyPage />} />
+                    <Route path="/jobs" element={<JobBoardPage />} />
+                    <Route path="/learning" element={<LearningPage />} />
+                    <Route path="/management-trainee" element={<ManagementTraineePage />} />
+                    <Route path="/career-coaches" element={<CareerCoachesPage />} />
+                    <Route element={<DefaultTitleLayout />}>
+                      <Route path="/saved" element={<SavedJobsPage />} />
+                      <Route path="/post-a-role" element={<PostRolePage />} />
+                      <Route path="/get-started" element={<SignInChooserPage />} />
+                      <Route path="/signin" element={<SignInPage />} />
+                      <Route path="/register" element={<RegisterPage />} />
+                      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                      <Route path="/reset-password" element={<ResetPasswordPage />} />
+                      <Route path="/verify" element={<VerifyEmailPage />} />
+                      <Route path="/account" element={<AccountPage />} />
+                      <Route path="/admin" element={<AdminPage />} />
+                      <Route path="/validate" element={<AsfPage />} />
+                      <Route path="/recruiter-desk" element={<RecruiterDeskPage />} />
+                      <Route path="/asf" element={<Navigate to="/validate" replace />} />
+                      <Route path="/employer/register" element={<EmployerRegisterPage />} />
+                      <Route path="/employer/signin" element={<EmployerSignInPage />} />
+                      <Route path="/employer/forgot-password" element={<EmployerForgotPasswordPage />} />
+                      <Route path="/employer/reset-password" element={<EmployerResetPasswordPage />} />
+                      <Route path="/employer/verify" element={<EmployerVerifyEmailPage />} />
+                    </Route>
+                    <Route path="/choose-view" element={<Navigate to="/admin" replace />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </EmployerViewProvider>
+              </AdminModeProvider>
+            </SavedRolesProvider>
+          </EmployerAuthProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </DeviceModeProvider>
   )
 }

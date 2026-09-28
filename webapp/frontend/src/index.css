@@ -76,13 +76,12 @@
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* At lg the Nav splits into two tiers:
+/* The device-mode provider, not the browser window, chooses the structural
+   navigation. Desktop is two tiers:
      44px utility strip + 1px divider + 44px nav row + 1px header border = 90px.
-   Overriding the token here keeps the job detail panel and the scroll clearance
-   correct without either of them knowing why the bar got taller. */
-@media (min-width: 1024px) {
-  :root { --nav-height: 90px; }
-}
+   Components can still reflow within either shell, but narrowing a desktop
+   window no longer turns its product navigation into the phone navigation. */
+html[data-ui-mode='desktop'] { --nav-height: 90px; }
 
 /* ── Base ─────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
