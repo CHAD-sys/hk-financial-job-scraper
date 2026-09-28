@@ -11,6 +11,7 @@ import { useAdminMode } from '../adminMode/useAdminMode'
 import { useEmployerView } from '../employerView/useEmployerView'
 import { useEmployerAuth } from '../auth/useEmployerAuth'
 import { useSavedRoles } from '../savedRoles/useSavedRoles'
+import { useDeviceMode } from '../deviceMode/useDeviceMode'
 
 /**
  * Primary navigation.
@@ -148,6 +149,8 @@ export default function Nav() {
   // Post a role — showed a signed-in Seeker a Saved badge of zero. A forgotten
   // prop with a default is a silent wrong number; reading the context is not.
   const { count: savedCount } = useSavedRoles()
+  const { uiMode } = useDeviceMode()
+  const mobileUi = uiMode === 'mobile'
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
   const { pathname, hash } = useLocation()
@@ -168,6 +171,10 @@ export default function Nav() {
   // be confused, the real session wins — the provider makes the preview
   // unavailable while one exists.
   const { employerView, canUseEmployerView, setEmployerView } = useEmployerView()
+
+  useEffect(() => {
+    if (!mobileUi && open) setOpen(false)
+  }, [mobileUi, open])
   // The panel is an admin-view destination, so the row only carries it in admin
   // view. In Seeker view an admin's nav is a Seeker's nav, entry for entry.
   // ASF is the one exception: it reads seeker.is_super_admin directly, not
@@ -352,7 +359,8 @@ export default function Nav() {
           strip, and the nav gets a full-width row to itself. Everything stays
           visible, and the active page earns a real underline rather than a
           shift in text colour alone. */}
-      <div className="hidden lg:block">
+      {!mobileUi && (
+        <div>
         <div className="mx-auto max-w-7xl px-8">
           <div className="flex h-11 items-center justify-between gap-4">
             {wordmark}
@@ -533,10 +541,12 @@ export default function Nav() {
             </nav>
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* ── Mobile: one row, unchanged ───────────────────────────────────── */}
-      <div className="lg:hidden">
+      {mobileUi && (
+        <div>
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="flex h-16 items-center justify-between gap-4">
             {wordmark}
@@ -583,12 +593,13 @@ export default function Nav() {
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Mobile menu */}
-      {open && (
+      {mobileUi && open && (
         <nav
-          className="lg:hidden border-t border-white/10 px-6 py-4 flex flex-col gap-4"
+          className="border-t border-white/10 px-6 py-4 flex flex-col gap-4"
           style={{ backgroundColor: 'var(--color-nav)' }}
           aria-label="Mobile navigation"
         >

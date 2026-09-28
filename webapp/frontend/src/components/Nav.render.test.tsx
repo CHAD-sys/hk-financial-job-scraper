@@ -34,12 +34,14 @@ const adminModeValue = vi.hoisted(() => ({
 const employerViewValue = vi.hoisted(() => ({
   employerView: false, canUseEmployerView: false, setEmployerView: vi.fn(),
 }))
+const deviceModeValue = vi.hoisted(() => ({ uiMode: 'desktop' as 'mobile' | 'desktop' }))
 
 vi.mock('../auth/useAuth', () => ({ useAuth: () => authValue }))
 vi.mock('../auth/useEmployerAuth', () => ({ useEmployerAuth: () => employerAuthValue }))
 vi.mock('../adminMode/useAdminMode', () => ({ useAdminMode: () => adminModeValue }))
 vi.mock('../employerView/useEmployerView', () => ({ useEmployerView: () => employerViewValue }))
 vi.mock('../savedRoles/useSavedRoles', () => ({ useSavedRoles: () => ({ count: 0 }) }))
+vi.mock('../deviceMode/useDeviceMode', () => ({ useDeviceMode: () => deviceModeValue }))
 vi.mock('../hooks/useRecordVisit', () => ({}))
 
 const { default: Nav } = await import('./Nav')
@@ -58,6 +60,26 @@ beforeEach(() => {
   adminModeValue.canUseAdminMode = false
   employerViewValue.employerView = false
   employerViewValue.canUseEmployerView = false
+  deviceModeValue.uiMode = 'desktop'
+})
+
+describe('Nav — device-specific structure', () => {
+  it('renders desktop navigation even when CSS viewport breakpoints are unavailable', () => {
+    renderNav()
+
+    expect(screen.getByRole('navigation', { name: 'Primary navigation' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Toggle menu' })).not.toBeInTheDocument()
+  })
+
+  it('renders the mobile navigation control for a detected mobile device', async () => {
+    const user = userEvent.setup()
+    deviceModeValue.uiMode = 'mobile'
+    renderNav()
+
+    expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Toggle menu' }))
+    expect(screen.getByRole('navigation', { name: 'Mobile navigation' })).toBeInTheDocument()
+  })
 })
 
 describe('Nav — Employer view switch', () => {

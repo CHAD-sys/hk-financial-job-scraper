@@ -1,9 +1,10 @@
 import { ArrowLeft, Search, X, SlidersHorizontal, ChevronDown, Flame, Sparkles, ShieldCheck } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { JobFilters, FiltersResponse } from '../api/client'
 import MultiSelect from './MultiSelect'
 import MobileFilterSheet from './MobileFilterSheet'
 import { PillButton, FilterRow, SalaryFields, ExpFields } from './FilterPrimitives'
+import { useDeviceMode } from '../deviceMode/useDeviceMode'
 
 interface Props {
   filters: JobFilters
@@ -20,17 +21,21 @@ interface Props {
 }
 
 export default function FilterBar({ filters, filterData, activeCount, onUpdate, onClear, onNewSearch }: Props) {
+  const { uiMode } = useDeviceMode()
+  const mobileUi = uiMode === 'mobile'
   const [showAllFilters, setShowAllFilters] = useState(false)
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
 
+  useEffect(() => {
+    if (!mobileUi && mobileSheetOpen) setMobileSheetOpen(false)
+  }, [mobileSheetOpen, mobileUi])
+
   return (
     <div
-      // Nav.tsx renders two different header heights: a single 64px row below
-      // `lg`, and a two-tier 90px header (utility strip + primary nav) at
-      // `lg` and up. This bar's sticky offset has to match whichever one is
-      // actually on screen, or its top edge scrolls under the (higher
-      // z-index) header and looks clipped instead of merely covered.
-      className="sticky top-16 z-30 w-full lg:top-[90px]"
+      // DeviceModeProvider publishes the selected navigation height as a CSS
+      // custom property. The offset therefore follows the stable UI mode, not
+      // a window-width breakpoint that can contradict the rendered nav.
+      className="sticky top-[var(--nav-height)] z-30 w-full"
       style={{
         backgroundColor: 'var(--color-surface)',
         borderBottom: '1px solid var(--color-border)',
@@ -63,70 +68,74 @@ export default function FilterBar({ filters, filterData, activeCount, onUpdate, 
 
           <SearchInput value={filters.search} onChange={v => onUpdate({ search: v })} />
 
-          {/* Mobile trigger: opens the full-screen Filters sheet (below md:).
+          {/* Mobile trigger: opens the full-screen Filters sheet.
               Sector pills + the advanced panel live only inside the sheet on
               mobile — keeping them out of this sticky bar is what stops it
               from growing tall enough to swallow a phone-sized viewport. */}
-          <button
-            type="button"
-            onClick={() => setMobileSheetOpen(true)}
-            data-active={activeCount > 0}
-            className="filter-pill md:hidden flex items-center gap-1.5 rounded-md px-3.5 py-2 text-xs font-semibold cursor-pointer outline-none whitespace-nowrap"
-            style={{
-              border: `1px solid ${activeCount > 0 ? 'var(--color-ink)' : 'var(--color-border-strong)'}`,
-              backgroundColor: activeCount > 0 ? 'var(--color-ink)' : 'var(--color-surface-2)',
-              color: activeCount > 0 ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
-              boxShadow: activeCount > 0 ? 'var(--shadow-card)' : 'none',
-            }}
-          >
-            <SlidersHorizontal size={14} />
-            Filters
-            {activeCount > 0 && (
-              <span
-                className="flex h-4 min-w-4 px-1 items-center justify-center rounded-full text-[10px] font-bold"
-                style={{ backgroundColor: 'var(--color-gold-star)', color: 'var(--color-nav)' }}
-              >
-                {activeCount}
-              </span>
-            )}
-          </button>
+          {mobileUi && (
+            <button
+              type="button"
+              onClick={() => setMobileSheetOpen(true)}
+              data-active={activeCount > 0}
+              className="filter-pill flex items-center gap-1.5 rounded-md px-3.5 py-2 text-xs font-semibold cursor-pointer outline-none whitespace-nowrap"
+              style={{
+                border: `1px solid ${activeCount > 0 ? 'var(--color-ink)' : 'var(--color-border-strong)'}`,
+                backgroundColor: activeCount > 0 ? 'var(--color-ink)' : 'var(--color-surface-2)',
+                color: activeCount > 0 ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
+                boxShadow: activeCount > 0 ? 'var(--shadow-card)' : 'none',
+              }}
+            >
+              <SlidersHorizontal size={14} />
+              Filters
+              {activeCount > 0 && (
+                <span
+                  className="flex h-4 min-w-4 px-1 items-center justify-center rounded-full text-[10px] font-bold"
+                  style={{ backgroundColor: 'var(--color-gold-star)', color: 'var(--color-nav)' }}
+                >
+                  {activeCount}
+                </span>
+              )}
+            </button>
+          )}
 
-          {/* Desktop More-filters toggle (unchanged) */}
-          <button
-            type="button"
-            onClick={() => setShowAllFilters(o => !o)}
-            data-active={showAllFilters || activeCount > 0}
-            aria-expanded={showAllFilters}
-            className="filter-pill hidden md:flex items-center gap-1.5 rounded-md px-3.5 py-2 text-xs font-semibold cursor-pointer outline-none whitespace-nowrap"
-            style={{
-              border: `1px solid ${showAllFilters || activeCount > 0 ? 'var(--color-ink)' : 'var(--color-border-strong)'}`,
-              backgroundColor: showAllFilters || activeCount > 0 ? 'var(--color-ink)' : 'var(--color-surface-2)',
-              color: showAllFilters || activeCount > 0 ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
-              boxShadow: showAllFilters || activeCount > 0 ? 'var(--shadow-card)' : 'none',
-            }}
-          >
-            <SlidersHorizontal size={14} />
-            <span>{showAllFilters ? 'Hide filters' : 'More filters'}</span>
-            {activeCount > 0 && (
-              <span
-                className="flex h-4 min-w-4 px-1 items-center justify-center rounded-full text-[10px] font-bold"
-                style={{ backgroundColor: 'var(--color-gold-star)', color: 'var(--color-nav)' }}
-              >
-                {activeCount}
-              </span>
-            )}
-            <ChevronDown
-              size={14}
-              style={{ transform: showAllFilters ? 'rotate(180deg)' : 'none', transition: 'transform 150ms' }}
-            />
-          </button>
+          {/* Desktop More-filters toggle */}
+          {!mobileUi && (
+            <button
+              type="button"
+              onClick={() => setShowAllFilters(o => !o)}
+              data-active={showAllFilters || activeCount > 0}
+              aria-expanded={showAllFilters}
+              className="filter-pill flex items-center gap-1.5 rounded-md px-3.5 py-2 text-xs font-semibold cursor-pointer outline-none whitespace-nowrap"
+              style={{
+                border: `1px solid ${showAllFilters || activeCount > 0 ? 'var(--color-ink)' : 'var(--color-border-strong)'}`,
+                backgroundColor: showAllFilters || activeCount > 0 ? 'var(--color-ink)' : 'var(--color-surface-2)',
+                color: showAllFilters || activeCount > 0 ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
+                boxShadow: showAllFilters || activeCount > 0 ? 'var(--shadow-card)' : 'none',
+              }}
+            >
+              <SlidersHorizontal size={14} />
+              <span>{showAllFilters ? 'Hide filters' : 'More filters'}</span>
+              {activeCount > 0 && (
+                <span
+                  className="flex h-4 min-w-4 px-1 items-center justify-center rounded-full text-[10px] font-bold"
+                  style={{ backgroundColor: 'var(--color-gold-star)', color: 'var(--color-nav)' }}
+                >
+                  {activeCount}
+                </span>
+              )}
+              <ChevronDown
+                size={14}
+                style={{ transform: showAllFilters ? 'rotate(180deg)' : 'none', transition: 'transform 150ms' }}
+              />
+            </button>
+          )}
 
           {/* Right-side clear (desktop) */}
-          {activeCount > 0 && (
+          {!mobileUi && activeCount > 0 && (
             <button
               type="button"
               onClick={onClear}
-              className="hidden md:flex items-center gap-1.5 text-xs font-medium transition-colors duration-150 cursor-pointer"
+              className="flex items-center gap-1.5 text-xs font-medium transition-colors duration-150 cursor-pointer"
               style={{ color: 'var(--color-ink-muted)' }}
               onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-ink)')}
               onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-ink-muted)')}
@@ -139,8 +148,8 @@ export default function FilterBar({ filters, filterData, activeCount, onUpdate, 
 
 
         {/* Advanced filters — desktop only, collapsed by default */}
-        {showAllFilters && (
-          <div className="hidden md:block">
+        {!mobileUi && showAllFilters && (
+          <div>
             <AdvancedFilters
               filters={filters}
               filterData={filterData}
@@ -153,7 +162,7 @@ export default function FilterBar({ filters, filterData, activeCount, onUpdate, 
         <ActiveChips filters={filters} onUpdate={onUpdate} onClear={onClear} />
       </div>
 
-      {mobileSheetOpen && (
+      {mobileUi && mobileSheetOpen && (
         <MobileFilterSheet
           filters={filters}
           filterData={filterData}
