@@ -8,7 +8,7 @@ import ResumeFeatureSpotlight from '../components/ResumeFeatureSpotlight'
 import MTAnnouncementBand from '../components/MTAnnouncementBand'
 import MTProgrammeShowcase from '../components/MTProgrammeShowcase'
 import useHashScroll from '../hooks/useHashScroll'
-import { fetchStats } from '../api/client'
+import { DEFAULT_FILTERS, fetchJobs, fetchStats, type Job } from '../api/client'
 import { SUBSCRIBER_LINE } from '../content/featuredVideos'
 
 const CONSULTATION_URL = 'https://www.finexclub.org/mentor-program'
@@ -32,6 +32,18 @@ function Pillar({ children }: { children: React.ReactNode }) {
  */
 export default function LandingPage() {
   useHashScroll()
+  const [salaryDeskRoles, setSalaryDeskRoles] = useState<Job[]>([])
+
+  // The weekly editor may legitimately have no approved Roles yet. Keep the
+  // landing rail useful in that state with live, salary-ranked board Roles;
+  // WeeklyHighlights still takes the editor's order whenever it is populated.
+  useEffect(() => {
+    let cancelled = false
+    fetchJobs({ ...DEFAULT_FILTERS, search: 'finance' }, 'salary_high', 1, 12)
+      .then(response => { if (!cancelled) setSalaryDeskRoles(response.jobs) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
 
   return (
     <div style={{ backgroundColor: 'var(--color-bg)', minHeight: '100dvh' }}>
@@ -48,7 +60,7 @@ export default function LandingPage() {
         <MTAnnouncementBand />
         <PortalHero />
         <MTProgrammeShowcase />
-        <WeeklyHighlights />
+        <WeeklyHighlights demoRoles={salaryDeskRoles} demoLabel="High-paying role" />
         <ResumeFeatureSpotlight />
         <PostRoleStripe />
       </main>

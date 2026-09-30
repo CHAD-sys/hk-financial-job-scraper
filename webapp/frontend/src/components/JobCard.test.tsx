@@ -1,7 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import JobCard from './JobCard'
 import type { Job } from '../api/client'
+import { DeviceModeContext } from '../deviceMode/DeviceModeContext'
 
 /**
  * What a card is allowed to say.
@@ -60,6 +62,11 @@ const recruiterPost: Job = {
 
 const noop = () => {}
 
+function LocationProbe() {
+  const location = useLocation()
+  return <output data-testid="location">{location.pathname}</output>
+}
+
 describe('JobCard', () => {
   it('drags the permanent Role URL into another browser window', () => {
     render(<JobCard job={base} saved={false} onToggleSave={noop} onClick={noop} />)
@@ -71,6 +78,23 @@ describe('JobCard', () => {
     fireEvent.dragStart(roleLink, { dataTransfer: { setData, effectAllowed: '' } })
     expect(setData).toHaveBeenCalledWith('text/uri-list', 'http://localhost:3000/jobs/jobsdb/1')
     expect(setData).toHaveBeenCalledWith('text/plain', 'http://localhost:3000/jobs/jobsdb/1')
+  })
+
+  it('opens an in-app Role detail screen on phones instead of falling through to the home route', () => {
+    render(
+      <DeviceModeContext.Provider value={{
+        deviceClass: 'phone', uiMode: 'mobile', detectionSource: 'user-agent', touchCapable: true,
+      }}>
+        <MemoryRouter>
+          <JobCard job={base} saved={false} onToggleSave={noop} onClick={noop} />
+          <LocationProbe />
+        </MemoryRouter>
+      </DeviceModeContext.Provider>,
+    )
+
+    fireEvent.click(screen.getByRole('link', { name: 'Vice President, Credit Risk at HSBC' }))
+
+    expect(screen.getByTestId('location')).toHaveTextContent('/roles/jobsdb/1')
   })
 
   it('shows where the Role was retrieved from', () => {
@@ -192,19 +216,17 @@ describe('JobCard', () => {
     expect(screen.getByLabelText('Edit Vice President, Credit Risk')).toBeTruthy()
   })
 
-  // ── Whose number is it ────────────────────────────────────────────────
-  // Same figure, two very different claims. Badging a human-corrected salary
-  // "AI est." tells the Seeker a machine guessed it, which is exactly the
-  // provenance error the badge exists to prevent, pointed the other way.
-
-  it('badges an untouched estimate as the AI estimate it is', () => {
+  // Salary provenance is available in the detail view; the compact card keeps
+  // the scan surface clean and shows the figure without a badge.
+  it('shows an estimated salary without a provenance badge', () => {
     const estimated = { ...base, salary_estimated_min: 40_000, salary_estimated_max: 60_000 }
     render(<JobCard job={estimated} saved={false} onToggleSave={noop} onClick={noop} />)
-    expect(screen.getByText('AI est.')).toBeTruthy()
+    expect(screen.getByText('~HK$40k–HK$60k/mo')).toBeTruthy()
+    expect(screen.queryByText('AI est.')).toBeNull()
     expect(screen.queryByText('Checked')).toBeNull()
   })
 
-  it('stops calling a corrected salary an AI estimate', () => {
+  it('shows a corrected salary without a provenance badge', () => {
     const corrected = {
       ...base,
       salary_estimated_min: 40_000,
@@ -212,8 +234,9 @@ describe('JobCard', () => {
       salary_verified: true,
     }
     render(<JobCard job={corrected} saved={false} onToggleSave={noop} onClick={noop} />)
-    expect(screen.getByText('Checked')).toBeTruthy()
+    expect(screen.getByText('~HK$40k–HK$60k/mo')).toBeTruthy()
     expect(screen.queryByText('AI est.')).toBeNull()
+    expect(screen.queryByText('Checked')).toBeNull()
   })
 
   it('leaves a disclosed salary alone either way', () => {

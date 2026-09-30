@@ -1,92 +1,97 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
+import { describe, expect, it, vi } from 'vitest'
+import { groupMTWorkbookProgrammesByEmployer, MT_WORKBOOK_PROGRAMMES } from '../content/mtWorkbookProgrammes'
 
-const fetchManagementTraineeRoles = vi.fn()
-
-vi.mock('../api/client', () => ({
-  fetchManagementTraineeRoles: () => fetchManagementTraineeRoles(),
-}))
 vi.mock('../components/Nav', () => ({ default: () => <nav>Navigation</nav> }))
 
 const { default: ManagementTraineePage } = await import('./ManagementTraineePage')
 
-describe('ManagementTraineePage live board feed', () => {
-  beforeEach(() => fetchManagementTraineeRoles.mockReset())
+function renderDirectory() {
+  return render(<MemoryRouter><ManagementTraineePage /></MemoryRouter>)
+}
 
-  it('shows active MT roles from jobs.db above the curated application links', async () => {
-    fetchManagementTraineeRoles.mockResolvedValue({
-      total: 1, page: 1, page_size: 1, total_pages: 1,
-      jobs: [{
-        source: 'jobsdb', source_id: 'mt-1', company: 'Example Bank',
-        title: '2027 Management Trainee Programme', locations: ['Hong Kong'],
-        posted_at: '2026-09-12T00:00:00+00:00', url: 'https://example.test/apply',
-      }],
-    })
+describe('ManagementTraineePage workbook directory', () => {
+  it('renders one card per employer while retaining every workbook application link', () => {
+    renderDirectory()
 
-    render(<ManagementTraineePage />)
-
-    expect(await screen.findByRole('heading', { name: 'Active roles in FinEx Careers' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'View the most urgent active role at Example Bank' })).toHaveAttribute('href', '#mt-opening-jobsdb-mt-1')
-    fireEvent.click(screen.getByRole('link', { name: 'View the most urgent active role at Example Bank' }))
-    expect(screen.getByText('Selected from employer gallery')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /view or apply: 2027 management trainee/i })).toHaveAttribute(
-      'href', 'https://example.test/apply',
+    expect(screen.getByRole('heading', { name: 'Apply while the window is open.' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Keep these on your radar.' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Start with a leading employer.' })).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'Open Management Trainee employers' })).toBeInTheDocument()
+    expect(screen.getAllByRole('article')).toHaveLength(groupMTWorkbookProgrammesByEmployer(MT_WORKBOOK_PROGRAMMES).length)
+    expect(screen.getAllByRole('link', { name: /View all application links at/ })).toHaveLength(
+      groupMTWorkbookProgrammesByEmployer(MT_WORKBOOK_PROGRAMMES).length,
     )
-    expect(screen.queryByText('Listed on: jobsdb')).not.toBeInTheDocument()
-    expect(screen.queryByText('Prototype')).not.toBeInTheDocument()
-    expect(screen.queryByText('Industries')).not.toBeInTheDocument()
-    expect(document.querySelector('.mt-logo-band__track')).toBeInTheDocument()
-    expect(screen.getAllByRole('link', { name: 'Career coaching' }).length).toBeGreaterThan(0)
-    expect(screen.getByText(/1 active role from the careers database/i)).toBeInTheDocument()
+    expect(MT_WORKBOOK_PROGRAMMES).toHaveLength(169)
+    expect(screen.queryByText('MT roles from the live careers database.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Active roles in FinEx Careers')).not.toBeInTheDocument()
   })
 
-  it('reconciles directory cards with curated openings for the same employer', async () => {
-    fetchManagementTraineeRoles.mockResolvedValue({
-      total: 1, page: 1, page_size: 1, total_pages: 1,
-      jobs: [{
-        source: 'linkedin', source_id: 'hkma-1', company: 'Hong Kong Monetary Authority (HKMA)',
-        title: 'Manager Trainee (2027 Intake)', locations: ['Hong Kong'],
-        posted_at: '2026-09-12T00:00:00+00:00', url: 'https://example.test/hkma',
-      }],
-    })
+  it('places all active workbook entries before closed and unconfirmed cards', () => {
+    renderDirectory()
 
-    render(<ManagementTraineePage />)
-    expect(await screen.findByText(/1 active role from the careers database/i)).toBeInTheDocument()
+    const cards = screen.getAllByRole('article')
+    const firstClosed = cards.findIndex(card => card.textContent?.includes('CLSA'))
+    const finalOpen = cards.findLastIndex(card => card.textContent?.includes('Open now'))
 
-    for (const company of [
-      'Hang Seng Bank',
-      'Hang Lung Properties',
-      'The Hong Kong Jockey Club (HKJC)',
-      'Hong Kong Monetary Authority (HKMA)',
-    ]) {
-      const card = screen.getByRole('heading', { name: company }).closest('article')
-      expect(card).toHaveTextContent('Open now')
-      expect(card).not.toHaveTextContent('Not currently open')
-    }
+    expect(firstClosed).toBeGreaterThan(finalOpen)
+    expect(cards[firstClosed]).toHaveTextContent('Closed')
+    expect(screen.getByRole('link', { name: 'View all application links at CLSA' })).toHaveAttribute(
+      'href', '/management-trainee/clsa',
+    )
   })
 
-  it('counts one employer once when the two feeds spell its name differently', async () => {
-    // The curated openings carry "The Hong Kong Jockey Club"; a scrape of the
-    // same programme can arrive as "Hong Kong Jockey Club (HKJC)". Keying the
-    // banner on the lowercased name made that two open employers with the
-    // programme counted twice, while the directory below — which goes through
-    // mtEmployerKey — already treated them as one. MT_EMPLOYER_ALIASES exists
-    // for exactly this, and the banner now uses it.
-    fetchManagementTraineeRoles.mockResolvedValue({
-      total: 1, page: 1, page_size: 1, total_pages: 1,
-      jobs: [{
-        source: 'linkedin', source_id: 'hkjc-mt', company: 'Hong Kong Jockey Club (HKJC)',
-        title: '2027 Management Trainee Programme', locations: ['Hong Kong'],
-        posted_at: '2026-09-18T00:00:00+00:00', url: 'https://example.test/hkjc',
-      }],
-    })
+  it('groups distinct employer links beneath one application card', () => {
+    renderDirectory()
 
-    render(<ManagementTraineePage />)
-    await screen.findByRole('heading', { name: 'Active roles in FinEx Careers' })
+    const bankOfAmericaCards = screen.getAllByRole('article').filter(card => card.textContent?.includes('Bank of America (BofA)'))
+    expect(bankOfAmericaCards).toHaveLength(1)
+    expect(bankOfAmericaCards[0]).toHaveTextContent('8 application links')
+    expect(screen.getByRole('link', { name: 'View all application links at Bank of America (BofA)' })).toHaveAttribute(
+      'href', '/management-trainee/bank-of-america-bofa',
+    )
+  })
 
-    const jockeyClubEntries = screen.getAllByRole('link', {
-      name: /most urgent active role at .*jockey club/i,
-    })
-    expect(jockeyClubEntries).toHaveLength(1)
+  it('orders employers by prestige inside each status group', () => {
+    renderDirectory()
+
+    const cards = screen.getAllByRole('article')
+    const indexFor = (company: string) => cards.findIndex(card => card.textContent?.includes(company))
+
+    expect(indexFor('Goldman Sachs')).toBeLessThan(indexFor('HSBC'))
+    expect(indexFor('HSBC')).toBeLessThan(indexFor('Deloitte'))
+    expect(indexFor('Mizuho')).toBeLessThan(indexFor('CLSA'))
+  })
+
+  it('uses the restored employer shortcuts to jump to the corresponding open cards', () => {
+    renderDirectory()
+
+    expect(screen.getByRole('link', { name: 'Jump to open application links at Goldman Sachs' })).toHaveAttribute(
+      'href', '#mt-employer-goldman-sachs',
+    )
+    expect(document.getElementById('mt-employer-goldman-sachs')).toHaveTextContent('Goldman Sachs')
+  })
+
+  it('keeps the leading-employer shortcuts focused on the strongest active platforms', () => {
+    renderDirectory()
+
+    expect(screen.getByRole('link', { name: 'Jump to open application links at Standard Chartered' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Jump to open application links at Jardine Matheson' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Jump to open application links at Swire' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Jump to open application links at Cathay Pacific' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Jump to open application links at Jefferies' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Jump to open application links at Fidelity International' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Jump to open application links at MUFG (Mitsubishi UFJ Financial Group)' })).not.toBeInTheDocument()
+  })
+
+  it('filters the same card directory by employer name', () => {
+    renderDirectory()
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search employers' }), { target: { value: 'CLSA' } })
+
+    expect(screen.getAllByRole('article')).toHaveLength(1)
+    expect(screen.getByRole('heading', { name: 'CLSA' })).toBeInTheDocument()
+    expect(screen.getByText('Closed')).toBeInTheDocument()
   })
 })

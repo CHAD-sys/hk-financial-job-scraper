@@ -2,16 +2,20 @@ import { describe, expect, it } from 'vitest'
 import { mtCompanyLogo } from './mtCompanyLogos'
 
 describe('MT company logo lookup', () => {
-  it('uses an employer domain for known MT employers', () => {
-    expect(mtCompanyLogo('Hong Kong Monetary Authority (HKMA)').src).toContain('hkma.gov.hk')
-    expect(mtCompanyLogo('Bank Of China (Hong Kong) Limited').src).toContain('BOCHK_Horizontal_Revised.jpg')
+  it('uses locally compressed colour assets for active MT employers', () => {
+    expect(mtCompanyLogo('Goldman Sachs').src).toBe('/company-logos/goldman-sachs.webp')
+    expect(mtCompanyLogo('Bank of China (Hong Kong) [BOCHK]').src).toBe('/company-logos/bochk.webp')
+    expect(mtCompanyLogo('Standard Chartered').src).toBe('/company-logos/standard-chartered.png')
   })
 
   it('has a readable fallback for an employer whose logo is not mapped yet', () => {
     expect(mtCompanyLogo('Example Bank')).toEqual({ wordmark: 'Example Bank' })
   })
 
-  it('uses a clean wordmark for BEA instead of the checkerboard raster', () => {
-    expect(mtCompanyLogo('Bank of East Asia (BEA)')).toEqual({ wordmark: 'BEA 東亞銀行' })
+  it('keeps the company name as a readable fallback when an image cannot load', () => {
+    expect(mtCompanyLogo('The Bank of East Asia (BEA)')).toEqual({
+      src: '/company-logos/bea.webp',
+      wordmark: 'The Bank of East Asia (BEA)',
+    })
   })
 })

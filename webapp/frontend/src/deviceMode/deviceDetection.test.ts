@@ -62,6 +62,18 @@ describe('device classification', () => {
     }))).toMatchObject({ deviceClass: 'tablet', uiMode: 'mobile', source: 'capabilities' })
   })
 
+  it('keeps an iPad in mobile mode while a Magic Keyboard adds hover and a fine pointer', () => {
+    expect(classifyDevice(signals({
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15',
+      platform: 'MacIntel',
+      maxTouchPoints: 5,
+      coarsePointer: false,
+      noHover: false,
+      screenWidth: 1024,
+      screenHeight: 1366,
+    }))).toMatchObject({ deviceClass: 'tablet', uiMode: 'mobile', source: 'capabilities' })
+  })
+
   it('uses touch capabilities only when identity signals are inconclusive', () => {
     expect(classifyDevice(signals({
       userAgent: 'Unknown browser',
@@ -72,6 +84,18 @@ describe('device classification', () => {
       screenWidth: 390,
       screenHeight: 844,
     }))).toMatchObject({ deviceClass: 'phone', uiMode: 'mobile', source: 'capabilities' })
+  })
+
+  it('does not mistake a phone-sized Android browser with a reduced UA for a tablet', () => {
+    expect(classifyDevice(signals({
+      userAgent: 'Mozilla/5.0 (Linux; Android 15; K) AppleWebKit/537.36 Chrome/140.0 Safari/537.36',
+      platform: 'Linux armv8l',
+      maxTouchPoints: 5,
+      coarsePointer: true,
+      noHover: true,
+      screenWidth: 390,
+      screenHeight: 844,
+    }))).toMatchObject({ deviceClass: 'phone', uiMode: 'mobile', source: 'user-agent' })
   })
 
   it('does not turn a touch-capable laptop into a mobile UI', () => {

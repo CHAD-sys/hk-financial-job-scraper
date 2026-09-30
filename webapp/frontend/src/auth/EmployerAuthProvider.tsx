@@ -60,9 +60,13 @@ export default function EmployerAuthProvider({ children }: { children: React.Rea
     }
   }, [])
 
+  const acceptAuthenticatedEmployer = useCallback((authenticatedEmployer: Employer) => {
+    setEmployer(authenticatedEmployer)
+  }, [])
+
   const value = useMemo<EmployerAuthValue>(
-    () => ({ employer, loading, login, register, logout, refresh }),
-    [employer, loading, login, register, logout, refresh],
+    () => ({ employer, loading, login, register, logout, refresh, acceptAuthenticatedEmployer }),
+    [employer, loading, login, register, logout, refresh, acceptAuthenticatedEmployer],
   )
 
   return <EmployerAuthContext.Provider value={value}>{children}</EmployerAuthContext.Provider>

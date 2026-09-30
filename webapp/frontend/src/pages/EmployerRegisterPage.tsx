@@ -142,7 +142,7 @@ export default function EmployerRegisterPage() {
         </p>
         <AuthDivider />
 
-        <form onSubmit={handleSubmit} noValidate>
+        <form onSubmit={handleSubmit}>
           <AuthField label="Company name" htmlFor="er-company">
             <input
               id="er-company" name="company_name" type="text" required maxLength={MAX.company_name}

@@ -1,8 +1,6 @@
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import DeviceModeProvider from './DeviceModeProvider'
-import { DEVICE_MODE_KEY } from './store'
 import { useDeviceMode } from './useDeviceMode'
 import type { DetectedDevice } from './deviceDetection'
 
@@ -21,15 +19,12 @@ const DESKTOP: DetectedDevice = {
 }
 
 function Probe() {
-  const { deviceClass, uiMode, preference, setPreference } = useDeviceMode()
+  const { deviceClass, uiMode, detectionSource } = useDeviceMode()
   return (
     <div>
       <span data-testid="device">{deviceClass}</span>
       <span data-testid="ui-mode">{uiMode}</span>
-      <span data-testid="preference">{preference}</span>
-      <button type="button" onClick={() => setPreference('mobile')}>mobile</button>
-      <button type="button" onClick={() => setPreference('desktop')}>desktop</button>
-      <button type="button" onClick={() => setPreference('auto')}>auto</button>
+      <span data-testid="source">{detectionSource}</span>
     </div>
   )
 }
@@ -42,13 +37,15 @@ function renderProbe(initialDetection: DetectedDevice = PHONE) {
   )
 }
 
+afterEach(() => localStorage.clear())
+
 describe('Device Mode', () => {
   it('publishes the detected device and UI mode on first render', () => {
     renderProbe()
 
     expect(screen.getByTestId('device')).toHaveTextContent('phone')
     expect(screen.getByTestId('ui-mode')).toHaveTextContent('mobile')
-    expect(screen.getByTestId('preference')).toHaveTextContent('auto')
+    expect(screen.getByTestId('source')).toHaveTextContent('user-agent')
     expect(document.documentElement).toHaveAttribute('data-device-class', 'phone')
     expect(document.documentElement).toHaveAttribute('data-ui-mode', 'mobile')
   })
@@ -66,21 +63,12 @@ describe('Device Mode', () => {
     expect(screen.getByTestId('ui-mode')).toHaveTextContent('mobile')
   })
 
-  it('persists a manual desktop override and can return to automatic mode', async () => {
-    const user = userEvent.setup()
-    const first = renderProbe(PHONE)
+  it('ignores a stale legacy local-storage override', () => {
+    localStorage.setItem('finex_device_mode:v1', 'mobile')
 
-    await user.click(screen.getByRole('button', { name: 'desktop' }))
+    renderProbe(DESKTOP)
+
+    expect(screen.getByTestId('device')).toHaveTextContent('desktop')
     expect(screen.getByTestId('ui-mode')).toHaveTextContent('desktop')
-    expect(localStorage.getItem(DEVICE_MODE_KEY)).toBe('desktop')
-    expect(document.documentElement).toHaveAttribute('data-ui-mode', 'desktop')
-
-    first.unmount()
-    renderProbe(PHONE)
-    expect(screen.getByTestId('ui-mode')).toHaveTextContent('desktop')
-
-    await user.click(screen.getByRole('button', { name: 'auto' }))
-    expect(screen.getByTestId('ui-mode')).toHaveTextContent('mobile')
-    expect(localStorage.getItem(DEVICE_MODE_KEY)).toBeNull()
   })
 })

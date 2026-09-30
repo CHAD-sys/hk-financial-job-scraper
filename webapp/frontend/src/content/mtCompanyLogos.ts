@@ -1,26 +1,64 @@
 export interface MTCompanyLogo {
-  /** A high-resolution official or established brand asset. */
+  /** Locally optimised colour mark for fast, stable rendering. */
   src?: string
-  /** A crisp text fallback beats a low-resolution favicon. */
+  /** Used only if the local asset cannot load. */
   wordmark: string
 }
 
-const COMPANY_LOGOS: readonly [RegExp, MTCompanyLogo][] = [
-  [/hong kong monetary authority|\bhkma\b/i, { src: 'https://www.hkma.gov.hk/statics/assets/img/logo.jpg', wordmark: 'HKMA' }],
-  [/bank of china \(hong kong\)|\bbochk\b/i, { src: 'https://beltandroad.hktdc.com/sites/default/files/bloggers/2019-10/BOCHK_Horizontal_Revised.jpg', wordmark: 'BOCHK' }],
-  [/bank of east asia|\bbea\b/i, { wordmark: 'BEA 東亞銀行' }],
-  [/hong kong jockey club|\bhkjc\b/i, { src: 'https://www.theofficialboard.com/img/twitterCompanyBigImages/36713.jpg', wordmark: 'HKJC' }],
-  [/hang seng indexes/i, { wordmark: 'HANG SENG INDEXES' }],
-  [/hang seng/i, { src: 'https://images.seeklogo.com/logo-png/6/1/hang-seng-bank-logo-png_seeklogo-65039.png', wordmark: 'HANG SENG' }],
-  [/smartone/i, { wordmark: 'SmarTone' }],
-  [/hang lung/i, { src: 'https://www.hanglung.com/getmedia/cfd2433a-11a3-46d2-b0a8-260b77554946/20200909_Hang-Lung-Logo.jpg', wordmark: 'HANG LUNG' }],
-  [/\bboci\b/i, { wordmark: 'BOCI' }],
-  [/\baia\b/i, { src: 'https://www.aia.com.hk/content/dam/group-wise/images/system/icons/aia-logo-red.svg', wordmark: 'AIA' }],
-  [/hyatt/i, { wordmark: 'HYATT' }],
-  [/standard chartered|\bscb\b/i, { wordmark: 'STANDARD CHARTERED' }],
-  [/\bhsbc\b/i, { src: 'https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/hsbc.svg', wordmark: 'HSBC' }],
-]
+const COMPANY_LOGO_FILES: Readonly<Record<string, string>> = {
+  'Bank of America (BofA)': '/company-logos/bank-of-america.webp',
+  'BOC International (BOCI)': '/company-logos/boci.webp',
+  'Goldman Sachs': '/company-logos/goldman-sachs.webp',
+  'Huatai International': '/company-logos/huatai-international.webp',
+  Jefferies: '/company-logos/jefferies.webp',
+  'Morgan Stanley': '/company-logos/morgan-stanley.webp',
+  'Société Générale': '/company-logos/societe-generale.webp',
+  UBS: '/company-logos/ubs.webp',
+  'Bank of China (Hong Kong) [BOCHK]': '/company-logos/bochk.webp',
+  'China Construction Bank (Asia)': '/company-logos/china-construction-bank.webp',
+  'CMB Wing Lung Bank': '/company-logos/cmb-wing-lung.webp',
+  'Hang Seng Bank': '/company-logos/hang-seng.webp',
+  HSBC: '/company-logos/hsbc.webp',
+  'MUFG (Mitsubishi UFJ Financial Group)': '/company-logos/mufg.webp',
+  'Standard Chartered': '/company-logos/standard-chartered.png',
+  'The Bank of East Asia (BEA)': '/company-logos/bea.webp',
+  'CSOP Asset Management': '/company-logos/csop.webp',
+  'Fidelity International': '/company-logos/fidelity.webp',
+  'HKEX (Hong Kong Exchanges and Clearing)': '/company-logos/hkex.webp',
+  'Invesco Asia': '/company-logos/invesco.webp',
+  'ION Group': '/company-logos/ion.webp',
+  RedotPay: '/company-logos/redotpay.webp',
+  Aon: '/company-logos/aon.webp',
+  Deloitte: '/company-logos/deloitte.webp',
+  Ekimetrics: '/company-logos/ekimetrics.webp',
+  'EY (Ernst & Young)': '/company-logos/ey.webp',
+  'Gain Miles': '/company-logos/gain-miles.webp',
+  KPMG: '/company-logos/kpmg.webp',
+  'Marsh McLennan': '/company-logos/marsh-mclennan.webp',
+  'PwC (PricewaterhouseCoopers)': '/company-logos/pwc.webp',
+  'China Merchants Group': '/company-logos/china-merchants.webp',
+  'China Overseas Land & Investment': '/company-logos/china-overseas.webp',
+  'China Resources': '/company-logos/china-resources.webp',
+  'CK Hutchison': '/company-logos/ck-hutchison.webp',
+  Colliers: '/company-logos/colliers.webp',
+  'Hang Lung Properties': '/company-logos/hang-lung.webp',
+  'Jardine Matheson': '/company-logos/jardine-matheson.webp',
+  'Sino Group': '/company-logos/sino.webp',
+  'Sun Hung Kai Properties (SHKP)': '/company-logos/shkp.webp',
+  Swire: '/company-logos/swire.webp',
+  'DFI Retail Group': '/company-logos/dfi.webp',
+  DKSH: '/company-logos/dksh.webp',
+  'Li & Fung': '/company-logos/li-fung.webp',
+  "Maxim's Group": '/company-logos/maxims.webp',
+  Edelman: '/company-logos/edelman.webp',
+  'FDM Group': '/company-logos/fdm.webp',
+  'HKT (Hong Kong Telecom)': '/company-logos/hkt.webp',
+  PCCW: '/company-logos/pccw.webp',
+  'Cathay Pacific': '/company-logos/cathay.webp',
+  'MTR Corporation': '/company-logos/mtr.webp',
+}
 
 export function mtCompanyLogo(company: string): MTCompanyLogo {
-  return COMPANY_LOGOS.find(([pattern]) => pattern.test(company))?.[1] ?? { wordmark: company }
+  const src = COMPANY_LOGO_FILES[company]
+  return src ? { src, wordmark: company } : { wordmark: company }
 }

@@ -10,16 +10,16 @@
  * FORM: First-ranked direct structure—grouped expertise ledger, precisely
  * specified extension, so no concept seed was needed.
  */
-import { ArrowDown, Search, Sparkles } from 'lucide-react'
+import { ArrowDown, ChevronDown, Search, Sparkles } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import CareerCoachCard from '../components/CareerCoachCard'
 import Nav from '../components/Nav'
+import { useDeviceMode } from '../deviceMode/useDeviceMode'
 import {
   CAREER_COACHES,
   CAREER_COACH_GROUPS,
   COACH_DOMAINS,
   COACH_SPECIALTIES,
-  coachCountForDomain,
   coachesForFilters,
   type CoachDomainFilter,
   type CoachSpecialtyFilter,
@@ -30,9 +30,14 @@ const FEATURED_COACHES = ['Morris Hui, CFA', 'Benjamin Chung', 'Byron Gardiner']
 ))
 
 export default function CareerCoachesPage() {
+  const { uiMode } = useDeviceMode()
+  const mobileUi = uiMode === 'mobile'
   const [activeDomain, setActiveDomain] = useState<CoachDomainFilter>('All expertise')
   const [specialty, setSpecialty] = useState<CoachSpecialtyFilter>('All specialties')
   const [query, setQuery] = useState('')
+  const [expandedDomains, setExpandedDomains] = useState<Set<string>>(
+    () => new Set([CAREER_COACH_GROUPS[0].domain]),
+  )
 
   const visibleCoaches = useMemo(() => coachesForFilters({
     domain: activeDomain,
@@ -54,6 +59,11 @@ export default function CareerCoachesPage() {
     setQuery('')
   }
 
+  const chooseDomain = (domain: CoachDomainFilter) => {
+    setActiveDomain(domain)
+    if (domain !== 'All expertise') setExpandedDomains(new Set([domain]))
+  }
+
   return (
     <div className="coach-directory-page">
       <title>Career Coaches by Finance Expertise | FinEx Careers</title>
@@ -67,7 +77,7 @@ export default function CareerCoachesPage() {
                 <p><Sparkles size={16} aria-hidden="true" /> FinEx career consultation</p>
                 <h1>Find the perspective<br />your next move needs.</h1>
                 <p>
-                  Browse {CAREER_COACHES.length} senior finance leaders by the work they know firsthand—from
+                  Browse senior finance leaders by the work they know firsthand—from
                   accounting and risk to investment, markets, wealth, custody, and digital assets.
                 </p>
                 <a href="#coach-directory-filters">
@@ -100,7 +110,7 @@ export default function CareerCoachesPage() {
                 <p>Every coach has one primary group and may appear in related filters where their experience crosses disciplines.</p>
               </div>
               <p className="coach-directory__count" aria-live="polite">
-                <strong>{visibleCount}</strong> {visibleCount === 1 ? 'coach matches' : 'coaches match'} {hasRefinements ? 'these filters' : 'this field'}
+                {activeDomain === 'All expertise' ? 'Explore the directory by expertise.' : `Showing coaches specialising in ${activeDomain}.`}
               </p>
             </div>
 
@@ -110,10 +120,9 @@ export default function CareerCoachesPage() {
                   key={domain}
                   type="button"
                   aria-pressed={activeDomain === domain}
-                  onClick={() => setActiveDomain(domain)}
+                  onClick={() => chooseDomain(domain)}
                 >
                   <span>{domain}</span>
-                  <strong>{coachCountForDomain(domain)}</strong>
                 </button>
               ))}
             </div>
@@ -149,17 +158,34 @@ export default function CareerCoachesPage() {
             </fieldset>
 
             <div id="coach-directory-results" className="coach-directory__groups">
-              {visibleCount > 0 ? visibleGroups.map(group => (
-                <section key={group.domain} className="coach-domain-group" aria-labelledby={`coach-domain-${slugify(group.domain)}`}>
-                  <header>
+              {visibleCount > 0 ? visibleGroups.map(group => {
+                const expandsForCurrentFilter = activeDomain !== 'All expertise' || hasRefinements
+                const open = !mobileUi || expandsForCurrentFilter || expandedDomains.has(group.domain)
+                return (
+                <details
+                  key={group.domain}
+                  className="coach-domain-group"
+                  open={open}
+                  onToggle={event => {
+                    if (!mobileUi || expandsForCurrentFilter) return
+                    const isOpen = event.currentTarget.open
+                    setExpandedDomains(current => {
+                      const next = new Set(current)
+                      if (isOpen) next.add(group.domain)
+                      else next.delete(group.domain)
+                      return next
+                    })
+                  }}
+                >
+                  <summary>
                     <h2 id={`coach-domain-${slugify(group.domain)}`}>{group.domain}</h2>
-                    <span>{group.coaches.length} {group.coaches.length === 1 ? 'coach' : 'coaches'}</span>
-                  </header>
+                    <ChevronDown size={18} aria-hidden="true" />
+                  </summary>
                   <div className="coach-domain-group__grid">
                     {group.coaches.map(coach => <CareerCoachCard key={coach.id} coach={coach} />)}
                   </div>
-                </section>
-              )) : (
+                </details>
+              )}) : (
                 <div className="coach-directory__empty" role="status">
                   <h2>No coaches match these filters.</h2>
                   <p>Try a broader specialty or clear the filters to return to the full directory.</p>

@@ -77,6 +77,19 @@ export default function PostRolePage() {
 
     const d = new FormData(e.currentTarget)
     const str = (k: string) => String(d.get(k) ?? '').trim()
+    const applyUrl = str('apply_url')
+    const applyUrlInput = e.currentTarget.elements.namedItem('apply_url') as HTMLInputElement | null
+
+    try {
+      const parsedApplyUrl = new URL(applyUrl)
+      if (parsedApplyUrl.protocol !== 'https:') throw new Error('Only HTTPS links are accepted')
+      applyUrlInput?.setCustomValidity('')
+    } catch {
+      applyUrlInput?.setCustomValidity('Enter a complete https:// application link.')
+      applyUrlInput?.reportValidity()
+      applyUrlInput?.focus()
+      return
+    }
 
     setStatus('sending')
     setError('')
@@ -90,7 +103,7 @@ export default function PostRolePage() {
         employment_type: str('employment_type'),
         salary_range: str('salary_range'),
         description: str('description'),
-        apply_url: str('apply_url'),
+        apply_url: applyUrl,
         website: String(d.get('website') ?? ''),
       })
       setStatus('sent')
@@ -169,7 +182,6 @@ export default function PostRolePage() {
 
             <form
               onSubmit={handleSubmit}
-              noValidate
               className="mt-8 rounded-xl p-6 lg:p-8"
               style={{
                 backgroundColor: 'var(--color-surface)',
@@ -227,6 +239,7 @@ export default function PostRolePage() {
                   <input
                     id="pr-url" name="apply_url" type="url" required maxLength={MAX.apply_url}
                     placeholder="https://" className="finex-input"
+                    onInput={event => event.currentTarget.setCustomValidity('')}
                   />
                 </Field>
               </div>

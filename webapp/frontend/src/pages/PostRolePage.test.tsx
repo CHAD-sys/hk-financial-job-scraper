@@ -106,10 +106,16 @@ describe('Post a role', () => {
     // Employer must keep their working form rather than lose it to a preview.
     employerAuthValue.employer = REAL_EMPLOYER
     employerViewValue.employerView = true
+    const user = userEvent.setup()
     renderPage()
 
     expect(screen.getByRole('button', { name: /Submit for review/ })).toBeEnabled()
-    await userEvent.click(screen.getByRole('button', { name: /Submit for review/ }))
+    await user.type(screen.getByLabelText('Job title'), 'Risk Manager')
+    await user.type(screen.getByLabelText('Location'), 'Hong Kong')
+    await user.selectOptions(screen.getByLabelText('Employment type'), 'Full-time')
+    await user.type(screen.getByLabelText('Role description'), 'Lead the regional risk programme.')
+    await user.type(screen.getByLabelText('Application link'), 'https://example.com/apply')
+    await user.click(screen.getByRole('button', { name: /Submit for review/ }))
     expect(submitRole).toHaveBeenCalled()
   })
 })

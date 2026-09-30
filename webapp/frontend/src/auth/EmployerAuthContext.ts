@@ -18,6 +18,8 @@ export interface EmployerAuthValue {
   logout: () => Promise<void>
   /** Re-read /api/employer/me and return the result. */
   refresh: () => Promise<Employer | null>
+  /** Adopt an Employer returned by an endpoint that also established a session. */
+  acceptAuthenticatedEmployer: (employer: Employer) => void
 }
 
 export const EmployerAuthContext = createContext<EmployerAuthValue | null>(null)

@@ -26,7 +26,7 @@ export default function PrivacyPage() {
       />
       <Nav />
       <main id="main-content">
-        <PrivacyNotice />
+        <PrivacyNotice standalone />
       </main>
     </div>
   )

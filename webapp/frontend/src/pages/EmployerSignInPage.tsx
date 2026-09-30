@@ -86,11 +86,13 @@ export default function EmployerSignInPage() {
         <GoogleButton label="Continue with Google" href={EMPLOYER_GOOGLE_SIGN_IN_PATH} />
         <AuthDivider />
 
-        <form onSubmit={handleSubmit} noValidate>
+        <form onSubmit={handleSubmit}>
           <AuthField label="Work email" htmlFor="es-email">
             <input
               id="es-email" name="email" type="email" required maxLength={MAX.email}
               autoComplete="email" className="finex-input"
+              aria-invalid={status === 'error'}
+              aria-describedby={status === 'error' ? 'es-error' : undefined}
             />
           </AuthField>
 
@@ -99,12 +101,15 @@ export default function EmployerSignInPage() {
               <input
                 id="es-password" name="password" type="password" required maxLength={MAX.password}
                 autoComplete="current-password" className="finex-input"
+                aria-invalid={status === 'error'}
+                aria-describedby={status === 'error' ? 'es-error' : undefined}
               />
             </AuthField>
           </div>
 
           {status === 'error' && (
             <p
+              id="es-error"
               className="mt-5 flex items-start gap-2 text-sm"
               style={{ color: 'var(--color-destructive)' }}
               role="alert"

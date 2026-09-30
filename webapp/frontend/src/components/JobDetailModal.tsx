@@ -189,10 +189,10 @@ function ModalHeader({
 }) {
   return (
     <div
-      className="flex-shrink-0 flex items-start gap-3 px-6 py-5"
+      className="job-detail-header flex-shrink-0 flex items-start gap-3 px-6 py-5"
       style={{ borderBottom: '1px solid var(--color-border)' }}
     >
-      <div className="flex-1 min-w-0">
+      <div className="job-detail-header__copy flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
           <span
             className="text-xs font-medium px-2 py-0.5 rounded"
@@ -224,7 +224,7 @@ function ModalHeader({
         </p>
       </div>
 
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="job-detail-header__actions flex items-center gap-2 flex-shrink-0">
         <ShareButton job={job} title={displayTitle} />
         <button
           type="button"

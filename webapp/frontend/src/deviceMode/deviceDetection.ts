@@ -29,6 +29,11 @@ interface NavigatorWithUserAgentData extends Navigator {
 
 const TABLET_MIN_SHORT_EDGE = 600
 
+function shortScreenEdge(signals: DeviceSignals): number {
+  const positiveEdges = [signals.screenWidth, signals.screenHeight].filter(edge => edge > 0)
+  return positiveEdges.length > 0 ? Math.min(...positiveEdges) : 0
+}
+
 function result(
   deviceClass: DeviceClass,
   source: DeviceDetectionSource,
@@ -55,13 +60,12 @@ export function classifyDevice(signals: DeviceSignals): DetectedDevice {
   const platform = signals.platform.toLowerCase()
   const touchCapable = signals.maxTouchPoints > 0
 
-  // iPadOS may identify itself as macOS. Requiring a coarse, non-hover input
-  // avoids treating an ordinary Mac as an iPad merely because identity text
-  // contains "Mac".
+  // iPadOS may identify itself as macOS, including while a Magic Keyboard or
+  // trackpad makes its primary pointer fine and hover-capable. Macs report no
+  // multi-touch display, whereas iPads expose multiple touch points, so that
+  // is the durable discriminator — pointer media queries are not.
   const ipadAsMac = platform.includes('mac')
-    && touchCapable
-    && signals.coarsePointer
-    && signals.noHover
+    && signals.maxTouchPoints > 1
   const ipad = userAgent.includes('ipad') || ipadAsMac
   if (ipad) {
     return result('tablet', userAgent.includes('ipad') ? 'user-agent' : 'capabilities', touchCapable)
@@ -70,9 +74,14 @@ export function classifyDevice(signals: DeviceSignals): DetectedDevice {
   const android = userAgent.includes('android')
   const mobileToken = /\b(mobile|mobi|iphone|ipod|windows phone)\b/.test(userAgent)
 
-  // Android tablets omit the Mobile token. Check this before the generic
-  // Client Hint because `mobile: false` describes both tablets and desktops.
-  if (android && !mobileToken) return result('tablet', 'user-agent', touchCapable)
+  // Android tablets omit the Mobile token, but privacy-oriented browsers and
+  // embedded WebViews can strip it from phones too. A known phone-sized touch
+  // screen is stronger evidence than the absent token; unknown dimensions
+  // retain the conservative tablet classification.
+  if (android && !mobileToken) {
+    const shortEdge = shortScreenEdge(signals)
+    return result(shortEdge > 0 && shortEdge < TABLET_MIN_SHORT_EDGE ? 'phone' : 'tablet', 'user-agent', touchCapable)
+  }
   if (mobileToken) return result('phone', 'user-agent', touchCapable)
   if (signals.userAgentDataMobile === true) {
     return result('phone', 'ua-client-hints', touchCapable)
@@ -84,8 +93,7 @@ export function classifyDevice(signals: DeviceSignals): DetectedDevice {
   // user narrows a desktop window; it only separates an unknown phone-sized
   // touch device from an unknown tablet-sized one.
   if (touchCapable && signals.coarsePointer && signals.noHover) {
-    const positiveEdges = [signals.screenWidth, signals.screenHeight].filter(edge => edge > 0)
-    const shortEdge = positiveEdges.length > 0 ? Math.min(...positiveEdges) : 0
+    const shortEdge = shortScreenEdge(signals)
     return result(shortEdge >= TABLET_MIN_SHORT_EDGE ? 'tablet' : 'phone', 'capabilities', true)
   }
 

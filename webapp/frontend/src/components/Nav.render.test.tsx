@@ -77,8 +77,11 @@ describe('Nav — device-specific structure', () => {
     renderNav()
 
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Toggle menu' }))
-    expect(screen.getByRole('navigation', { name: 'Mobile navigation' })).toBeInTheDocument()
+    const toggle = screen.getByRole('button', { name: 'Toggle menu' })
+    expect(toggle).toHaveAttribute('aria-controls', 'mobile-navigation-panel')
+    await user.click(toggle)
+    expect(screen.getByRole('navigation', { name: 'Mobile navigation' }))
+      .toHaveAttribute('id', 'mobile-navigation-panel')
   })
 })
 

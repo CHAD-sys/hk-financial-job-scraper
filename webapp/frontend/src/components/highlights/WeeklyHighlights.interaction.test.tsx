@@ -106,4 +106,20 @@ describe('weekly Role navigation', () => {
     await waitFor(() => expect(fetchWeeklyHighlights).toHaveBeenCalledTimes(2))
     expect(await screen.findByRole('link', { name: /Featured Risk Director/i })).toBeVisible()
   })
+
+  it('uses supplied live salary roles when the weekly editor has no approved roles', async () => {
+    fetchWeeklyHighlights.mockResolvedValueOnce({ ...weeklyResponse, roles: [] })
+    render(<MemoryRouter><WeeklyHighlights demoRoles={[featuredRole]} demoLabel="High-paying role" /></MemoryRouter>)
+
+    expect(await screen.findByRole('link', { name: /Featured Risk Director/i })).toBeVisible()
+  })
+
+  it('does not fetch or render the Role rail for a coach-only mobile surface', () => {
+    const { container } = render(<MemoryRouter><WeeklyHighlights surface="coaches" /></MemoryRouter>)
+
+    expect(fetchWeeklyHighlights).not.toHaveBeenCalled()
+    expect(container.querySelector('.hl__viewport')).not.toBeInTheDocument()
+    expect(container.querySelector('.hl__video-band')).not.toBeInTheDocument()
+    expect(container.querySelector('.hl__coach-band')).toBeInTheDocument()
+  })
 })

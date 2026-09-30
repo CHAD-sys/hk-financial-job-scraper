@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { recordVisit } from './api/client'
 import AuthProvider from './auth/AuthProvider'
@@ -7,30 +7,37 @@ import SavedRolesProvider from './savedRoles/SavedRolesProvider'
 import AdminModeProvider from './adminMode/AdminModeProvider'
 import EmployerViewProvider from './employerView/EmployerViewProvider'
 import DeviceModeProvider from './deviceMode/DeviceModeProvider'
-import LandingPage from './pages/LandingPage'
-import PrivacyPage from './pages/PrivacyPage'
-import JobBoardPage from './pages/JobBoardPage'
-import SavedJobsPage from './pages/SavedJobsPage'
-import AboutPage from './pages/AboutPage'
-import PostRolePage from './pages/PostRolePage'
-import LearningPage from './pages/LearningPage'
-import ManagementTraineePage from './pages/ManagementTraineePage'
-import CareerCoachesPage from './pages/CareerCoachesPage'
-import SignInChooserPage from './pages/SignInChooserPage'
-import SignInPage from './pages/SignInPage'
-import RegisterPage from './pages/RegisterPage'
-import AccountPage from './pages/AccountPage'
-import AdminPage from './pages/AdminPage'
-import AsfPage from './pages/AsfPage'
-import RecruiterDeskPage from './pages/RecruiterDeskPage'
-import ForgotPasswordPage from './pages/ForgotPasswordPage'
-import ResetPasswordPage from './pages/ResetPasswordPage'
-import VerifyEmailPage from './pages/VerifyEmailPage'
-import EmployerRegisterPage from './pages/EmployerRegisterPage'
-import EmployerSignInPage from './pages/EmployerSignInPage'
-import EmployerForgotPasswordPage from './pages/EmployerForgotPasswordPage'
-import EmployerResetPasswordPage from './pages/EmployerResetPasswordPage'
-import EmployerVerifyEmailPage from './pages/EmployerVerifyEmailPage'
+import { useDeviceMode } from './deviceMode/useDeviceMode'
+
+// Device detection guarantees that only one of these two home experiences can
+// render. Split both so a phone never downloads the editorial desktop landing
+// page, and a desktop never pays for the phone-first board during startup.
+const LandingPage = lazy(() => import('./pages/LandingPage'))
+const JobBoardPage = lazy(() => import('./pages/JobBoardPage'))
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'))
+const SavedJobsPage = lazy(() => import('./pages/SavedJobsPage'))
+const AboutPage = lazy(() => import('./pages/AboutPage'))
+const PostRolePage = lazy(() => import('./pages/PostRolePage'))
+const LearningPage = lazy(() => import('./pages/LearningPage'))
+const ManagementTraineePage = lazy(() => import('./pages/ManagementTraineePage'))
+const MTEmployerPage = lazy(() => import('./pages/MTEmployerPage'))
+const RoleDetailPage = lazy(() => import('./pages/RoleDetailPage'))
+const CareerCoachesPage = lazy(() => import('./pages/CareerCoachesPage'))
+const SignInChooserPage = lazy(() => import('./pages/SignInChooserPage'))
+const SignInPage = lazy(() => import('./pages/SignInPage'))
+const RegisterPage = lazy(() => import('./pages/RegisterPage'))
+const AccountPage = lazy(() => import('./pages/AccountPage'))
+const AdminPage = lazy(() => import('./pages/AdminPage'))
+const AsfPage = lazy(() => import('./pages/AsfPage'))
+const RecruiterDeskPage = lazy(() => import('./pages/RecruiterDeskPage'))
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'))
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'))
+const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'))
+const EmployerRegisterPage = lazy(() => import('./pages/EmployerRegisterPage'))
+const EmployerSignInPage = lazy(() => import('./pages/EmployerSignInPage'))
+const EmployerForgotPasswordPage = lazy(() => import('./pages/EmployerForgotPasswordPage'))
+const EmployerResetPasswordPage = lazy(() => import('./pages/EmployerResetPasswordPage'))
+const EmployerVerifyEmailPage = lazy(() => import('./pages/EmployerVerifyEmailPage'))
 
 /**
  * AuthProvider and EmployerAuthProvider both sit inside the router (Nav reads
@@ -110,6 +117,26 @@ function DefaultTitleLayout() {
   )
 }
 
+/**
+ * The root route is a product decision, not a responsive breakpoint. Phone
+ * visitors enter the phone-first discovery home immediately; desktop visitors
+ * retain the editorial landing page. The device decision comes from the
+ * provider's stable identity signals, never the current browser-window size.
+ */
+export function HomeRoute() {
+  const { uiMode } = useDeviceMode()
+  return uiMode === 'mobile' ? <JobBoardPage /> : <LandingPage />
+}
+
+function RouteLoading() {
+  return (
+    <main className="route-loading" aria-live="polite" aria-busy="true">
+      <span className="route-loading__mark" aria-hidden="true" />
+      <p>Loading FinEx Careers…</p>
+    </main>
+  )
+}
+
 export default function App() {
   // Fired once per app load, not per route change — a "visit", not a
   // pageview. Best-effort and silent: see client.ts's recordVisit().
@@ -130,13 +157,16 @@ export default function App() {
                     Seeker's Ultimate-Admin bit AND of there being no real
                     Employer session to conflict with. */}
                 <EmployerViewProvider>
+                  <Suspense fallback={<RouteLoading />}>
                   <Routes>
-                    <Route path="/" element={<LandingPage />} />
+                    <Route path="/" element={<HomeRoute />} />
                     <Route path="/about" element={<AboutPage />} />
                     <Route path="/privacy" element={<PrivacyPage />} />
                     <Route path="/jobs" element={<JobBoardPage />} />
+                    <Route path="/roles/:source/:sourceId" element={<RoleDetailPage />} />
                     <Route path="/learning" element={<LearningPage />} />
                     <Route path="/management-trainee" element={<ManagementTraineePage />} />
+                    <Route path="/management-trainee/:employerSlug" element={<MTEmployerPage />} />
                     <Route path="/career-coaches" element={<CareerCoachesPage />} />
                     <Route element={<DefaultTitleLayout />}>
                       <Route path="/saved" element={<SavedJobsPage />} />
@@ -161,6 +191,7 @@ export default function App() {
                     <Route path="/choose-view" element={<Navigate to="/admin" replace />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
+                  </Suspense>
                 </EmployerViewProvider>
               </AdminModeProvider>
             </SavedRolesProvider>

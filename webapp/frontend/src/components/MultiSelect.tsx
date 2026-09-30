@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useId } from 'react'
 import { ChevronDown, Check, Search, X } from 'lucide-react'
 import type { NameCount } from '../api/client'
 
@@ -15,6 +15,13 @@ interface Props {
   inline?: boolean
 }
 
+const INLINE_OPTION_LIMIT = 24
+
+function pluralLabel(label: string): string {
+  if (label.toLowerCase() === 'company') return 'companies'
+  return label.toLowerCase().endsWith('s') ? label.toLowerCase() : `${label.toLowerCase()}s`
+}
+
 export default function MultiSelect({
   label,
   options,
@@ -26,7 +33,9 @@ export default function MultiSelect({
 }: Props) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [showAll, setShowAll] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const searchId = useId()
 
   useEffect(() => {
     if (inline) return // no floating panel to dismiss
@@ -53,6 +62,10 @@ export default function MultiSelect({
   const isActive = selected.length > 0
   // Set lookup: checked-state is tested once per option while rendering the list.
   const selectedSet = new Set(selected)
+  const visibleOptions = inline && !query && !showAll
+    ? filtered.filter((option, index) => index < INLINE_OPTION_LIMIT || selectedSet.has(option.name))
+    : filtered
+  const hasHiddenOptions = visibleOptions.length < filtered.length
 
   const panelBody = (
     <>
@@ -63,7 +76,9 @@ export default function MultiSelect({
           style={{ borderBottom: '1px solid var(--color-border)' }}
         >
           <Search size={13} style={{ color: 'var(--color-ink-faint)' }} />
+          <label htmlFor={searchId} className="sr-only">Search {label.toLowerCase()}</label>
           <input
+            id={searchId}
             autoFocus={!inline}
             value={query}
             onChange={e => setQuery(e.target.value)}
@@ -91,7 +106,7 @@ export default function MultiSelect({
             No results
           </p>
         ) : (
-          filtered.map(opt => {
+          visibleOptions.map(opt => {
             const isChecked = selectedSet.has(opt.name)
             return (
               <button type="button"
@@ -137,6 +152,19 @@ export default function MultiSelect({
           })
         )}
       </div>
+
+      {inline && !query && (hasHiddenOptions || showAll) && (
+        <div style={{ borderTop: '1px solid var(--color-border)' }}>
+          <button
+            type="button"
+            onClick={() => setShowAll(current => !current)}
+            className="w-full px-3 py-2 text-xs font-semibold text-left cursor-pointer"
+            style={{ color: 'var(--color-blue)' }}
+          >
+            {showAll ? 'Show fewer' : `Show all ${filtered.length} ${pluralLabel(label)}`}
+          </button>
+        </div>
+      )}
 
       {/* Clear */}
       {selected.length > 0 && (

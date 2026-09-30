@@ -8,6 +8,8 @@ describe('MTAnnouncementBand', () => {
 
     expect(screen.getByRole('link', { name: /explore management trainee programmes/i }))
       .toHaveAttribute('href', '#mt-programmes')
+    expect(screen.getByRole('link', { name: /explore management trainee programmes/i }))
+      .toHaveAccessibleName(/swipe left or right to browse/i)
     expect(screen.getByRole('link', { name: /post a job for free/i }))
       .toHaveAttribute('href', '/post-a-role')
     expect(container.querySelectorAll('.mt-announcement__group')).toHaveLength(2)

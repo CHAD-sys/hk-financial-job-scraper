@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FinEx Careers · iPhone preview</title>
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
+      html, body { min-width: 100%; min-height: 100%; margin: 0; }
+      body {
+        min-height: 100dvh;
+        overflow: auto;
+        background: #000;
+        font-family: Inter, system-ui, sans-serif;
+      }
+      .stage {
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 32px;
+        background: #000;
+      }
+      .phone {
+        position: relative;
+        width: min(413px, calc(100vw - 64px));
+        height: min(872px, calc(100dvh - 64px));
+        aspect-ratio: 393 / 852;
+        flex: none;
+        overflow: hidden;
+        border: 10px solid #171717;
+        border-radius: 54px;
+        background: #0b1628;
+        box-shadow:
+          0 0 0 1px #3b3b3b,
+          0 24px 70px rgb(0 0 0 / 0.75),
+          0 0 0 10px #050505;
+      }
+      .phone::before {
+        content: '';
+        position: absolute;
+        z-index: 2;
+        top: 9px;
+        left: 50%;
+        width: 118px;
+        height: 28px;
+        transform: translateX(-50%);
+        border-radius: 999px;
+        background: #050505;
+        pointer-events: none;
+      }
+      .phone iframe {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: #fffdf9;
+      }
+      @media (max-width: 520px), (max-height: 940px) {
+        .stage { padding: 24px; }
+        .phone {
+          width: min(413px, calc(100vw - 48px));
+          height: min(872px, calc(100dvh - 48px));
+          border-radius: 44px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="stage" aria-label="iPhone 17 Pro mobile preview">
+      <div class="phone">
+        <iframe
+          src="/jobs?device-preview=mobile"
+          title="FinEx Careers mobile UI"
+        ></iframe>
+      </div>
+    </main>
+  </body>
+</html>

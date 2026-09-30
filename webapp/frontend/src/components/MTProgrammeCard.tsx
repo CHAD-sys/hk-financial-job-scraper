@@ -57,7 +57,7 @@ export default function MTProgrammeCard({
         )}
         <a className="mt-programme-card__coaching" href={CONSULTATION_URL} target="_blank" rel="noopener noreferrer">
           <MessageCircleMore size={16} aria-hidden="true" />
-          Career coaching
+          Interview prep
         </a>
       </div>
     </article>

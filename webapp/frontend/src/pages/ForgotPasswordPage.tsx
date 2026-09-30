@@ -106,7 +106,7 @@ export default function ForgotPasswordPage() {
           boxShadow: 'var(--shadow-card)',
         }}
       >
-        <form onSubmit={handleSubmit} noValidate>
+        <form onSubmit={handleSubmit}>
           <AuthField label="Email" htmlFor="fp-email">
             <input
               id="fp-email" name="email" type="email" required maxLength={MAX_EMAIL}

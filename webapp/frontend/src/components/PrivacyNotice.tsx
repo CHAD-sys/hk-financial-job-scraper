@@ -208,7 +208,8 @@ const CLAUSES: Clause[] = [
   },
 ]
 
-export default function PrivacyNotice() {
+export default function PrivacyNotice({ standalone = false }: { standalone?: boolean }) {
+  const Heading = standalone ? 'h1' : 'h2'
   return (
     <section
       id="privacy"
@@ -231,7 +232,7 @@ export default function PrivacyNotice() {
             </p>
           </div>
 
-          <h2
+          <Heading
             id="privacy-heading"
             className="text-2xl lg:text-3xl font-bold tracking-tight"
             style={{
@@ -241,7 +242,7 @@ export default function PrivacyNotice() {
             }}
           >
             Privacy, in plain terms
-          </h2>
+          </Heading>
 
           <p className="mt-4 text-base leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>
             You can research and open relevant Roles without telling us who you are. If you

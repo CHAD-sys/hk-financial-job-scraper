@@ -148,7 +148,7 @@ export default function RegisterPage() {
         </div>
         <AuthDivider />
 
-        <form onSubmit={handleSubmit} noValidate>
+        <form onSubmit={handleSubmit}>
           <AuthField label="Name" htmlFor="rg-name" hint="What we call you on the site. Never published.">
             <input
               id="rg-name" name="display_name" type="text" required maxLength={MAX.display_name}

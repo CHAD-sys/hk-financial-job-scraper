@@ -96,7 +96,7 @@ export default function ResetPasswordPage() {
           boxShadow: 'var(--shadow-card)',
         }}
       >
-        <form onSubmit={handleSubmit} noValidate>
+        <form onSubmit={handleSubmit}>
           <AuthField
             label="New password"
             htmlFor="rp-password"

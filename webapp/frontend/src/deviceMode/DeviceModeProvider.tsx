@@ -1,20 +1,18 @@
-import {
-  useCallback,
-  useLayoutEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react'
+import { useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
 import { DeviceModeContext } from './DeviceModeContext'
-import type { DeviceModePreference } from './DeviceModeContext'
 import { detectDevice } from './deviceDetection'
-import type { DetectedDevice } from './deviceDetection'
-import { readDeviceModePreference, writeDeviceModePreference } from './store'
+import type { DetectedDevice, DeviceUiMode } from './deviceDetection'
 
 interface Props {
   children: ReactNode
   /** Test seam; production always lets the browser detector supply this. */
   initialDetection?: DetectedDevice
+}
+
+function readDevelopmentPreviewMode(): DeviceUiMode | null {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return null
+  const value = new URLSearchParams(window.location.search).get('device-preview')
+  return value === 'mobile' || value === 'desktop' ? value : null
 }
 
 /**
@@ -26,13 +24,11 @@ interface Props {
  */
 export default function DeviceModeProvider({ children, initialDetection }: Props) {
   const [detected] = useState(() => initialDetection ?? detectDevice())
-  const [preference, setStoredPreference] = useState(readDeviceModePreference)
-  const uiMode = preference === 'auto' ? detected.uiMode : preference
-
-  const setPreference = useCallback((next: DeviceModePreference) => {
-    setStoredPreference(next)
-    writeDeviceModePreference(next)
-  }, [])
+  const [developmentPreviewMode] = useState(readDevelopmentPreviewMode)
+  // There is intentionally no stored user override in production. A stale
+  // browser value must never silently replace the device's current identity.
+  // The query override remains development-only for controlled visual QA.
+  const uiMode = developmentPreviewMode ?? detected.uiMode
 
   // These attributes give CSS and browser diagnostics the same single source
   // of truth as React components. useLayoutEffect applies them before paint,
@@ -60,14 +56,11 @@ export default function DeviceModeProvider({ children, initialDetection }: Props
   const value = useMemo(
     () => ({
       deviceClass: detected.deviceClass,
-      detectedUiMode: detected.uiMode,
       uiMode,
-      preference,
       detectionSource: detected.source,
       touchCapable: detected.touchCapable,
-      setPreference,
     }),
-    [detected, preference, setPreference, uiMode],
+    [detected, uiMode],
   )
 
   return <DeviceModeContext.Provider value={value}>{children}</DeviceModeContext.Provider>

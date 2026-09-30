@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { Fragment, useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, useContext } from 'react'
 import { useSearchParams, useLocation } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import type {
@@ -30,6 +30,8 @@ import RecommendedRoles from '../components/RecommendedRoles'
 import ResumePrompt from '../components/ResumePrompt'
 import MemberRoleNotice from '../components/MemberRoleNotice'
 import AdminJobEditDrawer from '../components/AdminJobEditDrawer'
+import MobileDiscoveryHome from '../components/MobileDiscoveryHome'
+import { DeviceModeContext } from '../deviceMode/DeviceModeContext'
 
 const PAGE_SIZE = 24
 const SORT_OPTIONS = [
@@ -89,6 +91,33 @@ export default function JobBoardPage() {
   const [adminBrowse, setAdminBrowse] = useState(false)
   const { toggle: toggleSave, isSaved } = useSavedRoles()
   const { seeker, loading: authLoading } = useAuth()
+  // Keep the page renderable in isolated page tests and story-like contexts;
+  // the app itself always supplies DeviceModeProvider.
+  const uiMode = useContext(DeviceModeContext)?.uiMode ?? 'desktop'
+  // The phone discovery hub belongs only to the root route. `/jobs` is the
+  // Careers product on every device, so a visitor following “More hot jobs”
+  // reaches the searchable catalogue instead of seeing the same home again.
+  const showMobileDiscoveryHome = uiMode === 'mobile' && location.pathname === '/'
+
+  // `/` and `/jobs` deliberately share this component on phones. React Router
+  // therefore keeps the same component instance when “More hot jobs” changes
+  // the route, and mobile Safari is free to preserve the old page's scroll.
+  // Reset during layout and across the next two frames so the destination owns
+  // its starting position even if browser history restoration runs after paint.
+  useLayoutEffect(() => {
+    if (location.pathname !== '/jobs') return
+    const reset = () => window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+    let secondFrame = 0
+    reset()
+    const firstFrame = window.requestAnimationFrame(() => {
+      reset()
+      secondFrame = window.requestAnimationFrame(reset)
+    })
+    return () => {
+      window.cancelAnimationFrame(firstFrame)
+      if (secondFrame) window.cancelAnimationFrame(secondFrame)
+    }
+  }, [location.pathname])
 
   // The board's two admin affordances — the pencil on each card, and the
   // empty-search browse — are gated on ADMIN MODE, not merely on being an
@@ -327,12 +356,22 @@ export default function JobBoardPage() {
       {/* ── DISCOVER MODE: the search-engine home ───────────── */}
       {!showBoard && (
         <>
-          <SearchHero
-            boardTotal={boardTotal}
-            employerCount={employerCount}
-            onSearch={runSearch}
-            allowEmptySubmit={canEdit}
-          />
+          {showMobileDiscoveryHome ? (
+            <MobileDiscoveryHome
+              onSearch={runSearch}
+              allowEmptySubmit={canEdit}
+              saved={isSaved}
+              onToggleSave={toggleSave}
+              onSelect={setSelectedJob}
+            />
+          ) : (
+            <>
+              <SearchHero
+                boardTotal={boardTotal}
+                employerCount={employerCount}
+                onSearch={runSearch}
+                allowEmptySubmit={canEdit}
+              />
           {/* The page rises over the masthead rather than starting after it.
               A full-width navy block ending on a hairline, with a bold serif
               heading and a card grid beginning immediately underneath, read as
@@ -370,6 +409,8 @@ export default function JobBoardPage() {
               sectorCount={sectorCount}
             />
           </main>
+            </>
+          )}
         </>
       )}
 
@@ -481,7 +522,7 @@ export default function JobBoardPage() {
           </div>
         </div>
 
-        {!authLoading && !seeker && (
+        {!authLoading && !seeker && uiMode !== 'mobile' && (
           <MemberRoleNotice returnTo={`${location.pathname}${location.search}`} />
         )}
 
@@ -494,16 +535,27 @@ export default function JobBoardPage() {
           <EmptyState onClear={clearFilters} />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {jobs.map(job => (
-              <JobCard
-                key={`${job.source}__${job.source_id}`}
-                job={job}
-                saved={isSaved(job)}
-                onToggleSave={toggleSave}
-                onClick={setSelectedJob}
-                onEdit={canEdit ? setEditingJob : undefined}
-              />
+            {jobs.map((job, index) => (
+              <Fragment key={`${job.source}__${job.source_id}`}>
+                <JobCard
+                  job={job}
+                  saved={isSaved(job)}
+                  onToggleSave={toggleSave}
+                  onClick={setSelectedJob}
+                  onEdit={canEdit ? setEditingJob : undefined}
+                />
+                {uiMode === 'mobile' && !authLoading && !seeker && index === 2 && (
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    <MemberRoleNotice returnTo={`${location.pathname}${location.search}`} />
+                  </div>
+                )}
+              </Fragment>
             ))}
+            {uiMode === 'mobile' && !authLoading && !seeker && jobs.length > 0 && jobs.length < 3 && (
+              <div className="sm:col-span-2 lg:col-span-3">
+                <MemberRoleNotice returnTo={`${location.pathname}${location.search}`} />
+              </div>
+            )}
           </div>
         )}
 

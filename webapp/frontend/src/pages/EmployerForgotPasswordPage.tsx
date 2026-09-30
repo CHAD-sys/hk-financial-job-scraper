@@ -93,7 +93,7 @@ export default function EmployerForgotPasswordPage() {
           boxShadow: 'var(--shadow-card)',
         }}
       >
-        <form onSubmit={handleSubmit} noValidate>
+        <form onSubmit={handleSubmit}>
           <AuthField label="Work email" htmlFor="efp-email">
             <input
               id="efp-email" name="email" type="email" required maxLength={MAX_EMAIL}

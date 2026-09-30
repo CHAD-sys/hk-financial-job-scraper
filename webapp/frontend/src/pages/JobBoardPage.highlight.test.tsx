@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Job, JobDetail } from '../api/client'
+import { DeviceModeContext } from '../deviceMode/DeviceModeContext'
 
 const fetchJobs = vi.fn()
 const fetchJobDetail = vi.fn()
@@ -42,9 +43,12 @@ vi.mock('../components/EmptyState', () => ({ default: () => <div>No roles</div> 
 vi.mock('../components/Pagination', () => ({ default: () => null }))
 vi.mock('../components/StatCard', () => ({ default: () => null }))
 vi.mock('../components/SearchHero', () => ({ default: () => <div>Search</div> }))
+vi.mock('../components/MobileDiscoveryHome', () => ({ default: () => <div>Mobile discovery home</div> }))
 vi.mock('../components/RecommendedRoles', () => ({ default: () => null }))
 vi.mock('../components/ResumePrompt', () => ({ default: () => null }))
-vi.mock('../components/MemberRoleNotice', () => ({ default: () => null }))
+vi.mock('../components/MemberRoleNotice', () => ({
+  default: () => <aside aria-label="Registration invitation">Create an account</aside>,
+}))
 vi.mock('../components/AdminJobEditDrawer', () => ({ default: () => null }))
 vi.mock('../components/JobDetailModal', () => ({
   default: ({ job }: { job: Job }) => <aside aria-label="Open role">{job.title}</aside>,
@@ -156,5 +160,59 @@ describe('featured Role deep links', () => {
     )
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/featured role is unavailable/i)
+  })
+})
+
+describe('mobile Careers routing', () => {
+  const mobileDevice = {
+    deviceClass: 'phone' as const,
+    uiMode: 'mobile' as const,
+    detectionSource: 'user-agent' as const,
+    touchCapable: true,
+  }
+
+  function renderMobileRoute(path: string) {
+    return render(
+      <DeviceModeContext.Provider value={mobileDevice}>
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route path="/" element={<JobBoardPage />} />
+            <Route path="/jobs" element={<JobBoardPage />} />
+          </Routes>
+        </MemoryRouter>
+      </DeviceModeContext.Provider>,
+    )
+  }
+
+  it('keeps the phone-first discovery experience at the root route', () => {
+    renderMobileRoute('/')
+
+    expect(screen.getByText('Mobile discovery home')).toBeInTheDocument()
+    expect(screen.queryByText('Search')).not.toBeInTheDocument()
+  })
+
+  it('opens the actual Careers catalogue home at /jobs on a phone', () => {
+    renderMobileRoute('/jobs')
+
+    expect(screen.getByText('Search')).toBeInTheDocument()
+    expect(screen.queryByText('Mobile discovery home')).not.toBeInTheDocument()
+  })
+
+  it('makes the Careers route own its top-of-page arrival position', () => {
+    const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+
+    renderMobileRoute('/jobs')
+
+    expect(scrollSpy).toHaveBeenCalledWith({ top: 0, left: 0, behavior: 'instant' })
+    scrollSpy.mockRestore()
+  })
+
+  it('shows real mobile results before asking the visitor to register', async () => {
+    renderMobileRoute('/jobs?q=Private+Banking')
+
+    const firstRole = await screen.findByText('Private Banker')
+    const invitation = screen.getByRole('complementary', { name: 'Registration invitation' })
+    expect(firstRole.compareDocumentPosition(invitation) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy()
   })
 })

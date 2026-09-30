@@ -1,9 +1,10 @@
 import {
-  Briefcase, Bookmark, Menu, X, ChevronDown, FileText, LogOut, ArrowUpRight, Building2,
+  Bookmark, Menu, X, ChevronDown, FileText, LogOut, ArrowUpRight, Building2,
   Eye, LayoutDashboard, Search, UserRound,
 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
+import finexAiJobsMark from '../assets/finex-ai-jobs-mark.png'
 import { scrollToTop, scrollToHash } from '../utils/scroll'
 import type { Seeker, Employer } from '../api/client'
 import { useAuth } from '../auth/useAuth'
@@ -303,11 +304,14 @@ export default function Nav() {
       className="flex shrink-0 items-center gap-2.5 cursor-pointer"
       aria-label="FinEx Careers home"
     >
-      <span
-        className="flex h-8 w-8 items-center justify-center rounded"
-        style={{ backgroundColor: 'var(--color-gold)' }}
-      >
-        <Briefcase size={16} color="#fff" strokeWidth={2} />
+      <span className="h-8 w-10 shrink-0" aria-hidden="true">
+        <img
+          src={finexAiJobsMark}
+          alt=""
+          width={256}
+          height={213}
+          className="block h-full w-full object-contain"
+        />
       </span>
       <span
         className="text-lg font-semibold tracking-tight select-none"
@@ -587,6 +591,7 @@ export default function Nav() {
                 onClick={() => setOpen(o => !o)}
                 aria-label="Toggle menu"
                 aria-expanded={open}
+                aria-controls="mobile-navigation-panel"
               >
                 {open ? <X size={20} /> : <Menu size={20} />}
               </button>
@@ -599,7 +604,8 @@ export default function Nav() {
       {/* Mobile menu */}
       {mobileUi && open && (
         <nav
-          className="border-t border-white/10 px-6 py-4 flex flex-col gap-4"
+          id="mobile-navigation-panel"
+          className="mobile-navigation-panel border-t border-white/10 px-6 py-4 flex flex-col gap-4"
           style={{ backgroundColor: 'var(--color-nav)' }}
           aria-label="Mobile navigation"
         >

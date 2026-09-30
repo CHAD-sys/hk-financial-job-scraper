@@ -50,11 +50,26 @@ async function apiFetch(path: string, init: RequestInit = {}): Promise<Response>
   return res
 }
 
-/** Pull the backend's `detail` string out of an error body, if there is one. */
+/** Pull a useful message out of FastAPI's string or structured validation detail. */
 async function readDetail(res: Response): Promise<string> {
   try {
     const j = await res.json()
-    return typeof j?.detail === 'string' ? j.detail : ''
+    if (typeof j?.detail === 'string') return j.detail
+    if (Array.isArray(j?.detail)) {
+      return j.detail
+        .map((item: unknown) => {
+          if (!item || typeof item !== 'object') return ''
+          const issue = item as { loc?: unknown; msg?: unknown }
+          const location = Array.isArray(issue.loc)
+            ? issue.loc.filter(part => part !== 'body').join(' › ')
+            : ''
+          const message = typeof issue.msg === 'string' ? issue.msg : 'Invalid value'
+          return location ? `${location}: ${message}` : message
+        })
+        .filter(Boolean)
+        .join(' ')
+    }
+    return ''
   } catch {
     return '' // non-JSON error body — the caller falls back to a generic message
   }

@@ -17,14 +17,15 @@ function dispatchPointer(
     clientX: { value: clientX },
   })
   fireEvent(target, event)
+  return event
 }
 
-function GestureHarness({ onOpen }: { onOpen: () => void }) {
+function GestureHarness({ onOpen, native = false }: { onOpen: () => void; native?: boolean }) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
   useSwipeableMarquee(viewportRef, trackRef)
   return (
-    <div ref={viewportRef} data-testid="viewport">
+    <div ref={viewportRef} data-testid="viewport" style={native ? { overflowX: 'auto' } : undefined}>
       <div ref={trackRef} data-testid="track">
         <a href="/jobs" onClick={(event) => { event.preventDefault(); onOpen() }}>Open Role</a>
       </div>
@@ -32,9 +33,9 @@ function GestureHarness({ onOpen }: { onOpen: () => void }) {
   )
 }
 
-function arrangeGesture() {
+function arrangeGesture(native = false) {
   const onOpen = vi.fn()
-  const view = render(<GestureHarness onOpen={onOpen} />)
+  const view = render(<GestureHarness onOpen={onOpen} native={native} />)
   const viewport = view.getByTestId('viewport') as HTMLDivElement
   const track = view.getByTestId('track') as HTMLDivElement
   const animation = {
@@ -43,7 +44,7 @@ function arrangeGesture() {
     play: vi.fn(),
     effect: { getTiming: () => ({ duration: 1_000 }) },
   }
-  Object.defineProperty(track, 'getAnimations', { value: () => [animation] })
+  Object.defineProperty(track, 'getAnimations', { configurable: true, value: () => [animation] })
   Object.defineProperty(track, 'scrollWidth', { value: 1_000 })
   viewport.setPointerCapture = vi.fn()
   viewport.releasePointerCapture = vi.fn()
@@ -56,7 +57,7 @@ describe('marquee swipe scrubbing', () => {
     expect(nextMarqueeTime({
       currentTime: 200,
       deltaX: 50,
-      duration: 1000,
+      duration: 1_000,
       trackDistance: 500,
       reversed: true,
     })).toBe(300)
@@ -66,20 +67,20 @@ describe('marquee swipe scrubbing', () => {
     expect(nextMarqueeTime({
       currentTime: 40,
       deltaX: -50,
-      duration: 1000,
+      duration: 1_000,
       trackDistance: 500,
       reversed: true,
     })).toBe(940)
     expect(nextMarqueeTime({
       currentTime: 960,
       deltaX: -50,
-      duration: 1000,
+      duration: 1_000,
       trackDistance: 500,
       reversed: false,
     })).toBe(60)
   })
 
-  it('keeps a slightly moving tap clickable and does not capture it', () => {
+  it('keeps a short touch movement available as a card tap', () => {
     const { getByRole, onOpen, viewport } = arrangeGesture()
 
     dispatchPointer(viewport, 'pointerdown', 100)
@@ -91,16 +92,38 @@ describe('marquee swipe scrubbing', () => {
     expect(onOpen).toHaveBeenCalledOnce()
   })
 
-  it('captures only after an intentional swipe and suppresses its trailing click', () => {
-    const { getByRole, onOpen, viewport } = arrangeGesture()
+  it('takes over only after a horizontal touch swipe and scrubs the rail', () => {
+    const { getByRole, animation, onOpen, viewport } = arrangeGesture()
 
-    dispatchPointer(viewport, 'pointerdown', 100)
+    dispatchPointer(viewport, 'pointerdown', 140)
     expect(viewport.setPointerCapture).not.toHaveBeenCalled()
-    dispatchPointer(viewport, 'pointermove', 113)
-    dispatchPointer(viewport, 'pointerup', 113)
+
+    const move = dispatchPointer(viewport, 'pointermove', 100)
+    dispatchPointer(viewport, 'pointerup', 100)
     fireEvent.click(getByRole('link', { name: 'Open Role' }))
 
-    expect(viewport.setPointerCapture).toHaveBeenCalledOnce()
+    expect(move.defaultPrevented).toBe(true)
+    expect(viewport.setPointerCapture).toHaveBeenCalledWith(7)
+    expect(animation.pause).toHaveBeenCalledOnce()
+    expect(animation.currentTime).not.toBe(100)
+    expect(animation.play).toHaveBeenCalledOnce()
     expect(onOpen).not.toHaveBeenCalled()
+  })
+
+  it('keeps a native mobile rail centred so past and future cards remain swipeable', () => {
+    const { animation, viewport } = arrangeGesture(true)
+
+    dispatchPointer(viewport, 'pointerdown', 140)
+    const move = dispatchPointer(viewport, 'pointermove', 100)
+
+    viewport.scrollLeft = 5
+    fireEvent.scroll(viewport)
+    dispatchPointer(viewport, 'pointerup', 100)
+
+    expect(move.defaultPrevented).toBe(false)
+    expect(viewport.setPointerCapture).not.toHaveBeenCalled()
+    expect(animation.pause).toHaveBeenCalledOnce()
+    expect(viewport.scrollLeft).toBe(505)
+    expect(animation.play).toHaveBeenCalledOnce()
   })
 })

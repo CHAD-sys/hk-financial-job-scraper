@@ -9,7 +9,7 @@ import {
   Sparkles,
   TvMinimalPlay,
 } from 'lucide-react'
-import { fetchWeeklyHighlights, type WeeklyHighlightRole } from '../../api/client'
+import { fetchWeeklyHighlights, type Job, type WeeklyHighlightRole } from '../../api/client'
 import {
   COMMITTEE_PLAYLIST_URL,
   COACH_HIGHLIGHTS,
@@ -127,7 +127,6 @@ function RoleCard({ item }: { item: RoleHighlight }) {
         <BriefcaseBusiness className="hl-card__corner-icon" size={20} strokeWidth={1.5} aria-hidden="true" />
       </div>
       <h3 className="hl-card__title">{item.title}</h3>
-      <CardAction label="View role" meta={item.location} />
     </>
   )
 }
@@ -312,7 +311,22 @@ function VideoRailCard({ item, duplicate = false }: { item: VideoHighlight; dupl
   )
 }
 
-export default function WeeklyHighlights() {
+export default function WeeklyHighlights({
+  demoRoles = [],
+  demoLabel = 'High-paying role',
+  preferDemoRoles = false,
+  hideWhenEmpty = false,
+  surface = 'full',
+}: {
+  demoRoles?: Job[]
+  demoLabel?: string
+  /** Use the destination's curated roles instead of the global weekly feed. */
+  preferDemoRoles?: boolean
+  /** Hide the shell when this surface is only meant to show roles. */
+  hideWhenEmpty?: boolean
+  /** Render only the rail a compact mobile tab needs. */
+  surface?: 'full' | 'roles' | 'videos' | 'coaches'
+}) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
   const videoViewportRef = useRef<HTMLDivElement>(null)
@@ -327,6 +341,9 @@ export default function WeeklyHighlights() {
   const [weeklyRoles, setWeeklyRoles] = useState<WeeklyHighlightRole[]>([])
   const [roleState, setRoleState] = useState<'loading' | 'ready' | 'error'>('loading')
   const highlightRequest = useRef(0)
+  const showRoles = surface === 'full' || surface === 'roles'
+  const showVideos = surface === 'full' || surface === 'videos'
+  const showCoaches = surface === 'full' || surface === 'coaches'
 
   useSwipeableMarquee(viewportRef, trackRef)
   useSwipeableMarquee(videoViewportRef, videoTrackRef)
@@ -349,9 +366,10 @@ export default function WeeklyHighlights() {
   }, [])
 
   useEffect(() => {
+    if (!showRoles) return
     loadWeeklyRoles()
     return () => { highlightRequest.current += 1 }
-  }, [loadWeeklyRoles])
+  }, [loadWeeklyRoles, showRoles])
 
   // Duration derives from the real rendered width so the band always travels
   // at ONE readable speed. A fixed duration would make the conveyor faster
@@ -410,12 +428,22 @@ export default function WeeklyHighlights() {
     return () => io.disconnect()
   }, [])
 
-  const items = mergeWeeklyHighlights(weeklyRoles)
+  const sourceRoles = preferDemoRoles
+    ? demoRoles.map((role, index) => ({ position: index + 1, related_search: demoLabel, role }))
+    : weeklyRoles.length > 0
+      ? weeklyRoles
+      : demoRoles.map((role, index) => ({ position: index + 1, related_search: demoLabel, role }))
+  const items = mergeWeeklyHighlights(sourceRoles)
   const videos = VIDEO_HIGHLIGHTS
   const coaches = COACH_HIGHLIGHTS
 
+  // Do not leave an empty coloured shell in the page while the weekly editor
+  // has no approved Roles. The banner is a Role conveyor, not a decorative
+  // section; it should either show the validated cards or not exist.
+  if (hideWhenEmpty && roleState === 'ready' && items.length === 0) return null
+
   return (
-    <section className="hl" aria-labelledby="hl-heading" ref={sectionRef} data-shown={shown || undefined}>
+    <section className="hl" aria-labelledby="hl-heading" ref={sectionRef} data-shown={shown || undefined} data-surface={surface}>
       {/* Layer 1 of the five-layer stack: the drifting mesh. Two blobs on long,
           co-prime durations so they never resynchronise into a visible pulse. */}
       <div className="hl__mesh" aria-hidden="true">
@@ -434,7 +462,7 @@ export default function WeeklyHighlights() {
           </header>
 
           {/* Hover holds the rail; browser Back never leaves it frozen. */}
-          <div ref={viewportRef} className="hl__viewport">
+          {showRoles && <div ref={viewportRef} className="hl__viewport" role="region" aria-label="Validated roles. Swipe left or right to browse.">
             <div ref={trackRef} className="hl__track" style={{ animationDuration: `${duration}s` }}>
               {/* Two IDENTICAL groups, and the spacing lives on the cards rather
                   than as flex `gap` on the track. That is what makes -50% land
@@ -456,9 +484,9 @@ export default function WeeklyHighlights() {
                 {items.map(item => <HighlightCard key={`${item.id}-copy`} item={item} duplicate />)}
               </div>
             </div>
-          </div>
+          </div>}
 
-          <div className="hl__video-band" aria-label="FinEx Club videos">
+          {showVideos && <div className="hl__video-band" aria-label="FinEx Club videos">
             <div className="hl__video-band-head">
               <div>
                 <span className="hl__video-kicker">
@@ -490,13 +518,13 @@ export default function WeeklyHighlights() {
                 </div>
               </div>
             </div>
-          </div>
+          </div>}
 
-          <div className="hl__coach-band" aria-label="FinEx career coaches">
+          {showCoaches && <div className="hl__coach-band" aria-label="FinEx career coaches">
             <div className="hl__coach-band-head">
               <div>
                 <span className="hl__coach-kicker"><Sparkles size={13} strokeWidth={2.4} aria-hidden="true" /> Meet the coaches</span>
-                <p>{coaches.length} finance leaders, ready to share what they know.</p>
+                <p>Experienced finance leaders, ready to share what they know.</p>
               </div>
               <Link to="/career-coaches">
                 Find the right career counsellor <ArrowRight size={14} aria-hidden="true" />
@@ -505,7 +533,7 @@ export default function WeeklyHighlights() {
 
             {/* This rail moves independently from the Role and video rails. Hovering
                 it holds only the coaches, so each person remains easy to read. */}
-            <div ref={coachViewportRef} className="hl__coach-viewport">
+            <div ref={coachViewportRef} className="hl__coach-viewport" role="region" aria-label="Career coaches. Swipe left or right to browse.">
               <div ref={coachTrackRef} className="hl__coach-track" style={{ animationDuration: `${coachDuration}s` }}>
                 <div className="hl__coach-group">
                   {coaches.map(item => <CoachRailCard key={item.id} item={item} />)}
@@ -515,7 +543,7 @@ export default function WeeklyHighlights() {
                 </div>
               </div>
             </div>
-          </div>
+          </div>}
         </div>
       </div>
 

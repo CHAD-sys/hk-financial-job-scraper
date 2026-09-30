@@ -23,6 +23,10 @@ describe('MTProgrammeCard', () => {
       'href',
       programme.applicationUrls[0],
     )
+    expect(screen.getByRole('link', { name: 'Interview prep' })).toHaveAttribute(
+      'href',
+      'https://www.finexclub.org/mentor-program',
+    )
   })
 
   it('uses update-needed language when an intake has no current confirmation', () => {

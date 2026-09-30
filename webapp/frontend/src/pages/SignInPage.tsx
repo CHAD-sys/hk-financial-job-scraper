@@ -106,7 +106,7 @@ export default function SignInPage() {
         </div>
         <AuthDivider />
 
-        <form onSubmit={handleSubmit} noValidate>
+        <form onSubmit={handleSubmit}>
           {/* type="text", not "email": Admin Mode's accounts sign in with a
               plain username (seekers_store.migrate_to_phase_3), and a browser
               enforces email-shaped input client-side on type="email" — it
@@ -117,6 +117,8 @@ export default function SignInPage() {
             <input
               id="si-email" name="email" type="text" required maxLength={MAX.email}
               autoComplete="username" className="finex-input"
+              aria-invalid={status === 'error'}
+              aria-describedby={status === 'error' ? 'si-error' : undefined}
             />
           </AuthField>
 
@@ -125,12 +127,15 @@ export default function SignInPage() {
               <input
                 id="si-password" name="password" type="password" required maxLength={MAX.password}
                 autoComplete="current-password" className="finex-input"
+                aria-invalid={status === 'error'}
+                aria-describedby={status === 'error' ? 'si-error' : undefined}
               />
             </AuthField>
           </div>
 
           {status === 'error' && (
             <p
+              id="si-error"
               className="mt-5 flex items-start gap-2 text-sm"
               style={{ color: 'var(--color-destructive)' }}
               role="alert"

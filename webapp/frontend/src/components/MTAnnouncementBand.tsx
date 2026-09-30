@@ -1,5 +1,7 @@
+import { useRef } from 'react'
 import { ArrowRight, BriefcaseBusiness } from 'lucide-react'
 import { MT_INDUSTRIES, MT_PROGRAMMES } from '../content/managementTraineePrograms'
+import { useSwipeableMarquee } from './highlights/useSwipeableMarquee'
 
 function TapeMessage() {
   return (
@@ -24,11 +26,23 @@ function TapeMessage() {
  * blank gap between copies.
  */
 export default function MTAnnouncementBand() {
+  const viewportRef = useRef<HTMLAnchorElement>(null)
+  const trackRef = useRef<HTMLSpanElement>(null)
+
+  // This tape is content, not decoration. Like every auto-moving rail, it is
+  // directly scrub-able on touch and pauses while the visitor is in control.
+  useSwipeableMarquee(viewportRef, trackRef)
+
   return (
     <div className="mt-announcement-row">
-      <a className="mt-announcement" href="#mt-programmes" aria-label="Explore Management Trainee programmes">
+      <a
+        ref={viewportRef}
+        className="mt-announcement"
+        href="#mt-programmes"
+        aria-label="Explore Management Trainee programmes. Swipe left or right to browse."
+      >
         <span className="sr-only">Management Trainee programmes are here. Jump to the featured programmes.</span>
-        <span className="mt-announcement__track" aria-hidden="true">
+        <span ref={trackRef} className="mt-announcement__track" aria-hidden="true">
           <span className="mt-announcement__group"><TapeMessage /><TapeMessage /></span>
           <span className="mt-announcement__group"><TapeMessage /><TapeMessage /></span>
         </span>

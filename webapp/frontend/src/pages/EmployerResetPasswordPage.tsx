@@ -3,6 +3,7 @@ import { AlertCircle, KeyRound } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AuthShell, AuthField } from '../components/AuthShell'
 import { resetEmployerPassword } from '../api/client'
+import { useEmployerAuth } from '../auth/useEmployerAuth'
 
 type Status = 'idle' | 'sending' | 'error' | 'invalid-link'
 
@@ -18,6 +19,7 @@ export default function EmployerResetPasswordPage() {
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token') ?? ''
   const navigate = useNavigate()
+  const { acceptAuthenticatedEmployer } = useEmployerAuth()
   const [status, setStatus] = useState<Status>(token ? 'idle' : 'invalid-link')
   const [error, setError] = useState('')
 
@@ -43,7 +45,8 @@ export default function EmployerResetPasswordPage() {
     setStatus('sending')
     setError('')
     try {
-      await resetEmployerPassword(token, password)
+      const authenticatedEmployer = await resetEmployerPassword(token, password)
+      acceptAuthenticatedEmployer(authenticatedEmployer)
       navigate('/post-a-role', { replace: true })
     } catch {
       setStatus('invalid-link')
@@ -88,7 +91,7 @@ export default function EmployerResetPasswordPage() {
           boxShadow: 'var(--shadow-card)',
         }}
       >
-        <form onSubmit={handleSubmit} noValidate>
+        <form onSubmit={handleSubmit}>
           <AuthField
             label="New password"
             htmlFor="erp-password"

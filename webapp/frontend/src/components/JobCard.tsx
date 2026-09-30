@@ -1,3 +1,5 @@
+import { useContext } from 'react'
+import { Link } from 'react-router-dom'
 import { Bookmark, MapPin, Briefcase, Clock, Star, Flame, Sparkles, Repeat2, Users, EyeOff, ShieldCheck, Archive, SquarePen } from 'lucide-react'
 import type { Job, LinkedInPostSignals } from '../api/client'
 import { SourceTag } from './SourceBadges'
@@ -7,13 +9,16 @@ import {
   getSectorColor,
   formatRemoteType, shortLocation, isManagementTraineeRole,
 } from '../utils/format'
-import { rolePagePath } from '../utils/roleUrl'
+import { roleDetailPath, rolePagePath, rolePageUrl } from '../utils/roleUrl'
+import { DeviceModeContext } from '../deviceMode/DeviceModeContext'
 
 interface Props {
   job: Job
   saved: boolean
   onToggleSave: (job: Job) => void
   onClick: (job: Job) => void
+  /** Reduced-information treatment for dense mobile discovery rails. */
+  compact?: boolean
   /**
    * Open the admin edit drawer for this posting.
    *
@@ -47,7 +52,8 @@ const CLOSED_NEUTRAL: SectorColor = {
   accent: 'var(--color-border-strong)',
 }
 
-export default function JobCard({ job, saved, onToggleSave, onClick, onEdit }: Props) {
+export default function JobCard({ job, saved, onToggleSave, onClick, onEdit, compact = false }: Props) {
+  const uiMode = useContext(DeviceModeContext)?.uiMode ?? 'desktop'
   const sectorColor = job.closed ? CLOSED_NEUTRAL : getSectorColor(job.sector)
   // Prefer the AI English title (Chinese postings); fall back to the original.
   const displayTitle = job.title_en || job.title
@@ -67,7 +73,7 @@ export default function JobCard({ job, saved, onToggleSave, onClick, onEdit }: P
       // onMouseEnter/onMouseLeave below change, with its own easing curve.
       // transition-all here was fully redundant with it (same specificity,
       // .job-card wins on source order) rather than an intentional override.
-      className="job-card relative flex flex-col gap-4 rounded-lg p-5 cursor-pointer group"
+      className={`job-card relative flex flex-col gap-4 rounded-lg p-5 cursor-pointer group${compact ? ' job-card--compact' : ''}`}
       style={{
         backgroundColor: job.closed ? 'var(--color-closed-surface)' : 'var(--color-surface)',
         border: `1px solid ${job.closed ? 'var(--color-border-strong)' : 'var(--color-border)'}`,
@@ -142,30 +148,48 @@ export default function JobCard({ job, saved, onToggleSave, onClick, onEdit }: P
             letterSpacing: '-0.01em',
           }}
         >
-          <a
-            href={rolePagePath(job.source, job.source_id)}
-            draggable
-            onClick={event => {
-              if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-              event.preventDefault()
-              onClick(job)
-            }}
-            onDragStart={event => {
-              const url = event.currentTarget.href
-              event.dataTransfer.effectAllowed = 'link'
-              event.dataTransfer.setData('text/uri-list', url)
-              event.dataTransfer.setData('text/plain', url)
-            }}
-            className="text-left cursor-pointer after:absolute after:inset-0 after:content-['']"
-            aria-label={`${displayTitle} at ${company}`}
-          >
-            {displayTitle}
-          </a>
+          {uiMode === 'mobile' ? (
+            <Link
+              to={roleDetailPath(job.source, job.source_id)}
+              state={{ job }}
+              draggable
+              onDragStart={event => {
+                const url = rolePageUrl(job.source, job.source_id)
+                event.dataTransfer.effectAllowed = 'link'
+                event.dataTransfer.setData('text/uri-list', url)
+                event.dataTransfer.setData('text/plain', url)
+              }}
+              className="text-left cursor-pointer after:absolute after:inset-0 after:content-['']"
+              aria-label={`${displayTitle} at ${company}`}
+            >
+              {displayTitle}
+            </Link>
+          ) : (
+            <a
+              href={rolePagePath(job.source, job.source_id)}
+              draggable
+              onClick={event => {
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+                event.preventDefault()
+                onClick(job)
+              }}
+              onDragStart={event => {
+                const url = rolePageUrl(job.source, job.source_id)
+                event.dataTransfer.effectAllowed = 'link'
+                event.dataTransfer.setData('text/uri-list', url)
+                event.dataTransfer.setData('text/plain', url)
+              }}
+              className="text-left cursor-pointer after:absolute after:inset-0 after:content-['']"
+              aria-label={`${displayTitle} at ${company}`}
+            >
+              {displayTitle}
+            </a>
+          )}
         </h3>
 
         {job.match_reason && <MatchReason reason={job.match_reason} />}
 
-        <MetaRow job={job} />
+        <MetaRow job={job} compact={compact} />
       </div>
 
       {/* Market signals — "Urgently hiring", "New", an applicant count — are all
@@ -176,11 +200,11 @@ export default function JobCard({ job, saved, onToggleSave, onClick, onEdit }: P
 
           A Recruiter Post carries none of these either: they come from job
           boards, and a personal LinkedIn post is not one. */}
-      {!job.closed && job.source_tier !== 'social' && (
+      {!compact && !job.closed && job.source_tier !== 'social' && (
         <SignalBadges boardSignals={job.board_signals} isNew={job.is_new} />
       )}
 
-      {!job.closed && <CareerCoachingTag company={job.company} />}
+      {!compact && !job.closed && <CareerCoachingTag company={job.company} />}
 
       <CardFooter job={job} />
     </article>
@@ -381,7 +405,7 @@ function CardHeader({
 
 // ── Meta row: location / work type / internship ──────────────────────────────
 
-function MetaRow({ job }: { job: Job }) {
+function MetaRow({ job, compact = false }: { job: Job; compact?: boolean }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
       {/* Location */}
@@ -393,7 +417,7 @@ function MetaRow({ job }: { job: Job }) {
       {/* Work type. Plain text with an icon — and no longer blue for Hybrid.
           Hybrid is a fact about the role, not a recommendation, and colouring
           one of three possible values made it look like the good one. */}
-      {job.remote_type && (
+      {!compact && job.remote_type && (
         <span
           className="flex items-center gap-1 text-xs font-medium"
           style={{ color: 'var(--color-ink-muted)' }}
@@ -406,11 +430,11 @@ function MetaRow({ job }: { job: Job }) {
       {/* Where this Role was retrieved from. Sits at the end of the meta row
           rather than the head of it: provenance qualifies everything to its
           left, and is the last thing you want when scanning, not the first. */}
-      {!isManagementTraineeRole(job) && <SourceTag source={job.source} />}
+      {!compact && !isManagementTraineeRole(job) && <SourceTag source={job.source} />}
 
       {/* Internship — an outline, not amber. It is a category of role, not a
           warning, and it was the only yellow in the interface. */}
-      {job.is_internship && (
+      {!compact && job.is_internship && (
         <span
           className="text-xs rounded px-1.5 py-0.5"
           style={{ color: 'var(--color-ink-muted)', border: '1px solid var(--color-border)' }}
@@ -560,27 +584,9 @@ function CardFooter({ job }: { job: Job }) {
             fontFamily: 'var(--font-mono)',
             fontWeight: job.salary_verified ? 600 : undefined,
           }}
-          title={job.salary_verified
-            ? 'Reviewed and corrected by the FinEx team (not disclosed by employer)'
-            : 'AI-estimated base salary (not disclosed by employer)'}
+          title={job.salary_verified ? 'Reviewed salary figure' : 'Estimated salary figure'}
         >
           {estimatedSalary}
-          <span
-            className="rounded px-1 py-px"
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: '12px',
-              letterSpacing: '0.04em',
-              backgroundColor: job.salary_verified
-                ? 'var(--color-success-bg)' : 'var(--color-surface-2)',
-              color: job.salary_verified
-                ? 'var(--color-success)' : 'var(--color-ink-faint)',
-              border: `1px solid ${job.salary_verified
-                ? 'var(--color-success-border)' : 'var(--color-border)'}`,
-            }}
-          >
-            {job.salary_verified ? 'Checked' : 'AI est.'}
-          </span>
         </span>
       ) : (
         <span />
