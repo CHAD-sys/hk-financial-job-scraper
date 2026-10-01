@@ -15,7 +15,7 @@ const CONSULTATION_URL = 'https://www.finexclub.org/mentor-program'
 function EmployerMark({ company }: { company: string }) {
   const logo = mtCompanyLogo(company)
   return logo.src
-    ? <img src={logo.src} alt={`${company} logo`} width={240} height={120} decoding="async" />
+    ? <img className="mt-employer-page__logo-image" src={logo.src} alt={`${company} logo`} width={240} height={120} decoding="async" />
     : <span aria-hidden="true">{logo.wordmark}</span>
 }
 

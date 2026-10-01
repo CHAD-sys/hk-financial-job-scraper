@@ -36,5 +36,6 @@ describe('MTEmployerPage', () => {
     )
 
     expect(screen.getByTestId('mt-employer-identity')).toHaveAttribute('data-layout', 'mobile')
+    expect(screen.getByRole('img', { name: 'Bank of America (BofA) logo' })).toHaveClass('mt-employer-page__logo-image')
   })
 })
