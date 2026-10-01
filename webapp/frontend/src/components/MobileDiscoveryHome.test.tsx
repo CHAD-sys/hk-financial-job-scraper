@@ -45,6 +45,7 @@ describe('MobileDiscoveryHome', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'MT' }))
 
+    expect(screen.getByRole('heading', { name: 'Active MT openings' })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Swipe through Management Trainee employer logos' })).toBeInTheDocument()
     expect(await screen.findAllByRole('article')).toHaveLength(8)
     expect(screen.getByRole('heading', { name: 'Goldman Sachs' })).toBeInTheDocument()

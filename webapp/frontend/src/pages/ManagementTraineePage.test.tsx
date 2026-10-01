@@ -47,7 +47,7 @@ describe('ManagementTraineePage workbook directory', () => {
 
     const bankOfAmericaCards = screen.getAllByRole('article').filter(card => card.textContent?.includes('Bank of America (BofA)'))
     expect(bankOfAmericaCards).toHaveLength(1)
-    expect(bankOfAmericaCards[0]).toHaveTextContent('8 application links')
+    expect(bankOfAmericaCards[0]).not.toHaveTextContent('8 application links')
     expect(screen.getByRole('link', { name: 'View all application links at Bank of America (BofA)' })).toHaveAttribute(
       'href', '/management-trainee/bank-of-america-bofa',
     )

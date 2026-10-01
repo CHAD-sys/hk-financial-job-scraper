@@ -1095,8 +1095,7 @@ button, a, input, select, [role="button"], [role="tab"] {
 .mt-directory-empty h3 { margin: 0; font-family: var(--font-display); font-size: 1.5rem; }
 .mt-directory-empty button { min-height: 44px; margin-top: 1rem; border: 0; background: var(--color-ink); padding: 0.7rem 1rem; color: var(--color-ink-inverse); cursor: pointer; font-weight: 700; }
 .mt-workbook-directory__kicker,
-.mt-workbook-directory__heading > div > p,
-.mt-workbook-card__eyebrow {
+.mt-workbook-directory__heading > div > p {
   margin: 0;
   color: var(--color-gold);
   font-size: 0.68rem;
@@ -1130,13 +1129,13 @@ button, a, input, select, [role="button"], [role="tab"] {
 .mt-workbook-directory__heading h2 { margin: 0.3rem 0 0; color: var(--color-ink); font-family: var(--font-display); font-size: clamp(1.65rem, 3vw, 2.35rem); letter-spacing: -0.03em; line-height: 1.06; }
 .mt-workbook-directory__heading > span { color: var(--color-ink-muted); font-size: 0.74rem; font-weight: 650; }
 .mt-workbook-directory__section + .mt-workbook-directory__section { margin-top: 5rem; }
-.mt-workbook-card .mt-programme-card__body { display: flex; min-height: 10rem; flex-direction: column; justify-content: center; }
-.mt-workbook-card__identity { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); align-items: center; gap: 0.95rem; min-width: 0; }
-.mt-workbook-card__logo { display: grid; width: 4.5rem; height: 3.25rem; place-items: center; overflow: hidden; color: var(--color-ink-muted); }
+.mt-workbook-card .mt-programme-card__body { display: flex; min-height: 6.75rem; flex-direction: column; justify-content: center; padding: 1rem; }
+.mt-workbook-card__identity { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr); align-items: center; gap: 0.75rem; min-width: 0; }
+.mt-workbook-card__logo { display: grid; width: 3.5rem; height: 2.75rem; place-items: center; overflow: hidden; color: var(--color-ink-muted); }
 .mt-workbook-card__logo img { display: block; width: 100%; height: 100%; object-fit: contain; object-position: center; }
 .mt-workbook-card__logo span { display: -webkit-box; max-width: 100%; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; color: var(--color-ink); font-family: var(--font-display); font-size: 0.66rem; font-weight: 700; letter-spacing: -0.025em; line-height: 1.05; text-align: center; }
 .mt-workbook-card__identity > div:last-child { min-width: 0; }
-.mt-workbook-card__eyebrow { min-height: 2.7em; margin-bottom: 0.75rem; color: var(--color-ink-muted); font-size: 0.64rem; line-height: 1.35; }
+.mt-workbook-card .mt-programme-card h3 { font-size: 1.25rem; line-height: 1.08; overflow-wrap: anywhere; }
 .mt-workbook-card .mt-programme-card__deadline--inactive { background: var(--color-surface-2); }
 
 /* Employer pages make the workbook destinations first-class content: one
@@ -1265,7 +1264,7 @@ button, a, input, select, [role="button"], [role="tab"] {
   @media (max-width: 767px) {
     .mt-directory-grid > .mt-programme-card {
       content-visibility: auto;
-      contain-intrinsic-size: auto 21rem;
+      contain-intrinsic-size: auto 13rem;
     }
     .coach-domain-group {
       content-visibility: auto;
@@ -1316,17 +1315,16 @@ button, a, input, select, [role="button"], [role="tab"] {
   .mt-workbook-directory__section + .mt-workbook-directory__section { margin-top: 3.5rem; }
   .mt-workbook-directory__heading > span { font-size: 0.66rem; }
   .mt-workbook-directory__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; }
-  .mt-workbook-card .mt-programme-card__deadline { min-height: 3.7rem; padding: 0.55rem 0.6rem; font-size: 0.58rem; line-height: 1.25; }
+  .mt-workbook-card .mt-programme-card__deadline { min-height: 2.8rem; padding: 0.5rem 0.6rem; font-size: 0.58rem; line-height: 1.25; }
   .mt-workbook-card .mt-programme-card__deadline svg { width: 0.9rem; height: 0.9rem; }
-  .mt-workbook-card .mt-programme-card__body { min-height: 8.25rem; padding: 0.8rem 0.7rem; }
+  .mt-workbook-card .mt-programme-card__body { min-height: 5.5rem; padding: 0.7rem; }
   .mt-workbook-card__identity { grid-template-columns: 2.65rem minmax(0, 1fr); align-items: start; gap: 0.5rem; }
   .mt-workbook-card__logo { width: 2.65rem; height: 2.35rem; }
   .mt-workbook-card__logo span { -webkit-line-clamp: 3; font-size: 0.45rem; line-height: 1.05; }
-  .mt-workbook-card__eyebrow { min-height: 2.5em; margin-bottom: 0.45rem; font-size: 0.52rem; }
-  .mt-workbook-card .mt-programme-card h3 { font-size: 1.08rem; line-height: 1.08; overflow-wrap: anywhere; }
-  .mt-workbook-card .mt-programme-card__actions { grid-template-columns: 1fr; }
-  .mt-workbook-card .mt-programme-card__actions > * + * { border-top: 1px solid var(--color-border); border-left: 0; }
-  .mt-workbook-card .mt-programme-card__actions > * { min-height: 2.6rem; padding: 0.45rem 0.3rem; font-size: 0.58rem; }
+  .mt-workbook-card .mt-programme-card h3 { font-size: 1rem; line-height: 1.08; overflow-wrap: anywhere; }
+  .mt-workbook-card .mt-programme-card__actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mt-workbook-card .mt-programme-card__actions > * + * { border-top: 0; border-left: 1px solid var(--color-border); }
+  .mt-workbook-card .mt-programme-card__actions > * { min-height: 2.5rem; padding: 0.4rem 0.25rem; font-size: 0.56rem; }
   .mt-programme-card__link-list a { align-items: flex-start; padding: 0.55rem 0.6rem; font-size: 0.56rem; }
   .mt-workbook-card__link-status { gap: 0.2rem; line-height: 1.2; }
 }

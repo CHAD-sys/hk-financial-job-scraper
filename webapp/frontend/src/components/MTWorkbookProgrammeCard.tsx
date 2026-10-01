@@ -66,9 +66,8 @@ export default function MTWorkbookProgrammeCard({
   const open = openLinks.length > 0
   const statusLabel = open ? 'Open now' : closedLinks.length > 0 ? 'Closed' : 'Not currently open'
   const detail = open
-    ? `${openLinks.length} active ${openLinks.length === 1 ? 'application' : 'applications'}`
-    : closedLinks.length > 0 ? 'No active application recorded' : 'No current intake recorded'
-  const linkCountLabel = `${programmes.length} application ${programmes.length === 1 ? 'link' : 'links'}`
+    ? 'Application window open'
+    : closedLinks.length > 0 ? 'Application window closed' : 'No current intake recorded'
 
   return (
     <article id={anchorId} className="mt-programme-card mt-workbook-card">
@@ -80,7 +79,6 @@ export default function MTWorkbookProgrammeCard({
         <div className="mt-workbook-card__identity">
           <WorkbookCompanyLogo company={employer.company} />
           <div>
-            <p className="mt-workbook-card__eyebrow">{linkCountLabel}</p>
             <h3>{employer.company}</h3>
           </div>
         </div>

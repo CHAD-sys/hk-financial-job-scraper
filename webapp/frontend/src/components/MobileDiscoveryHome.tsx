@@ -195,7 +195,7 @@ export default function MobileDiscoveryHome({
 
         {activeTab === 'mt' && !loading && !error && (
           <>
-            <div className="mobile-discovery__section-heading"><div><p className="mobile-discovery__kicker">Structured entry points</p><h2>Management trainee</h2></div><GraduationCap size={20} aria-hidden="true" /></div>
+            <div className="mobile-discovery__section-heading"><div><p className="mobile-discovery__kicker">Structured entry points</p><h2>Active MT openings</h2></div><GraduationCap size={20} aria-hidden="true" /></div>
             <div className="mobile-discovery__mt-list">
               {openMtEmployers.map(employer => <MTWorkbookProgrammeCard key={employer.company} employer={employer} />)}
             </div>
