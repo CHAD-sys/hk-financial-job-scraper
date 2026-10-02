@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { DeviceModeContext } from '../deviceMode/DeviceModeContext'
+import { CAREER_COACH_GROUPS } from '../content/careerCoaches'
 import CareerCoachesPage from './CareerCoachesPage'
 
 vi.mock('../components/Nav', () => ({ default: () => <nav>Navigation</nav> }))
@@ -26,16 +27,27 @@ describe('CareerCoachesPage', () => {
     expect(within(heroPortraits).getByText('Byron Gardiner')).toBeInTheDocument()
   })
 
-  it('shows the full roster, then filters it by specialty', () => {
+  it('shows every category membership, then filters the roster by expertise', () => {
     renderPage()
 
-    expect(screen.getAllByRole('article')).toHaveLength(32)
+    const groupedMembershipCount = CAREER_COACH_GROUPS.reduce((total, group) => total + group.coaches.length, 0)
+    expect(screen.getAllByRole('article')).toHaveLength(groupedMembershipCount)
+    expect(screen.getAllByRole('heading', { name: 'Nicholas Yip' })).toHaveLength(2)
     fireEvent.click(screen.getByRole('button', { name: /digital assets & fintech/i }))
 
     expect(screen.getByRole('heading', { name: 'Hannah Hui' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Nicholas Yip' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Calvin Lee' })).not.toBeInTheDocument()
     expect(screen.getByText(/showing coaches specialising in digital assets & fintech/i)).toBeInTheDocument()
+  })
+
+  it('shows renamed categories and omits categories that are paused', () => {
+    renderPage()
+
+    expect(screen.getByRole('button', { name: 'Custody, Funds, and Assets Servicing' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Strategy, Transformation & Consulting' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Insurance & Actuarial' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Investment Banking' })).not.toBeInTheDocument()
   })
 
   it('refines the directory by exact stated specialty and profile search', () => {

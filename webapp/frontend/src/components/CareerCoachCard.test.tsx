@@ -13,7 +13,7 @@ const coach: CareerCoach = {
   href: 'https://www.finexclub.org/hannah-hui',
   appointmentUrl: 'https://www.finexclub.org/mentor-program',
   primaryDomain: 'Digital Assets & FinTech',
-  domains: ['Digital Assets & FinTech', 'Institutional Banking & Sales'],
+  domains: ['Digital Assets & FinTech', 'Institutional Banking & Sales', 'Investment Banking'],
 }
 
 describe('CareerCoachCard', () => {
@@ -22,9 +22,16 @@ describe('CareerCoachCard', () => {
 
     expect(screen.getByRole('heading', { name: 'Hannah Hui' })).toBeInTheDocument()
     expect(screen.getAllByText('Digital Assets & FinTech')).not.toHaveLength(0)
+    expect(screen.queryByText('Investment Banking')).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: /make an appointment with hannah hui/i })).toHaveAttribute(
       'href',
       coach.appointmentUrl,
     )
+  })
+
+  it('labels a repeated card with the category currently being browsed', () => {
+    render(<CareerCoachCard coach={coach} displayDomain="Institutional Banking & Sales" />)
+
+    expect(screen.getAllByText('Institutional Banking & Sales')).not.toHaveLength(0)
   })
 })

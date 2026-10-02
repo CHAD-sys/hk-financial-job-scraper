@@ -3,73 +3,94 @@ import {
   type CoachHighlight,
 } from '../components/highlights/weeklyHighlights.data'
 
-export const COACH_DOMAINS = [
+const ALL_COACH_DOMAINS = [
   'Accounting & Finance',
   'Risk & Compliance',
   'Treasury & Markets',
   'Investment',
   'Investment Banking',
   'Private Banking & Wealth',
-  'Custody & Funds',
+  'Custody, Funds, and Assets Servicing',
   'Digital Assets & FinTech',
   'Insurance & Actuarial',
   'Institutional Banking & Sales',
-  'Strategy & Transformation',
+  'Strategy, Transformation & Consulting',
 ] as const
 
-export type CoachDomain = (typeof COACH_DOMAINS)[number]
-export type CoachDomainFilter = CoachDomain | 'All expertise'
+export type CoachDomain = (typeof ALL_COACH_DOMAINS)[number]
+
+/** Categories currently offered in the public directory. Paused categories
+ * remain valid internal assignments so they can be restored without rebuilding
+ * the roster. */
+export const COACH_DOMAINS = [
+  'Accounting & Finance',
+  'Risk & Compliance',
+  'Treasury & Markets',
+  'Investment',
+  'Private Banking & Wealth',
+  'Custody, Funds, and Assets Servicing',
+  'Digital Assets & FinTech',
+  'Institutional Banking & Sales',
+  'Strategy, Transformation & Consulting',
+] as const satisfies readonly CoachDomain[]
+
+export type PublicCoachDomain = (typeof COACH_DOMAINS)[number]
+export type CoachDomainFilter = PublicCoachDomain | 'All expertise'
 
 export interface CareerCoach extends CoachHighlight {
-  primaryDomain: CoachDomain
+  primaryDomain: PublicCoachDomain
   domains: readonly CoachDomain[]
   appointmentUrl: string
 }
 
 interface CoachExpertise {
-  primaryDomain: CoachDomain
+  primaryDomain: PublicCoachDomain
   domains: readonly CoachDomain[]
 }
 
 const EXPERTISE_BY_COACH_ID: Readonly<Record<string, CoachExpertise>> = {
   'coach-01': expertise('Risk & Compliance'),
-  'coach-02': expertise('Risk & Compliance', 'Investment Banking'),
+  'coach-02': expertise('Risk & Compliance', 'Investment Banking', 'Investment'),
   'coach-03': expertise('Institutional Banking & Sales'),
   'coach-04': expertise('Risk & Compliance', 'Insurance & Actuarial', 'Investment'),
-  'coach-05': expertise('Institutional Banking & Sales', 'Strategy & Transformation'),
+  'coach-05': expertise('Institutional Banking & Sales', 'Strategy, Transformation & Consulting'),
   'coach-06': expertise('Treasury & Markets', 'Institutional Banking & Sales'),
-  'coach-07': expertise('Accounting & Finance', 'Strategy & Transformation'),
-  'coach-08': expertise('Insurance & Actuarial', 'Strategy & Transformation'),
-  'coach-09': expertise('Custody & Funds', 'Institutional Banking & Sales'),
+  'coach-07': expertise('Accounting & Finance', 'Strategy, Transformation & Consulting'),
+  'coach-08': expertise('Strategy, Transformation & Consulting', 'Insurance & Actuarial'),
+  'coach-09': expertise('Custody, Funds, and Assets Servicing', 'Institutional Banking & Sales'),
   'coach-10': expertise('Investment', 'Insurance & Actuarial'),
-  'coach-11': expertise('Accounting & Finance', 'Strategy & Transformation'),
-  'coach-12': expertise('Accounting & Finance', 'Custody & Funds', 'Strategy & Transformation'),
-  'coach-13': expertise('Private Banking & Wealth', 'Investment'),
+  'coach-11': expertise('Accounting & Finance', 'Strategy, Transformation & Consulting'),
+  'coach-12': expertise('Accounting & Finance', 'Custody, Funds, and Assets Servicing', 'Strategy, Transformation & Consulting'),
+  'coach-13': expertise('Private Banking & Wealth', 'Investment', 'Strategy, Transformation & Consulting'),
   'coach-14': expertise('Digital Assets & FinTech', 'Institutional Banking & Sales'),
-  'coach-15': expertise('Digital Assets & FinTech', 'Strategy & Transformation'),
+  'coach-15': expertise('Digital Assets & FinTech', 'Strategy, Transformation & Consulting'),
   'coach-16': expertise('Investment', 'Digital Assets & FinTech'),
   'coach-17': expertise('Digital Assets & FinTech', 'Institutional Banking & Sales'),
-  'coach-18': expertise('Strategy & Transformation', 'Institutional Banking & Sales'),
+  'coach-18': expertise('Custody, Funds, and Assets Servicing'),
   'coach-19': expertise('Treasury & Markets'),
-  'coach-20': expertise('Custody & Funds', 'Strategy & Transformation'),
-  'coach-21': expertise('Custody & Funds', 'Risk & Compliance'),
-  'coach-22': expertise('Investment Banking', 'Treasury & Markets', 'Investment'),
-  'coach-23': expertise('Custody & Funds', 'Accounting & Finance', 'Investment'),
+  'coach-20': expertise('Custody, Funds, and Assets Servicing', 'Strategy, Transformation & Consulting'),
+  'coach-21': expertise('Custody, Funds, and Assets Servicing', 'Risk & Compliance'),
+  'coach-22': expertise('Treasury & Markets', 'Investment Banking', 'Investment', 'Institutional Banking & Sales'),
+  'coach-23': expertise('Custody, Funds, and Assets Servicing', 'Accounting & Finance', 'Investment'),
   'coach-24': expertise('Treasury & Markets', 'Digital Assets & FinTech'),
   'coach-25': expertise('Private Banking & Wealth', 'Accounting & Finance'),
-  'coach-26': expertise('Custody & Funds', 'Digital Assets & FinTech'),
+  'coach-26': expertise('Custody, Funds, and Assets Servicing', 'Digital Assets & FinTech'),
   'coach-27': expertise('Investment', 'Private Banking & Wealth'),
   'coach-28': expertise('Risk & Compliance', 'Insurance & Actuarial'),
   'coach-29': expertise('Accounting & Finance', 'Investment Banking'),
   'coach-30': expertise('Treasury & Markets', 'Institutional Banking & Sales'),
   'coach-31': expertise('Institutional Banking & Sales', 'Private Banking & Wealth'),
-  'coach-32': expertise('Strategy & Transformation'),
+  'coach-32': expertise('Strategy, Transformation & Consulting'),
 }
 
 const APPOINTMENT_URL = 'https://www.finexclub.org/mentor-program'
 
-function expertise(primaryDomain: CoachDomain, ...relatedDomains: CoachDomain[]): CoachExpertise {
-  return { primaryDomain, domains: [primaryDomain, ...relatedDomains] }
+function expertise(primaryDomain: PublicCoachDomain, ...relatedDomains: CoachDomain[]): CoachExpertise {
+  return { primaryDomain, domains: Array.from(new Set([primaryDomain, ...relatedDomains])) }
+}
+
+export function isPublicCoachDomain(domain: string): domain is PublicCoachDomain {
+  return (COACH_DOMAINS as readonly string[]).includes(domain)
 }
 
 export const CAREER_COACHES: CareerCoach[] = COACH_HIGHLIGHTS.map((coach) => {
@@ -81,7 +102,7 @@ export const CAREER_COACHES: CareerCoach[] = COACH_HIGHLIGHTS.map((coach) => {
 
 export const CAREER_COACH_GROUPS = COACH_DOMAINS.map(domain => ({
   domain,
-  coaches: CAREER_COACHES.filter(coach => coach.primaryDomain === domain),
+  coaches: CAREER_COACHES.filter(coach => coach.domains.includes(domain)),
 })).filter(group => group.coaches.length > 0)
 
 /** The public FinEx focus phrases are retained verbatim for precise filtering. */

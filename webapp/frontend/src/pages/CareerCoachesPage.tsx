@@ -21,6 +21,7 @@ import {
   COACH_DOMAINS,
   COACH_SPECIALTIES,
   coachesForFilters,
+  isPublicCoachDomain,
   type CoachDomainFilter,
   type CoachSpecialtyFilter,
 } from '../content/careerCoaches'
@@ -107,7 +108,7 @@ export default function CareerCoachesPage() {
             <div className="coach-directory__intro">
               <div>
                 <h2 id="coach-directory-heading">Browse by domain expertise</h2>
-                <p>Every coach has one primary group and may appear in related filters where their experience crosses disciplines.</p>
+                <p>A coach may appear in more than one domain when their experience crosses disciplines.</p>
               </div>
               <p className="coach-directory__count" aria-live="polite">
                 {activeDomain === 'All expertise' ? 'Explore the directory by expertise.' : `Showing coaches specialising in ${activeDomain}.`}
@@ -182,7 +183,13 @@ export default function CareerCoachesPage() {
                     <ChevronDown size={18} aria-hidden="true" />
                   </summary>
                   <div className="coach-domain-group__grid">
-                    {group.coaches.map(coach => <CareerCoachCard key={coach.id} coach={coach} />)}
+                    {group.coaches.map(coach => (
+                      <CareerCoachCard
+                        key={coach.id}
+                        coach={coach}
+                        displayDomain={isPublicCoachDomain(group.domain) ? group.domain : undefined}
+                      />
+                    ))}
                   </div>
                 </details>
               )}) : (

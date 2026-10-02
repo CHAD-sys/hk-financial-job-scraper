@@ -1,7 +1,16 @@
 import { ArrowUpRight, CalendarCheck2 } from 'lucide-react'
-import type { CareerCoach } from '../content/careerCoaches'
+import {
+  isPublicCoachDomain,
+  type CareerCoach,
+  type PublicCoachDomain,
+} from '../content/careerCoaches'
 
-export default function CareerCoachCard({ coach }: { coach: CareerCoach }) {
+interface CareerCoachCardProps {
+  coach: CareerCoach
+  displayDomain?: PublicCoachDomain
+}
+
+export default function CareerCoachCard({ coach, displayDomain }: CareerCoachCardProps) {
   return (
     <article className="career-coach-card">
       <div className="career-coach-card__portrait">
@@ -12,7 +21,7 @@ export default function CareerCoachCard({ coach }: { coach: CareerCoach }) {
           width={280}
           height={280}
         />
-        <span>{coach.primaryDomain}</span>
+        <span>{displayDomain ?? coach.primaryDomain}</span>
       </div>
       <div className="career-coach-card__body">
         <h3>{coach.name}</h3>
@@ -23,7 +32,7 @@ export default function CareerCoachCard({ coach }: { coach: CareerCoach }) {
           <ArrowUpRight size={14} aria-hidden="true" />
         </a>
         <ul aria-label={`${coach.name} expertise`}>
-          {coach.domains.map(domain => <li key={domain}>{domain}</li>)}
+          {coach.domains.filter(isPublicCoachDomain).map(domain => <li key={domain}>{domain}</li>)}
         </ul>
       </div>
       <a
