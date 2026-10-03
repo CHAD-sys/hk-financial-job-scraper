@@ -45,7 +45,9 @@ describe('CareerCoachesPage', () => {
     renderPage()
 
     expect(screen.getByRole('button', { name: 'Custody, Funds, and Assets Servicing' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Private Equity, Family Offices, Wealth' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Strategy, Transformation & Consulting' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Private Banking & Wealth' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Insurance & Actuarial' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Investment Banking' })).not.toBeInTheDocument()
   })

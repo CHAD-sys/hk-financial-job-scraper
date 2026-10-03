@@ -25,7 +25,9 @@ describe('career coach directory data', () => {
 
   it('uses the requested public category names and hides paused categories', () => {
     expect(COACH_DOMAINS).toContain('Custody, Funds, and Assets Servicing')
+    expect(COACH_DOMAINS).toContain('Private Equity, Family Offices, Wealth')
     expect(COACH_DOMAINS).toContain('Strategy, Transformation & Consulting')
+    expect(COACH_DOMAINS).not.toContain('Private Banking & Wealth')
     expect(COACH_DOMAINS).not.toContain('Insurance & Actuarial')
     expect(COACH_DOMAINS).not.toContain('Investment Banking')
   })
@@ -35,7 +37,6 @@ describe('career coach directory data', () => {
       'Hannah Hui',
       'John Wong',
       'Nicholas Yip',
-      'Raymong Chung',
     ]))
     expect(coachesForDomain('Investment').map(coach => coach.name)).toEqual(expect.arrayContaining([
       'Apple Lo',
@@ -55,6 +56,25 @@ describe('career coach directory data', () => {
       'Lawrence Au',
       'Vincent Huen',
     ]))
+
+    const accountingCoaches = coachesForDomain('Accounting & Finance').map(coach => coach.name)
+    expect(accountingCoaches).not.toContain('Nelson Chau')
+    expect(accountingCoaches).not.toContain('Patrick Leung')
+    expect(coachesForDomain('Risk & Compliance').map(coach => coach.name)).not.toContain('Margaret Chan')
+    const investmentCoaches = coachesForDomain('Investment').map(coach => coach.name)
+    expect(investmentCoaches).not.toContain('Benjamin Chung')
+    expect(investmentCoaches).not.toContain('Nelson Chau')
+    const institutionalCoaches = coachesForDomain('Institutional Banking & Sales').map(coach => coach.name)
+    expect(institutionalCoaches).not.toContain('Byron Gardiner')
+    expect(institutionalCoaches).not.toContain('Connie Mak')
+    expect(institutionalCoaches).not.toContain('Hannah Hui')
+    expect(coachesForDomain('Digital Assets & FinTech').map(coach => coach.name)).not.toContain('Raymong Chung')
+    expect(coachesForDomain('Private Equity, Family Offices, Wealth').map(coach => coach.name)).toEqual([
+      'Edward Lee',
+      'Patrick Leung',
+      'Shannon Chow',
+    ])
+    expect(coachesForDomain('Strategy, Transformation & Consulting').map(coach => coach.name)).not.toContain('Calvin Lee')
 
     for (const group of CAREER_COACH_GROUPS) {
       expect(group.coaches).toEqual(coachesForDomain(group.domain))
