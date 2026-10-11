@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { DeviceModeContext } from '../deviceMode/DeviceModeContext'
@@ -18,13 +18,12 @@ function renderPage() {
 }
 
 describe('CareerCoachesPage', () => {
-  it('features Morris, Benjamin, and Byron in the directory hero', () => {
+  it('removes featured coach cards and explains how to use the directory', () => {
     renderPage()
 
-    const heroPortraits = screen.getByLabelText('Featured FinEx career coaches')
-    expect(within(heroPortraits).getByText('Morris Hui, CFA')).toBeInTheDocument()
-    expect(within(heroPortraits).getByText('Benjamin Chung')).toBeInTheDocument()
-    expect(within(heroPortraits).getByText('Byron Gardiner')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Featured FinEx career coaches')).not.toBeInTheDocument()
+    expect(screen.getByRole('complementary', { name: 'How to find a career coach' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Start with the work, not the title.' })).toBeInTheDocument()
   })
 
   it('shows every category membership, then filters the roster by expertise', () => {

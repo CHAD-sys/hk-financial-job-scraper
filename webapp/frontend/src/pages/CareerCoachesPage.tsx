@@ -5,8 +5,8 @@
  * rectangular filter tabs, and hairline-led profile cards.
  * STORY: Choose a domain, compare proven specialties, then request a meeting
  * from the coach's own FinEx profile.
- * FIRST VIEWPORT: A dark editorial introduction faces three named coach
- * portraits; the complete expertise filter begins immediately below it.
+ * FIRST VIEWPORT: A dark editorial introduction faces a concise route through
+ * the directory on desktop; mobile keeps only the essential copy and action.
  * FORM: First-ranked direct structure—grouped expertise ledger, precisely
  * specified extension, so no concept seed was needed.
  */
@@ -16,7 +16,6 @@ import CareerCoachCard from '../components/CareerCoachCard'
 import Nav from '../components/Nav'
 import { useDeviceMode } from '../deviceMode/useDeviceMode'
 import {
-  CAREER_COACHES,
   CAREER_COACH_GROUPS,
   COACH_DOMAINS,
   COACH_SPECIALTIES,
@@ -25,10 +24,6 @@ import {
   type CoachDomainFilter,
   type CoachSpecialtyFilter,
 } from '../content/careerCoaches'
-
-const FEATURED_COACHES = ['Morris Hui, CFA', 'Benjamin Chung', 'Byron Gardiner'].map(name => (
-  CAREER_COACHES.find(coach => coach.name === name)!
-))
 
 export default function CareerCoachesPage() {
   const { uiMode } = useDeviceMode()
@@ -72,7 +67,7 @@ export default function CareerCoachesPage() {
       <Nav />
       <main id="main-content">
         <header className="coach-directory-hero">
-          <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-20">
+          <div className="mx-auto max-w-7xl px-6 py-12 sm:py-16 lg:px-8 lg:py-20">
             <div className="coach-directory-hero__layout">
               <div className="coach-directory-hero__copy">
                 <p><Sparkles size={16} aria-hidden="true" /> FinEx career consultation</p>
@@ -87,18 +82,24 @@ export default function CareerCoachesPage() {
                 </a>
               </div>
 
-              <div className="coach-directory-hero__portraits" aria-label="Featured FinEx career coaches">
-                {FEATURED_COACHES.map((coach, index) => (
-                  <figure key={coach.id}>
-                    <img src={coach.image} alt="" width={280} height={280} />
-                    <figcaption>
-                      <span>{String(index + 1).padStart(2, '0')}</span>
-                      <strong>{coach.name}</strong>
-                      <small>{coach.primaryDomain}</small>
-                    </figcaption>
-                  </figure>
-                ))}
-              </div>
+              <aside className="coach-directory-hero__guide" aria-label="How to find a career coach">
+                <h2>Start with the work, not the title.</h2>
+                <p>Use the directory to move from a broad question to the right conversation.</p>
+                <ol>
+                  <li>
+                    <strong>Choose a domain</strong>
+                    <span>Begin with the part of finance you want to enter or understand.</span>
+                  </li>
+                  <li>
+                    <strong>Narrow the match</strong>
+                    <span>Search by specialty, role, or the experience you need.</span>
+                  </li>
+                  <li>
+                    <strong>Request a meeting</strong>
+                    <span>Open a coach profile and choose an available consultation.</span>
+                  </li>
+                </ol>
+              </aside>
             </div>
           </div>
         </header>
