@@ -896,6 +896,13 @@ def get_job(
 # `_mount_frontend`'s catch-all (see that function's docstring) so these win
 # over the SPA fallback.
 
+# Employer-submitted Roles are deliberately not part of SOURCE_NAMES: that
+# registry describes scraper adapters and their apply/display priority. They
+# are still real, addressable Roles, so their permanent public pages must pass
+# the same route guard as scraped sources instead of falling through to the
+# generic SPA shell.
+_PUBLIC_ROLE_SOURCES = SOURCE_NAMES | {"direct"}
+
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
 
 
@@ -2166,7 +2173,7 @@ def _spa_shell(request: Request) -> Response:
 @router.get("/jobs/{source}/{source_id}", include_in_schema=False)
 def job_teaser_redirect(source: str, source_id: str, request: Request):
     """Bare reference → canonical slug URL, so a hand-built link still resolves."""
-    if source not in SOURCE_NAMES:
+    if source not in _PUBLIC_ROLE_SOURCES:
         return _spa_shell(request)
     with get_db(request) as conn:
         detail = job_read.get_job(conn, source, source_id, visibility=Visibility.ADDRESSABLE)
@@ -2185,7 +2192,7 @@ def job_teaser(source: str, source_id: str, slug: str, request: Request):
     the module-level comment above this section). Never returns
     `description_clean`, and never issues a Role-access grant.
     """
-    if source not in SOURCE_NAMES:
+    if source not in _PUBLIC_ROLE_SOURCES:
         return _spa_shell(request)
     with get_db(request) as conn:
         detail = job_read.get_job(conn, source, source_id, visibility=Visibility.ADDRESSABLE)

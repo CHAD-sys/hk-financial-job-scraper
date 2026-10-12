@@ -41,6 +41,9 @@ def client(tmp_path):
         job(source="linkedin_posts", source_id="SOC", company="Confidential",
             title="Risk Manager", source_tier="social",
             posted_at=days_ago(3), description_clean="SECRET FULL DESCRIPTION social."),
+        job(source="direct", source_id="EMPLOYER", company="FinEx Club",
+            title="Marketing Intern", source_tier="mainstream",
+            posted_at=days_ago(1), description_clean="SECRET FULL DESCRIPTION direct."),
         job(source="workday", source_id="GONE", company="HSBC",
             title="Closed Role", is_active=0, posted_at="2026-06-01"),
         job(source="workday", source_id="HIDDEN", company="HSBC",
@@ -64,6 +67,8 @@ def client(tmp_path):
                    description_summary="Manage treasury operations."),
         enrichment(source="linkedin_posts", source_id="SOC",
                    description_summary="Lead risk management."),
+        enrichment(source="direct", source_id="EMPLOYER",
+                   description_summary="Support marketing campaigns."),
     ]
     db = tmp_path / "jobs.db"
     make_jobs_db(db, jobs=jobs, enrichments=enrichments)
@@ -121,6 +126,19 @@ def test_social_recruiter_post_teaser_loads_with_no_session(client):
     resp = client.get("/jobs/linkedin_posts/SOC/risk-manager-confidential")
     assert resp.status_code == 200
     assert "Risk Manager" in resp.text
+
+
+def test_employer_submitted_teaser_loads_with_no_session(client):
+    resp = client.get("/jobs/direct/EMPLOYER/marketing-intern-finex-club")
+    assert resp.status_code == 200
+    assert "Marketing Intern" in resp.text
+    assert "FinEx Club" in resp.text
+
+
+def test_employer_submitted_bare_reference_redirects_to_its_teaser(client):
+    resp = client.get("/jobs/direct/EMPLOYER", follow_redirects=False)
+    assert resp.status_code == 301
+    assert resp.headers["location"] == "/jobs/direct/EMPLOYER/marketing-intern-finex-club"
 
 
 def test_teaser_never_leaks_the_full_description(client):
