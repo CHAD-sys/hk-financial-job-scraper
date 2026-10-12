@@ -110,15 +110,21 @@ export default function SubmissionsPanel() {
                       {row.salary_range ? ` · ${row.salary_range}` : ''} · submitted by {row.contact_name} ({row.contact_email})
                     </p>
                   </div>
-                  <a
-                    href={row.apply_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs inline-flex items-center gap-1 shrink-0"
-                    style={{ color: 'var(--color-blue)' }}
-                  >
-                    Apply link <ExternalLink size={12} />
-                  </a>
+                  {row.apply_url ? (
+                    <a
+                      href={row.apply_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs inline-flex items-center gap-1 shrink-0"
+                      style={{ color: 'var(--color-blue)' }}
+                    >
+                      Apply link <ExternalLink size={12} />
+                    </a>
+                  ) : (
+                    <span className="text-xs shrink-0" style={{ color: 'var(--color-ink-faint)' }}>
+                      No external link
+                    </span>
+                  )}
                 </div>
 
                 <p className="text-sm mt-2 line-clamp-3" style={{ color: 'var(--color-ink-muted)' }}>

@@ -1268,6 +1268,7 @@ button, a, input, select, [role="button"], [role="tab"] {
 .role-detail-page__actions { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.55rem; }
 .role-detail-page__apply, .role-detail-page__actions button { min-height: 48px; align-items: center; justify-content: center; border-radius: 0.45rem; font: inherit; font-size: 0.86rem; font-weight: 780; text-decoration: none; touch-action: manipulation; }
 .role-detail-page__apply { display: inline-flex; gap: 0.45rem; background: var(--color-ink); color: var(--color-ink-inverse); }
+.role-detail-page__application-note { display: flex; min-height: 48px; margin: 0; align-items: center; border: 1px solid var(--color-border-strong); border-radius: 0.45rem; background: var(--color-surface-2); padding: 0.65rem 0.8rem; color: var(--color-ink-muted); font-size: 0.78rem; font-weight: 650; line-height: 1.35; }
 .role-detail-page__actions button { display: inline-flex; gap: 0.35rem; border: 1px solid var(--color-border-strong); background: var(--color-surface); color: var(--color-ink); padding-inline: 0.8rem; cursor: pointer; }
 .role-detail-page__apply:active, .role-detail-page__actions button:active { transform: scale(0.985); }
 .role-detail-page__closed { margin: 0; padding: 0.85rem; border: 1px solid var(--color-border-strong); background: var(--color-surface-2); color: var(--color-ink-muted); font-size: 0.83rem; font-weight: 700; text-align: center; }
@@ -1978,6 +1979,13 @@ select.finex-input {
 }
 .role-action--apply:hover { background: #14532D; }
 .role-action--apply .role-action__icon { background: rgb(255 255 255 / 0.14); }
+.role-action--instructions {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-2);
+  color: var(--color-ink-muted);
+  cursor: default;
+}
+.role-action--instructions .role-action__icon { background: var(--color-surface); color: var(--color-gold); }
 .role-action--social {
   background: #6B4EFF;
   color: var(--color-surface);

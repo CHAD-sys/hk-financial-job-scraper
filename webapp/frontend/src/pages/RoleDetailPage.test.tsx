@@ -42,4 +42,19 @@ describe('RoleDetailPage', () => {
     expect(screen.getByRole('link', { name: /Apply on company site/i })).toHaveAttribute('href', 'https://example.com/role')
     expect(screen.getByText('Credit Risk')).toBeInTheDocument()
   })
+
+  it('replaces an empty employer link with application guidance', () => {
+    render(
+      <DeviceModeContext.Provider value={{ deviceClass: 'phone', uiMode: 'mobile', detectionSource: 'user-agent', touchCapable: true }}>
+        <SavedRolesContext.Provider value={{ saved: {}, savedList: [], count: 0, isSaved: () => false, toggle: vi.fn() }}>
+          <MemoryRouter initialEntries={[{ pathname: '/roles/direct/no-link', state: { job: { ...role, source: 'direct', source_id: 'no-link', source_tier: 'boutique', url: '' } } }]}>
+            <Routes><Route path="/roles/:source/:sourceId" element={<RoleDetailPage />} /></Routes>
+          </MemoryRouter>
+        </SavedRolesContext.Provider>
+      </DeviceModeContext.Provider>,
+    )
+
+    expect(screen.getByText('Application instructions are in the Role overview.')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /apply on company site/i })).not.toBeInTheDocument()
+  })
 })

@@ -72,6 +72,14 @@ def test_role_is_queued_as_pending_and_emailed(client):
     assert client.sent[0]["reply_to"] == "rec@agency.com"
 
 
+def test_role_without_apply_url_is_queued_and_emailed(client):
+    response = client.post("/api/post-role", json=role(apply_url=""))
+
+    assert response.status_code == 200, response.text
+    assert read_queue(client)[0]["apply_url"] == ""
+    assert "Apply URL:  —" in client.sent[0]["body"]
+
+
 def test_honeypot_looks_successful_but_sends_nothing(client):
     response = client.post("/api/post-role", json=role(website="buy-now"))
     assert response.status_code == 200

@@ -456,7 +456,7 @@ _SELECT_COLUMNS = f"""
     -- Route "apply" to the preferred board. For a cross-posted role the displayed
     -- card is the richest copy (JobsDB: description + skills) but apply_url points
     -- at eFinancialCareers (set by reconcile_cross_posted); '' falls back to own url.
-    COALESCE(NULLIF(j.apply_url, ''), j.url) AS url,
+    COALESCE(NULLIF(j.apply_url, ''), j.url, '') AS url,
     j.title,
     j.board_signals,
     j.cross_posted,

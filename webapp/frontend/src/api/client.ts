@@ -929,7 +929,7 @@ export interface RolePayload {
   employment_type: string
   salary_range: string
   description: string
-  apply_url: string
+  apply_url?: string
   /** Honeypot. */
   website: string
 }

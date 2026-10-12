@@ -69,6 +69,20 @@ describe('Post a role', () => {
     expect(screen.getByRole('button', { name: /Submit for review/ })).toBeEnabled()
   })
 
+  it('lets a real Employer submit without an application link', async () => {
+    employerAuthValue.employer = REAL_EMPLOYER
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.type(screen.getByLabelText('Job title'), 'Marketing Intern')
+    await user.type(screen.getByLabelText('Location'), 'Hong Kong')
+    await user.selectOptions(screen.getByLabelText('Employment type'), 'Internship')
+    await user.type(screen.getByLabelText('Role description'), 'Apply by email using the instructions in this description.')
+    await user.click(screen.getByRole('button', { name: /Submit for review/ }))
+
+    expect(submitRole).toHaveBeenCalledWith(expect.objectContaining({ apply_url: '' }))
+  })
+
   it('shows the preview the real form, so there is something to look at', () => {
     employerViewValue.employerView = true
     renderPage()
@@ -114,7 +128,7 @@ describe('Post a role', () => {
     await user.type(screen.getByLabelText('Location'), 'Hong Kong')
     await user.selectOptions(screen.getByLabelText('Employment type'), 'Full-time')
     await user.type(screen.getByLabelText('Role description'), 'Lead the regional risk programme.')
-    await user.type(screen.getByLabelText('Application link'), 'https://example.com/apply')
+    await user.type(screen.getByLabelText(/Application link/i), 'https://example.com/apply')
     await user.click(screen.getByRole('button', { name: /Submit for review/ }))
     expect(submitRole).toHaveBeenCalled()
   })

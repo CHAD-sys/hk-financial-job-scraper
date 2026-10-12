@@ -601,6 +601,23 @@ function ApplyFooter({ job }: { job: Job }) {
     )
   }
 
+  if (!job.url) {
+    return (
+      <div
+        className="flex-shrink-0 px-6 py-4"
+        style={{ borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)' }}
+      >
+        <RoleActionDeck
+          job={job}
+          destinationHref=""
+          destinationLabel="Application instructions"
+          destinationHint="See the Role overview above"
+          destinationTone="instructions"
+        />
+      </div>
+    )
+  }
+
   return (
     <div
       className="flex-shrink-0 px-6 py-4"
@@ -628,24 +645,36 @@ function RoleActionDeck({
   destinationHref: string
   destinationLabel: string
   destinationHint: string
-  destinationTone: 'apply' | 'social'
+  destinationTone: 'apply' | 'social' | 'instructions'
 }) {
   return (
     <div className="role-action-deck" role="group" aria-label="Role actions">
-      <a
-        href={destinationHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`role-action role-action--${destinationTone}`}
-      >
-        <span className="role-action__icon" aria-hidden="true">
-          <ExternalLink size={16} strokeWidth={1.9} />
-        </span>
-        <span className="role-action__copy">
-          <span className="role-action__label">{destinationLabel}</span>
-          <span className="role-action__hint">{destinationHint}</span>
-        </span>
-      </a>
+      {destinationHref ? (
+        <a
+          href={destinationHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`role-action role-action--${destinationTone}`}
+        >
+          <span className="role-action__icon" aria-hidden="true">
+            <ExternalLink size={16} strokeWidth={1.9} />
+          </span>
+          <span className="role-action__copy">
+            <span className="role-action__label">{destinationLabel}</span>
+            <span className="role-action__hint">{destinationHint}</span>
+          </span>
+        </a>
+      ) : (
+        <div className="role-action role-action--instructions" role="note">
+          <span className="role-action__icon" aria-hidden="true">
+            <Check size={16} strokeWidth={1.9} />
+          </span>
+          <span className="role-action__copy">
+            <span className="role-action__label">{destinationLabel}</span>
+            <span className="role-action__hint">{destinationHint}</span>
+          </span>
+        </div>
+      )}
 
       <a
         href={rolePagePath(job.source, job.source_id)}

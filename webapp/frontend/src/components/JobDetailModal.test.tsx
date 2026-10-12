@@ -72,6 +72,28 @@ describe('JobDetailModal compensation', () => {
       .toHaveAttribute('href', 'https://linkedin.example/post')
   })
 
+  it('shows honest application guidance when an employer supplied no external link', async () => {
+    const directRole = { ...recruiterAccountingOfficer, source: 'direct', source_id: 'no-link', source_tier: 'boutique', url: '' }
+    vi.mocked(fetchJobDetail).mockResolvedValue({
+      ...detail,
+      ...directRole,
+      description_summary: 'Apply by email using the instructions in this overview.',
+      sources: ['direct'],
+    })
+
+    render(
+      <JobDetailModal
+        job={directRole}
+        saved={false}
+        onToggleSave={() => {}}
+        onClose={() => {}}
+      />,
+    )
+
+    expect(screen.getByRole('note', { hidden: true })).toHaveTextContent('Application instructions')
+    expect(screen.queryByRole('link', { name: /apply on company site/i, hidden: true })).not.toBeInTheDocument()
+  })
+
   it('labels disclosed Hong Kong salary fields as monthly, including recruiter posts', async () => {
     vi.mocked(fetchJobDetail).mockResolvedValue(detail)
     render(

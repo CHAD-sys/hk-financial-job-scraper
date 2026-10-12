@@ -80,15 +80,17 @@ export default function PostRolePage() {
     const applyUrl = str('apply_url')
     const applyUrlInput = e.currentTarget.elements.namedItem('apply_url') as HTMLInputElement | null
 
-    try {
-      const parsedApplyUrl = new URL(applyUrl)
-      if (parsedApplyUrl.protocol !== 'https:') throw new Error('Only HTTPS links are accepted')
-      applyUrlInput?.setCustomValidity('')
-    } catch {
-      applyUrlInput?.setCustomValidity('Enter a complete https:// application link.')
-      applyUrlInput?.reportValidity()
-      applyUrlInput?.focus()
-      return
+    if (applyUrl) {
+      try {
+        const parsedApplyUrl = new URL(applyUrl)
+        if (parsedApplyUrl.protocol !== 'https:') throw new Error('Only HTTPS links are accepted')
+        applyUrlInput?.setCustomValidity('')
+      } catch {
+        applyUrlInput?.setCustomValidity('Enter a complete https:// application link, or leave this field blank.')
+        applyUrlInput?.reportValidity()
+        applyUrlInput?.focus()
+        return
+      }
     }
 
     setStatus('sending')
@@ -235,9 +237,13 @@ export default function PostRolePage() {
               </div>
 
               <div className="mt-5">
-                <Field label="Application link" htmlFor="pr-url" hint="Where candidates should apply. Must start with https://">
+                <Field
+                  label="Application link (optional)"
+                  htmlFor="pr-url"
+                  hint="Add an https:// link, or include alternative application instructions in the role description."
+                >
                   <input
-                    id="pr-url" name="apply_url" type="url" required maxLength={MAX.apply_url}
+                    id="pr-url" name="apply_url" type="url" maxLength={MAX.apply_url}
                     placeholder="https://" className="finex-input"
                     onInput={event => event.currentTarget.setCustomValidity('')}
                   />

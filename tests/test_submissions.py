@@ -124,6 +124,19 @@ def test_approve_submission_inserts_a_visible_active_row(real_jobs_db: Path) -> 
     assert inserted["dedup_hash"]  # NOT NULL, no default — must be populated
 
 
+def test_approve_submission_accepts_a_role_without_an_external_link(real_jobs_db: Path) -> None:
+    row = _row(apply_url="")
+    sid = subs.approve_submission(real_jobs_db, row)
+
+    with sqlite3.connect(real_jobs_db) as conn:
+        inserted = conn.execute(
+            "SELECT url, apply_url FROM jobs WHERE source = ? AND source_id = ?",
+            (subs.SOURCE, sid),
+        ).fetchone()
+
+    assert inserted == ("", "")
+
+
 def test_approving_the_same_submission_twice_does_not_raise(real_jobs_db: Path) -> None:
     row = _row()
     first = subs.approve_submission(real_jobs_db, row)

@@ -2572,7 +2572,7 @@ class RoleIn(BaseModel):
     employment_type: str = Field(max_length=40)
     salary_range: str = Field(default="", max_length=100)
     description: str = Field(min_length=1, max_length=20000)
-    apply_url: str = Field(min_length=1, max_length=500)
+    apply_url: str = Field(default="", max_length=500)
     website: str = ""
 
     @field_validator("employment_type")
@@ -2585,6 +2585,9 @@ class RoleIn(BaseModel):
     @field_validator("apply_url")
     @classmethod
     def _http_url(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            return ""
         # Blocks javascript:, data: and mailto: — this URL is rendered as a link
         # on the board once approved.
         if not v.startswith(("http://", "https://")):
@@ -2632,7 +2635,7 @@ def submit_role(payload: RoleIn, request: Request):
         f"Location:   {data['location']}\n"
         f"Type:       {data['employment_type']}\n"
         f"Salary:     {data['salary_range'] or '—'}\n"
-        f"Apply URL:  {data['apply_url']}\n\n"
+        f"Apply URL:  {data['apply_url'] or '—'}\n\n"
         f"Submitted by {data['contact_name']} <{data['contact_email']}>\n\n"
         f"--- Description ---\n{data['description']}\n"
     )

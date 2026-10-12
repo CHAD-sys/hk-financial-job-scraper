@@ -151,9 +151,15 @@ export default function RoleDetailPage() {
             <p className="role-detail-page__closed">This Role is awaiting a status update.</p>
           ) : (
             <div className="role-detail-page__actions">
-              <a href={role.url} target="_blank" rel="noopener noreferrer" className="role-detail-page__apply">
-                {destinationLabel} <ArrowUpRight size={18} aria-hidden="true" />
-              </a>
+              {role.url ? (
+                <a href={role.url} target="_blank" rel="noopener noreferrer" className="role-detail-page__apply">
+                  {destinationLabel} <ArrowUpRight size={18} aria-hidden="true" />
+                </a>
+              ) : (
+                <p className="role-detail-page__application-note">
+                  Application instructions are in the Role overview.
+                </p>
+              )}
               <button type="button" onClick={() => toggle(role)} aria-pressed={isSaved(role)}>
                 <Bookmark size={18} fill={isSaved(role) ? 'currentColor' : 'none'} aria-hidden="true" />
                 {isSaved(role) ? 'Saved' : 'Save'}
