@@ -5,7 +5,6 @@ import type { Job, JobDetail } from '../api/client'
 import { fetchJobDetail } from '../api/client'
 import Nav from '../components/Nav'
 import { useSavedRoles } from '../savedRoles/useSavedRoles'
-import { useDeviceMode } from '../deviceMode/useDeviceMode'
 import {
   displayCompany,
   formatEstimatedSalary,
@@ -30,7 +29,6 @@ function routeState(value: unknown): RoleRouteState {
 export default function RoleDetailPage() {
   const { source = '', sourceId = '' } = useParams()
   const location = useLocation()
-  const { uiMode } = useDeviceMode()
   const { isSaved, toggle } = useSavedRoles()
   const state = useMemo(() => routeState(location.state), [location.state])
   const seed = state.job?.source === source && state.job.source_id === sourceId ? state.job : null
@@ -65,7 +63,7 @@ export default function RoleDetailPage() {
 
   if (!role && loading) {
     return (
-      <div className="role-detail-page" data-layout={uiMode}>
+      <div className="role-detail-page">
         <Nav />
         <main className="role-detail-page__loading" id="main-content" aria-live="polite" aria-busy="true">
           <span aria-hidden="true" />
@@ -77,7 +75,7 @@ export default function RoleDetailPage() {
 
   if (!role) {
     return (
-      <div className="role-detail-page" data-layout={uiMode}>
+      <div className="role-detail-page">
         <Nav />
         <main className="role-detail-page__unavailable" id="main-content">
           <p className="role-detail-page__eyebrow">Role unavailable</p>
@@ -98,7 +96,7 @@ export default function RoleDetailPage() {
   const destinationLabel = role.source_tier === 'social' ? 'View the original post' : 'Apply on company site'
 
   return (
-    <div className="role-detail-page" data-layout={uiMode}>
+    <div className="role-detail-page">
       <title>{`${title} at ${company} | FinEx Careers`}</title>
       <meta name="description" content={`${title} at ${company} in Hong Kong.`} />
       <Nav />

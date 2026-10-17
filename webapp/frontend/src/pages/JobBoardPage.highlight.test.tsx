@@ -2,7 +2,6 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Job, JobDetail } from '../api/client'
-import { DeviceModeContext } from '../deviceMode/DeviceModeContext'
 
 const fetchJobs = vi.fn()
 const fetchJobDetail = vi.fn()
@@ -164,23 +163,15 @@ describe('featured Role deep links', () => {
 })
 
 describe('mobile Careers routing', () => {
-  const mobileDevice = {
-    deviceClass: 'phone' as const,
-    uiMode: 'mobile' as const,
-    detectionSource: 'user-agent' as const,
-    touchCapable: true,
-  }
-
   function renderMobileRoute(path: string) {
     return render(
-      <DeviceModeContext.Provider value={mobileDevice}>
         <MemoryRouter initialEntries={[path]}>
           <Routes>
             <Route path="/" element={<JobBoardPage />} />
             <Route path="/jobs" element={<JobBoardPage />} />
           </Routes>
-        </MemoryRouter>
-      </DeviceModeContext.Provider>,
+        </MemoryRouter>,
+
     )
   }
 

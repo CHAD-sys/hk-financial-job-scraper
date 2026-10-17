@@ -13,10 +13,9 @@ interface Props {
   onClose: () => void
 }
 
-// Full-screen mobile equivalent of FilterBar's inline sector row + advanced
-// panel. Everything here is always-expanded (no nested toggles) since the
-// sheet itself is already the opt-in step — matches the mobile-optimization
-// plan's "Filters" overlay pattern used by Indeed/LinkedIn/Glassdoor mobile web.
+// Shared Filters sheet. It fills a phone screen and becomes a focused dialog
+// at larger widths. The controls stay expanded because opening the sheet is
+// already the opt-in step.
 export default function MobileFilterSheet({
   filters,
   filterData,

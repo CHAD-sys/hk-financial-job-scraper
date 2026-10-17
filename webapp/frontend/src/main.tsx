@@ -24,8 +24,6 @@ import App from './App.tsx'
 const REPLACED_BY_REACT = [
   'title[data-ssr]',
   'meta[data-ssr][name="description"]',
-  // LandingPage renders its own Organization block; the server's would double it.
-  'script[data-ssr][type="application/ld+json"]',
 ].join(', ')
 
 for (const tag of document.querySelectorAll(REPLACED_BY_REACT)) {

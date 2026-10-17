@@ -2,7 +2,6 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import type { Job } from '../api/client'
-import { DeviceModeContext } from '../deviceMode/DeviceModeContext'
 import { SavedRolesContext } from '../savedRoles/SavedRolesContext'
 
 vi.mock('../components/Nav', () => ({ default: () => <nav>Navigation</nav> }))
@@ -28,13 +27,11 @@ const role: Job = {
 describe('RoleDetailPage', () => {
   it('renders a phone-first Role detail page from the card navigation state', () => {
     render(
-      <DeviceModeContext.Provider value={{ deviceClass: 'phone', uiMode: 'mobile', detectionSource: 'user-agent', touchCapable: true }}>
         <SavedRolesContext.Provider value={{ saved: {}, savedList: [], count: 0, isSaved: () => false, toggle: vi.fn() }}>
           <MemoryRouter initialEntries={[{ pathname: '/roles/jobsdb/1', state: { job: role, returnTo: '/' } }]}>
             <Routes><Route path="/roles/:source/:sourceId" element={<RoleDetailPage />} /></Routes>
           </MemoryRouter>
-        </SavedRolesContext.Provider>
-      </DeviceModeContext.Provider>,
+        </SavedRolesContext.Provider>,
     )
 
     expect(screen.getByRole('heading', { name: 'Vice President, Credit Risk' })).toBeInTheDocument()
@@ -45,13 +42,11 @@ describe('RoleDetailPage', () => {
 
   it('replaces an empty employer link with application guidance', () => {
     render(
-      <DeviceModeContext.Provider value={{ deviceClass: 'phone', uiMode: 'mobile', detectionSource: 'user-agent', touchCapable: true }}>
         <SavedRolesContext.Provider value={{ saved: {}, savedList: [], count: 0, isSaved: () => false, toggle: vi.fn() }}>
           <MemoryRouter initialEntries={[{ pathname: '/roles/direct/no-link', state: { job: { ...role, source: 'direct', source_id: 'no-link', source_tier: 'boutique', url: '' } } }]}>
             <Routes><Route path="/roles/:source/:sourceId" element={<RoleDetailPage />} /></Routes>
           </MemoryRouter>
-        </SavedRolesContext.Provider>
-      </DeviceModeContext.Provider>,
+        </SavedRolesContext.Provider>,
     )
 
     expect(screen.getByText('Application instructions are in the Role overview.')).toBeInTheDocument()

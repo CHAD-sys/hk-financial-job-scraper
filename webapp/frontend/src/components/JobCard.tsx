@@ -1,4 +1,3 @@
-import { useContext } from 'react'
 import { Link } from 'react-router-dom'
 import { Bookmark, MapPin, Briefcase, Clock, Star, Flame, Sparkles, Repeat2, Users, EyeOff, ShieldCheck, Archive, SquarePen } from 'lucide-react'
 import type { Job, LinkedInPostSignals } from '../api/client'
@@ -9,8 +8,7 @@ import {
   getSectorColor,
   formatRemoteType, shortLocation, isManagementTraineeRole,
 } from '../utils/format'
-import { roleDetailPath, rolePagePath, rolePageUrl } from '../utils/roleUrl'
-import { DeviceModeContext } from '../deviceMode/DeviceModeContext'
+import { roleDetailPath, rolePageUrl } from '../utils/roleUrl'
 
 interface Props {
   job: Job
@@ -53,7 +51,6 @@ const CLOSED_NEUTRAL: SectorColor = {
 }
 
 export default function JobCard({ job, saved, onToggleSave, onClick, onEdit, compact = false }: Props) {
-  const uiMode = useContext(DeviceModeContext)?.uiMode ?? 'desktop'
   const sectorColor = job.closed ? CLOSED_NEUTRAL : getSectorColor(job.sector)
   // Prefer the AI English title (Chinese postings); fall back to the original.
   const displayTitle = job.title_en || job.title
@@ -148,29 +145,12 @@ export default function JobCard({ job, saved, onToggleSave, onClick, onEdit, com
             letterSpacing: '-0.01em',
           }}
         >
-          {uiMode === 'mobile' ? (
-            <Link
+          <Link
               to={roleDetailPath(job.source, job.source_id)}
               state={{ job }}
               draggable
-              onDragStart={event => {
-                const url = rolePageUrl(job.source, job.source_id)
-                event.dataTransfer.effectAllowed = 'link'
-                event.dataTransfer.setData('text/uri-list', url)
-                event.dataTransfer.setData('text/plain', url)
-              }}
-              className="text-left cursor-pointer after:absolute after:inset-0 after:content-['']"
-              aria-label={`${displayTitle} at ${company}`}
-            >
-              {displayTitle}
-            </Link>
-          ) : (
-            <a
-              href={rolePagePath(job.source, job.source_id)}
-              draggable
               onClick={event => {
-                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-                event.preventDefault()
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
                 onClick(job)
               }}
               onDragStart={event => {
@@ -183,8 +163,7 @@ export default function JobCard({ job, saved, onToggleSave, onClick, onEdit, com
               aria-label={`${displayTitle} at ${company}`}
             >
               {displayTitle}
-            </a>
-          )}
+          </Link>
         </h3>
 
         {job.match_reason && <MatchReason reason={job.match_reason} />}

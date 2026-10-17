@@ -2,28 +2,15 @@
 
 @theme {
   /* ── Layout ───────────────────────────────────────────────── */
-  --nav-height: 65px;   /* Mobile: 64px row + 1px header border-b. The desktop
-                           bar is two tiers and overrides this at lg — see the
-                           media query below. Includes the borders on purpose:
-                           this is the outer edge of the sticky header, which is
-                           where things anchored below it must start. Anything
-                           sitting under the nav (job detail panel, scroll
-                           clearance) reads this rather than hardcoding it. */
+  --nav-height: 65px;   /* 64px navigation row plus its bottom border. */
 
   /* ── Color Tokens ─────────────────────────────────────────── */
   --color-bg:            #FFFDF9;
   --color-surface:       #FFFFFF;
   --color-surface-2:     #F8F5F0;
   --color-nav:           #0B1628;
-  --color-masthead:      #16223A;  /* One tonal step up from --color-nav. Shared
-                                      by the desktop nav row AND every dark page
-                                      hero directly beneath it, so the two read
-                                      as ONE continuous band. Dark surfaces must
-                                      step monotonically — deep chrome, then
-                                      masthead, then light content. Painting a
-                                      hero --color-nav again puts a lighter nav
-                                      row between two darks, and that sandwich
-                                      reads as a stray stripe. */
+  --color-masthead:      #16223A;  /* Dark page heroes, one step lighter than
+                                      the shared navigation row. */
 
   --color-ink:           #0B1628;
   --color-ink-muted:     #475569;
@@ -73,13 +60,6 @@
   /* ── Motion ──────────────────────────────────────────────── */
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
-
-/* The device-mode provider, not the browser window, chooses the structural
-   navigation. Desktop is two tiers:
-     44px utility strip + 1px divider + 44px nav row + 1px header border = 90px.
-   Components can still reflow within either shell, but narrowing a desktop
-   window no longer turns its product navigation into the phone navigation. */
-html[data-ui-mode='desktop'] { --nav-height: 90px; }
 
 /* ── Base ─────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
@@ -188,6 +168,9 @@ button, a, input, select, [role="button"], [role="tab"] {
 /* Mobile discovery: a light, editorial first view with four persistent desks. */
 .mobile-discovery {
   min-width: 0;
+  width: 100%;
+  max-width: 60rem;
+  margin-inline: auto;
   padding: 1rem 1rem 2.5rem;
   background: var(--color-bg);
 }
@@ -367,6 +350,39 @@ button, a, input, select, [role="button"], [role="tab"] {
 .mobile-discovery__status { margin: 1rem 0; padding: 1rem; color: var(--color-ink-muted); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 0.65rem; font-size: 0.78rem; }
 .mobile-discovery__status--error { color: var(--color-ink-muted); border-color: var(--color-danger-border); }
 @media (prefers-reduced-motion: reduce) { .mobile-discovery__banner { scroll-behavior: auto; } }
+
+/* Keep the phone discovery structure on larger screens, with a comfortable
+   reading measure and controls sized for both pointer and touch input. */
+@media (min-width: 768px) {
+  .mobile-discovery { padding: 2rem 2rem 4rem; }
+  .mobile-discovery__search { min-height: 3.5rem; }
+  .mobile-discovery__search input { font-size: 1rem; }
+  .mobile-discovery__tab { font-size: 0.875rem; }
+  .mobile-discovery__banner h1 { font-size: 2.5rem; }
+  .mobile-discovery__banner-copy { font-size: 1rem; }
+  .mobile-discovery__section-heading h2 { font-size: 2rem; }
+  .mobile-discovery__section-copy { font-size: 0.95rem; }
+  .mobile-discovery__job-list, .mobile-discovery__mt-list { gap: 1rem; }
+  .mobile-discovery__job-list .job-card { padding: 1rem; gap: 0.75rem; }
+  .mobile-discovery__job-list .job-card h3 { font-size: 1.1rem; }
+  .mobile-discovery__job-list .job-card .text-xs { font-size: 0.8rem; }
+  .mobile-discovery__job-list .job-card--compact .mt-auto > * { font-size: 0.8rem; }
+  .mobile-discovery__mt-list .mt-programme-card h3 { font-size: 1.25rem; }
+  .mobile-discovery__mt-list .mt-programme-card__deadline,
+  .mobile-discovery__mt-list .mt-programme-card__deadline strong { font-size: 0.8rem; }
+  .mobile-discovery__mt-list .mt-programme-card__type { font-size: 0.8rem; }
+  .mobile-discovery__mt-list .mt-programme-card__actions > * { min-height: 2.75rem; font-size: 0.8rem; }
+  .mobile-discovery__coach-group .mobile-discovery__coach strong { font-size: 0.9rem; }
+  .mobile-discovery__coach-group .mobile-discovery__coach small { font-size: 0.75rem; }
+  .mobile-discovery__education strong { font-size: 0.95rem; }
+  .mobile-discovery__education small { font-size: 0.8rem; }
+  .mobile-discovery__highlights[data-focus='roles'] .hl { --hl-card-w: 12rem; }
+  .mobile-discovery__highlights[data-focus='roles'] .hl-card { min-height: 8rem; padding: 0.75rem; }
+  .mobile-discovery__highlights[data-focus='roles'] .hl-card__title { font-size: 0.9rem; }
+  .mobile-discovery__highlights[data-focus='roles'] .hl-card__company,
+  .mobile-discovery__highlights[data-focus='roles'] .hl-card__meta,
+  .mobile-discovery__highlights[data-focus='roles'] .hl-card__cta { font-size: 0.75rem; }
+}
 
 /* ── Portal doors (landing page) ───────────────────────────────────── */
 .product-door {
@@ -1214,24 +1230,24 @@ button, a, input, select, [role="button"], [role="tab"] {
 /* A phone is a reading context, not a shrunken side drawer. The employer
    profile therefore gives each identity element its own row, caps the logo's
    visual weight, and lets long company names use the full available measure. */
-.mt-employer-page[data-layout='mobile'] .mt-employer-page__hero-inner,
-.mt-employer-page[data-layout='mobile'] .mt-employer-page__content { padding-right: 1rem; padding-left: 1rem; }
-.mt-employer-page[data-layout='mobile'] .mt-employer-page__hero-inner { padding-top: 1rem; padding-bottom: 1.5rem; }
-.mt-employer-page[data-layout='mobile'] .mt-employer-page__identity { align-items: start; gap: 0.9rem; margin-top: 0.55rem; }
-.mt-employer-page[data-layout='mobile'] .mt-employer-page__logo { width: 100%; max-width: none; height: clamp(4.6rem, 23vw, 6.2rem); padding: 0.65rem 1.15rem; }
-.mt-employer-page[data-layout='mobile'] .mt-employer-page__logo > span { overflow-wrap: anywhere; font-size: clamp(1.15rem, 6vw, 1.45rem); }
-.mt-employer-page[data-layout='mobile'] .mt-employer-page__identity h1 { max-width: none; margin-top: 0.3rem; font-size: clamp(1.9rem, 9.2vw, 2.6rem); line-height: 1.02; overflow-wrap: anywhere; }
-.mt-employer-page[data-layout='mobile'] .mt-employer-page__identity p:last-child { margin-top: 0.55rem; font-size: 0.9rem; line-height: 1.48; }
-.mt-employer-page[data-layout='mobile'] .mt-employer-page__content { padding-top: 1.75rem; padding-bottom: 2rem; }
-.mt-employer-page[data-layout='mobile'] .mt-employer-page__section-head { align-items: start; gap: 0.5rem; padding-bottom: 0.75rem; }
-.mt-employer-page[data-layout='mobile'] .mt-employer-page__section-head h2 { font-size: clamp(1.45rem, 7.2vw, 1.9rem); line-height: 1.08; }
-.mt-employer-page[data-layout='mobile'] .mt-employer-page__section-head > span { max-width: 14ch; margin-top: 0.25rem; text-align: right; }
-.mt-employer-page[data-layout='mobile'] .mt-employer-page__applications { gap: 0.6rem; margin-top: 1rem; }
-.mt-employer-page[data-layout='mobile'] .mt-employer-page__application { min-height: 5.5rem; grid-template-columns: 2.35rem minmax(0, 1fr) 1.25rem; gap: 0.65rem; padding: 0.75rem; }
-.mt-employer-page[data-layout='mobile'] .mt-employer-page__application-index { width: 2.35rem; height: 2.35rem; font-size: 0.68rem; }
-.mt-employer-page[data-layout='mobile'] .mt-employer-page__application strong { line-height: 1.28; overflow-wrap: anywhere; }
-.mt-employer-page[data-layout='mobile'] .mt-employer-page__application small { white-space: normal; overflow: visible; text-overflow: clip; font-size: 0.71rem; }
-.mt-employer-page[data-layout='mobile'] .mt-employer-page__prep { gap: 0.5rem; margin-top: 1.75rem; padding: 1rem 0 max(1rem, env(safe-area-inset-bottom)); }
+.mt-employer-page .mt-employer-page__hero-inner,
+.mt-employer-page .mt-employer-page__content { padding-right: 1rem; padding-left: 1rem; }
+.mt-employer-page .mt-employer-page__hero-inner { padding-top: 1rem; padding-bottom: 1.5rem; }
+.mt-employer-page .mt-employer-page__identity { align-items: start; gap: 0.9rem; margin-top: 0.55rem; }
+.mt-employer-page .mt-employer-page__logo { width: 100%; max-width: none; height: clamp(4.6rem, 23vw, 6.2rem); padding: 0.65rem 1.15rem; }
+.mt-employer-page .mt-employer-page__logo > span { overflow-wrap: anywhere; font-size: clamp(1.15rem, 6vw, 1.45rem); }
+.mt-employer-page .mt-employer-page__identity h1 { max-width: none; margin-top: 0.3rem; font-size: clamp(1.9rem, 9.2vw, 2.6rem); line-height: 1.02; overflow-wrap: anywhere; }
+.mt-employer-page .mt-employer-page__identity p:last-child { margin-top: 0.55rem; font-size: 0.9rem; line-height: 1.48; }
+.mt-employer-page .mt-employer-page__content { padding-top: 1.75rem; padding-bottom: 2rem; }
+.mt-employer-page .mt-employer-page__section-head { align-items: start; gap: 0.5rem; padding-bottom: 0.75rem; }
+.mt-employer-page .mt-employer-page__section-head h2 { font-size: clamp(1.45rem, 7.2vw, 1.9rem); line-height: 1.08; }
+.mt-employer-page .mt-employer-page__section-head > span { max-width: 14ch; margin-top: 0.25rem; text-align: right; }
+.mt-employer-page .mt-employer-page__applications { gap: 0.6rem; margin-top: 1rem; }
+.mt-employer-page .mt-employer-page__application { min-height: 5.5rem; grid-template-columns: 2.35rem minmax(0, 1fr) 1.25rem; gap: 0.65rem; padding: 0.75rem; }
+.mt-employer-page .mt-employer-page__application-index { width: 2.35rem; height: 2.35rem; font-size: 0.68rem; }
+.mt-employer-page .mt-employer-page__application strong { line-height: 1.28; overflow-wrap: anywhere; }
+.mt-employer-page .mt-employer-page__application small { white-space: normal; overflow: visible; text-overflow: clip; font-size: 0.71rem; }
+.mt-employer-page .mt-employer-page__prep { gap: 0.5rem; margin-top: 1.75rem; padding: 1rem 0 max(1rem, env(safe-area-inset-bottom)); }
 
 /* Dedicated in-app Role page. It is deliberately separate from the public
    server-side teaser URL so a phone tap keeps its granted context and never
@@ -1878,6 +1894,18 @@ select.finex-input {
 }
 .mobile-filter-sheet::backdrop {
   background-color: rgba(11, 22, 40, 0.55);
+}
+@media (min-width: 768px) {
+  .mobile-filter-sheet {
+    top: 50%;
+    left: 50%;
+    width: min(36rem, calc(100vw - 3rem));
+    height: min(48rem, calc(100dvh - 3rem));
+    border-radius: 0.75rem;
+    box-shadow: var(--shadow-float);
+    transform: translate(-50%, -50%);
+    animation: none;
+  }
 }
 
 /* ── Job detail modal (native <dialog>) ───────────────────────── */

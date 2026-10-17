@@ -34,14 +34,12 @@ const adminModeValue = vi.hoisted(() => ({
 const employerViewValue = vi.hoisted(() => ({
   employerView: false, canUseEmployerView: false, setEmployerView: vi.fn(),
 }))
-const deviceModeValue = vi.hoisted(() => ({ uiMode: 'desktop' as 'mobile' | 'desktop' }))
 
 vi.mock('../auth/useAuth', () => ({ useAuth: () => authValue }))
 vi.mock('../auth/useEmployerAuth', () => ({ useEmployerAuth: () => employerAuthValue }))
 vi.mock('../adminMode/useAdminMode', () => ({ useAdminMode: () => adminModeValue }))
 vi.mock('../employerView/useEmployerView', () => ({ useEmployerView: () => employerViewValue }))
 vi.mock('../savedRoles/useSavedRoles', () => ({ useSavedRoles: () => ({ count: 0 }) }))
-vi.mock('../deviceMode/useDeviceMode', () => ({ useDeviceMode: () => deviceModeValue }))
 vi.mock('../hooks/useRecordVisit', () => ({}))
 
 const { default: Nav } = await import('./Nav')
@@ -60,34 +58,25 @@ beforeEach(() => {
   adminModeValue.canUseAdminMode = false
   employerViewValue.employerView = false
   employerViewValue.canUseEmployerView = false
-  deviceModeValue.uiMode = 'desktop'
 })
 
 describe('Nav — device-specific structure', () => {
-  it('renders desktop navigation even when CSS viewport breakpoints are unavailable', () => {
-    renderNav()
-
-    expect(screen.getByRole('navigation', { name: 'Primary navigation' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Toggle menu' })).not.toBeInTheDocument()
-  })
-
-  it('renders the mobile navigation control for a detected mobile device', async () => {
+  it('renders the shared navigation control', async () => {
     const user = userEvent.setup()
-    deviceModeValue.uiMode = 'mobile'
     renderNav()
 
-    expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).not.toBeInTheDocument()
     const toggle = screen.getByRole('button', { name: 'Toggle menu' })
-    expect(toggle).toHaveAttribute('aria-controls', 'mobile-navigation-panel')
+    expect(toggle).toHaveAttribute('aria-controls', 'site-navigation-panel')
     await user.click(toggle)
-    expect(screen.getByRole('navigation', { name: 'Mobile navigation' }))
-      .toHaveAttribute('id', 'mobile-navigation-panel')
+    expect(screen.getByRole('navigation', { name: 'Site navigation' }))
+      .toHaveAttribute('id', 'site-navigation-panel')
   })
 })
 
 describe('Nav — Employer view switch', () => {
-  it('keeps career development local and Market Research explicitly external', () => {
+  it('keeps career development local and Market Research explicitly external', async () => {
     renderNav()
+    await userEvent.click(screen.getByRole('button', { name: 'Toggle menu' }))
 
     expect(screen.getByText('Career development')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Management Trainee programmes' })).toHaveAttribute('href', '/management-trainee')
@@ -157,7 +146,7 @@ describe('Nav — Employer view switch', () => {
     expect(navigateSpy).toHaveBeenCalledWith('/admin')
   })
 
-  it('shows Post a role while previewing, with no invented Employer identity beside it', () => {
+  it('shows Post a role while previewing, with no invented Employer identity beside it', async () => {
     // The preview reuses the real Employer's "Post a role" slot so there is
     // something to look at, but it must never render EmployerMenu — that
     // component shows a real company name and a real sign-out, neither of
@@ -165,6 +154,7 @@ describe('Nav — Employer view switch', () => {
     employerViewValue.canUseEmployerView = true
     employerViewValue.employerView = true
     renderNav()
+    await userEvent.click(screen.getByRole('button', { name: 'Toggle menu' }))
 
     expect(screen.getAllByRole('link', { name: 'Post a role' }).length).toBeGreaterThan(0)
     expect(screen.queryByText(/Sign out \(Employer\)/)).not.toBeInTheDocument()

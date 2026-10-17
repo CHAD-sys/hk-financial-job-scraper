@@ -41,7 +41,6 @@ from main import _NOINDEX_PREFIXES, _ROUTE_META  # noqa: E402
 #: Which page component owns each indexable route's own head tags. The two routes
 #: that are not here are served by App.tsx's DefaultTitleLayout instead.
 _PAGE_FOR_ROUTE = {
-    "/": "LandingPage.tsx",
     "/about": "AboutPage.tsx",
     "/learning": "LearningPage.tsx",
     "/career-coaches": "CareerCoachesPage.tsx",
@@ -51,6 +50,7 @@ _LAYOUT_ROUTES = {"/get-started", "/post-a-role"}
 #: "/jobs" builds its head copy from the active query rather than writing a
 #: literal, so it is checked by its own two tests below instead.
 _COMPUTED_ROUTES = {"/jobs"}
+_DISCOVERY_ROUTES = {"/"}
 
 
 def _unescape(text: str) -> str:
@@ -81,6 +81,20 @@ def test_page_component_matches_the_server_for_that_route(route, filename):
     )
 
 
+def test_discovery_home_matches_the_server_metadata():
+    source = (PAGES / "JobBoardPage.tsx").read_text(encoding="utf-8")
+    server_title, server_description = _ROUTE_META["/"]
+    assert "const pageTitle = showDiscoveryHome" in source
+    assert f"? '{server_title}'" in source
+    assert "const pageDescription = showDiscoveryHome" in source
+    assert "Hong Kong finance careers in one place: a daily, AI-enriched index of open " in source
+    assert "roles across 230+ employers, plus consultation and professional learning." in source
+    assert server_description == (
+        "Hong Kong finance careers in one place: a daily, AI-enriched index of open "
+        "roles across 230+ employers, plus consultation and professional learning."
+    )
+
+
 @pytest.mark.parametrize("route", sorted(_LAYOUT_ROUTES))
 def test_layout_route_matches_the_server(route):
     source = APP_TSX.read_text(encoding="utf-8")
@@ -95,7 +109,7 @@ def test_layout_route_matches_the_server(route):
 
 def test_every_indexable_route_is_covered_by_one_of_the_two_mechanisms():
     """A route added to the server table must get client tags too, or it drifts."""
-    assert set(_ROUTE_META) == set(_PAGE_FOR_ROUTE) | _LAYOUT_ROUTES | _COMPUTED_ROUTES
+    assert set(_ROUTE_META) == set(_PAGE_FOR_ROUTE) | _LAYOUT_ROUTES | _COMPUTED_ROUTES | _DISCOVERY_ROUTES
 
 
 def test_the_sitemap_lists_exactly_the_indexable_routes(tmp_path):

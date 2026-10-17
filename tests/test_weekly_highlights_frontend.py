@@ -1,4 +1,4 @@
-"""Interaction guardrails for the moving landing-page highlights."""
+"""Interaction guardrails for the discovery-home highlights."""
 
 from pathlib import Path
 
@@ -31,12 +31,12 @@ def test_both_highlight_rails_are_pointer_swipeable():
     assert "touch-action: pan-y" in css
 
 
-def test_weekly_band_follows_the_portal_hero_on_the_landing_page():
-    page = (ROOT / "webapp" / "frontend" / "src" / "pages" / "LandingPage.tsx").read_text(
+def test_weekly_band_follows_the_discovery_tabs_on_the_home_page():
+    page = (ROOT / "webapp" / "frontend" / "src" / "components" / "MobileDiscoveryHome.tsx").read_text(
         encoding="utf-8"
     )
 
-    assert page.index("<PortalHero />") < page.index("<WeeklyHighlights />")
+    assert page.index('className="mobile-discovery__tabs"') < page.index("<WeeklyHighlights")
 
 
 def test_weekly_header_is_a_single_clean_client_message():
@@ -93,8 +93,8 @@ def test_coach_portraits_crop_out_the_embedded_profile_text():
     css = (ROOT / "webapp" / "frontend" / "src" / "index.css").read_text(encoding="utf-8")
 
     assert 'className="hl-coach-card__photo-frame"' in component
-    frame = css[css.index(".hl-coach-card__photo-frame {") :]
-    photo = css[css.index(".hl-coach-card__photo {") :]
+    frame = css[css.index("\n.hl-coach-card__photo-frame {") :]
+    photo = css[css.index("\n.hl-coach-card__photo {") :]
     assert "overflow: hidden" in frame.split("}", 1)[0]
     assert "transform: scale(" in photo.split("}", 1)[0]
     assert "transform-origin:" in photo.split("}", 1)[0]

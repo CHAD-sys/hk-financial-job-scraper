@@ -1,7 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import { DeviceModeContext } from '../deviceMode/DeviceModeContext'
 import { CAREER_COACH_GROUPS } from '../content/careerCoaches'
 import CareerCoachesPage from './CareerCoachesPage'
 
@@ -9,11 +8,7 @@ vi.mock('../components/Nav', () => ({ default: () => <nav>Navigation</nav> }))
 
 function renderPage() {
   return render(
-    <DeviceModeContext.Provider value={{
-      deviceClass: 'desktop', uiMode: 'desktop', detectionSource: 'user-agent', touchCapable: false,
-    }}>
-      <MemoryRouter><CareerCoachesPage /></MemoryRouter>
-    </DeviceModeContext.Provider>,
+      <MemoryRouter><CareerCoachesPage /></MemoryRouter>,
   )
 }
 

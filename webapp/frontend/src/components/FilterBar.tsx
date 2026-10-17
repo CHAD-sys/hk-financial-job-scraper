@@ -1,10 +1,7 @@
-import { ArrowLeft, Search, X, SlidersHorizontal, ChevronDown, Flame, Sparkles, ShieldCheck } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ArrowLeft, Search, X, SlidersHorizontal } from 'lucide-react'
+import { useState } from 'react'
 import type { JobFilters, FiltersResponse } from '../api/client'
-import MultiSelect from './MultiSelect'
 import MobileFilterSheet from './MobileFilterSheet'
-import { PillButton, FilterRow, SalaryFields, ExpFields } from './FilterPrimitives'
-import { useDeviceMode } from '../deviceMode/useDeviceMode'
 
 interface Props {
   filters: JobFilters
@@ -21,20 +18,11 @@ interface Props {
 }
 
 export default function FilterBar({ filters, filterData, activeCount, onUpdate, onClear, onNewSearch }: Props) {
-  const { uiMode } = useDeviceMode()
-  const mobileUi = uiMode === 'mobile'
-  const [showAllFilters, setShowAllFilters] = useState(false)
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
-
-  useEffect(() => {
-    if (!mobileUi && mobileSheetOpen) setMobileSheetOpen(false)
-  }, [mobileSheetOpen, mobileUi])
 
   return (
     <div
-      // DeviceModeProvider publishes the selected navigation height as a CSS
-      // custom property. The offset therefore follows the stable UI mode, not
-      // a window-width breakpoint that can contradict the rendered nav.
+      // The single-row navigation height is shared at every viewport.
       className="sticky top-[var(--nav-height)] z-30 w-full"
       style={{
         backgroundColor: 'var(--color-surface)',
@@ -44,7 +32,7 @@ export default function FilterBar({ filters, filterData, activeCount, onUpdate, 
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 
-        {/* Row 1: New search + Search + More-filters toggle + clear */}
+        {/* New search, query, and filter sheet. */}
         <div className="flex items-center gap-3 py-3.5">
           {/* The way back to the search home. A results page that cannot
               return to its own search box is a dead end — this bar is sticky,
@@ -68,12 +56,8 @@ export default function FilterBar({ filters, filterData, activeCount, onUpdate, 
 
           <SearchInput value={filters.search} onChange={v => onUpdate({ search: v })} />
 
-          {/* Mobile trigger: opens the full-screen Filters sheet.
-              Sector pills + the advanced panel live only inside the sheet on
-              mobile — keeping them out of this sticky bar is what stops it
-              from growing tall enough to swallow a phone-sized viewport. */}
-          {mobileUi && (
-            <button
+          {/* The filter sheet keeps the sticky bar compact at every width. */}
+          <button
               type="button"
               onClick={() => setMobileSheetOpen(true)}
               data-active={activeCount > 0}
@@ -96,73 +80,15 @@ export default function FilterBar({ filters, filterData, activeCount, onUpdate, 
                 </span>
               )}
             </button>
-          )}
 
-          {/* Desktop More-filters toggle */}
-          {!mobileUi && (
-            <button
-              type="button"
-              onClick={() => setShowAllFilters(o => !o)}
-              data-active={showAllFilters || activeCount > 0}
-              aria-expanded={showAllFilters}
-              className="filter-pill flex items-center gap-1.5 rounded-md px-3.5 py-2 text-xs font-semibold cursor-pointer outline-none whitespace-nowrap"
-              style={{
-                border: `1px solid ${showAllFilters || activeCount > 0 ? 'var(--color-ink)' : 'var(--color-border-strong)'}`,
-                backgroundColor: showAllFilters || activeCount > 0 ? 'var(--color-ink)' : 'var(--color-surface-2)',
-                color: showAllFilters || activeCount > 0 ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
-                boxShadow: showAllFilters || activeCount > 0 ? 'var(--shadow-card)' : 'none',
-              }}
-            >
-              <SlidersHorizontal size={14} />
-              <span>{showAllFilters ? 'Hide filters' : 'More filters'}</span>
-              {activeCount > 0 && (
-                <span
-                  className="flex h-4 min-w-4 px-1 items-center justify-center rounded-full text-[10px] font-bold"
-                  style={{ backgroundColor: 'var(--color-gold-star)', color: 'var(--color-nav)' }}
-                >
-                  {activeCount}
-                </span>
-              )}
-              <ChevronDown
-                size={14}
-                style={{ transform: showAllFilters ? 'rotate(180deg)' : 'none', transition: 'transform 150ms' }}
-              />
-            </button>
-          )}
-
-          {/* Right-side clear (desktop) */}
-          {!mobileUi && activeCount > 0 && (
-            <button
-              type="button"
-              onClick={onClear}
-              className="flex items-center gap-1.5 text-xs font-medium transition-colors duration-150 cursor-pointer"
-              style={{ color: 'var(--color-ink-muted)' }}
-              onMouseEnter={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-ink)')}
-              onMouseLeave={e => ((e.currentTarget as HTMLButtonElement).style.color = 'var(--color-ink-muted)')}
-            >
-              <X size={13} />
-              Clear filters ({activeCount})
-            </button>
-          )}
         </div>
 
 
-        {/* Advanced filters — desktop only, collapsed by default */}
-        {!mobileUi && showAllFilters && (
-          <div>
-            <AdvancedFilters
-              filters={filters}
-              filterData={filterData}
-              onUpdate={onUpdate}
-            />
-          </div>
-        )}
-
-        {/* Row 3: Active filter chips (both viewports) */}
+        {/* Active filter chips. */}
         <ActiveChips filters={filters} onUpdate={onUpdate} onClear={onClear} />
       </div>
 
-      {mobileUi && mobileSheetOpen && (
+      {mobileSheetOpen && (
         <MobileFilterSheet
           filters={filters}
           filterData={filterData}
@@ -215,135 +141,6 @@ function SearchInput({ value, onChange }: { value: string; onChange: (v: string)
     </div>
   )
 }
-
-// ── Advanced (collapsed) filter rows — desktop only ───────────────────────────
-
-function AdvancedFilters({
-  filters,
-  filterData,
-  onUpdate,
-}: {
-  filters: JobFilters
-  filterData: FiltersResponse | null
-  onUpdate: (p: Partial<JobFilters>) => void
-}) {
-  const seniority_levels = filterData?.seniority_levels ?? []
-  const remote_types = filterData?.remote_types ?? []
-  const companyOptions = filterData?.companies ?? []
-  const skillOptions = filterData?.skills ?? []
-
-  // Sets give constant-time membership checks inside the render loops below.
-  const senSet = new Set(filters.seniority)
-  const remoteSet = new Set(filters.remote_type)
-
-  const togglePill = (key: 'seniority' | 'remote_type', val: string) => {
-    const cur = filters[key] as string[]
-    const next = cur.includes(val) ? cur.filter(x => x !== val) : [...cur, val]
-    onUpdate({ [key]: next })
-  }
-
-  return (
-    <div
-      className="flex flex-col gap-4 pt-4 pb-4"
-      style={{ borderTop: '1px dashed var(--color-border-strong)' }}
-    >
-      {/* Level */}
-      {seniority_levels.length > 0 && (
-        <FilterRow label="Level">
-          {seniority_levels.map(s => (
-            <PillButton
-              key={s}
-              active={senSet.has(s)}
-              onClick={() => togglePill('seniority', s)}
-              palette="blue"
-              capitalize
-            >
-              {s}
-            </PillButton>
-          ))}
-        </FilterRow>
-      )}
-
-      {/* Work type */}
-      {remote_types.length > 0 && (
-        <FilterRow label="Work">
-          {remote_types.map(r => (
-            <PillButton
-              key={r}
-              active={remoteSet.has(r)}
-              onClick={() => togglePill('remote_type', r)}
-              palette="blue"
-            >
-              {r === 'on-site' ? 'On-site' : r.charAt(0).toUpperCase() + r.slice(1)}
-            </PillButton>
-          ))}
-        </FilterRow>
-      )}
-
-      {/* Type */}
-      <FilterRow label="Type">
-        <PillButton
-          active={!!filters.is_internship}
-          onClick={() => onUpdate({ is_internship: filters.is_internship ? null : true })}
-          palette="amber"
-        >
-          Internships
-        </PillButton>
-      </FilterRow>
-
-      {/* Signals — board-derived market signals */}
-      <FilterRow label="Signals">
-        <PillButton
-          active={filters.is_new}
-          onClick={() => onUpdate({ is_new: !filters.is_new })}
-          palette="green"
-        >
-          <span className="inline-flex items-center gap-1">
-            <Sparkles size={12} strokeWidth={2} aria-hidden="true" />New
-          </span>
-        </PillButton>
-        <PillButton
-          active={filters.urgently_hiring}
-          onClick={() => onUpdate({ urgently_hiring: !filters.urgently_hiring })}
-          palette="red"
-        >
-          <span className="inline-flex items-center gap-1">
-            <Flame size={12} strokeWidth={2} aria-hidden="true" />Urgently hiring
-          </span>
-        </PillButton>
-        <PillButton
-          active={filters.verified_only}
-          onClick={() => onUpdate({ verified_only: !filters.verified_only })}
-          palette="green"
-        >
-          <span className="inline-flex items-center gap-1">
-            <ShieldCheck size={12} strokeWidth={2} aria-hidden="true" />Verified job
-          </span>
-        </PillButton>
-      </FilterRow>
-
-      {/* Refine — company / skills / salary / experience */}
-      <FilterRow label="Refine">
-        <MultiSelect
-          label="Company"
-          options={companyOptions}
-          selected={filters.companies}
-          onChange={v => onUpdate({ companies: v })}
-        />
-        <MultiSelect
-          label="Skills"
-          options={skillOptions}
-          selected={filters.skills}
-          onChange={v => onUpdate({ skills: v })}
-        />
-        <SalaryToggle filters={filters} onUpdate={onUpdate} />
-        <ExpFilter filters={filters} onUpdate={onUpdate} />
-      </FilterRow>
-    </div>
-  )
-}
-
-// ── Active filter chips row ───────────────────────────────────────────────────
 
 function ActiveChips({
   filters,
@@ -423,118 +220,6 @@ function ActiveChips({
       >
         Clear filters
       </button>
-    </div>
-  )
-}
-
-// ── Salary sub-component (desktop popover wrapper around SalaryFields) ───────
-
-function SalaryToggle({
-  filters,
-  onUpdate,
-}: {
-  filters: JobFilters
-  onUpdate: (p: Partial<JobFilters>) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const isActive = filters.salary_disclosed_only || filters.salary_min !== null || filters.salary_max !== null
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        data-active={isActive}
-        className="filter-pill rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1.5 outline-none"
-        style={{
-          backgroundColor: isActive ? 'var(--color-ink)' : 'var(--color-surface-2)',
-          color: isActive ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
-          border: `1px solid ${isActive ? 'var(--color-ink)' : 'var(--color-border-strong)'}`,
-          boxShadow: isActive ? 'var(--shadow-card)' : 'none',
-        }}
-        aria-expanded={open}
-      >
-        Salary
-        {isActive && <span style={{ color: 'var(--color-gold-star)' }}>·</span>}
-      </button>
-
-      {open && (
-        <div
-          className="absolute left-0 top-full mt-1 z-40 rounded-lg p-4 flex flex-col gap-3"
-          style={{
-            minWidth: '240px',
-            backgroundColor: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            boxShadow: 'var(--shadow-float)',
-          }}
-        >
-          <SalaryFields filters={filters} onUpdate={onUpdate} />
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="text-xs font-medium text-right cursor-pointer"
-            style={{ color: 'var(--color-gold)' }}
-          >
-            Done
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Experience sub-component (desktop popover wrapper around ExpFields) ─────
-
-function ExpFilter({
-  filters,
-  onUpdate,
-}: {
-  filters: JobFilters
-  onUpdate: (p: Partial<JobFilters>) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const isActive = filters.exp_min !== null || filters.exp_max !== null
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        data-active={isActive}
-        className="filter-pill rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer flex items-center gap-1.5 outline-none"
-        style={{
-          backgroundColor: isActive ? 'var(--color-ink)' : 'var(--color-surface-2)',
-          color: isActive ? 'var(--color-ink-inverse)' : 'var(--color-ink-muted)',
-          border: `1px solid ${isActive ? 'var(--color-ink)' : 'var(--color-border-strong)'}`,
-          boxShadow: isActive ? 'var(--shadow-card)' : 'none',
-        }}
-        aria-expanded={open}
-      >
-        Experience
-        {isActive && <span style={{ color: 'var(--color-gold-star)' }}>·</span>}
-      </button>
-
-      {open && (
-        <div
-          className="absolute left-0 top-full mt-1 z-40 rounded-lg p-4 flex flex-col gap-3"
-          style={{
-            minWidth: '220px',
-            backgroundColor: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            boxShadow: 'var(--shadow-float)',
-          }}
-        >
-          <ExpFields filters={filters} onUpdate={onUpdate} />
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="text-xs font-medium text-right cursor-pointer"
-            style={{ color: 'var(--color-gold)' }}
-          >
-            Done
-          </button>
-        </div>
-      )}
     </div>
   )
 }

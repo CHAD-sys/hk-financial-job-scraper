@@ -1,9 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import type { ReactElement } from 'react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import JobCard from './JobCard'
 import type { Job } from '../api/client'
-import { DeviceModeContext } from '../deviceMode/DeviceModeContext'
 
 /**
  * What a card is allowed to say.
@@ -62,6 +62,10 @@ const recruiterPost: Job = {
 
 const noop = () => {}
 
+function renderCard(card: ReactElement) {
+  return render(<MemoryRouter>{card}</MemoryRouter>)
+}
+
 function LocationProbe() {
   const location = useLocation()
   return <output data-testid="location">{location.pathname}</output>
@@ -69,10 +73,10 @@ function LocationProbe() {
 
 describe('JobCard', () => {
   it('drags the permanent Role URL into another browser window', () => {
-    render(<JobCard job={base} saved={false} onToggleSave={noop} onClick={noop} />)
+    renderCard(<JobCard job={base} saved={false} onToggleSave={noop} onClick={noop} />)
 
     const roleLink = screen.getByRole('link', { name: 'Vice President, Credit Risk at HSBC' })
-    expect(roleLink).toHaveAttribute('href', '/jobs/jobsdb/1')
+    expect(roleLink).toHaveAttribute('href', '/roles/jobsdb/1')
 
     const setData = vi.fn()
     fireEvent.dragStart(roleLink, { dataTransfer: { setData, effectAllowed: '' } })
@@ -80,16 +84,13 @@ describe('JobCard', () => {
     expect(setData).toHaveBeenCalledWith('text/plain', 'http://localhost:3000/jobs/jobsdb/1')
   })
 
-  it('opens an in-app Role detail screen on phones instead of falling through to the home route', () => {
+  it('opens an in-app Role detail screen on every device', () => {
     render(
-      <DeviceModeContext.Provider value={{
-        deviceClass: 'phone', uiMode: 'mobile', detectionSource: 'user-agent', touchCapable: true,
-      }}>
         <MemoryRouter>
           <JobCard job={base} saved={false} onToggleSave={noop} onClick={noop} />
           <LocationProbe />
-        </MemoryRouter>
-      </DeviceModeContext.Provider>,
+        </MemoryRouter>,
+
     )
 
     fireEvent.click(screen.getByRole('link', { name: 'Vice President, Credit Risk at HSBC' }))
@@ -98,27 +99,27 @@ describe('JobCard', () => {
   })
 
   it('shows where the Role was retrieved from', () => {
-    render(<JobCard job={base} saved={false} onToggleSave={noop} onClick={noop} />)
+    renderCard(<JobCard job={base} saved={false} onToggleSave={noop} onClick={noop} />)
     expect(screen.getByText('JobsDB')).toBeTruthy()
   })
 
   it('makes career coaching discoverable on an open Role', () => {
-    render(<JobCard job={{ ...base, company: 'Citi' }} saved={false} onToggleSave={noop} onClick={noop} />)
+    renderCard(<JobCard job={{ ...base, company: 'Citi' }} saved={false} onToggleSave={noop} onClick={noop} />)
     expect(screen.getByRole('link', { name: 'Career coaching' })).toHaveAttribute('href', 'https://www.finexcareers.com/career-coaches')
   })
 
   it('recommends Morris Hui on the specified employer Roles', () => {
-    render(<JobCard job={base} saved={false} onToggleSave={noop} onClick={noop} />)
+    renderCard(<JobCard job={base} saved={false} onToggleSave={noop} onClick={noop} />)
     expect(screen.getByRole('link', { name: 'Career coaching with Morris Hui, CFA' })).toHaveAttribute('href', 'https://www.finexclub.org/morris-hui')
   })
 
   it('does not promote coaching on a closed Role', () => {
-    render(<JobCard job={{ ...base, closed: true }} saved={false} onToggleSave={noop} onClick={noop} />)
+    renderCard(<JobCard job={{ ...base, closed: true }} saved={false} onToggleSave={noop} onClick={noop} />)
     expect(screen.queryByRole('link', { name: /coach/i })).toBeNull()
   })
 
   it('explains why a searched Role matched', () => {
-    render(
+    renderCard(
       <JobCard
         job={{ ...base, match_reason: 'title' }}
         saved={false}
@@ -130,13 +131,13 @@ describe('JobCard', () => {
   })
 
   it('calls an own-site source the company site, never the ATS vendor', () => {
-    render(<JobCard job={{ ...base, source: 'workday' }} saved={false} onToggleSave={noop} onClick={noop} />)
+    renderCard(<JobCard job={{ ...base, source: 'workday' }} saved={false} onToggleSave={noop} onClick={noop} />)
     expect(screen.getByText('Company site')).toBeTruthy()
     expect(screen.queryByText(/workday/i)).toBeNull()
   })
 
   it('never names the recruiter behind a Recruiter Post', () => {
-    const { container } = render(
+    const { container } = renderCard(
       <JobCard job={recruiterPost} saved={false} onToggleSave={noop} onClick={noop} />,
     )
     // Not in the badges, not in the company line, not in an aria-label. The
@@ -148,7 +149,7 @@ describe('JobCard', () => {
   })
 
   it('offers no route to the recruiter’s inbox or profile', () => {
-    const { container } = render(
+    const { container } = renderCard(
       <JobCard job={recruiterPost} saved={false} onToggleSave={noop} onClick={noop} />,
     )
     expect(container.querySelector('a[href^="mailto:"]')).toBeNull()
@@ -160,7 +161,7 @@ describe('JobCard', () => {
     // on a Recruiter Post not even there, since there is no job description
     // behind one to extract them from.
     for (const job of [base, recruiterPost]) {
-      const { unmount } = render(<JobCard job={job} saved={false} onToggleSave={noop} onClick={noop} />)
+      const { unmount } = renderCard(<JobCard job={job} saved={false} onToggleSave={noop} onClick={noop} />)
       expect(screen.queryByText('Python'), job.source_tier).toBeNull()
       unmount()
     }
@@ -169,7 +170,7 @@ describe('JobCard', () => {
   it('leaves a named employer on a Recruiter Post alone', () => {
     // The mask only strips "… via {name}". An employer the extractor did name
     // must survive it untouched.
-    render(
+    renderCard(
       <JobCard
         job={{ ...recruiterPost, company: 'Citi' }}
         saved={false}
@@ -181,23 +182,23 @@ describe('JobCard', () => {
   })
 
   it('uses a calm update-needed label once, rather than repeating a closed status', () => {
-    render(<JobCard job={{ ...base, closed: true }} saved onToggleSave={noop} onClick={noop} />)
+    renderCard(<JobCard job={{ ...base, closed: true }} saved onToggleSave={noop} onClick={noop} />)
     expect(screen.getAllByText('To be updated')).toHaveLength(1)
     expect(screen.queryByText('Closed')).toBeNull()
   })
 
   it('keeps seniority available to filters but out of the role card', () => {
-    render(<JobCard job={base} saved={false} onToggleSave={noop} onClick={noop} />)
+    renderCard(<JobCard job={base} saved={false} onToggleSave={noop} onClick={noop} />)
     expect(screen.queryByText('senior', { exact: true })).toBeNull()
   })
 
   it('drops market signals on a closed Role — they claim it is still open', () => {
     const live = { ...base, board_signals: { jobsdb: { urgently_hiring: true } } }
-    const { unmount } = render(<JobCard job={live} saved={false} onToggleSave={noop} onClick={noop} />)
+    const { unmount } = renderCard(<JobCard job={live} saved={false} onToggleSave={noop} onClick={noop} />)
     expect(screen.getByText('Urgently hiring')).toBeTruthy()
     unmount()
 
-    render(<JobCard job={{ ...live, closed: true }} saved={false} onToggleSave={noop} onClick={noop} />)
+    renderCard(<JobCard job={{ ...live, closed: true }} saved={false} onToggleSave={noop} onClick={noop} />)
     expect(screen.queryByText('Urgently hiring')).toBeNull()
   })
 
@@ -207,12 +208,12 @@ describe('JobCard', () => {
   // exactly the kind of regression nobody notices arriving.
 
   it('shows no edit control when the board did not pass onEdit', () => {
-    render(<JobCard job={base} saved={false} onToggleSave={noop} onClick={noop} />)
+    renderCard(<JobCard job={base} saved={false} onToggleSave={noop} onClick={noop} />)
     expect(screen.queryByLabelText(/^Edit /)).toBeNull()
   })
 
   it('shows an edit control for an admin', () => {
-    render(<JobCard job={base} saved={false} onToggleSave={noop} onClick={noop} onEdit={noop} />)
+    renderCard(<JobCard job={base} saved={false} onToggleSave={noop} onClick={noop} onEdit={noop} />)
     expect(screen.getByLabelText('Edit Vice President, Credit Risk')).toBeTruthy()
   })
 
@@ -220,7 +221,7 @@ describe('JobCard', () => {
   // the scan surface clean and shows the figure without a badge.
   it('shows an estimated salary without a provenance badge', () => {
     const estimated = { ...base, salary_estimated_min: 40_000, salary_estimated_max: 60_000 }
-    render(<JobCard job={estimated} saved={false} onToggleSave={noop} onClick={noop} />)
+    renderCard(<JobCard job={estimated} saved={false} onToggleSave={noop} onClick={noop} />)
     expect(screen.getByText('~HK$40k–HK$60k/mo')).toBeTruthy()
     expect(screen.queryByText('AI est.')).toBeNull()
     expect(screen.queryByText('Checked')).toBeNull()
@@ -233,7 +234,7 @@ describe('JobCard', () => {
       salary_estimated_max: 60_000,
       salary_verified: true,
     }
-    render(<JobCard job={corrected} saved={false} onToggleSave={noop} onClick={noop} />)
+    renderCard(<JobCard job={corrected} saved={false} onToggleSave={noop} onClick={noop} />)
     expect(screen.getByText('~HK$40k–HK$60k/mo')).toBeTruthy()
     expect(screen.queryByText('AI est.')).toBeNull()
     expect(screen.queryByText('Checked')).toBeNull()
@@ -245,7 +246,7 @@ describe('JobCard', () => {
     const disclosed = {
       ...base, salary_hkd_min: 50_000, salary_hkd_max: 80_000, salary_verified: true,
     }
-    render(<JobCard job={disclosed} saved={false} onToggleSave={noop} onClick={noop} />)
+    renderCard(<JobCard job={disclosed} saved={false} onToggleSave={noop} onClick={noop} />)
     expect(screen.queryByText('Checked')).toBeNull()
     expect(screen.queryByText('AI est.')).toBeNull()
   })
@@ -256,7 +257,7 @@ describe('JobCard', () => {
     // detail panel would open on top of each other.
     const edited: Job[] = []
     const opened: Job[] = []
-    render(
+    renderCard(
       <JobCard
         job={base}
         saved={false}
@@ -273,7 +274,7 @@ describe('JobCard', () => {
 
 describe('the "New" badge', () => {
   it('renders when the server says the Role is new', () => {
-    render(<JobCard job={{ ...base, is_new: true }} saved={false} onToggleSave={noop} onClick={noop} />)
+    renderCard(<JobCard job={{ ...base, is_new: true }} saved={false} onToggleSave={noop} onClick={noop} />)
     expect(screen.getByText('New')).toBeTruthy()
   })
 
@@ -284,7 +285,7 @@ describe('the "New" badge', () => {
     // 28 days, directly above their own "4w ago" line. Only the server's
     // `is_new` (job_read.IS_NEW_SQL, which expires after NEW_BADGE_DAYS)
     // decides this now.
-    render(
+    renderCard(
       <JobCard
         job={{ ...base, is_new: false, board_signals: { jobsdb: { new_job: true } } }}
         saved={false} onToggleSave={noop} onClick={noop}
@@ -297,7 +298,7 @@ describe('the "New" badge', () => {
     // The expiry is scoped to "New" — urgency and applicant counts are still
     // read straight from the boards, so this must not have quietly taken the
     // whole signal row with it.
-    render(
+    renderCard(
       <JobCard
         job={{ ...base, board_signals: { jobsdb: { urgently_hiring: true, applicant_count: 4 } } }}
         saved={false} onToggleSave={noop} onClick={noop}

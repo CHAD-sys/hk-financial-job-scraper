@@ -6,13 +6,7 @@ import EmployerAuthProvider from './auth/EmployerAuthProvider'
 import SavedRolesProvider from './savedRoles/SavedRolesProvider'
 import AdminModeProvider from './adminMode/AdminModeProvider'
 import EmployerViewProvider from './employerView/EmployerViewProvider'
-import DeviceModeProvider from './deviceMode/DeviceModeProvider'
-import { useDeviceMode } from './deviceMode/useDeviceMode'
 
-// Device detection guarantees that only one of these two home experiences can
-// render. Split both so a phone never downloads the editorial desktop landing
-// page, and a desktop never pays for the phone-first board during startup.
-const LandingPage = lazy(() => import('./pages/LandingPage'))
 const JobBoardPage = lazy(() => import('./pages/JobBoardPage'))
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'))
 const SavedJobsPage = lazy(() => import('./pages/SavedJobsPage'))
@@ -66,7 +60,7 @@ const EmployerVerifyEmailPage = lazy(() => import('./pages/EmployerVerifyEmailPa
  * (see robots.txt). A layout route rather than an always-mounted App-level
  * tag: React has no documented tie-break for two simultaneously-mounted
  * <title>s, so the only way to guarantee exactly one in the document is to
- * never mount two at once. LandingPage, AboutPage, JobBoardPage and
+ * never mount two at once. AboutPage, JobBoardPage and
  * LearningPage sit outside this layout and set their own instead.
  */
 /**
@@ -118,14 +112,10 @@ function DefaultTitleLayout() {
 }
 
 /**
- * The root route is a product decision, not a responsive breakpoint. Phone
- * visitors enter the phone-first discovery home immediately; desktop visitors
- * retain the editorial landing page. The device decision comes from the
- * provider's stable identity signals, never the current browser-window size.
+ * The discovery home is the entry point on every device.
  */
 export function HomeRoute() {
-  const { uiMode } = useDeviceMode()
-  return uiMode === 'mobile' ? <JobBoardPage /> : <LandingPage />
+  return <JobBoardPage />
 }
 
 function RouteLoading() {
@@ -145,7 +135,6 @@ export default function App() {
   }, [])
 
   return (
-    <DeviceModeProvider>
       <BrowserRouter>
         <AuthProvider>
           <EmployerAuthProvider>
@@ -198,6 +187,5 @@ export default function App() {
           </EmployerAuthProvider>
         </AuthProvider>
       </BrowserRouter>
-    </DeviceModeProvider>
   )
 }

@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import { DeviceModeContext } from '../deviceMode/DeviceModeContext'
 
 vi.mock('../components/Nav', () => ({ default: () => <nav>Navigation</nav> }))
 
@@ -24,18 +23,15 @@ describe('MTEmployerPage', () => {
     expect(screen.getByRole('link', { name: 'All MT employers' })).toHaveAttribute('href', '/management-trainee')
   })
 
-  it('uses the phone-specific employer composition when the visitor is on a phone', () => {
+  it('uses the shared employer composition', () => {
     render(
-      <DeviceModeContext.Provider value={{
-        deviceClass: 'phone', uiMode: 'mobile', detectionSource: 'user-agent', touchCapable: true,
-      }}>
         <MemoryRouter initialEntries={['/management-trainee/bank-of-america-bofa']}>
           <Routes><Route path="/management-trainee/:employerSlug" element={<MTEmployerPage />} /></Routes>
-        </MemoryRouter>
-      </DeviceModeContext.Provider>,
+        </MemoryRouter>,
+
     )
 
-    expect(screen.getByTestId('mt-employer-identity')).toHaveAttribute('data-layout', 'mobile')
+    expect(screen.getByTestId('mt-employer-identity')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Bank of America (BofA) logo' })).toHaveClass('mt-employer-page__logo-image')
   })
 })

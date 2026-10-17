@@ -20,7 +20,7 @@ The product combines a daily, AI-enriched Hong Kong finance Role index with the 
 
 ## Operating Context
 
-Seekers browse publicly on desktop and mobile, move between the portal, Careers board, Management Trainee directory, consultation, and learning, and may create an account to save Roles or use resume-based features.
+Seekers browse the same discovery experience on phones, tablets, and desktops, move between the Careers board, Management Trainee directory, consultation, and learning, and may create an account to save Roles or use resume-based features.
 
 ## Capabilities and Constraints
 

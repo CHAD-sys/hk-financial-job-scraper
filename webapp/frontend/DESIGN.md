@@ -17,7 +17,7 @@ All tokens are defined as CSS custom properties in `src/index.css` via `@theme {
 | `--color-surface` | `#FFFFFF` | Cards, modals, nav dropdowns |
 | `--color-surface-2` | `#F8F5F0` | Alternating sections, stat strip |
 | `--color-nav` | `#0B1628` | Top navigation bar (Bloomberg dark navy) |
-| `--color-masthead` | `#16223A` | Desktop nav row **and** dark page heroes — one tonal step up from `--color-nav` |
+| `--color-masthead` | `#16223A` | Dark page heroes — one tonal step up from `--color-nav` |
 
 ### Ink (Text)
 | Token | Value | Usage |
@@ -170,34 +170,17 @@ Defined in `--shadow-*` tokens. Each level adds depth without heavy drop shadows
 ## Component Patterns
 
 ### Navigation Bar
-`sticky top-0`. Two tiers on desktop, one row on mobile.
+`sticky top-0`. One 64px navy row on every device: wordmark, Saved Roles,
+and the menu button. `--nav-height` is 65px including the bottom border;
+sticky controls and scroll clearance anchor to that edge.
 
-| | Mobile (`< lg`) | Desktop (`lg+`) |
-|---|---|---|
-| Structure | single row | utility strip over nav row |
-| Utility strip | — | 44px, `--color-nav`, wordmark + Post a role / Saved / account |
-| Nav row | — | 44px, `--color-masthead`, all six links |
-| Single row | 64px, `--color-nav`, wordmark + Saved + hamburger | — |
-| Total (`--nav-height`) | 65px | 90px |
-
-- The two tiers are separated by a **tonal step**, not just the hairline
-  divider. Two dark surfaces at the same value read as one muddy block.
-- **Dark surfaces step monotonically, never oscillate.** Down the page:
-  `--color-nav` (deep chrome) → `--color-masthead` → light content. A dark page
-  hero directly under the nav therefore uses `--color-masthead`, *not*
-  `--color-nav` — painting it `--color-nav` again strands the lighter nav row
-  between two darks and it reads as a stray stripe. Applies to every hero
-  sitting under the nav: `/jobs`, `/about`, `/saved`, `/learning`.
-- `--nav-height` includes the 1px borders — it is the header's outer bottom
-  edge, which is what the job detail panel and scroll clearance anchor to.
-  **Change a tier's height and you must change this token**, plus the
-  `lg:scroll-mt-26` on hash-target sections.
+- The open menu carries Careers, career development, supporting pages,
+  account actions, and privileged controls in the same order at every width.
+- Page heroes use `--color-masthead`, one tonal step lighter than the nav.
 - Wordmark: Playfair Display, gold italic for "Careers"
-- Links: `rgba(248,250,252,0.6)` → `#F8FAFC` when active
-- Active page: `--color-gold-star` 2px underline. Not `--color-gold` — the
-  darker gold is illegible on navy at hairline weight.
 - External links (Market Research) carry an `ArrowUpRight` and open in a new tab.
-- CTA: gold pill button
+- The `/` route opens the same discovery experience at every width. Layout
+  can reflow with CSS, but the product does not change with device detection.
 
 ### Stat Cards
 - Background: `--color-surface` with `1px --color-border` border

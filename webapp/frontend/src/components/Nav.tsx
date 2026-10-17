@@ -1,18 +1,15 @@
 import {
-  Bookmark, Menu, X, ChevronDown, FileText, LogOut, ArrowUpRight, Building2,
-  Eye, LayoutDashboard, Search, UserRound,
+  Bookmark, Menu, X, Eye, LayoutDashboard, Search, ArrowUpRight,
 } from 'lucide-react'
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import finexAiJobsMark from '../assets/finex-ai-jobs-mark.png'
 import { scrollToTop, scrollToHash } from '../utils/scroll'
-import type { Seeker, Employer } from '../api/client'
 import { useAuth } from '../auth/useAuth'
 import { useAdminMode } from '../adminMode/useAdminMode'
 import { useEmployerView } from '../employerView/useEmployerView'
 import { useEmployerAuth } from '../auth/useEmployerAuth'
 import { useSavedRoles } from '../savedRoles/useSavedRoles'
-import { useDeviceMode } from '../deviceMode/useDeviceMode'
 
 /**
  * Primary navigation.
@@ -22,16 +19,8 @@ import { useDeviceMode } from '../deviceMode/useDeviceMode'
  * Research is the one outbound destination and is visibly treated as an
  * external link.
  *
- * Home points at the portal (the "Asia's 1st Premier Career Centre" statement).
- * The wordmark also goes there, but an explicit Home is what most people look
- * for, and the two hash links below make it genuinely useful: once you have
- * scrolled away from the portal hero the URL is still `/`, so Home is the way
- * back up.
- *
- * The direct product links, two purpose-led menus, and right-hand cluster
- * (Post a role, Saved, account) use two desktop tiers: a slim utility strip
- * carries identity and account actions, while the full-width nav row carries
- * navigation. Mobile preserves the same hierarchy in one flat menu.
+ * Home and the wordmark lead to the discovery home. The same single-row
+ * navigation and menu are used at every screen width.
  *
  * "Sign in" points at /get-started, a chooser between the two separate
  * account kinds (SignInChooserPage.tsx), not straight at the Seeker form —
@@ -50,8 +39,8 @@ import { useDeviceMode } from '../deviceMode/useDeviceMode'
  * everywhere else it goes to /admin. ModeChooserPage.tsx is the one-time fork
  * right after signing in; this button covers every visit after that.
  *
- * It sits ALONGSIDE the "Admin panel" entry in the primary row, not instead of
- * it. The link is a destination among destinations; the switch is the one
+ * It sits alongside the "Admin panel" entry in the menu. The link is a
+ * destination among destinations; the switch is the one
  * control that also carries an admin back OUT of the panel, which a one-way
  * link never did.
  */
@@ -78,10 +67,10 @@ export const CAREER_DEVELOPMENT_LINKS: PrimaryLink[] = [
 ]
 
 /**
- * The primary row, plus one destination for admins and, for Ultimate Admin
+ * The primary menu, plus one destination for admins and, for Ultimate Admin
  * specifically, one more.
  *
- * "Admin panel" sits in the row alongside Home/Careers/About because that is
+ * "Admin panel" sits alongside Home/Careers/About because that is
  * where a destination belongs — it is a place you go, listed with the other
  * places you can go. AdminModeSwitch is a different thing and they are not
  * redundant: the switch is a TOGGLE, it changes meaning with the route, and it
@@ -95,24 +84,18 @@ export const CAREER_DEVELOPMENT_LINKS: PrimaryLink[] = [
  * salary; a plain `is_admin` account must never see the entry point, same bar
  * as the Accounts Directory in AdminPage.tsx.
  *
- * Kept as a function (rather than inlining LINKS) because the mobile menu and
- * the desktop row must not be able to drift apart on what "primary" means —
- * both call this.
+ * Kept as a function so privileged destinations are assembled in one place.
  */
 /**
- * What the account slot shows: the Seeker's menu, the Employer's, a "Sign in"
+ * What the account slot shows: the Seeker's link, the Employer's, a "Sign in"
  * prompt, or nothing yet.
  *
  * Seeker and Employer are separate accounts with separate sessions (ADR 0001),
  * and BOTH can be signed in at once. The slot used to be decided inline from
- * the Seeker session alone, in two places — the desktop bar and the mobile
- * menu — which is how the same bug reached both: a signed-in Employer was shown
- * their own company chip and a bare "Sign in" link side by side, which reads as
- * "you are not signed in" whatever else is on the bar.
+ * the Seeker session alone, which gave a signed-in Employer a contradictory
+ * "Sign in" link.
  *
- * A function, for the same reason `primaryLinksFor` is one: the two menus must
- * not be able to disagree about who is signed in. `'pending'` until BOTH
- * sessions have answered — flashing "Sign in" at somebody who is signed in is
+ * `'pending'` until both sessions have answered — flashing "Sign in" at somebody who is signed in is
  * worse than a beat of nothing, and that is true of either account.
  */
 export type AccountSlot = 'pending' | 'seeker' | 'employer' | 'sign-in'
@@ -126,9 +109,8 @@ export function accountSlotFor(
   },
 ): AccountSlot {
   if (authLoading || employerAuthLoading) return 'pending'
-  // Seeker wins the slot when both are signed in: this bar's other Employer
-  // affordances (the "Post a role" button, EmployerMenu) render independently,
-  // so the Employer is still represented — see the desktop bar.
+  // Seeker wins the account link when both are signed in. The Employer's
+  // "Post a role" link and separate sign-out action remain available.
   if (hasSeeker) return 'seeker'
   if (hasEmployer) return 'employer'
   return 'sign-in'
@@ -150,14 +132,12 @@ export default function Nav() {
   // Post a role — showed a signed-in Seeker a Saved badge of zero. A forgotten
   // prop with a default is a silent wrong number; reading the context is not.
   const { count: savedCount } = useSavedRoles()
-  const { uiMode } = useDeviceMode()
-  const mobileUi = uiMode === 'mobile'
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
   const { pathname, hash } = useLocation()
   const { seeker, loading: authLoading, logout } = useAuth()
   const { employer, loading: employerAuthLoading, logout: employerLogout } = useEmployerAuth()
-  //: One decision, read by both the desktop bar and the mobile menu.
+  // One account decision for the shared menu.
   const accountSlot = accountSlotFor({
     authLoading, hasSeeker: Boolean(seeker),
     employerAuthLoading, hasEmployer: Boolean(employer),
@@ -173,9 +153,6 @@ export default function Nav() {
   // unavailable while one exists.
   const { employerView, canUseEmployerView, setEmployerView } = useEmployerView()
 
-  useEffect(() => {
-    if (!mobileUi && open) setOpen(false)
-  }, [mobileUi, open])
   // The panel is an admin-view destination, so the row only carries it in admin
   // view. In Seeker view an admin's nav is a Seeker's nav, entry for entry.
   // ASF is the one exception: it reads seeker.is_super_admin directly, not
@@ -192,6 +169,7 @@ export default function Nav() {
     { label: 'Saved roles', to: '/saved' },
     ...(!employerAuthLoading && (employer || employerView) ? [{ label: 'Post a role', to: '/post-a-role' }] : []),
     ...(accountSlot === 'seeker' ? [{ label: 'Resume & account', to: '/account' }]
+      : accountSlot === 'employer' ? [{ label: 'Seeker account', to: '/get-started' }]
       : accountSlot === 'sign-in' ? [{ label: 'Sign in', to: '/get-started' }]
       : []),
   ]
@@ -226,15 +204,6 @@ export default function Nav() {
     setOpen(false)
     await employerLogout()
     navigate('/')
-  }
-
-  // A hash link is active only when its fragment is the current one. Home is the
-  // portal with NO fragment — otherwise scrolling to a hash-linked section
-  // (which leaves pathname as '/') would light up Home at the same time.
-  const isActive = (to: string) => {
-    if (to.startsWith('/#')) return pathname === '/' && hash === to.slice(1)
-    if (to === '/') return pathname === '/' && !hash
-    return pathname === to
   }
 
   /**
@@ -356,201 +325,8 @@ export default function Nav() {
         </div>
       )}
 
-      {/* ── Desktop: two tiers ──────────────────────────────────────────────
-          Six links plus the action cluster no longer share one row without
-          crowding, so the row splits by *kind* rather than hiding links in an
-          overflow menu: identity and account actions sit on a slim utility
-          strip, and the nav gets a full-width row to itself. Everything stays
-          visible, and the active page earns a real underline rather than a
-          shift in text colour alone. */}
-      {!mobileUi && (
-        <div>
-        <div className="mx-auto max-w-7xl px-8">
-          <div className="flex h-11 items-center justify-between gap-4">
-            {wordmark}
-
-            <div className="flex shrink-0 items-center gap-3">
-              {!authLoading && canUseAdminMode && (
-                <AdminModeSwitch
-                  adminMode={adminMode}
-                  onToggle={setAdminMode}
-                  onNavigate={() => setOpen(false)}
-                  compact
-                />
-              )}
-
-              {/* Ultimate Admin only, and never alongside a real Employer
-                  session (useEmployerView's own guard) — the entry AND exit
-                  for the preview, same shape as AdminModeSwitch beside it. This
-                  is the ONE control that turns the preview on or off; nothing
-                  else in the bar repeats that job, so there is exactly one
-                  place to look for it. */}
-              {!authLoading && !employerAuthLoading && canUseEmployerView && (
-                <EmployerViewSwitch
-                  employerView={employerView}
-                  onToggle={setEmployerView}
-                  onNavigate={() => setOpen(false)}
-                  backTo={adminMode ? '/admin' : '/jobs'}
-                  compact
-                />
-              )}
-
-              {/* Only for a signed-in Employer now — PostRolePage.tsx redirects
-                  anyone else to /employer/signin, so a standing link nobody
-                  anonymous could use would be a promise this bar could not keep.
-                  Rendered in preview too, so there is something for the switch
-                  above to actually preview — but the preview carries no
-                  identity, so it gets no EmployerMenu: the switch above is
-                  already this bar's one way out of it. */}
-              {!employerAuthLoading && (employer || employerView) && (
-                <Link
-                  to="/post-a-role"
-                  onClick={e => handleClick(e, '/post-a-role')}
-                  className="inline-flex min-h-9 items-center rounded px-3 py-1.5 text-sm font-medium no-underline"
-                  style={{
-                    color: 'var(--color-ink-inverse)',
-                    border: '1px solid rgba(255,255,255,0.25)',
-                  }}
-                >
-                  Post a role
-                </Link>
-              )}
-              {employer && <EmployerMenu employer={employer} onSignOut={handleEmployerSignOut} />}
-
-              <SavedButton
-                count={savedCount}
-                active={pathname === '/saved'}
-                compact
-                onClick={() => (pathname === '/saved' ? scrollToTop() : navigate('/saved'))}
-              />
-
-              {/* Nothing renders until BOTH /api/auth/me and the employer's
-                  equivalent have answered: flashing "Sign in" at somebody who
-                  is signed in is worse than a beat of nothing.
-
-                  The employer half of that gate was missing, and it is the bug
-                  this fixes. Seeker and Employer are separate accounts (ADR
-                  0001) with separate sessions, and this slot only ever asked
-                  about the Seeker — so a signed-in Employer saw their own
-                  company chip and a "Sign in" link side by side, which reads as
-                  "you are not signed in" no matter what else is on the bar.
-
-                  An Employer who also wants a Seeker account is not stranded:
-                  the chooser is still at /get-started, and EmployerMenu links
-                  to it. What is gone is the bare prompt that contradicted the
-                  chip beside it. */}
-              {accountSlot === 'seeker' && seeker && (
-                <SeekerMenu seeker={seeker} onSignOut={handleSignOut} />
-              )}
-              {accountSlot === 'sign-in' && (
-                <Link
-                  to="/get-started"
-                  state={{ from: returnTo }}
-                  className="inline-flex min-h-9 items-center rounded px-3 py-1.5 text-sm font-medium no-underline"
-                  style={{ color: 'rgba(248,250,252,0.75)' }}
-                >
-                  Sign in
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* One tonal step lighter than the utility strip above. Two dark
-            surfaces of the same value separated by a hairline read as one
-            muddy block; lightening the raised tier is how dark themes express
-            stacking. Dark page heroes share --color-masthead so the nav row
-            and the hero below it form one continuous band. */}
-        <div
-          className="border-t border-white/10"
-          style={{ backgroundColor: 'var(--color-masthead)' }}
-        >
-          <div className="mx-auto max-w-7xl px-8">
-            {/* items-stretch, not items-center: each link fills the row so its
-                underline lands on the bar's bottom edge. */}
-            <nav className="flex h-11 items-stretch gap-8 xl:gap-10" aria-label="Primary navigation">
-              {corePrimaryLinks.map(({ label, to, external }) =>
-                external ? (
-                  <a
-                    key={label}
-                    href={to}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-sm font-medium no-underline transition-colors duration-150"
-                    style={{
-                      color: 'rgba(248,250,252,0.6)',
-                      borderBottom: '2px solid transparent',
-                    }}
-                  >
-                    {label}
-                    <ArrowUpRight size={13} strokeWidth={2} aria-hidden="true" />
-                  </a>
-                ) : (
-                  <Link
-                    key={label}
-                    to={to}
-                    state={linkState(to)}
-                    onClick={e => handleClick(e, to)}
-                    className="flex items-center text-sm font-medium no-underline transition-colors duration-150"
-                    style={{
-                      color: isActive(to) ? 'var(--color-ink-inverse)' : 'rgba(248,250,252,0.6)',
-                      // gold-star, not gold: DESIGN.md flags the darker gold as
-                      // illegible on the navy bar.
-                      borderBottom: `2px solid ${isActive(to) ? 'var(--color-gold-star)' : 'transparent'}`,
-                    }}
-                  >
-                    {label}
-                  </Link>
-                ),
-              )}
-              <NavigationMenu
-                label="Career development"
-                links={CAREER_DEVELOPMENT_LINKS}
-                isActive={to => isActive(to)}
-                linkState={linkState}
-                onLinkClick={handleClick}
-              />
-              {supportingPrimaryLinks.map(({ label, to, external }) =>
-                external ? (
-                  <a
-                    key={label}
-                    href={to}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-sm font-medium no-underline transition-colors duration-150"
-                    style={{
-                      color: 'rgba(248,250,252,0.6)',
-                      borderBottom: '2px solid transparent',
-                    }}
-                  >
-                    {label}
-                    <ArrowUpRight size={13} strokeWidth={2} aria-hidden="true" />
-                  </a>
-                ) : (
-                  <Link
-                    key={label}
-                    to={to}
-                    state={linkState(to)}
-                    onClick={e => handleClick(e, to)}
-                    className="flex items-center text-sm font-medium no-underline transition-colors duration-150"
-                    style={{
-                      color: isActive(to) ? 'var(--color-ink-inverse)' : 'rgba(248,250,252,0.6)',
-                      borderBottom: `2px solid ${isActive(to) ? 'var(--color-gold-star)' : 'transparent'}`,
-                    }}
-                  >
-                    {label}
-                  </Link>
-                ),
-              )}
-            </nav>
-          </div>
-        </div>
-        </div>
-      )}
-
-      {/* ── Mobile: one row, unchanged ───────────────────────────────────── */}
-      {mobileUi && (
-        <div>
+      {/* One row on every device. */}
+      <div>
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="flex h-16 items-center justify-between gap-4">
             {wordmark}
@@ -591,7 +367,7 @@ export default function Nav() {
                 onClick={() => setOpen(o => !o)}
                 aria-label="Toggle menu"
                 aria-expanded={open}
-                aria-controls="mobile-navigation-panel"
+                aria-controls="site-navigation-panel"
               >
                 {open ? <X size={20} /> : <Menu size={20} />}
               </button>
@@ -599,15 +375,14 @@ export default function Nav() {
           </div>
         </div>
         </div>
-      )}
 
-      {/* Mobile menu */}
-      {mobileUi && open && (
+      {/* Navigation menu */}
+      {open && (
         <nav
-          id="mobile-navigation-panel"
-          className="mobile-navigation-panel border-t border-white/10 px-6 py-4 flex flex-col gap-4"
+          id="site-navigation-panel"
+          className="site-navigation-panel border-t border-white/10 px-6 py-4 flex flex-col gap-4"
           style={{ backgroundColor: 'var(--color-nav)' }}
-          aria-label="Mobile navigation"
+          aria-label="Site navigation"
         >
           {corePrimaryLinks.map(link => (
             <MobileNavigationLink key={link.label} link={link} linkState={linkState} onNavigate={() => setOpen(false)} onLinkClick={handleClick} />
@@ -657,63 +432,6 @@ export default function Nav() {
         </nav>
       )}
     </header>
-  )
-}
-
-function NavigationMenu({
-  label,
-  links,
-  isActive,
-  linkState,
-  onLinkClick,
-}: {
-  label: string
-  links: PrimaryLink[]
-  isActive: (to: string) => boolean
-  linkState: (to: string) => Record<string, unknown> | undefined
-  onLinkClick: (event: React.MouseEvent, to: string) => void
-}) {
-  const active = links.some(link => !link.external && isActive(link.to))
-
-  return (
-    <details className="group relative flex items-stretch">
-      <summary
-        className="flex cursor-pointer list-none items-center gap-1 text-sm font-medium transition-colors duration-150 [&::-webkit-details-marker]:hidden"
-        style={{
-          color: active ? 'var(--color-ink-inverse)' : 'rgba(248,250,252,0.6)',
-          borderBottom: `2px solid ${active ? 'var(--color-gold-star)' : 'transparent'}`,
-        }}
-      >
-        {label}
-        <ChevronDown size={14} strokeWidth={2} aria-hidden="true" className="transition-transform duration-150 group-open:rotate-180" />
-      </summary>
-      <div className="absolute left-0 top-full z-50 hidden min-w-60 border border-white/15 bg-[var(--color-nav)] p-1.5 shadow-xl group-open:block">
-        {links.map(link => link.external ? (
-          <a
-            key={link.label}
-            href={link.to}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex min-h-10 items-center justify-between gap-4 px-3 text-sm font-medium no-underline transition-colors hover:bg-white/10"
-            style={{ color: 'rgba(248,250,252,0.82)' }}
-          >
-            {link.label}
-            <ArrowUpRight size={14} strokeWidth={2} aria-hidden="true" />
-          </a>
-        ) : (
-          <Link
-            key={link.label}
-            to={link.to}
-            state={linkState(link.to)}
-            onClick={event => onLinkClick(event, link.to)}
-            className="flex min-h-10 items-center px-3 text-sm font-medium no-underline transition-colors hover:bg-white/10"
-            style={{ color: 'rgba(248,250,252,0.82)' }}
-          >
-            {link.label}
-          </Link>
-        ))}
-      </div>
-    </details>
   )
 }
 
@@ -996,233 +714,5 @@ function EmployerViewSwitch({
       <Eye size={14} strokeWidth={2} aria-hidden="true" />
       {!iconOnly && <span>{label}</span>}
     </button>
-  )
-}
-
-/**
- * The signed-in menu in the desktop bar.
- *
- * A disclosure button plus a short list — not a hover menu. Hover menus are
- * unreachable by keyboard and unusable by touch, and this one holds "Sign out",
- * which nobody should trigger by drifting a cursor. Escape closes it and returns
- * focus to the button; a click anywhere else closes it too.
- */
-function SeekerMenu({ seeker, onSignOut }: { seeker: Seeker; onSignOut: () => void }) {
-  const [open, setOpen] = useState(false)
-  const wrapRef = useRef<HTMLDivElement>(null)
-  const buttonRef = useRef<HTMLButtonElement>(null)
-
-  const name = seeker.display_name?.trim() || seeker.email
-  const initial = name.slice(0, 1).toUpperCase()
-
-  useEffect(() => {
-    if (!open) return
-
-    const onPointerDown = (e: PointerEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false)
-    }
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      setOpen(false)
-      buttonRef.current?.focus()
-    }
-
-    document.addEventListener('pointerdown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [open])
-
-  return (
-    // No breakpoint class of its own — the desktop utility strip that renders
-    // this is already lg-only.
-    <div ref={wrapRef} className="relative">
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className="flex min-h-9 items-center gap-2 rounded px-2.5 py-1.5 text-sm font-medium cursor-pointer"
-        style={{
-          color: 'var(--color-ink-inverse)',
-          backgroundColor: open ? 'rgba(255,255,255,0.08)' : 'transparent',
-          border: '1px solid rgba(255,255,255,0.12)',
-        }}
-      >
-        <span
-          className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold"
-          style={{ backgroundColor: 'var(--color-gold)', color: '#fff' }}
-          aria-hidden="true"
-        >
-          {initial}
-        </span>
-        <span className="max-w-[10rem] truncate">{name}</span>
-        <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
-      </button>
-
-      {open && (
-        <div
-          role="menu"
-          aria-label="Account"
-          className="absolute right-0 mt-2 w-56 overflow-hidden rounded-lg py-1"
-          style={{
-            backgroundColor: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            boxShadow: 'var(--shadow-float)',
-          }}
-        >
-          <p
-            className="px-3 py-2 text-xs break-words"
-            style={{ color: 'var(--color-ink-faint)', borderBottom: '1px solid var(--color-border)' }}
-          >
-            {seeker.email}
-          </p>
-          <Link
-            role="menuitem"
-            to="/account"
-            onClick={() => setOpen(false)}
-            className="flex min-h-11 items-center gap-2 px-3 text-sm font-medium no-underline"
-            style={{ color: 'var(--color-ink)' }}
-          >
-            <FileText size={15} strokeWidth={2} />
-            Resume &amp; account
-          </Link>
-          <Link
-            role="menuitem"
-            to="/saved"
-            onClick={() => setOpen(false)}
-            className="flex min-h-11 items-center gap-2 px-3 text-sm font-medium no-underline"
-            style={{ color: 'var(--color-ink)' }}
-          >
-            <Bookmark size={15} strokeWidth={2} />
-            Saved Roles
-          </Link>
-          <button
-            role="menuitem"
-            type="button"
-            onClick={() => { setOpen(false); onSignOut() }}
-            className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm font-medium cursor-pointer"
-            style={{
-              color: 'var(--color-ink-muted)',
-              background: 'none',
-              border: 'none',
-              borderTop: '1px solid var(--color-border)',
-            }}
-          >
-            <LogOut size={15} strokeWidth={2} />
-            Sign out
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-/**
- * The signed-in Employer's slot in the desktop bar — SeekerMenu's shape,
- * deliberately smaller: there is no /employer/account or Saved-Roles
- * equivalent to link to (employers_store.py: v1 is identity plus the
- * submission form, nothing else), so this is company name in, sign out out,
- * and nothing invented in between.
- */
-function EmployerMenu({ employer, onSignOut }: { employer: Employer; onSignOut: () => void }) {
-  const [open, setOpen] = useState(false)
-  const wrapRef = useRef<HTMLDivElement>(null)
-  const buttonRef = useRef<HTMLButtonElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-
-    const onPointerDown = (e: PointerEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false)
-    }
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      setOpen(false)
-      buttonRef.current?.focus()
-    }
-
-    document.addEventListener('pointerdown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [open])
-
-  return (
-    <div ref={wrapRef} className="relative">
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className="flex min-h-9 items-center gap-2 rounded px-2.5 py-1.5 text-sm font-medium cursor-pointer"
-        style={{
-          color: 'var(--color-ink-inverse)',
-          backgroundColor: open ? 'rgba(255,255,255,0.08)' : 'transparent',
-          border: '1px solid rgba(255,255,255,0.12)',
-        }}
-      >
-        <span
-          className="flex h-6 w-6 items-center justify-center rounded-full"
-          style={{ backgroundColor: 'var(--color-gold)' }}
-          aria-hidden="true"
-        >
-          <Building2 size={13} strokeWidth={2} color="#fff" />
-        </span>
-        <span className="max-w-[10rem] truncate">{employer.company_name}</span>
-        <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
-      </button>
-
-      {open && (
-        <div
-          role="menu"
-          aria-label="Employer account"
-          className="absolute right-0 mt-2 w-56 overflow-hidden rounded-lg py-1"
-          style={{
-            backgroundColor: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            boxShadow: 'var(--shadow-float)',
-          }}
-        >
-          <p
-            className="px-3 py-2 text-xs break-words"
-            style={{ color: 'var(--color-ink-faint)', borderBottom: '1px solid var(--color-border)' }}
-          >
-            {employer.email}
-          </p>
-          {/* The one route to the Seeker side for someone already signed in
-              as an Employer. The bar's "Sign in" link is hidden for them (it
-              contradicted the chip this menu hangs off), so without this the
-              two accounts would have no door between them. Worded as the
-              separate thing it is, never as a bare "Sign in". */}
-          <Link
-            role="menuitem"
-            to="/get-started"
-            onClick={() => setOpen(false)}
-            className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm font-medium no-underline"
-            style={{ color: 'var(--color-ink-muted)' }}
-          >
-            <UserRound size={15} strokeWidth={2} />
-            Seeker account
-          </Link>
-          <button
-            role="menuitem"
-            type="button"
-            onClick={() => { setOpen(false); onSignOut() }}
-            className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm font-medium cursor-pointer"
-            style={{ color: 'var(--color-ink-muted)', background: 'none', border: 'none' }}
-          >
-            <LogOut size={15} strokeWidth={2} />
-            Sign out
-          </button>
-        </div>
-      )}
-    </div>
   )
 }

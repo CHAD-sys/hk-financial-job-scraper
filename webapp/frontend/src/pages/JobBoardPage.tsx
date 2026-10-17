@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, useContext } from 'react'
+import { Fragment, useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams, useLocation } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import type {
@@ -31,7 +31,6 @@ import ResumePrompt from '../components/ResumePrompt'
 import MemberRoleNotice from '../components/MemberRoleNotice'
 import AdminJobEditDrawer from '../components/AdminJobEditDrawer'
 import MobileDiscoveryHome from '../components/MobileDiscoveryHome'
-import { DeviceModeContext } from '../deviceMode/DeviceModeContext'
 
 const PAGE_SIZE = 24
 const SORT_OPTIONS = [
@@ -91,13 +90,10 @@ export default function JobBoardPage() {
   const [adminBrowse, setAdminBrowse] = useState(false)
   const { toggle: toggleSave, isSaved } = useSavedRoles()
   const { seeker, loading: authLoading } = useAuth()
-  // Keep the page renderable in isolated page tests and story-like contexts;
-  // the app itself always supplies DeviceModeProvider.
-  const uiMode = useContext(DeviceModeContext)?.uiMode ?? 'desktop'
   // The phone discovery hub belongs only to the root route. `/jobs` is the
   // Careers product on every device, so a visitor following “More hot jobs”
   // reaches the searchable catalogue instead of seeing the same home again.
-  const showMobileDiscoveryHome = uiMode === 'mobile' && location.pathname === '/'
+  const showDiscoveryHome = location.pathname === '/'
 
   // `/` and `/jobs` deliberately share this component on phones. React Router
   // therefore keeps the same component instance when “More hot jobs” changes
@@ -335,13 +331,18 @@ export default function JobBoardPage() {
   // Those pages are noindex, so only a human ever reads the result.
   const activeQuery = activeFilters.search.trim()
   const longForm = `${activeQuery} Jobs in Hong Kong — FinEx Careers`
-  const pageTitle = !activeQuery
-    ? 'Search Hong Kong Finance Jobs — FinEx Careers'
+  const pageTitle = showDiscoveryHome
+    ? 'FinEx Careers — HK Finance Roles, Consultation & Learning'
+    : !activeQuery
+      ? 'Search Hong Kong Finance Jobs — FinEx Careers'
     : longForm.length <= 60
       ? longForm
       : `${activeQuery} Jobs — FinEx Careers`
-  const pageDescription = activeQuery
-    ? `Open ${activeQuery.toLowerCase()} roles across Hong Kong's banks, funds and boutiques. ` +
+  const pageDescription = showDiscoveryHome
+    ? 'Hong Kong finance careers in one place: a daily, AI-enriched index of open ' +
+      'roles across 230+ employers, plus consultation and professional learning.'
+    : activeQuery
+      ? `Open ${activeQuery.toLowerCase()} roles across Hong Kong's banks, funds and boutiques. ` +
       'Indexed daily from employer sites and major boards, with an AI salary ' +
       'estimate on every listing.'
     : 'Search open finance roles across Hong Kong — banking, asset management, ' +
@@ -356,7 +357,7 @@ export default function JobBoardPage() {
       {/* ── DISCOVER MODE: the search-engine home ───────────── */}
       {!showBoard && (
         <>
-          {showMobileDiscoveryHome ? (
+          {showDiscoveryHome ? (
             <MobileDiscoveryHome
               onSearch={runSearch}
               allowEmptySubmit={canEdit}
@@ -522,10 +523,6 @@ export default function JobBoardPage() {
           </div>
         </div>
 
-        {!authLoading && !seeker && uiMode !== 'mobile' && (
-          <MemberRoleNotice returnTo={`${location.pathname}${location.search}`} />
-        )}
-
         {/* Job grid */}
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -544,14 +541,14 @@ export default function JobBoardPage() {
                   onClick={setSelectedJob}
                   onEdit={canEdit ? setEditingJob : undefined}
                 />
-                {uiMode === 'mobile' && !authLoading && !seeker && index === 2 && (
+                {!authLoading && !seeker && index === 2 && (
                   <div className="sm:col-span-2 lg:col-span-3">
                     <MemberRoleNotice returnTo={`${location.pathname}${location.search}`} />
                   </div>
                 )}
               </Fragment>
             ))}
-            {uiMode === 'mobile' && !authLoading && !seeker && jobs.length > 0 && jobs.length < 3 && (
+            {!authLoading && !seeker && jobs.length > 0 && jobs.length < 3 && (
               <div className="sm:col-span-2 lg:col-span-3">
                 <MemberRoleNotice returnTo={`${location.pathname}${location.search}`} />
               </div>

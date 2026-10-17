@@ -14,7 +14,6 @@ import { ArrowDown, ChevronDown, Search, Sparkles } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import CareerCoachCard from '../components/CareerCoachCard'
 import Nav from '../components/Nav'
-import { useDeviceMode } from '../deviceMode/useDeviceMode'
 import {
   CAREER_COACH_GROUPS,
   COACH_DOMAINS,
@@ -26,8 +25,6 @@ import {
 } from '../content/careerCoaches'
 
 export default function CareerCoachesPage() {
-  const { uiMode } = useDeviceMode()
-  const mobileUi = uiMode === 'mobile'
   const [activeDomain, setActiveDomain] = useState<CoachDomainFilter>('All expertise')
   const [specialty, setSpecialty] = useState<CoachSpecialtyFilter>('All specialties')
   const [query, setQuery] = useState('')
@@ -162,14 +159,14 @@ export default function CareerCoachesPage() {
             <div id="coach-directory-results" className="coach-directory__groups">
               {visibleCount > 0 ? visibleGroups.map(group => {
                 const expandsForCurrentFilter = activeDomain !== 'All expertise' || hasRefinements
-                const open = !mobileUi || expandsForCurrentFilter || expandedDomains.has(group.domain)
+                const open = expandsForCurrentFilter || expandedDomains.has(group.domain)
                 return (
                 <details
                   key={group.domain}
                   className="coach-domain-group"
                   open={open}
                   onToggle={event => {
-                    if (!mobileUi || expandsForCurrentFilter) return
+                    if (expandsForCurrentFilter) return
                     const isOpen = event.currentTarget.open
                     setExpandedDomains(current => {
                       const next = new Set(current)

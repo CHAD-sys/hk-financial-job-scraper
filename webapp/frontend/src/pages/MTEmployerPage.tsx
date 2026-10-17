@@ -1,6 +1,5 @@
 import { ArrowLeft, ArrowUpRight, CalendarClock, MessageCircleMore } from 'lucide-react'
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { useContext } from 'react'
 import Nav from '../components/Nav'
 import { mtCompanyLogo } from '../content/mtCompanyLogos'
 import { findMTWorkbookEmployerBySlug, mtApplicationRoleLabel } from '../content/mtWorkbookProgrammes'
@@ -8,7 +7,6 @@ import {
   sortMTApplicationLinks,
   mtApplicationStatus,
 } from '../components/MTWorkbookProgrammeCard'
-import { DeviceModeContext } from '../deviceMode/DeviceModeContext'
 
 const CONSULTATION_URL = 'https://www.finexclub.org/mentor-program'
 
@@ -20,7 +18,6 @@ function EmployerMark({ company }: { company: string }) {
 }
 
 export default function MTEmployerPage() {
-  const uiMode = useContext(DeviceModeContext)?.uiMode ?? 'desktop'
   const { employerSlug = '' } = useParams()
   const employer = findMTWorkbookEmployerBySlug(employerSlug)
 
@@ -35,7 +32,7 @@ export default function MTEmployerPage() {
       : 'No verified current intake is recorded.'
 
   return (
-    <div className="mt-employer-page" data-layout={uiMode}>
+    <div className="mt-employer-page">
       <title>{`${employer.company} MT programmes | FinEx Careers`}</title>
       <meta name="description" content={`Management trainee application links for ${employer.company}.`} />
       <Nav />
@@ -45,7 +42,7 @@ export default function MTEmployerPage() {
             <Link className="mt-employer-page__back" to="/management-trainee">
               <ArrowLeft size={16} aria-hidden="true" /> All MT employers
             </Link>
-            <div className="mt-employer-page__identity" data-testid="mt-employer-identity" data-layout={uiMode}>
+            <div className="mt-employer-page__identity" data-testid="mt-employer-identity">
               <div className="mt-employer-page__logo"><EmployerMark company={employer.company} /></div>
               <div>
                 <p className="mt-employer-page__kicker">Management trainee opportunities</p>
