@@ -174,6 +174,7 @@ button, a, input, select, [role="button"], [role="tab"] {
   padding: 1rem 1rem 2.5rem;
   background: var(--color-bg);
 }
+.mobile-discovery__intro { display: none; }
 .mobile-discovery__search {
   display: flex;
   align-items: center;
@@ -188,8 +189,9 @@ button, a, input, select, [role="button"], [role="tab"] {
   box-shadow: var(--shadow-card);
 }
 .mobile-discovery__search:focus-within { border-color: var(--color-gold); box-shadow: 0 0 0 3px var(--color-gold-light); }
+.mobile-discovery__search--secondary { display: none; }
 .mobile-discovery__search input { min-width: 0; flex: 1; color: var(--color-ink); background: transparent; border: 0; outline: 0; font: inherit; font-size: 0.8rem; }
-.mobile-discovery__search input::placeholder { color: var(--color-ink-faint); }
+.mobile-discovery__search input::placeholder { color: var(--color-ink-muted); }
 .mobile-discovery__search button { display: grid; place-items: center; width: 2.4rem; min-width: 2.4rem; height: 2.4rem; color: var(--color-surface); background: var(--color-ink); border: 0; border-radius: 0.45rem; cursor: pointer; }
 .mobile-discovery__banner {
   scroll-margin-top: calc(var(--nav-height, 4rem) + 0.75rem);
@@ -382,6 +384,125 @@ button, a, input, select, [role="button"], [role="tab"] {
   .mobile-discovery__highlights[data-focus='roles'] .hl-card__company,
   .mobile-discovery__highlights[data-focus='roles'] .hl-card__meta,
   .mobile-discovery__highlights[data-focus='roles'] .hl-card__cta { font-size: 0.75rem; }
+}
+
+/* A laptop has room for direct navigation, a proper search lead and a readable
+   results grid. The discovery content stays the same; only its composition
+   changes with the available width. */
+.desktop-navigation, .nav-more-label { display: none; }
+@media (min-width: 1024px) {
+  .mobile-discovery {
+    max-width: 80rem;
+    padding: 2.5rem 2rem 5rem;
+  }
+  .mobile-discovery__lead {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(25rem, 0.95fr);
+    align-items: center;
+    gap: clamp(2rem, 5vw, 5rem);
+    min-height: 13rem;
+    padding-bottom: 2rem;
+  }
+  .mobile-discovery__intro { display: block; }
+  .mobile-discovery__intro h1 {
+    max-width: 18ch;
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(2.45rem, 3.6vw, 3.65rem);
+    font-weight: 600;
+    line-height: 1.13;
+    letter-spacing: -0.035em;
+    text-wrap: balance;
+  }
+  .mobile-discovery__intro p {
+    max-width: 52ch;
+    margin: 0.85rem 0 0;
+    color: var(--color-ink-muted);
+    font-size: 0.98rem;
+    line-height: 1.6;
+  }
+  .mobile-discovery__search {
+    min-height: 4rem;
+    margin: 0;
+    padding: 0.45rem 0.45rem 0.45rem 1.1rem;
+    border-radius: 0.7rem;
+  }
+  .mobile-discovery__search--secondary { display: flex; }
+  .mobile-discovery__search input { font-size: 1rem; }
+  .mobile-discovery__search button { width: 3rem; min-width: 3rem; height: 3rem; }
+  .mobile-discovery__tabs {
+    gap: 0;
+    margin: 0 0 2rem;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--color-border-strong);
+    border-radius: 0;
+  }
+  .mobile-discovery__tab {
+    min-height: 3.25rem;
+    font-size: 0.95rem;
+    font-weight: 650;
+    border-radius: 0;
+  }
+  .mobile-discovery__tab[data-active='true'] { background: transparent; box-shadow: inset 0 -3px 0 var(--color-gold); }
+  .mobile-discovery__highlights { display: none; }
+  .mobile-discovery__kicker { display: none; }
+  .mobile-discovery__section-heading { margin-bottom: 0.6rem; }
+  .mobile-discovery__section-heading h2 { margin: 0; font-size: 2.15rem; }
+  .mobile-discovery__section-copy { margin-bottom: 1.35rem; font-size: 0.98rem; }
+  .mobile-discovery__job-list, .mobile-discovery__mt-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  .mobile-discovery__job-list .job-card { min-height: 13rem; padding: 1.15rem; gap: 0.9rem; }
+  .mobile-discovery__job-list .job-card > .flex.items-start > .flex.items-center > div:first-child { width: 2.5rem; height: 2.5rem; font-size: 0.82rem; }
+  .mobile-discovery__job-list .job-card h3 { font-size: 1.15rem; line-height: 1.3; }
+  .mobile-discovery__job-list .job-card .text-xs { font-size: 0.78rem; }
+  .mobile-discovery__job-list .job-card--compact .mt-auto > *,
+  .mobile-discovery__job-list .job-card--compact .mt-auto > span:last-child > span { font-size: 0.78rem !important; }
+  .mobile-discovery__job-list .job-card--compact .mt-auto > span[title='Estimated salary figure'],
+  .mobile-discovery__job-list .job-card--compact .mt-auto > span:last-child { color: var(--color-ink-muted) !important; }
+  .mobile-discovery__coach-group .mobile-discovery__coach-list,
+  .mobile-discovery__education-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mobile-discovery__coach-group .mobile-discovery__coach { min-height: 5rem; padding: 0.75rem; }
+  .mobile-discovery__coach-group .mobile-discovery__coach img { width: 3rem; height: 3rem; }
+  .mobile-discovery__coach-group .mobile-discovery__coach strong { font-size: 0.9rem; }
+  .mobile-discovery__coach-group .mobile-discovery__coach small { font-size: 0.75rem; }
+  .mobile-discovery__more { font-size: 0.9rem; }
+}
+
+@media (min-width: 1180px) {
+  .mobile-discovery__job-list, .mobile-discovery__mt-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .desktop-navigation { display: flex; min-width: 0; align-items: center; justify-content: center; gap: clamp(0.8rem, 1.6vw, 1.5rem); }
+  .desktop-navigation__link {
+    display: inline-flex;
+    min-height: 3.5rem;
+    align-items: center;
+    color: var(--color-ink-inverse);
+    font-size: 0.87rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    opacity: 0.76;
+    border-bottom: 2px solid transparent;
+    transition: opacity 180ms ease-out, border-color 180ms ease-out;
+  }
+  .desktop-navigation__link:hover, .desktop-navigation__link[aria-current='page'] { opacity: 1; }
+  .desktop-navigation__link[aria-current='page'] { border-bottom-color: var(--color-gold-star); }
+  .nav-more-label { display: inline; font-size: 0.85rem; font-weight: 600; }
+  .nav-more-button { padding-inline: 0.7rem; }
+  .site-navigation-panel {
+    position: absolute;
+    top: 100%;
+    right: max(1.5rem, calc((100vw - 80rem) / 2));
+    width: min(24rem, calc(100vw - 3rem));
+    max-height: calc(100dvh - var(--nav-height));
+    overflow-y: auto;
+    border: 1px solid rgb(255 255 255 / 0.12);
+    border-radius: 0 0 0.75rem 0.75rem;
+    box-shadow: var(--shadow-float);
+  }
 }
 
 /* ── Portal doors (landing page) ───────────────────────────────────── */

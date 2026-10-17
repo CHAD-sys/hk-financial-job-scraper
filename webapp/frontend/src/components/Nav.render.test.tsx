@@ -60,8 +60,17 @@ beforeEach(() => {
   employerViewValue.canUseEmployerView = false
 })
 
-describe('Nav — device-specific structure', () => {
-  it('renders the shared navigation control', async () => {
+describe('Nav — responsive structure', () => {
+  it('exposes the main destinations in the laptop navigation', () => {
+    renderNav()
+    const primary = screen.getByRole('navigation', { name: 'Primary navigation' })
+    expect(primary).toHaveTextContent('Careers')
+    expect(primary).toHaveTextContent('MT programmes')
+    expect(primary).toHaveTextContent('Coaching')
+    expect(primary.querySelector('a[href="/management-trainee"]')).not.toBeNull()
+  })
+
+  it('renders the shared full navigation control', async () => {
     const user = userEvent.setup()
     renderNav()
 
@@ -79,8 +88,8 @@ describe('Nav — Employer view switch', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Toggle menu' }))
 
     expect(screen.getByText('Career development')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Management Trainee programmes' })).toHaveAttribute('href', '/management-trainee')
-    expect(screen.getByRole('link', { name: 'Career coaches' })).toHaveAttribute('href', '/career-coaches')
+    expect(screen.getAllByRole('link', { name: 'Management Trainee programmes' }).some(link => link.getAttribute('href') === '/management-trainee')).toBe(true)
+    expect(screen.getAllByRole('link', { name: 'Career coaches' }).some(link => link.getAttribute('href') === '/career-coaches')).toBe(true)
     expect(screen.getByRole('link', { name: /Market Research/ })).toHaveAttribute('target', '_blank')
     expect(screen.queryByRole('link', { name: /Consultation/ })).not.toBeInTheDocument()
   })

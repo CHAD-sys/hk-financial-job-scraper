@@ -171,7 +171,10 @@ Defined in `--shadow-*` tokens. Each level adds depth without heavy drop shadows
 
 ### Navigation Bar
 `sticky top-0`. One 64px navy row on every device: wordmark, Saved Roles,
-and the menu button. `--nav-height` is 65px including the bottom border;
+and the menu button. At laptop widths (1180px and above), the same row also
+shows Home, Careers, MT programmes, Coaching, Learning and About directly.
+The menu remains available for the complete destination list and account
+actions. `--nav-height` is 65px including the bottom border;
 sticky controls and scroll clearance anchor to that edge.
 
 - The open menu carries Careers, career development, supporting pages,
@@ -180,7 +183,10 @@ sticky controls and scroll clearance anchor to that edge.
 - Wordmark: Playfair Display, gold italic for "Careers"
 - External links (Market Research) carry an `ArrowUpRight` and open in a new tab.
 - The `/` route opens the same discovery experience at every width. Layout
-  can reflow with CSS, but the product does not change with device detection.
+  reflows with CSS: a compact search, tabs and swipeable highlights on phones;
+  a search lead and two-column Role grid on compact laptops, then direct
+  navigation and three columns when there is room.
+  There is no device detection or separate desktop page.
 
 ### Stat Cards
 - Background: `--color-surface` with `1px --color-border` border

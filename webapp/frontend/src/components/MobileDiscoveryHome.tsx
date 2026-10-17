@@ -128,19 +128,23 @@ export default function MobileDiscoveryHome({
 
   return (
     <main id="main-content" className="mobile-discovery">
-      {activeTab === 'hot' && (
-        <form className="mobile-discovery__search" onSubmit={submitSearch} role="search">
-          <Search size={18} aria-hidden="true" />
-          <input
-            type="search"
-            value={query}
-            onChange={event => setQuery(event.target.value)}
-            placeholder="Search roles, skills or employers"
-            aria-label="Search roles, skills or employers"
-          />
-          <button type="submit" aria-label="Search jobs"><ArrowRight size={18} aria-hidden="true" /></button>
+      <div className="mobile-discovery__lead">
+        <div className="mobile-discovery__intro">
+          <h1>Find your next role in Hong Kong finance.</h1>
+          <p>Search open roles, then explore trainee programmes, career coaching and learning in one place.</p>
+        </div>
+        <form className={`mobile-discovery__search${activeTab === 'hot' ? '' : ' mobile-discovery__search--secondary'}`} onSubmit={submitSearch} role="search">
+            <Search size={20} aria-hidden="true" />
+            <input
+              type="search"
+              value={query}
+              onChange={event => setQuery(event.target.value)}
+              placeholder="Search roles, skills or employers"
+              aria-label="Search roles, skills or employers"
+            />
+            <button type="submit" aria-label="Search jobs"><ArrowRight size={20} aria-hidden="true" /></button>
         </form>
-      )}
+      </div>
 
       <nav className="mobile-discovery__tabs" role="tablist" aria-label="FinEx discovery destinations">
         {DESTINATIONS.map((destination, index) => (

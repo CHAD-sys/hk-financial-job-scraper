@@ -19,8 +19,8 @@ import { useSavedRoles } from '../savedRoles/useSavedRoles'
  * Research is the one outbound destination and is visibly treated as an
  * external link.
  *
- * Home and the wordmark lead to the discovery home. The same single-row
- * navigation and menu are used at every screen width.
+ * Home and the wordmark lead to the discovery home. Laptop widths expose the
+ * main destinations in the same row; the menu keeps the full destination list.
  *
  * "Sign in" points at /get-started, a chooser between the two separate
  * account kinds (SignInChooserPage.tsx), not straight at the Seeker form —
@@ -165,6 +165,12 @@ export default function Nav() {
   // journey, with Market Research retaining its explicit external treatment.
   const corePrimaryLinks = primaryLinks.filter(link => link.label === 'Home' || link.label === 'Careers')
   const supportingPrimaryLinks = primaryLinks.filter(link => link.label !== 'Home' && link.label !== 'Careers')
+  const desktopLinks: PrimaryLink[] = [
+    ...corePrimaryLinks,
+    { label: 'MT programmes', to: '/management-trainee' },
+    { label: 'Coaching', to: '/career-coaches' },
+    ...supportingPrimaryLinks.filter(link => link.label === 'Learning' || link.label === 'About'),
+  ]
   const mobileUtilityLinks: PrimaryLink[] = [
     { label: 'Saved roles', to: '/saved' },
     ...(!employerAuthLoading && (employer || employerView) ? [{ label: 'Post a role', to: '/post-a-role' }] : []),
@@ -331,6 +337,21 @@ export default function Nav() {
           <div className="flex h-16 items-center justify-between gap-4">
             {wordmark}
 
+            <nav className="desktop-navigation" aria-label="Primary navigation">
+              {desktopLinks.map(link => (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  state={linkState(link.to)}
+                  onClick={event => handleClick(event, link.to)}
+                  className="desktop-navigation__link"
+                  aria-current={pathname === link.to ? 'page' : undefined}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+
             <div className="flex shrink-0 items-center gap-3">
               {!authLoading && canUseAdminMode && (
                 <AdminModeSwitch
@@ -362,7 +383,7 @@ export default function Nav() {
 
               <button
                 type="button"
-                className="flex min-h-11 min-w-11 items-center justify-center rounded cursor-pointer"
+                className="nav-more-button flex min-h-11 min-w-11 items-center justify-center gap-2 rounded cursor-pointer"
                 style={{ color: 'var(--color-ink-inverse)' }}
                 onClick={() => setOpen(o => !o)}
                 aria-label="Toggle menu"
@@ -370,6 +391,7 @@ export default function Nav() {
                 aria-controls="site-navigation-panel"
               >
                 {open ? <X size={20} /> : <Menu size={20} />}
+                <span className="nav-more-label">More</span>
               </button>
             </div>
           </div>
