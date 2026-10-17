@@ -70,7 +70,7 @@ const EXPERTISE_BY_COACH_ID: Readonly<Record<string, CoachExpertise>> = {
   'coach-19': expertise('Treasury & Markets'),
   'coach-20': expertise('Custody, Funds, and Assets Servicing', 'Strategy, Transformation & Consulting'),
   'coach-21': expertise('Custody, Funds, and Assets Servicing'),
-  'coach-22': expertise('Treasury & Markets', 'Investment Banking', 'Investment', 'Institutional Banking & Sales'),
+  'coach-22': expertise('Treasury & Markets', 'Investment Banking', 'Investment', 'Institutional Banking & Sales', 'Strategy, Transformation & Consulting'),
   'coach-23': expertise('Custody, Funds, and Assets Servicing'),
   'coach-24': expertise('Treasury & Markets', 'Digital Assets & FinTech'),
   'coach-25': expertise('Private Equity, Family Offices, Wealth'),

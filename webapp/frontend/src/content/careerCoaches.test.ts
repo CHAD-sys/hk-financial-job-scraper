@@ -32,6 +32,21 @@ describe('career coach directory data', () => {
     expect(COACH_DOMAINS).not.toContain('Investment Banking')
   })
 
+  it('matches every marked coach group, including ordering and crossed-out names', () => {
+    const picturedGroups = {
+      'Risk & Compliance': ['Andrew Chan', 'Apple Lo', 'Benjamin Chung', 'Simon Cheung'],
+      Investment: ['Apple Lo', 'Dennis Luk', 'Edward Lee', 'Jeremy Wong', 'Morris Hui, CFA', 'Shannon Chow'],
+      'Private Equity, Family Offices, Wealth': ['Edward Lee', 'Patrick Leung', 'Shannon Chow'],
+      'Digital Assets & FinTech': ['Hannah Hui', 'Jame DiBiasio', 'Jeremy Wong', 'John Wong', 'Nicholas Yip'],
+      'Institutional Banking & Sales': ['Arthur Tan', 'Biswajyoti (BJ) Upadhyay', 'John Wong', 'Morris Hui, CFA', 'Timothy Chan', 'Vera Lau'],
+      'Strategy, Transformation & Consulting': ['Biswajyoti (BJ) Upadhyay', 'Cammy Tong', 'Dicky Lee', 'Doris Kuo', 'Edward Lee', 'Jame DiBiasio', 'Lawrence Au', 'Morris Hui, CFA', 'Vincent Huen'],
+    } as const
+
+    for (const [domain, names] of Object.entries(picturedGroups)) {
+      expect(coachesForDomain(domain as keyof typeof picturedGroups).map(coach => coach.name)).toEqual(names)
+    }
+  })
+
   it('supports the requested cross-domain expertise groups and filters', () => {
     expect(coachesForDomain('Digital Assets & FinTech').map(coach => coach.name)).toEqual(expect.arrayContaining([
       'Hannah Hui',
