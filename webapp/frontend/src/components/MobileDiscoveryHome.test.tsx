@@ -46,11 +46,32 @@ describe('MobileDiscoveryHome', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'MT' }))
 
     expect(screen.getByRole('heading', { name: 'Active MT openings' })).toBeInTheDocument()
-    expect(screen.getByRole('group', { name: 'Swipe through Management Trainee employer logos' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: /Management Trainee employer logos/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show previous Management Trainee employers' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Show next Management Trainee employers' })).toBeVisible()
     expect(await screen.findAllByRole('article')).toHaveLength(8)
     expect(screen.getByRole('heading', { name: 'Goldman Sachs' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Morgan Stanley' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'View all application links at Bank of America (BofA)' }))
       .toHaveAttribute('href', '/management-trainee/bank-of-america-bofa')
+  })
+
+  it('keeps the landing message about the whole site when a destination changes', () => {
+    render(
+      <MemoryRouter>
+        <MobileDiscoveryHome
+          onSearch={vi.fn()}
+          saved={() => false}
+          onToggleSave={vi.fn()}
+          onSelect={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+
+    const landingTitle = screen.getByRole('heading', { level: 1, name: 'Find your next move in Hong Kong finance.' })
+    fireEvent.click(screen.getByRole('tab', { name: 'Coaching' }))
+
+    expect(landingTitle).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toBe(landingTitle)
   })
 })

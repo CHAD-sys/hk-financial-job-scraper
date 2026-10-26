@@ -1,17 +1,18 @@
 import { fireEvent, render } from '@testing-library/react'
 import { useRef } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { nextMarqueeTime, useSwipeableMarquee } from './useSwipeableMarquee'
+import { nextMarqueeTime, nudgeMarquee, useSwipeableMarquee } from './useSwipeableMarquee'
 
 function dispatchPointer(
   target: Element,
   type: 'pointerdown' | 'pointermove' | 'pointerup',
   clientX: number,
+  pointerType = 'touch',
 ) {
   const event = new Event(type, { bubbles: true, cancelable: true })
   Object.defineProperties(event, {
     pointerId: { value: 7 },
-    pointerType: { value: 'touch' },
+    pointerType: { value: pointerType },
     isPrimary: { value: true },
     button: { value: 0 },
     clientX: { value: clientX },
@@ -53,6 +54,18 @@ function arrangeGesture(native = false) {
 }
 
 describe('marquee swipe scrubbing', () => {
+  it('moves the animated rail from visible previous and next controls', () => {
+    const { animation, viewport } = arrangeGesture()
+    const track = viewport.firstElementChild as HTMLElement
+
+    nudgeMarquee(viewport, track, 'next', 50)
+    expect(animation.pause).toHaveBeenCalledOnce()
+    expect(animation.currentTime).toBe(200)
+
+    nudgeMarquee(viewport, track, 'previous', 50)
+    expect(animation.currentTime).toBe(100)
+  })
+
   it('moves a reversed marquee in the direction of the drag', () => {
     expect(nextMarqueeTime({
       currentTime: 200,
@@ -125,5 +138,20 @@ describe('marquee swipe scrubbing', () => {
     expect(animation.pause).toHaveBeenCalledOnce()
     expect(viewport.scrollLeft).toBe(505)
     expect(animation.play).toHaveBeenCalledOnce()
+  })
+
+  it('lets a mouse drag move a native rail without opening a card', () => {
+    const { animation, getByRole, onOpen, viewport } = arrangeGesture(true)
+    viewport.scrollLeft = 250
+
+    dispatchPointer(viewport, 'pointerdown', 140, 'mouse')
+    dispatchPointer(viewport, 'pointermove', 90, 'mouse')
+    dispatchPointer(viewport, 'pointerup', 90, 'mouse')
+    fireEvent.click(getByRole('link', { name: 'Open Role' }))
+
+    expect(viewport.scrollLeft).toBe(300)
+    expect(viewport.setPointerCapture).toHaveBeenCalledWith(7)
+    expect(onOpen).not.toHaveBeenCalled()
+    expect(animation.pause).toHaveBeenCalledOnce()
   })
 })

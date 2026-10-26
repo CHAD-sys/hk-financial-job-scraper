@@ -304,6 +304,7 @@ export default function Nav() {
     <header
       style={{ backgroundColor: 'var(--color-nav)', zIndex: 200 }}
       className="sticky top-0 w-full border-b border-white/10"
+      data-discovery-home={pathname === '/' || undefined}
     >
       {/* Unmissable, and above BOTH bars rather than inside either: an admin
           who forgets they are in the preview will read every employer-shaped

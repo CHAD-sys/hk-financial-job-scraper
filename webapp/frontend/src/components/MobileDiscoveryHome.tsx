@@ -21,30 +21,21 @@ type DestinationId = 'hot' | 'mt' | 'coaching' | 'education'
 const DESTINATIONS: Array<{
   id: DestinationId
   label: string
-  eyebrow: string
-  title: string
-  body: string
+  desktopLabel: string
+  summary: string
   icon: typeof TrendingUp
 }> = [
   {
-    id: 'hot', label: 'Hot jobs', eyebrow: '01 · Roles',
-    title: 'Strong salary signals, ready for your next move.',
-    body: 'A focused cut of finance roles with the clearest salary signals available.', icon: TrendingUp,
+    id: 'hot', label: 'Hot jobs', desktopLabel: 'Hot jobs', summary: 'Salary-led roles', icon: TrendingUp,
   },
   {
-    id: 'mt', label: 'MT', eyebrow: '02 · Early career',
-    title: 'Start with a management trainee pathway.',
-    body: 'Compare structured programmes from Hong Kong finance employers.', icon: GraduationCap,
+    id: 'mt', label: 'MT', desktopLabel: 'MT programmes', summary: 'Graduate pathways', icon: GraduationCap,
   },
   {
-    id: 'coaching', label: 'Coaching', eyebrow: '03 · Direction',
-    title: 'Get a sharper view of your next step.',
-    body: 'Meet experienced finance professionals who can help you move with intent.', icon: MessageCircleMore,
+    id: 'coaching', label: 'Coaching', desktopLabel: 'Coaching', summary: 'Expert perspective', icon: MessageCircleMore,
   },
   {
-    id: 'education', label: 'Education', eyebrow: '04 · Capability',
-    title: 'Build the capability the market rewards.',
-    body: 'Learn through practical, finance-focused programmes and workshops.', icon: BookOpen,
+    id: 'education', label: 'Education', desktopLabel: 'Education', summary: 'Skills and insight', icon: BookOpen,
   },
 ]
 
@@ -130,24 +121,29 @@ export default function MobileDiscoveryHome({
     <main id="main-content" className="mobile-discovery">
       <div className="mobile-discovery__lead">
         <div className="mobile-discovery__intro">
-          <h1>Find your next role in Hong Kong finance.</h1>
-          <p>Search open roles, then explore trainee programmes, career coaching and learning in one place.</p>
+          <h1>Find your next move in Hong Kong finance.</h1>
+          <p>Explore open roles, Management Trainee programmes, career coaching and practical learning in one place.</p>
         </div>
-        <form className={`mobile-discovery__search${activeTab === 'hot' ? '' : ' mobile-discovery__search--secondary'}`} onSubmit={submitSearch} role="search">
-            <Search size={20} aria-hidden="true" />
-            <input
-              type="search"
-              value={query}
-              onChange={event => setQuery(event.target.value)}
-              placeholder="Search roles, skills or employers"
-              aria-label="Search roles, skills or employers"
-            />
-            <button type="submit" aria-label="Search jobs"><ArrowRight size={20} aria-hidden="true" /></button>
-        </form>
+        <div className="mobile-discovery__search-panel">
+          <span className="mobile-discovery__search-label">Search the Careers board</span>
+          <form className={`mobile-discovery__search${activeTab === 'hot' ? '' : ' mobile-discovery__search--secondary'}`} onSubmit={submitSearch} role="search">
+              <Search size={20} aria-hidden="true" />
+              <input
+                type="search"
+                value={query}
+                onChange={event => setQuery(event.target.value)}
+                placeholder="Search roles, skills or employers"
+                aria-label="Search roles, skills or employers"
+              />
+              <button type="submit" aria-label="Search jobs"><ArrowRight size={20} aria-hidden="true" /></button>
+          </form>
+        </div>
       </div>
 
       <nav className="mobile-discovery__tabs" role="tablist" aria-label="FinEx discovery destinations">
-        {DESTINATIONS.map((destination, index) => (
+        {DESTINATIONS.map((destination, index) => {
+          const DestinationIcon = destination.icon
+          return (
           <button
             key={destination.id}
             ref={element => { tabRefs.current[index] = element }}
@@ -157,13 +153,20 @@ export default function MobileDiscoveryHome({
             aria-controls={`mobile-panel-${destination.id}`}
             tabIndex={activeTab === destination.id ? 0 : -1}
             className="mobile-discovery__tab"
+            aria-label={destination.label}
             data-active={activeTab === destination.id || undefined}
             onClick={() => selectDestination(destination.id)}
             onKeyDown={event => handleTabKeyDown(event, index)}
           >
-            {destination.label}
+            <DestinationIcon className="mobile-discovery__tab-icon" size={21} strokeWidth={1.8} aria-hidden="true" />
+            <span className="mobile-discovery__tab-copy">
+              <span className="mobile-discovery__tab-label mobile-discovery__tab-label--mobile">{destination.label}</span>
+              <span className="mobile-discovery__tab-label mobile-discovery__tab-label--desktop">{destination.desktopLabel}</span>
+              <span className="mobile-discovery__tab-summary">{destination.summary}</span>
+            </span>
           </button>
-        ))}
+          )
+        })}
       </nav>
 
       <div className="mobile-discovery__highlights" key={activeTab} data-focus={activeTab === 'mt' ? 'mt' : activeTab === 'coaching' ? 'coaches' : activeTab === 'education' ? 'videos' : 'roles'}>
@@ -179,7 +182,7 @@ export default function MobileDiscoveryHome({
         )}
       </div>
 
-      <section id={`mobile-panel-${activeTab}`} className="mobile-discovery__content" role="tabpanel" aria-label={`${activeDestination.label} content`}>
+      <section id={`mobile-panel-${activeTab}`} className="mobile-discovery__content" data-destination={activeTab} role="tabpanel" aria-label={`${activeDestination.label} content`}>
         {loading && <p className="mobile-discovery__status" role="status">Loading the latest {activeDestination.label.toLowerCase()}…</p>}
         {error && <p className="mobile-discovery__status mobile-discovery__status--error">{error}</p>}
 
@@ -193,6 +196,7 @@ export default function MobileDiscoveryHome({
             <div className="mobile-discovery__job-list">
               {jobs.map(job => <JobCard key={`${job.source}-${job.source_id}`} job={job} compact saved={saved(job)} onToggleSave={onToggleSave} onClick={onSelect} />)}
             </div>
+            {jobs.length === 0 && <p className="mobile-discovery__status">No high-paying roles are listed right now. Explore the full Careers board for current openings.</p>}
             <Link className="mobile-discovery__more" to="/jobs" onClick={scrollToTop} aria-label="View more hot jobs on the careers board">More hot jobs <ArrowRight size={16} aria-hidden="true" /></Link>
           </>
         )}

@@ -27,6 +27,54 @@ export function nextMarqueeTime({
 
 const DRAG_THRESHOLD_PX = 12
 const CLICK_SUPPRESSION_MS = 500
+const CONTROL_HOLD_MS = 1_400
+
+export type MarqueeDirection = 'previous' | 'next'
+
+/** Move a marquee by one readable card step from a visible button or arrow key. */
+export function nudgeMarquee(
+  viewport: HTMLElement | null,
+  track: HTMLElement | null,
+  direction: MarqueeDirection,
+  distance = 280,
+) {
+  if (!viewport || !track) return
+
+  const left = direction === 'next' ? distance : -distance
+  const overflowX = getComputedStyle(viewport).overflowX
+  const usesNativeScroll = overflowX === 'auto' || overflowX === 'scroll'
+  const animation = track.getAnimations?.()[0] ?? null
+
+  if (usesNativeScroll || !animation) {
+    viewport.scrollBy({ left, behavior: 'smooth' })
+    return
+  }
+
+  const timing = animation.effect?.getTiming()
+  const duration = typeof timing?.duration === 'number' ? timing.duration : 0
+  if (duration <= 0) return
+
+  animation.pause()
+  const reversed = getComputedStyle(track).animationDirection.split(',')[0]?.trim() === 'reverse'
+  animation.currentTime = nextMarqueeTime({
+    currentTime: typeof animation.currentTime === 'number' ? animation.currentTime : 0,
+    deltaX: direction === 'next' ? -distance : distance,
+    duration,
+    trackDistance: track.scrollWidth / 2,
+    reversed,
+  })
+  window.setTimeout(() => animation.play(), CONTROL_HOLD_MS)
+}
+
+export function handleMarqueeArrowKey(
+  event: React.KeyboardEvent<HTMLElement>,
+  viewport: HTMLElement | null,
+  track: HTMLElement | null,
+) {
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+  event.preventDefault()
+  nudgeMarquee(viewport, track, event.key === 'ArrowRight' ? 'next' : 'previous')
+}
 
 /**
  * Lets a reader take over any highlights conveyor with the same pointer-event
@@ -61,6 +109,12 @@ export function useSwipeableMarquee(
     if (usesNativeScroll) {
       let trackDistance = 0
       let heldAnimation: Animation | null = null
+      let mousePointer: number | null = null
+      let mouseStartX = 0
+      let mouseStartScrollLeft = 0
+      let mouseDragged = false
+      let suppressClick = false
+      let clickResetTimer: number | undefined
 
       const measure = () => {
         const nextDistance = track.scrollWidth / 2
@@ -92,12 +146,50 @@ export function useSwipeableMarquee(
         if (!event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return
         heldAnimation = marqueeAnimation()
         heldAnimation?.pause()
+        if (event.pointerType === 'mouse') {
+          mousePointer = event.pointerId
+          mouseStartX = event.clientX
+          mouseStartScrollLeft = viewport.scrollLeft
+          mouseDragged = false
+        }
       }
 
-      const release = () => {
+      const moveMouse = (event: PointerEvent) => {
+        if (mousePointer !== event.pointerId) return
+        const deltaX = event.clientX - mouseStartX
+        if (!mouseDragged) {
+          if (Math.abs(deltaX) < DRAG_THRESHOLD_PX) return
+          mouseDragged = true
+          viewport.setPointerCapture(event.pointerId)
+          viewport.classList.add('is-dragging')
+        }
+        event.preventDefault()
+        viewport.scrollLeft = mouseStartScrollLeft - deltaX
+      }
+
+      const release = (event: PointerEvent) => {
+        if (mousePointer === event.pointerId) {
+          if (viewport.hasPointerCapture?.(event.pointerId)) viewport.releasePointerCapture(event.pointerId)
+          viewport.classList.remove('is-dragging')
+          mousePointer = null
+          if (mouseDragged) {
+            suppressClick = true
+            window.clearTimeout(clickResetTimer)
+            clickResetTimer = window.setTimeout(() => { suppressClick = false }, CLICK_SUPPRESSION_MS)
+          }
+        }
         heldAnimation?.play()
         heldAnimation = null
       }
+
+      const onClick = (event: MouseEvent) => {
+        if (!suppressClick) return
+        event.preventDefault()
+        event.stopPropagation()
+        suppressClick = false
+      }
+
+      const onDragStart = (event: DragEvent) => event.preventDefault()
 
       measure()
       const resizeObserver = typeof ResizeObserver === 'undefined'
@@ -106,16 +198,23 @@ export function useSwipeableMarquee(
       resizeObserver?.observe(track)
       viewport.addEventListener('scroll', wrap, { passive: true })
       viewport.addEventListener('pointerdown', hold)
+      viewport.addEventListener('pointermove', moveMouse)
       window.addEventListener('pointerup', release)
       window.addEventListener('pointercancel', release)
+      viewport.addEventListener('click', onClick, true)
+      viewport.addEventListener('dragstart', onDragStart)
 
       return () => {
         visibilityObserver?.disconnect()
         resizeObserver?.disconnect()
+        window.clearTimeout(clickResetTimer)
         viewport.removeEventListener('scroll', wrap)
         viewport.removeEventListener('pointerdown', hold)
+        viewport.removeEventListener('pointermove', moveMouse)
         window.removeEventListener('pointerup', release)
         window.removeEventListener('pointercancel', release)
+        viewport.removeEventListener('click', onClick, true)
+        viewport.removeEventListener('dragstart', onDragStart)
       }
     }
 

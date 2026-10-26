@@ -22,7 +22,8 @@ import {
   type RoleHighlight,
   type VideoHighlight,
 } from './weeklyHighlights.data'
-import { useSwipeableMarquee } from './useSwipeableMarquee'
+import MarqueeControls from '../MarqueeControls'
+import { handleMarqueeArrowKey, nudgeMarquee, useSwipeableMarquee } from './useSwipeableMarquee'
 
 /**
  * "This week at FinEx" — the rotating highlights band.
@@ -459,10 +460,24 @@ export default function WeeklyHighlights({
               <span className="hl__edition">Just landed · {items.length} picks</span>
             </div>
             <h2 id="hl-heading" className="hl__title">This week at FinEx.</h2>
+            {showRoles && (
+              <MarqueeControls
+                label="roles"
+                onPrevious={() => nudgeMarquee(viewportRef.current, trackRef.current, 'previous')}
+                onNext={() => nudgeMarquee(viewportRef.current, trackRef.current, 'next')}
+              />
+            )}
           </header>
 
           {/* Hover holds the rail; browser Back never leaves it frozen. */}
-          {showRoles && <div ref={viewportRef} className="hl__viewport" role="region" aria-label="Validated roles. Swipe left or right to browse.">
+          {showRoles && <div
+            ref={viewportRef}
+            className="hl__viewport"
+            role="region"
+            tabIndex={0}
+            aria-label="Validated roles. Drag, use the controls, or press the left and right arrow keys to browse."
+            onKeyDown={event => handleMarqueeArrowKey(event, viewportRef.current, trackRef.current)}
+          >
             <div ref={trackRef} className="hl__track" style={{ animationDuration: `${duration}s` }}>
               {/* Two IDENTICAL groups, and the spacing lives on the cards rather
                   than as flex `gap` on the track. That is what makes -50% land
@@ -494,17 +509,32 @@ export default function WeeklyHighlights({
                 </span>
                 <p>Conversations, market insight and career perspective.</p>
               </div>
-              <div className="hl__video-actions" aria-label="More FinEx Club videos">
-                <a href={YOUTUBE_CHANNEL_URL} target="_blank" rel="noopener noreferrer">
-                  <TvMinimalPlay size={15} strokeWidth={2.2} aria-hidden="true" /> YouTube channel
-                </a>
-                <a href={COMMITTEE_PLAYLIST_URL} target="_blank" rel="noopener noreferrer">
-                  <ListVideo size={15} strokeWidth={2.2} aria-hidden="true" /> Professional committees
-                </a>
+              <div className="hl__band-actions">
+                <div className="hl__video-actions" aria-label="More FinEx Club videos">
+                  <a href={YOUTUBE_CHANNEL_URL} target="_blank" rel="noopener noreferrer">
+                    <TvMinimalPlay size={15} strokeWidth={2.2} aria-hidden="true" /> YouTube channel
+                  </a>
+                  <a href={COMMITTEE_PLAYLIST_URL} target="_blank" rel="noopener noreferrer">
+                    <ListVideo size={15} strokeWidth={2.2} aria-hidden="true" /> Professional committees
+                  </a>
+                </div>
+                <MarqueeControls
+                  label="videos"
+                  compact
+                  onPrevious={() => nudgeMarquee(videoViewportRef.current, videoTrackRef.current, 'previous')}
+                  onNext={() => nudgeMarquee(videoViewportRef.current, videoTrackRef.current, 'next')}
+                />
               </div>
             </div>
 
-            <div ref={videoViewportRef} className="hl__video-viewport">
+            <div
+              ref={videoViewportRef}
+              className="hl__video-viewport"
+              role="region"
+              tabIndex={0}
+              aria-label="FinEx videos. Drag, use the controls, or press the left and right arrow keys to browse."
+              onKeyDown={event => handleMarqueeArrowKey(event, videoViewportRef.current, videoTrackRef.current)}
+            >
               <div
                 ref={videoTrackRef}
                 className="hl__video-track"
@@ -526,14 +556,29 @@ export default function WeeklyHighlights({
                 <span className="hl__coach-kicker"><Sparkles size={13} strokeWidth={2.4} aria-hidden="true" /> Meet the coaches</span>
                 <p>Experienced finance leaders, ready to share what they know.</p>
               </div>
-              <Link to="/career-coaches">
-                Find the right career counsellor <ArrowRight size={14} aria-hidden="true" />
-              </Link>
+              <div className="hl__band-actions">
+                <Link to="/career-coaches">
+                  Find the right career counsellor <ArrowRight size={14} aria-hidden="true" />
+                </Link>
+                <MarqueeControls
+                  label="career coaches"
+                  compact
+                  onPrevious={() => nudgeMarquee(coachViewportRef.current, coachTrackRef.current, 'previous')}
+                  onNext={() => nudgeMarquee(coachViewportRef.current, coachTrackRef.current, 'next')}
+                />
+              </div>
             </div>
 
             {/* This rail moves independently from the Role and video rails. Hovering
                 it holds only the coaches, so each person remains easy to read. */}
-            <div ref={coachViewportRef} className="hl__coach-viewport" role="region" aria-label="Career coaches. Swipe left or right to browse.">
+            <div
+              ref={coachViewportRef}
+              className="hl__coach-viewport"
+              role="region"
+              tabIndex={0}
+              aria-label="Career coaches. Drag, use the controls, or press the left and right arrow keys to browse."
+              onKeyDown={event => handleMarqueeArrowKey(event, coachViewportRef.current, coachTrackRef.current)}
+            >
               <div ref={coachTrackRef} className="hl__coach-track" style={{ animationDuration: `${coachDuration}s` }}>
                 <div className="hl__coach-group">
                   {coaches.map(item => <CoachRailCard key={item.id} item={item} />)}

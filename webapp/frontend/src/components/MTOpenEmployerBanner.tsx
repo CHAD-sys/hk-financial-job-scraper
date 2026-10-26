@@ -3,7 +3,8 @@ import { ArrowDown } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { mtEmployerSlug } from '../content/mtWorkbookProgrammes'
 import { mtCompanyLogo } from '../content/mtCompanyLogos'
-import { nextMarqueeTime, useSwipeableMarquee } from './highlights/useSwipeableMarquee'
+import MarqueeControls from './MarqueeControls'
+import { handleMarqueeArrowKey, nudgeMarquee, useSwipeableMarquee } from './highlights/useSwipeableMarquee'
 
 export interface MTOpenEmployer {
   company: string
@@ -32,34 +33,24 @@ export function MTOpenEmployerLogoBand({ companies }: { companies: readonly stri
   const trackRef = useRef<HTMLDivElement>(null)
   useSwipeableMarquee(viewportRef, trackRef)
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
-    event.preventDefault()
-    const track = trackRef.current
-    const animation = track?.getAnimations?.()[0]
-    const duration = animation?.effect?.getTiming().duration
-    if (!track || !animation || typeof duration !== 'number') return
-
-    animation.pause()
-    animation.currentTime = nextMarqueeTime({
-      currentTime: typeof animation.currentTime === 'number' ? animation.currentTime : 0,
-      deltaX: event.key === 'ArrowRight' ? -220 : 220,
-      duration,
-      trackDistance: track.scrollWidth / 2,
-      reversed: false,
-    })
-    window.setTimeout(() => animation.play(), 1_800)
-  }
-
   return (
     <div className="mt-logo-band" aria-label="Management Trainee employers">
+      <div className="mt-logo-band__head">
+        <span>Featured employers</span>
+        <MarqueeControls
+          label="Management Trainee employers"
+          compact
+          onPrevious={() => nudgeMarquee(viewportRef.current, trackRef.current, 'previous', 220)}
+          onNext={() => nudgeMarquee(viewportRef.current, trackRef.current, 'next', 220)}
+        />
+      </div>
       <div
         ref={viewportRef}
         className="mt-logo-band__viewport"
         role="group"
         tabIndex={0}
-        aria-label="Swipe through Management Trainee employer logos"
-        onKeyDown={handleKeyDown}
+        aria-label="Management Trainee employer logos. Drag, use the controls, or press the left and right arrow keys to browse."
+        onKeyDown={event => handleMarqueeArrowKey(event, viewportRef.current, trackRef.current)}
       >
         <div ref={trackRef} className="mt-logo-band__track">
           {[...companies, ...companies].map((company, index) => {

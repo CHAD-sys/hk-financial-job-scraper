@@ -10,7 +10,11 @@ vi.mock('../../api/client', async importOriginal => ({
   fetchWeeklyHighlights: () => fetchWeeklyHighlights(),
 }))
 
-vi.mock('./useSwipeableMarquee', () => ({ useSwipeableMarquee: vi.fn() }))
+vi.mock('./useSwipeableMarquee', () => ({
+  useSwipeableMarquee: vi.fn(),
+  nudgeMarquee: vi.fn(),
+  handleMarqueeArrowKey: vi.fn(),
+}))
 
 const featuredRole: Job = {
   source: 'workday',
@@ -121,5 +125,7 @@ describe('weekly Role navigation', () => {
     expect(container.querySelector('.hl__viewport')).not.toBeInTheDocument()
     expect(container.querySelector('.hl__video-band')).not.toBeInTheDocument()
     expect(container.querySelector('.hl__coach-band')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show previous career coaches' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Show next career coaches' })).toBeVisible()
   })
 })

@@ -1,7 +1,8 @@
 import { useRef } from 'react'
 import { ArrowRight, BriefcaseBusiness } from 'lucide-react'
 import { MT_INDUSTRIES, MT_PROGRAMMES } from '../content/managementTraineePrograms'
-import { useSwipeableMarquee } from './highlights/useSwipeableMarquee'
+import MarqueeControls from './MarqueeControls'
+import { handleMarqueeArrowKey, nudgeMarquee, useSwipeableMarquee } from './highlights/useSwipeableMarquee'
 
 function TapeMessage() {
   return (
@@ -35,18 +36,27 @@ export default function MTAnnouncementBand() {
 
   return (
     <div className="mt-announcement-row">
-      <a
-        ref={viewportRef}
-        className="mt-announcement"
-        href="#mt-programmes"
-        aria-label="Explore Management Trainee programmes. Swipe left or right to browse."
-      >
-        <span className="sr-only">Management Trainee programmes are here. Jump to the featured programmes.</span>
-        <span ref={trackRef} className="mt-announcement__track" aria-hidden="true">
-          <span className="mt-announcement__group"><TapeMessage /><TapeMessage /></span>
-          <span className="mt-announcement__group"><TapeMessage /><TapeMessage /></span>
-        </span>
-      </a>
+      <div className="mt-announcement-shell">
+        <a
+          ref={viewportRef}
+          className="mt-announcement"
+          href="#mt-programmes"
+          aria-label="Explore Management Trainee programmes. Drag, use the controls, or press the left and right arrow keys to browse."
+          onKeyDown={event => handleMarqueeArrowKey(event, viewportRef.current, trackRef.current)}
+        >
+          <span className="sr-only">Management Trainee programmes are here. Jump to the featured programmes.</span>
+          <span ref={trackRef} className="mt-announcement__track" aria-hidden="true">
+            <span className="mt-announcement__group"><TapeMessage /><TapeMessage /></span>
+            <span className="mt-announcement__group"><TapeMessage /><TapeMessage /></span>
+          </span>
+        </a>
+        <MarqueeControls
+          label="Management Trainee announcements"
+          compact
+          onPrevious={() => nudgeMarquee(viewportRef.current, trackRef.current, 'previous', 240)}
+          onNext={() => nudgeMarquee(viewportRef.current, trackRef.current, 'next', 240)}
+        />
+      </div>
       <a className="mt-announcement-post" href="/post-a-role">
         <BriefcaseBusiness size={17} strokeWidth={2} aria-hidden="true" />
         Post a job for free
