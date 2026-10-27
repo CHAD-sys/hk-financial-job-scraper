@@ -447,9 +447,8 @@ def get_landing_high_paying_roles(request: Request):
     """Pick the salary desk from priced finance Roles that pass the promotion gate.
 
     Sorting by the upper estimate alone promoted broad HK$85k–200k ranges.
-    Read the eligible board catalogue, apply the same evidence and width rule
-    as weekly highlights, then rank by the monthly floor actually guaranteed
-    by each displayed range.
+    SQL removes clearly unsuitable estimates and sorts by monthly salary floor;
+    the exact provenance rule then picks twelve from that ordered stream.
     """
     seeker = _current_seeker(request)
     audience = CatalogueAudience.MEMBER if seeker is not None else CatalogueAudience.PUBLIC
@@ -462,12 +461,12 @@ def get_landing_high_paying_roles(request: Request):
         page = 1
         while True:
             result = job_read.list_jobs(
-                conn, filters, sort=Sort.SALARY_HIGH, page=page, page_size=100,
+                conn, filters, sort=Sort.SALARY_FLOOR_HIGH, page=page, page_size=48,
                 visibility=Visibility.BOARD, audience=audience,
                 is_admin=_is_admin_session(seeker),
             )
             selected.extend(role for role in result.jobs if _has_highlight_salary(role, conn))
-            if page >= result.total_pages:
+            if len(selected) >= 12 or page >= result.total_pages:
                 break
             page += 1
 

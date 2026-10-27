@@ -169,6 +169,10 @@ def test_landing_salary_desk_uses_the_same_quality_gate_as_highlights(tmp_path):
                 company="Low Bank"),
             job(source="workday", source_id="FOCUSED", title="Finance Risk VP",
                 company="Focused Bank"),
+            job(source="workday", source_id="FLOOR", title="Finance Markets Director",
+                company="Floor Bank"),
+            job(source="workday", source_id="CEILING", title="Finance Markets VP",
+                company="Ceiling Bank"),
         ],
         enrichments=[
             enrichment(source="workday", source_id="WIDE", salary_estimated_min=85_000,
@@ -180,6 +184,12 @@ def test_landing_salary_desk_uses_the_same_quality_gate_as_highlights(tmp_path):
             enrichment(source="workday", source_id="FOCUSED", salary_estimated_min=90_000,
                        salary_estimated_max=120_000, salary_estimated_confidence="high",
                        salary_tier="middle_office", salary_role="risk_credit", salary_grade="VP"),
+            enrichment(source="workday", source_id="FLOOR", salary_estimated_min=100_000,
+                       salary_estimated_max=120_000, salary_estimated_confidence="high",
+                       salary_tier="middle_office", salary_role="risk_credit", salary_grade="VP"),
+            enrichment(source="workday", source_id="CEILING", salary_estimated_min=90_000,
+                       salary_estimated_max=125_000, salary_estimated_confidence="high",
+                       salary_tier="middle_office", salary_role="risk_credit", salary_grade="VP"),
         ],
     )
     migrate_to_phase_42(str(db))
@@ -187,7 +197,9 @@ def test_landing_salary_desk_uses_the_same_quality_gate_as_highlights(tmp_path):
     response = TestClient(make_app(db, cookie_secure=False)).get("/api/landing/high-paying")
 
     assert response.status_code == 200, response.text
-    assert [role["source_id"] for role in response.json()] == ["FOCUSED"]
+    assert [role["source_id"] for role in response.json()] == [
+        "FLOOR", "CEILING", "FOCUSED",
+    ]
 
 
 def test_exact_highlight_resolver_grants_only_this_weeks_pinned_roles(tmp_path):

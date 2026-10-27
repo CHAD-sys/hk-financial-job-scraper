@@ -336,6 +336,7 @@ class Sort(str, Enum):
     #: when this is requested without one, same as an unknown value would.
     RELEVANCE = "relevance"
     SALARY_HIGH = "salary_high"
+    SALARY_FLOOR_HIGH = "salary_floor_high"
     SALARY_LOW = "salary_low"
     COMPANY = "company"
 
@@ -1016,6 +1017,9 @@ _VALID_POSTED = "CASE WHEN date(j.posted_at) <= date('now','+1 day') THEN j.post
 _SORT_SQL: dict[Sort, str] = {
     Sort.NEWEST: f"{_VALID_POSTED} DESC NULLS LAST",
     Sort.SALARY_HIGH: f"CASE WHEN {_SAL_HIGH} IS NULL THEN 1 ELSE 0 END, {_SAL_HIGH} DESC",
+    Sort.SALARY_FLOOR_HIGH: (
+        f"CASE WHEN {_SAL_LOW} IS NULL THEN 1 ELSE 0 END, {_SAL_LOW} DESC, {_SAL_HIGH} DESC"
+    ),
     Sort.SALARY_LOW: f"CASE WHEN {_SAL_LOW} IS NULL THEN 1 ELSE 0 END, {_SAL_LOW} ASC",
     Sort.COMPANY: "j.company ASC",
 }
