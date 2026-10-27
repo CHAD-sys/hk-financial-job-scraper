@@ -46,7 +46,11 @@ export function nudgeMarquee(
   const animation = track.getAnimations?.()[0] ?? null
 
   if (usesNativeScroll || !animation) {
-    viewport.scrollBy({ left, behavior: 'smooth' })
+    if (typeof viewport.scrollBy === 'function') {
+      viewport.scrollBy({ left, behavior: 'smooth' })
+    } else {
+      viewport.scrollLeft += left
+    }
     return
   }
 
@@ -108,6 +112,7 @@ export function useSwipeableMarquee(
      * reaching an end. Desktop rails retain the timeline-scrubbing path below. */
     if (usesNativeScroll) {
       let trackDistance = 0
+      let wasScrollable = false
       let heldAnimation: Animation | null = null
       let mousePointer: number | null = null
       let mouseStartX = 0
@@ -119,13 +124,15 @@ export function useSwipeableMarquee(
       const measure = () => {
         const nextDistance = track.scrollWidth / 2
         if (nextDistance <= 0) return
+        const scrollable = track.scrollWidth > viewport.clientWidth + 1
 
-        if (trackDistance <= 0) {
+        if (scrollable && !wasScrollable) {
           viewport.scrollLeft = nextDistance / 2
-        } else if (Math.abs(nextDistance - trackDistance) > 1) {
+        } else if (scrollable && trackDistance > 0 && Math.abs(nextDistance - trackDistance) > 1) {
           viewport.scrollLeft = (viewport.scrollLeft / trackDistance) * nextDistance
         }
         trackDistance = nextDistance
+        wasScrollable = scrollable
       }
 
       const wrap = () => {

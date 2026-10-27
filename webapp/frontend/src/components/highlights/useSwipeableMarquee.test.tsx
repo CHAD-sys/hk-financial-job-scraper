@@ -46,7 +46,7 @@ function arrangeGesture(native = false) {
     effect: { getTiming: () => ({ duration: 1_000 }) },
   }
   Object.defineProperty(track, 'getAnimations', { configurable: true, value: () => [animation] })
-  Object.defineProperty(track, 'scrollWidth', { value: 1_000 })
+  Object.defineProperty(track, 'scrollWidth', { configurable: true, value: 1_000 })
   viewport.setPointerCapture = vi.fn()
   viewport.releasePointerCapture = vi.fn()
   viewport.hasPointerCapture = vi.fn(() => true)
@@ -138,6 +138,38 @@ describe('marquee swipe scrubbing', () => {
     expect(animation.pause).toHaveBeenCalledOnce()
     expect(viewport.scrollLeft).toBe(505)
     expect(animation.play).toHaveBeenCalledOnce()
+  })
+
+  it('centres a rail after a short loading track grows wider than the laptop viewport', () => {
+    let notifyResize = () => {}
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: ResizeObserverCallback) {
+        notifyResize = () => callback([], this as unknown as ResizeObserver)
+      }
+      observe() {}
+      disconnect() {}
+    })
+    try {
+      const { viewport } = arrangeGesture(true)
+      const track = viewport.firstElementChild as HTMLElement
+      let width = 1_000
+      let left = 0
+      Object.defineProperty(viewport, 'clientWidth', { configurable: true, value: 1_440 })
+      Object.defineProperty(viewport, 'scrollLeft', {
+        configurable: true,
+        get: () => left,
+        set: (value: number) => { left = Math.max(0, Math.min(value, width - 1_440)) },
+      })
+      Object.defineProperty(track, 'scrollWidth', { configurable: true, get: () => width })
+
+      notifyResize()
+      width = 4_032
+      notifyResize()
+
+      expect(viewport.scrollLeft).toBe(1_008)
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('lets a mouse drag move a native rail without opening a card', () => {

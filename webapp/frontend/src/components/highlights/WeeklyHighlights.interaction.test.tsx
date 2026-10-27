@@ -118,6 +118,41 @@ describe('weekly Role navigation', () => {
     expect(await screen.findByRole('link', { name: /Featured Risk Director/i })).toBeVisible()
   })
 
+  it('fills a laptop rail when salary screening leaves only two Roles', async () => {
+    const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth')
+    const originalScrollWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth')
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+      configurable: true,
+      get() { return this.classList.contains('hl__viewport') ? 1440 : 0 },
+    })
+    Object.defineProperty(HTMLElement.prototype, 'scrollWidth', {
+      configurable: true,
+      get() { return this.classList.contains('hl__group') ? this.querySelectorAll('.hl-card').length * 252 : 0 },
+    })
+    fetchWeeklyHighlights.mockResolvedValueOnce({
+      ...weeklyResponse,
+      roles: [
+        weeklyResponse.roles[0],
+        { ...weeklyResponse.roles[0], position: 1, role: { ...featuredRole, source_id: 'SECOND', title: 'Second Validated Role' } },
+      ],
+    })
+
+    try {
+      render(<MemoryRouter><WeeklyHighlights /></MemoryRouter>)
+      await screen.findByRole('link', { name: /Second Validated Role/i })
+      await waitFor(() => {
+        const firstGroup = document.querySelector('.hl__group') as HTMLElement
+        expect(firstGroup.scrollWidth).toBeGreaterThan(1440)
+        expect(firstGroup.querySelectorAll('.hl-card').length).toBeGreaterThan(2)
+      })
+    } finally {
+      if (originalClientWidth) Object.defineProperty(HTMLElement.prototype, 'clientWidth', originalClientWidth)
+      else delete (HTMLElement.prototype as unknown as { clientWidth?: number }).clientWidth
+      if (originalScrollWidth) Object.defineProperty(HTMLElement.prototype, 'scrollWidth', originalScrollWidth)
+      else delete (HTMLElement.prototype as unknown as { scrollWidth?: number }).scrollWidth
+    }
+  })
+
   it('does not fetch or render the Role rail for a coach-only mobile surface', () => {
     const { container } = render(<MemoryRouter><WeeklyHighlights surface="coaches" /></MemoryRouter>)
 

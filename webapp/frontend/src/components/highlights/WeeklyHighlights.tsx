@@ -76,7 +76,8 @@ import { handleMarqueeArrowKey, nudgeMarquee, useSwipeableMarquee } from './useS
  * animation with a user-driven horizontal rail.
  */
 
-const SPEED_PX_PER_SECOND = 40
+const ROLE_SPEED_PX_PER_SECOND = 90
+const OTHER_SPEED_PX_PER_SECOND = 40
 
 function formatMonth(iso: string) {
   return new Date(iso).toLocaleDateString('en-HK', {
@@ -213,6 +214,7 @@ function HighlightCard({ item, duplicate = false }: { item: Highlight; duplicate
         className="hl-card hl-card--role"
         to={item.href}
         state={{ featuredRole: item.job }}
+        aria-hidden={duplicate || undefined}
         tabIndex={duplicate ? -1 : undefined}
       >
         {contents}
@@ -223,6 +225,7 @@ function HighlightCard({ item, duplicate = false }: { item: Highlight; duplicate
     <a
       className={`hl-card hl-card--${item.kind}`}
       href={item.href}
+      aria-hidden={duplicate || undefined}
       tabIndex={duplicate ? -1 : undefined}
       {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
     >
@@ -336,6 +339,7 @@ export default function WeeklyHighlights({
   const coachTrackRef = useRef<HTMLDivElement>(null)
   const sectionRef = useRef<HTMLElement>(null)
   const [duration, setDuration] = useState(60)
+  const [roleCopies, setRoleCopies] = useState(1)
   const [videoDuration, setVideoDuration] = useState(130)
   const [coachDuration, setCoachDuration] = useState(160)
   const [shown, setShown] = useState(false)
@@ -381,20 +385,22 @@ export default function WeeklyHighlights({
     if (!track) return
     const measure = () => {
       const half = track.scrollWidth / 2
-      if (half > 0) setDuration(half / SPEED_PX_PER_SECOND)
+      const speed = window.innerWidth <= 807
+        ? 54 : ROLE_SPEED_PX_PER_SECOND
+      if (half > 0) setDuration(half / speed)
     }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(track)
     return () => observer.disconnect()
-  }, [])
+  }, [roleCopies, weeklyRoles.length, demoRoles.length])
 
   useEffect(() => {
     const track = videoTrackRef.current
     if (!track) return
     const measure = () => {
       const half = track.scrollWidth / 2
-      if (half > 0) setVideoDuration(half / (SPEED_PX_PER_SECOND * 0.82))
+      if (half > 0) setVideoDuration(half / (OTHER_SPEED_PX_PER_SECOND * 0.82))
     }
     measure()
     const observer = new ResizeObserver(measure)
@@ -407,7 +413,7 @@ export default function WeeklyHighlights({
     if (!track) return
     const measure = () => {
       const half = track.scrollWidth / 2
-      if (half > 0) setCoachDuration(half / (SPEED_PX_PER_SECOND * 0.7))
+      if (half > 0) setCoachDuration(half / (OTHER_SPEED_PX_PER_SECOND * 0.7))
     }
     measure()
     const observer = new ResizeObserver(measure)
@@ -437,6 +443,28 @@ export default function WeeklyHighlights({
   const items = mergeWeeklyHighlights(sourceRoles)
   const videos = VIDEO_HIGHLIGHTS
   const coaches = COACH_HIGHLIGHTS
+
+  // Salary screening can leave only one or two Roles. Repeat the same set
+  // until one seamless group is wider than the viewport, with drag room.
+  useEffect(() => {
+    if (!showRoles || items.length === 0) return
+    const viewport = viewportRef.current
+    const group = trackRef.current?.firstElementChild as HTMLElement | null
+    if (!viewport || !group) return
+    const measure = () => {
+      const oneSetWidth = group.scrollWidth / roleCopies
+      if (!oneSetWidth || !viewport.clientWidth) return
+      const cardWidth = oneSetWidth / items.length
+      const needed = Math.max(1, Math.ceil((viewport.clientWidth + cardWidth * 2) / oneSetWidth))
+      setRoleCopies(current => current === needed ? current : needed)
+    }
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
+    observer.observe(viewport)
+    observer.observe(group)
+    return () => observer.disconnect()
+  }, [items.length, roleCopies, showRoles])
 
   // Do not leave an empty coloured shell in the page while the weekly editor
   // has no approved Roles. The banner is a Role conveyor, not a decorative
@@ -486,7 +514,9 @@ export default function WeeklyHighlights({
                   cycle — the classic marquee stutter. No gap, no jump. */}
               <div className="hl__group">
                 {roleState !== 'ready' && <RailStatusCard state={roleState} retry={loadWeeklyRoles} />}
-                {items.map(item => <HighlightCard key={item.id} item={item} />)}
+                {Array.from({ length: roleCopies }, (_, copy) => items.map(item => (
+                  <HighlightCard key={`${item.id}-${copy}`} item={item} duplicate={copy > 0} />
+                )))}
               </div>
               {/* The copy becomes visible for half of every seamless loop, so it
                   must remain pointer-clickable. aria-hidden keeps it out of the
@@ -496,7 +526,9 @@ export default function WeeklyHighlights({
                 {roleState !== 'ready' && (
                   <RailStatusCard state={roleState} retry={loadWeeklyRoles} duplicate />
                 )}
-                {items.map(item => <HighlightCard key={`${item.id}-copy`} item={item} duplicate />)}
+                {Array.from({ length: roleCopies }, (_, copy) => items.map(item => (
+                  <HighlightCard key={`${item.id}-copy-${copy}`} item={item} duplicate />
+                )))}
               </div>
             </div>
           </div>}

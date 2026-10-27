@@ -287,7 +287,6 @@ button, a, input, select, [role="button"], [role="tab"] {
 .mobile-discovery__highlights[data-focus='roles'] .hl-card__foot { gap: 0.2rem; padding-top: 0.25rem; }
 .mobile-discovery__highlights[data-focus='roles'] .hl-card__meta,
 .mobile-discovery__highlights[data-focus='roles'] .hl-card__cta { font-size: 0.52rem; }
-.mobile-discovery__highlights[data-focus='roles'] .hl__track { animation-duration: 30s !important; }
 .mobile-discovery__highlights[data-focus='roles'] .hl__viewport { cursor: grab; }
 .mobile-discovery__highlights[data-focus='roles'] .hl__viewport.is-dragging { cursor: grabbing; }
 .mobile-discovery__highlights[data-focus='mt'] { margin-bottom: 1.25rem; border-top: 2px solid var(--color-gold); }
@@ -3583,12 +3582,16 @@ select.finex-input {
 .hl__viewport {
   position: relative;
   z-index: 2;
-  overflow: hidden;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  touch-action: pan-x pan-y;
+  scrollbar-width: none;
   margin-right: calc((100vw - min(100vw, 80rem)) / -2 - 2rem);
   padding-block: 0.45rem;
   -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 91%, transparent 100%);
           mask-image: linear-gradient(90deg, #000 0%, #000 91%, transparent 100%);
 }
+.hl__viewport::-webkit-scrollbar { display: none; }
 .hl__track {
   display: flex;
   width: max-content;
@@ -4426,6 +4429,7 @@ select.finex-input {
   .hl__coach-viewport { overflow-x: auto; scroll-snap-type: x mandatory; padding-inline: 1.5rem; }
   .hl__coach-track { animation: none; will-change: auto; }
   .hl__group[aria-hidden='true'] { display: none; }
+  .hl__group .hl-card[aria-hidden='true'] { display: none; }
   .hl__video-group[aria-hidden='true'] { display: none; }
   .hl__coach-group[aria-hidden='true'] { display: none; }
   .hl-card { scroll-snap-align: start; }

@@ -20,7 +20,7 @@ describe('MTOpenEmployerBanner', () => {
   it('keeps the animated employer band available to swipe and keyboard users', () => {
     renderBanner()
 
-    const band = screen.getByRole('group', { name: 'Swipe through Management Trainee employer logos' })
+    const band = screen.getByRole('group', { name: /Management Trainee employer logos.*Drag.*arrow keys/i })
     expect(band).toHaveAttribute('tabindex', '0')
     expect(band).toHaveClass('mt-logo-band__viewport')
     expect(() => fireEvent.keyDown(band, { key: 'ArrowRight' })).not.toThrow()
