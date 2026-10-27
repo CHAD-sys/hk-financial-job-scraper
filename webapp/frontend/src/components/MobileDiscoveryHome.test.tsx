@@ -1,10 +1,10 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
+import { fetchHighPayingRoles } from '../api/client'
 
 vi.mock('../api/client', () => ({
-  DEFAULT_FILTERS: {},
-  fetchJobs: vi.fn().mockResolvedValue({ jobs: [] }),
+  fetchHighPayingRoles: vi.fn().mockResolvedValue([]),
   fetchManagementTraineeRoles: vi.fn().mockResolvedValue({ jobs: [] }),
 }))
 vi.mock('./JobCard', () => ({ default: () => null }))
@@ -13,6 +13,21 @@ vi.mock('./highlights/WeeklyHighlights', () => ({ default: () => null }))
 const { default: MobileDiscoveryHome } = await import('./MobileDiscoveryHome')
 
 describe('MobileDiscoveryHome', () => {
+  it('loads the salary desk from its quality-checked feed', async () => {
+    render(
+      <MemoryRouter>
+        <MobileDiscoveryHome
+          onSearch={vi.fn()}
+          saved={() => false}
+          onToggleSave={vi.fn()}
+          onSelect={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(fetchHighPayingRoles).toHaveBeenCalled())
+  })
+
   it('starts directly with search and discovery controls, without the legacy hero or employer CTA', () => {
     render(
       <MemoryRouter>

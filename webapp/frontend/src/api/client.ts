@@ -601,6 +601,12 @@ export async function fetchJobs(
   return res.json()
 }
 
+export async function fetchHighPayingRoles(): Promise<Job[]> {
+  const res = await apiFetch('/api/landing/high-paying')
+  if (!res.ok) throw new Error(`High-paying roles fetch failed: ${res.status}`)
+  return res.json()
+}
+
 /** Active MT and graduate pathways from the same jobs database as the board. */
 export async function fetchManagementTraineeRoles(): Promise<JobListResponse> {
   const res = await apiFetch('/api/management-trainee/roles')

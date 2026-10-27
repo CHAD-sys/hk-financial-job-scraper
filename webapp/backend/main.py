@@ -75,7 +75,11 @@ import resume_intelligence  # noqa: E402
 import role_access  # noqa: E402
 import role_feed  # noqa: E402
 from hk_jobs import weekly_highlights  # noqa: E402
-from hk_jobs.highlight_salary import suitable_highlight_estimate, suitable_highlight_salary  # noqa: E402
+from hk_jobs.highlight_salary import (  # noqa: E402
+    MIN_MONTHLY_SALARY,
+    suitable_highlight_estimate,
+    suitable_highlight_salary,
+)
 from rate_limit import RateLimiter, RedisRateLimiter  # noqa: E402
 from sender import (  # noqa: E402
     Message,
@@ -437,6 +441,45 @@ def list_management_trainee_roles(request: Request):
 
 
 # ── /api/highlights ───────────────────────────────────────────────────────────
+
+@router.get("/api/landing/high-paying", response_model=list[JobSummary], tags=["jobs"])
+def get_landing_high_paying_roles(request: Request):
+    """Pick the salary desk from priced finance Roles that pass the promotion gate.
+
+    Sorting by the upper estimate alone promoted broad HK$85k–200k ranges.
+    Read the eligible board catalogue, apply the same evidence and width rule
+    as weekly highlights, then rank by the monthly floor actually guaranteed
+    by each displayed range.
+    """
+    seeker = _current_seeker(request)
+    audience = CatalogueAudience.MEMBER if seeker is not None else CatalogueAudience.PUBLIC
+    selected: list[JobSummary] = []
+    with get_db(request) as conn:
+        filters = JobFilters.of(search="finance", salary_min=MIN_MONTHLY_SALARY)
+        page = 1
+        while True:
+            result = job_read.list_jobs(
+                conn, filters, sort=Sort.SALARY_HIGH, page=page, page_size=100,
+                visibility=Visibility.BOARD, audience=audience,
+                is_admin=_is_admin_session(seeker),
+            )
+            selected.extend(role for role in result.jobs if _has_highlight_salary(role, conn))
+            if page >= result.total_pages:
+                break
+            page += 1
+
+    def monthly_bounds(role: JobSummary) -> tuple[int, int]:
+        disclosed = role.salary_hkd_min is not None and role.salary_hkd_max is not None
+        low = role.salary_hkd_min if disclosed else role.salary_estimated_min
+        high = role.salary_hkd_max if disclosed else role.salary_estimated_max
+        if disclosed and role.salary_period == "year":
+            return round(low / 12), round(high / 12)
+        return low, high
+
+    selected.sort(key=lambda role: monthly_bounds(role), reverse=True)
+    roles = selected[:12]
+    _grant_role_access(request, roles)
+    return roles
 
 def _hong_kong_today():
     return datetime.now(ZoneInfo("Asia/Hong_Kong")).date()

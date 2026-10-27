@@ -158,6 +158,38 @@ def test_highlight_feed_omits_old_editorial_picks_with_broad_salary_ranges(tmp_p
     assert [item["role"]["source_id"] for item in response.json()["roles"]] == ["FOCUSED"]
 
 
+def test_landing_salary_desk_uses_the_same_quality_gate_as_highlights(tmp_path):
+    db = tmp_path / "jobs.db"
+    make_jobs_db(
+        db,
+        jobs=[
+            job(source="workday", source_id="WIDE", title="Finance Risk Director",
+                company="Wide Bank"),
+            job(source="workday", source_id="LOW", title="Finance Credit Director",
+                company="Low Bank"),
+            job(source="workday", source_id="FOCUSED", title="Finance Risk VP",
+                company="Focused Bank"),
+        ],
+        enrichments=[
+            enrichment(source="workday", source_id="WIDE", salary_estimated_min=85_000,
+                       salary_estimated_max=200_000, salary_estimated_confidence="high",
+                       salary_tier="middle_office", salary_role="risk_credit", salary_grade="VP"),
+            enrichment(source="workday", source_id="LOW", salary_estimated_min=130_000,
+                       salary_estimated_max=150_000, salary_estimated_confidence="low",
+                       salary_tier="middle_office", salary_role="risk_credit", salary_grade="VP"),
+            enrichment(source="workday", source_id="FOCUSED", salary_estimated_min=90_000,
+                       salary_estimated_max=120_000, salary_estimated_confidence="high",
+                       salary_tier="middle_office", salary_role="risk_credit", salary_grade="VP"),
+        ],
+    )
+    migrate_to_phase_42(str(db))
+
+    response = TestClient(make_app(db, cookie_secure=False)).get("/api/landing/high-paying")
+
+    assert response.status_code == 200, response.text
+    assert [role["source_id"] for role in response.json()] == ["FOCUSED"]
+
+
 def test_exact_highlight_resolver_grants_only_this_weeks_pinned_roles(tmp_path):
     _, client = _make_highlight_client(tmp_path)
 

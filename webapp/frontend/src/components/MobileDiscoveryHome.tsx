@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, BookOpen, BriefcaseBusiness, GraduationCap, MessageCircleMore, Search, TrendingUp } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import type { Job, JobListResponse } from '../api/client'
-import { DEFAULT_FILTERS, fetchJobs } from '../api/client'
+import type { Job } from '../api/client'
+import { fetchHighPayingRoles } from '../api/client'
 import JobCard from './JobCard'
 import MTWorkbookProgrammeCard from './MTWorkbookProgrammeCard'
 import { MTOpenEmployerLogoBand } from './MTOpenEmployerBanner'
@@ -80,10 +80,10 @@ export default function MobileDiscoveryHome({
     let cancelled = false
     setLoading(true)
     setError(null)
-    const request = fetchJobs({ ...DEFAULT_FILTERS, search: 'finance' }, 'salary_high', 1, 12)
-    request.then((response: JobListResponse) => {
+    const request = fetchHighPayingRoles()
+    request.then((roles: Job[]) => {
       if (cancelled) return
-      setJobs(response.jobs)
+      setJobs(roles)
       hotJobsLoaded.current = true
     }).catch(() => {
       if (!cancelled) setError('This section is taking a moment to load.')
