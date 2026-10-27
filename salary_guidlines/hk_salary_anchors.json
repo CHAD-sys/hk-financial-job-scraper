@@ -1,7 +1,7 @@
 {
   "meta": {
-    "source": "Package-free merge 2026-08-25: PERSOLKELLY annual base / 12 and Adecco monthly salary with stated exclusions are used wherever either covers a guide coordinate. Hays annual total-package evidence is only a temporary fallback where neither package-free source covers that coordinate. Reviewed owner overlays apply afterward.",
-    "basis": "Mixed monthly calibration, not strict base salary: PERSOLKELLY is annual base / 12; Adecco is monthly salary excluding overtime, commissions, allowances and bonuses; 131 cells are currently attributed solely to Hays annual total-package evidence and remain explicitly non-base-compatible.",
+    "source": "Package-free merge 2026-08-25: PERSOLKELLY annual base / 12 and Adecco monthly salary with stated exclusions supply the existing coordinates; reviewed owner overlays apply afterward. Finite Randstad 2025 basic-monthly-salary bands for distinct finance functions were added 2026-10-27 with exact source rows. Hays annual total-package evidence remains a temporary fallback where no package-free source covers a legacy coordinate.",
+    "basis": "Mixed monthly calibration, not strict base salary: PERSOLKELLY is annual base / 12; Adecco is monthly salary excluding overtime, commissions, allowances and bonuses; Randstad 2025 is basic monthly salary excluding AWS and bonus. The provenance ledger currently attributes 99 cells solely to Hays annual total-package proxies and three further cells to interpolation from that proxy; they are not base-compatible.",
     "converted_from": "Mixed annual and monthly source tables, rounded to nearest HK$500; see docs/salary_anchor_compensation_semantics_2026-08-21.md.",
     "seniority_mapping": "Analyst/Officer->junior; Associate/AVP/Assistant Manager->mid; VP/SVP/Senior Manager->senior; Director/MD/Head/CxO->lead",
     "usage_note": "Default to the modest tier (commercial/retail/middle/back office) when the desk is unclear. Only use front_office bands when the title clearly names an IB/PE/HF/AM/trading/private-banking-RM desk. A salary disclosed in the description always overrides these anchors.",
@@ -572,6 +572,254 @@
             180000,
             200000
           ]
+        },
+        "asset_management_fixed_income_equities_analyst": {
+          "1–3 years": [
+            30000,
+            50000
+          ],
+          "3–6 years": [
+            50000,
+            70000
+          ],
+          "7–10 years": [
+            70000,
+            90000
+          ]
+        },
+        "asset_management_fixed_income_equities_trader": {
+          "1–3 years": [
+            30000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            60000
+          ],
+          "7–10 years": [
+            60000,
+            100000
+          ]
+        },
+        "global_market_treasury_bond_trader": {
+          "1–3 years": [
+            20000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            70000
+          ],
+          "7–10 years": [
+            70000,
+            110000
+          ]
+        },
+        "global_market_treasury_corporate_sales": {
+          "1–3 years": [
+            20000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            70000
+          ],
+          "7–10 years": [
+            70000,
+            120000
+          ]
+        },
+        "global_market_treasury_credit_sales": {
+          "1–3 years": [
+            40000,
+            60000
+          ],
+          "3–6 years": [
+            60000,
+            100000
+          ],
+          "7–10 years": [
+            100000,
+            120000
+          ]
+        },
+        "global_market_treasury_fx_trader": {
+          "1–3 years": [
+            20000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            70000
+          ],
+          "7–10 years": [
+            70000,
+            120000
+          ]
+        },
+        "global_market_treasury_money_market_trader": {
+          "1–3 years": [
+            20000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            70000
+          ],
+          "7–10 years": [
+            70000,
+            110000
+          ]
+        },
+        "global_market_treasury_product_development": {
+          "1–3 years": [
+            20000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            60000
+          ],
+          "7–10 years": [
+            60000,
+            80000
+          ]
+        },
+        "investment_banking_corporate_finance": {
+          "1–3 years": [
+            50000,
+            70000
+          ],
+          "3–6 years": [
+            80000,
+            120000
+          ],
+          "7–10 years": [
+            125000,
+            175000
+          ]
+        },
+        "investment_banking_dcm": {
+          "1–3 years": [
+            45000,
+            65000
+          ],
+          "3–6 years": [
+            70000,
+            110000
+          ],
+          "7–10 years": [
+            120000,
+            160000
+          ]
+        },
+        "investment_banking_ipo_execution": {
+          "1–3 years": [
+            40000,
+            60000
+          ],
+          "3–6 years": [
+            60000,
+            95000
+          ],
+          "7–10 years": [
+            100000,
+            150000
+          ]
+        },
+        "investment_banking_m_a": {
+          "1–3 years": [
+            50000,
+            70000
+          ],
+          "3–6 years": [
+            80000,
+            120000
+          ],
+          "7–10 years": [
+            125000,
+            175000
+          ]
+        },
+        "private_banking_wealth_management_investment_counselor": {
+          "1–3 years": [
+            65000,
+            75000
+          ],
+          "3–6 years": [
+            70000,
+            100000
+          ],
+          "7–10 years": [
+            100000,
+            140000
+          ]
+        },
+        "private_banking_wealth_management_investment_counselor_assistance": {
+          "1–3 years": [
+            35000,
+            50000
+          ],
+          "3–6 years": [
+            50000,
+            65000
+          ]
+        },
+        "private_banking_wealth_management_private_banking_client_services_officer": {
+          "1–3 years": [
+            35000,
+            45000
+          ],
+          "3–6 years": [
+            45000,
+            55000
+          ],
+          "7–10 years": [
+            55000,
+            65000
+          ]
+        },
+        "private_banking_wealth_management_private_banking_relationship_manager": {
+          "1–3 years": [
+            65000,
+            80000
+          ],
+          "3–6 years": [
+            80000,
+            110000
+          ],
+          "7–10 years": [
+            120000,
+            180000
+          ]
+        },
+        "private_banking_wealth_management_product_management": {
+          "1–3 years": [
+            50000,
+            60000
+          ],
+          "3–6 years": [
+            60000,
+            90000
+          ],
+          "7–10 years": [
+            90000,
+            120000
+          ]
+        },
+        "private_banking_wealth_management_wealth_planning_specialist": {
+          "1–3 years": [
+            40000,
+            50000
+          ],
+          "3–6 years": [
+            55000,
+            70000
+          ],
+          "7–10 years": [
+            80000,
+            100000
+          ]
         }
       }
     },
@@ -769,6 +1017,48 @@
             110000,
             180000
           ]
+        },
+        "corporate_banking_credit_analyst": {
+          "1–3 years": [
+            18000,
+            35000
+          ],
+          "3–6 years": [
+            30000,
+            60000
+          ],
+          "7–10 years": [
+            50000,
+            90000
+          ]
+        },
+        "transaction_banking_cash_sales": {
+          "1–3 years": [
+            40000,
+            60000
+          ],
+          "3–6 years": [
+            50000,
+            70000
+          ],
+          "7–10 years": [
+            70000,
+            90000
+          ]
+        },
+        "transaction_banking_trade_finance_sales": {
+          "1–3 years": [
+            20000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            60000
+          ],
+          "7–10 years": [
+            60000,
+            100000
+          ]
         }
       }
     },
@@ -895,6 +1185,86 @@
           "Region Head": [
             47000,
             77000
+          ]
+        },
+        "retail_banking_insurance_specialist": {
+          "1–3 years": [
+            25000,
+            35000
+          ],
+          "3–6 years": [
+            30000,
+            55000
+          ],
+          "7–10 years": [
+            45000,
+            65000
+          ]
+        },
+        "retail_banking_investment_consultant": {
+          "1–3 years": [
+            38000,
+            65000
+          ],
+          "3–6 years": [
+            50000,
+            65000
+          ],
+          "7–10 years": [
+            65000,
+            85500
+          ]
+        },
+        "retail_banking_mortgage_specialist": {
+          "1–3 years": [
+            15000,
+            21000
+          ],
+          "3–6 years": [
+            21000,
+            25000
+          ],
+          "7–10 years": [
+            25000,
+            30000
+          ]
+        },
+        "retail_banking_personal_banker": {
+          "1–3 years": [
+            16000,
+            27000
+          ],
+          "3–6 years": [
+            27000,
+            29000
+          ]
+        },
+        "retail_banking_premier_banking_relationship_manager": {
+          "1–3 years": [
+            30000,
+            44000
+          ],
+          "3–6 years": [
+            35000,
+            65000
+          ],
+          "7–10 years": [
+            45000,
+            70000
+          ]
+        },
+        "retail_banking_treasury_specialist": {
+          "1–3 years": [
+            33000,
+            35000
+          ],
+          "3–6 years": [
+            38000,
+            48000
+          ],
+          "7–10 years": [
+            48000,
+            55000
           ]
         }
       }
@@ -1633,6 +2003,370 @@
             141500,
             166500
           ]
+        },
+        "compliance_anti_bribery_compliance": {
+          "1–3 years": [
+            30000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            65000
+          ],
+          "7–10 years": [
+            65000,
+            100000
+          ]
+        },
+        "compliance_anti_money_laundering_aml_financial_crime_compliance_fcc": {
+          "1–3 years": [
+            20000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            80000
+          ],
+          "7–10 years": [
+            80000,
+            150000
+          ]
+        },
+        "compliance_asset_management_compliance_business_compliance": {
+          "1–3 years": [
+            30000,
+            45000
+          ],
+          "3–6 years": [
+            45000,
+            75000
+          ],
+          "7–10 years": [
+            75000,
+            120000
+          ]
+        },
+        "compliance_asset_management_compliance_investment_compliance": {
+          "1–3 years": [
+            25000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            75000
+          ],
+          "7–10 years": [
+            75000,
+            120000
+          ]
+        },
+        "compliance_compliance_advisory_global_markets": {
+          "1–3 years": [
+            30000,
+            50000
+          ],
+          "3–6 years": [
+            50000,
+            70000
+          ],
+          "7–10 years": [
+            70000,
+            110000
+          ]
+        },
+        "compliance_compliance_advisory_ibd_research_compliance": {
+          "1–3 years": [
+            30000,
+            50000
+          ],
+          "3–6 years": [
+            50000,
+            70000
+          ],
+          "7–10 years": [
+            70000,
+            110000
+          ]
+        },
+        "compliance_compliance_policy_and_procedure": {
+          "1–3 years": [
+            25000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            60000
+          ],
+          "7–10 years": [
+            60000,
+            100000
+          ]
+        },
+        "compliance_compliance_testing_assurance": {
+          "1–3 years": [
+            25000,
+            45000
+          ],
+          "3–6 years": [
+            45000,
+            70000
+          ],
+          "7–10 years": [
+            70000,
+            100000
+          ]
+        },
+        "compliance_control_room": {
+          "1–3 years": [
+            25000,
+            35000
+          ],
+          "3–6 years": [
+            35000,
+            60000
+          ],
+          "7–10 years": [
+            60000,
+            100000
+          ]
+        },
+        "compliance_disclosure_of_interest_doi": {
+          "1–3 years": [
+            20000,
+            35000
+          ],
+          "3–6 years": [
+            35000,
+            50000
+          ],
+          "7–10 years": [
+            50000,
+            90000
+          ]
+        },
+        "compliance_fraud_investigation_advisory": {
+          "1–3 years": [
+            20000,
+            45000
+          ],
+          "3–6 years": [
+            45000,
+            65000
+          ],
+          "7–10 years": [
+            65000,
+            100000
+          ]
+        },
+        "compliance_insurance_compliance": {
+          "1–3 years": [
+            25000,
+            35000
+          ],
+          "3–6 years": [
+            35000,
+            65000
+          ],
+          "7–10 years": [
+            65000,
+            110000
+          ]
+        },
+        "compliance_licensing": {
+          "1–3 years": [
+            25000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            60000
+          ],
+          "7–10 years": [
+            60000,
+            80000
+          ]
+        },
+        "compliance_regulatory_compliance": {
+          "1–3 years": [
+            30000,
+            45000
+          ],
+          "3–6 years": [
+            45000,
+            65000
+          ],
+          "7–10 years": [
+            65000,
+            100000
+          ]
+        },
+        "compliance_sanction_investigation_advisory": {
+          "1–3 years": [
+            20000,
+            45000
+          ],
+          "3–6 years": [
+            45000,
+            65000
+          ],
+          "7–10 years": [
+            65000,
+            100000
+          ]
+        },
+        "compliance_trade_surveillance": {
+          "1–3 years": [
+            25000,
+            35000
+          ],
+          "3–6 years": [
+            35000,
+            60000
+          ],
+          "7–10 years": [
+            60000,
+            100000
+          ]
+        },
+        "risk_management_business_risk": {
+          "1–3 years": [
+            30000,
+            45000
+          ],
+          "3–6 years": [
+            45000,
+            65000
+          ],
+          "7–10 years": [
+            65000,
+            80000
+          ]
+        },
+        "risk_management_credit_risk": {
+          "1–3 years": [
+            25000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            55000
+          ],
+          "7–10 years": [
+            55000,
+            70000
+          ]
+        },
+        "risk_management_enterprise_risk": {
+          "1–3 years": [
+            30000,
+            45000
+          ],
+          "3–6 years": [
+            45000,
+            60000
+          ],
+          "7–10 years": [
+            60000,
+            80000
+          ]
+        },
+        "risk_management_investment_risk_portfolio_risk": {
+          "1–3 years": [
+            25000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            65000
+          ],
+          "7–10 years": [
+            65000,
+            80000
+          ]
+        },
+        "risk_management_it_risk": {
+          "1–3 years": [
+            30000,
+            45000
+          ],
+          "3–6 years": [
+            45000,
+            65000
+          ],
+          "7–10 years": [
+            65000,
+            100000
+          ]
+        },
+        "risk_management_liquidity_risk": {
+          "1–3 years": [
+            25000,
+            35000
+          ],
+          "3–6 years": [
+            35000,
+            50000
+          ],
+          "7–10 years": [
+            50000,
+            70000
+          ]
+        },
+        "risk_management_market_risk": {
+          "1–3 years": [
+            30000,
+            45000
+          ],
+          "3–6 years": [
+            45000,
+            65000
+          ],
+          "7–10 years": [
+            65000,
+            100000
+          ]
+        },
+        "risk_management_model_risk_validation": {
+          "1–3 years": [
+            30000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            55000
+          ],
+          "7–10 years": [
+            55000,
+            80000
+          ]
+        },
+        "risk_management_operational_risk": {
+          "1–3 years": [
+            25000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            55000
+          ],
+          "7–10 years": [
+            55000,
+            70000
+          ]
+        },
+        "risk_management_risk_analytics_methodology": {
+          "1–3 years": [
+            25000,
+            35000
+          ],
+          "3–6 years": [
+            35000,
+            50000
+          ],
+          "7–10 years": [
+            50000,
+            70000
+          ]
         }
       }
     },
@@ -2328,6 +3062,174 @@
             65000,
             80000
           ]
+        },
+        "operations_asset_servicing_corporate_actions": {
+          "1–3 years": [
+            18000,
+            28000
+          ],
+          "3–6 years": [
+            28000,
+            40000
+          ],
+          "7–10 years": [
+            40000,
+            70000
+          ]
+        },
+        "operations_branch_operations": {
+          "1–3 years": [
+            14000,
+            18000
+          ],
+          "3–6 years": [
+            18000,
+            30000
+          ],
+          "7–10 years": [
+            30000,
+            50000
+          ]
+        },
+        "operations_cash_operations": {
+          "1–3 years": [
+            18000,
+            25000
+          ],
+          "3–6 years": [
+            25000,
+            38000
+          ],
+          "7–10 years": [
+            38000,
+            60000
+          ]
+        },
+        "operations_change_management_project_management": {
+          "1–3 years": [
+            20000,
+            35000
+          ],
+          "3–6 years": [
+            35000,
+            60000
+          ],
+          "7–10 years": [
+            60000,
+            90000
+          ]
+        },
+        "operations_credit_administration": {
+          "1–3 years": [
+            18000,
+            28000
+          ],
+          "3–6 years": [
+            28000,
+            38000
+          ],
+          "7–10 years": [
+            38000,
+            50000
+          ]
+        },
+        "operations_fund_administration_operations": {
+          "1–3 years": [
+            20000,
+            35000
+          ],
+          "3–6 years": [
+            35000,
+            50000
+          ],
+          "7–10 years": [
+            50000,
+            70000
+          ]
+        },
+        "operations_investment_operations": {
+          "1–3 years": [
+            25000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            60000
+          ],
+          "7–10 years": [
+            60000,
+            75000
+          ]
+        },
+        "operations_kyc_client_onboarding_cob": {
+          "1–3 years": [
+            20000,
+            30000
+          ],
+          "3–6 years": [
+            30000,
+            45000
+          ],
+          "7–10 years": [
+            45000,
+            65000
+          ]
+        },
+        "operations_loan_operations": {
+          "1–3 years": [
+            18000,
+            28000
+          ],
+          "3–6 years": [
+            28000,
+            45000
+          ],
+          "7–10 years": [
+            45000,
+            60000
+          ]
+        },
+        "operations_middle_office_client_servicing_sales_support": {
+          "1–3 years": [
+            30000,
+            45000
+          ],
+          "3–6 years": [
+            45000,
+            60000
+          ],
+          "7–10 years": [
+            60000,
+            85000
+          ]
+        },
+        "operations_middle_office_trade_support": {
+          "1–3 years": [
+            25000,
+            38000
+          ],
+          "3–6 years": [
+            38000,
+            55000
+          ],
+          "7–10 years": [
+            55000,
+            75000
+          ]
+        },
+        "operations_settlements": {
+          "1–3 years": [
+            18000,
+            28000
+          ],
+          "3–6 years": [
+            28000,
+            40000
+          ],
+          "7–10 years": [
+            40000,
+            60000
+          ]
         }
       }
     },
@@ -2716,6 +3618,146 @@
           "Head of Treasury": [
             83500,
             200000
+          ]
+        },
+        "finance_accounting_audit_accountant": {
+          "1–3 years": [
+            20000,
+            30000
+          ],
+          "3–6 years": [
+            30000,
+            50000
+          ],
+          "7–10 years": [
+            50000,
+            60000
+          ]
+        },
+        "finance_accounting_audit_asset_liability_manager_treasury": {
+          "1–3 years": [
+            25000,
+            40000
+          ],
+          "3–6 years": [
+            45000,
+            65000
+          ],
+          "7–10 years": [
+            65000,
+            90000
+          ]
+        },
+        "finance_accounting_audit_financial_reporting": {
+          "1–3 years": [
+            25000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            55000
+          ],
+          "7–10 years": [
+            55000,
+            75000
+          ]
+        },
+        "finance_accounting_audit_fund_accountant": {
+          "1–3 years": [
+            20000,
+            30000
+          ],
+          "3–6 years": [
+            30000,
+            50000
+          ],
+          "7–10 years": [
+            50000,
+            70000
+          ]
+        },
+        "finance_accounting_audit_internal_auditor": {
+          "1–3 years": [
+            25000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            60000
+          ],
+          "7–10 years": [
+            60000,
+            90000
+          ]
+        },
+        "finance_accounting_audit_it_audit": {
+          "1–3 years": [
+            25000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            65000
+          ],
+          "7–10 years": [
+            65000,
+            90000
+          ]
+        },
+        "finance_accounting_audit_product_control": {
+          "1–3 years": [
+            25000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            65000
+          ],
+          "7–10 years": [
+            65000,
+            90000
+          ]
+        },
+        "finance_accounting_audit_regulatory_reporting": {
+          "1–3 years": [
+            25000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            60000
+          ],
+          "7–10 years": [
+            60000,
+            85000
+          ]
+        },
+        "finance_accounting_audit_system_finance": {
+          "1–3 years": [
+            25000,
+            40000
+          ],
+          "3–6 years": [
+            40000,
+            60000
+          ],
+          "7–10 years": [
+            65000,
+            85000
+          ]
+        },
+        "finance_accounting_audit_tax": {
+          "1–3 years": [
+            25000,
+            45000
+          ],
+          "3–6 years": [
+            45000,
+            65000
+          ],
+          "7–10 years": [
+            65000,
+            90000
           ]
         }
       }
@@ -3267,6 +4309,30 @@
           "Head": [
             80000,
             100000
+          ],
+          "Director": [
+            80000,
+            100000
+          ],
+          "Senior Manager": [
+            60000,
+            80000
+          ],
+          "Manager": [
+            46000,
+            55000
+          ],
+          "Assistant Manager": [
+            35000,
+            45000
+          ],
+          "Senior Officer": [
+            26000,
+            35000
+          ],
+          "Officer": [
+            17000,
+            25000
           ]
         },
         "insurance_hr": {
@@ -3383,6 +4449,256 @@
           "Head": [
             83500,
             166500
+          ]
+        },
+        "insurance_accounting_finance": {
+          "Director": [
+            120000,
+            160000
+          ],
+          "Senior Finance Manager": [
+            70000,
+            90000
+          ],
+          "Finance Manager": [
+            50000,
+            65000
+          ],
+          "Assistant Finance Manager": [
+            35000,
+            49000
+          ],
+          "Senior Accountant": [
+            25000,
+            35000
+          ]
+        },
+        "insurance_actuarial": {
+          "Director": [
+            120000,
+            180000
+          ],
+          "Associate Director": [
+            80000,
+            120000
+          ],
+          "Senior Manager": [
+            68000,
+            85000
+          ],
+          "Manager": [
+            58000,
+            75000
+          ],
+          "Assistant Manager": [
+            50000,
+            70000
+          ],
+          "Senior Associate": [
+            40000,
+            50000
+          ],
+          "Associate": [
+            30000,
+            40000
+          ]
+        },
+        "insurance_alternative_distribution": {
+          "Head Of Alternative Distribution": [
+            100000,
+            150000
+          ],
+          "Channel Director": [
+            80000,
+            95000
+          ],
+          "Senior Manager": [
+            68000,
+            80000
+          ],
+          "Assistant Manager / Manager": [
+            40000,
+            65000
+          ]
+        },
+        "insurance_bancassurance": {
+          "Head Of Bancassurance": [
+            120000,
+            180000
+          ],
+          "Senior Manager": [
+            70000,
+            92000
+          ],
+          "Assistant Manager / Manager": [
+            40000,
+            68000
+          ],
+          "Bancassurance Officer": [
+            28000,
+            38000
+          ]
+        },
+        "insurance_claims": {
+          "Head Of Claims": [
+            90000,
+            140000
+          ],
+          "Senior Manager": [
+            60000,
+            80000
+          ],
+          "Manager": [
+            42000,
+            65000
+          ],
+          "Assistant Manager": [
+            38000,
+            42000
+          ],
+          "Senior Officer": [
+            25000,
+            38000
+          ],
+          "Officer": [
+            18000,
+            25000
+          ]
+        },
+        "insurance_financial_risk_management": {
+          "Senior Manager": [
+            70000,
+            90000
+          ],
+          "Manager": [
+            55000,
+            65000
+          ],
+          "Assistant Manager": [
+            35000,
+            50000
+          ],
+          "Officer": [
+            25000,
+            30000
+          ]
+        },
+        "insurance_internal_audit": {
+          "Head Of Internal Audit": [
+            160000,
+            200000
+          ],
+          "Senior Audit Manager": [
+            60000,
+            100000
+          ],
+          "Audit Manager": [
+            40000,
+            60000
+          ],
+          "Assistant Manager": [
+            35000,
+            45000
+          ]
+        },
+        "insurance_policy_admin": {
+          "Head Of Policy Admin": [
+            70000,
+            95000
+          ],
+          "Senior Manager": [
+            55000,
+            75000
+          ],
+          "Manager": [
+            40000,
+            55000
+          ],
+          "Assistant Manager": [
+            30000,
+            43000
+          ],
+          "Senior Officer": [
+            25000,
+            33000
+          ],
+          "Officer": [
+            18000,
+            25000
+          ]
+        },
+        "insurance_product": {
+          "Director": [
+            120000,
+            180000
+          ],
+          "Senior Manager": [
+            75000,
+            95000
+          ],
+          "Manager": [
+            50000,
+            68000
+          ],
+          "Assistant Manager": [
+            38000,
+            55000
+          ],
+          "Senior Officer": [
+            30000,
+            38000
+          ],
+          "Officer": [
+            25000,
+            30000
+          ]
+        },
+        "insurance_transformation": {
+          "Head Of Transformation": [
+            120000,
+            180000
+          ],
+          "Senior Manager": [
+            75000,
+            110000
+          ],
+          "Manager": [
+            55000,
+            70000
+          ],
+          "Senior Business Analyst": [
+            30000,
+            48000
+          ],
+          "Business Analyst": [
+            25000,
+            32000
+          ]
+        },
+        "insurance_underwriting": {
+          "Director": [
+            130000,
+            180000
+          ],
+          "Senior Manager": [
+            60000,
+            100000
+          ],
+          "Manager": [
+            50000,
+            65000
+          ],
+          "Assistant Manager": [
+            35000,
+            50000
+          ],
+          "Senior Officer": [
+            25000,
+            35000
+          ],
+          "Officer": [
+            25000,
+            35000
           ]
         }
       }
@@ -4203,6 +5519,60 @@
             "senior": "VP",
             "lead": "Director"
           }
+        },
+        "asset_management_fixed_income_equities_analyst": {
+          "kind": "title_catalog"
+        },
+        "asset_management_fixed_income_equities_trader": {
+          "kind": "title_catalog"
+        },
+        "global_market_treasury_bond_trader": {
+          "kind": "title_catalog"
+        },
+        "global_market_treasury_corporate_sales": {
+          "kind": "title_catalog"
+        },
+        "global_market_treasury_credit_sales": {
+          "kind": "title_catalog"
+        },
+        "global_market_treasury_fx_trader": {
+          "kind": "title_catalog"
+        },
+        "global_market_treasury_money_market_trader": {
+          "kind": "title_catalog"
+        },
+        "global_market_treasury_product_development": {
+          "kind": "title_catalog"
+        },
+        "investment_banking_corporate_finance": {
+          "kind": "title_catalog"
+        },
+        "investment_banking_dcm": {
+          "kind": "title_catalog"
+        },
+        "investment_banking_ipo_execution": {
+          "kind": "title_catalog"
+        },
+        "investment_banking_m_a": {
+          "kind": "title_catalog"
+        },
+        "private_banking_wealth_management_investment_counselor": {
+          "kind": "title_catalog"
+        },
+        "private_banking_wealth_management_investment_counselor_assistance": {
+          "kind": "title_catalog"
+        },
+        "private_banking_wealth_management_private_banking_client_services_officer": {
+          "kind": "title_catalog"
+        },
+        "private_banking_wealth_management_private_banking_relationship_manager": {
+          "kind": "title_catalog"
+        },
+        "private_banking_wealth_management_product_management": {
+          "kind": "title_catalog"
+        },
+        "private_banking_wealth_management_wealth_planning_specialist": {
+          "kind": "title_catalog"
         }
       },
       "commercial_corporate_banking": {
@@ -4229,6 +5599,15 @@
         },
         "wealth_management": {
           "kind": "title_catalog"
+        },
+        "corporate_banking_credit_analyst": {
+          "kind": "title_catalog"
+        },
+        "transaction_banking_cash_sales": {
+          "kind": "title_catalog"
+        },
+        "transaction_banking_trade_finance_sales": {
+          "kind": "title_catalog"
         }
       },
       "retail_banking": {
@@ -4245,6 +5624,24 @@
           "kind": "title_catalog"
         },
         "insurance_investment": {
+          "kind": "title_catalog"
+        },
+        "retail_banking_insurance_specialist": {
+          "kind": "title_catalog"
+        },
+        "retail_banking_investment_consultant": {
+          "kind": "title_catalog"
+        },
+        "retail_banking_mortgage_specialist": {
+          "kind": "title_catalog"
+        },
+        "retail_banking_personal_banker": {
+          "kind": "title_catalog"
+        },
+        "retail_banking_premier_banking_relationship_manager": {
+          "kind": "title_catalog"
+        },
+        "retail_banking_treasury_specialist": {
           "kind": "title_catalog"
         }
       },
@@ -4395,6 +5792,84 @@
             "senior": "VP",
             "lead": "Director"
           }
+        },
+        "compliance_anti_bribery_compliance": {
+          "kind": "title_catalog"
+        },
+        "compliance_anti_money_laundering_aml_financial_crime_compliance_fcc": {
+          "kind": "title_catalog"
+        },
+        "compliance_asset_management_compliance_business_compliance": {
+          "kind": "title_catalog"
+        },
+        "compliance_asset_management_compliance_investment_compliance": {
+          "kind": "title_catalog"
+        },
+        "compliance_compliance_advisory_global_markets": {
+          "kind": "title_catalog"
+        },
+        "compliance_compliance_advisory_ibd_research_compliance": {
+          "kind": "title_catalog"
+        },
+        "compliance_compliance_policy_and_procedure": {
+          "kind": "title_catalog"
+        },
+        "compliance_compliance_testing_assurance": {
+          "kind": "title_catalog"
+        },
+        "compliance_control_room": {
+          "kind": "title_catalog"
+        },
+        "compliance_disclosure_of_interest_doi": {
+          "kind": "title_catalog"
+        },
+        "compliance_fraud_investigation_advisory": {
+          "kind": "title_catalog"
+        },
+        "compliance_insurance_compliance": {
+          "kind": "title_catalog"
+        },
+        "compliance_licensing": {
+          "kind": "title_catalog"
+        },
+        "compliance_regulatory_compliance": {
+          "kind": "title_catalog"
+        },
+        "compliance_sanction_investigation_advisory": {
+          "kind": "title_catalog"
+        },
+        "compliance_trade_surveillance": {
+          "kind": "title_catalog"
+        },
+        "risk_management_business_risk": {
+          "kind": "title_catalog"
+        },
+        "risk_management_credit_risk": {
+          "kind": "title_catalog"
+        },
+        "risk_management_enterprise_risk": {
+          "kind": "title_catalog"
+        },
+        "risk_management_investment_risk_portfolio_risk": {
+          "kind": "title_catalog"
+        },
+        "risk_management_it_risk": {
+          "kind": "title_catalog"
+        },
+        "risk_management_liquidity_risk": {
+          "kind": "title_catalog"
+        },
+        "risk_management_market_risk": {
+          "kind": "title_catalog"
+        },
+        "risk_management_model_risk_validation": {
+          "kind": "title_catalog"
+        },
+        "risk_management_operational_risk": {
+          "kind": "title_catalog"
+        },
+        "risk_management_risk_analytics_methodology": {
+          "kind": "title_catalog"
         }
       },
       "back_office_operations": {
@@ -4514,6 +5989,42 @@
         },
         "investment_operations": {
           "kind": "title_catalog"
+        },
+        "operations_asset_servicing_corporate_actions": {
+          "kind": "title_catalog"
+        },
+        "operations_branch_operations": {
+          "kind": "title_catalog"
+        },
+        "operations_cash_operations": {
+          "kind": "title_catalog"
+        },
+        "operations_change_management_project_management": {
+          "kind": "title_catalog"
+        },
+        "operations_credit_administration": {
+          "kind": "title_catalog"
+        },
+        "operations_fund_administration_operations": {
+          "kind": "title_catalog"
+        },
+        "operations_investment_operations": {
+          "kind": "title_catalog"
+        },
+        "operations_kyc_client_onboarding_cob": {
+          "kind": "title_catalog"
+        },
+        "operations_loan_operations": {
+          "kind": "title_catalog"
+        },
+        "operations_middle_office_client_servicing_sales_support": {
+          "kind": "title_catalog"
+        },
+        "operations_middle_office_trade_support": {
+          "kind": "title_catalog"
+        },
+        "operations_settlements": {
+          "kind": "title_catalog"
         }
       },
       "corporate_finance_accounting": {
@@ -4587,6 +6098,36 @@
           "kind": "title_catalog"
         },
         "treasury_corporate": {
+          "kind": "title_catalog"
+        },
+        "finance_accounting_audit_accountant": {
+          "kind": "title_catalog"
+        },
+        "finance_accounting_audit_asset_liability_manager_treasury": {
+          "kind": "title_catalog"
+        },
+        "finance_accounting_audit_financial_reporting": {
+          "kind": "title_catalog"
+        },
+        "finance_accounting_audit_fund_accountant": {
+          "kind": "title_catalog"
+        },
+        "finance_accounting_audit_internal_auditor": {
+          "kind": "title_catalog"
+        },
+        "finance_accounting_audit_it_audit": {
+          "kind": "title_catalog"
+        },
+        "finance_accounting_audit_product_control": {
+          "kind": "title_catalog"
+        },
+        "finance_accounting_audit_regulatory_reporting": {
+          "kind": "title_catalog"
+        },
+        "finance_accounting_audit_system_finance": {
+          "kind": "title_catalog"
+        },
+        "finance_accounting_audit_tax": {
           "kind": "title_catalog"
         }
       },
@@ -4729,7 +6270,7 @@
             "junior": "Officer / Senior Analyst",
             "mid": "Assistant Manager / Manager",
             "senior": "Senior Manager / Senior Director",
-            "lead": "Head"
+            "lead": "Director"
           }
         },
         "insurance_hr": {
@@ -4767,6 +6308,43 @@
             "senior": "Senior Manager / Senior Director",
             "lead": "Head"
           }
+        },
+        "insurance_accounting_finance": {
+          "kind": "title_catalog"
+        },
+        "insurance_actuarial": {
+          "kind": "grade_ladder",
+          "seniority_to_grade": {
+            "mid": "Associate",
+            "lead": "Director"
+          }
+        },
+        "insurance_alternative_distribution": {
+          "kind": "title_catalog"
+        },
+        "insurance_bancassurance": {
+          "kind": "title_catalog"
+        },
+        "insurance_claims": {
+          "kind": "title_catalog"
+        },
+        "insurance_financial_risk_management": {
+          "kind": "title_catalog"
+        },
+        "insurance_internal_audit": {
+          "kind": "title_catalog"
+        },
+        "insurance_policy_admin": {
+          "kind": "title_catalog"
+        },
+        "insurance_product": {
+          "kind": "title_catalog"
+        },
+        "insurance_transformation": {
+          "kind": "title_catalog"
+        },
+        "insurance_underwriting": {
+          "kind": "title_catalog"
         }
       }
     }

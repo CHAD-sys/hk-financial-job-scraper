@@ -75,6 +75,7 @@ import resume_intelligence  # noqa: E402
 import role_access  # noqa: E402
 import role_feed  # noqa: E402
 from hk_jobs import weekly_highlights  # noqa: E402
+from hk_jobs.highlight_salary import suitable_highlight_estimate, suitable_highlight_salary  # noqa: E402
 from rate_limit import RateLimiter, RedisRateLimiter  # noqa: E402
 from sender import (  # noqa: E402
     Message,
@@ -441,6 +442,28 @@ def _hong_kong_today():
     return datetime.now(ZoneInfo("Asia/Hong_Kong")).date()
 
 
+def _has_highlight_salary(role: JobSummary, conn: sqlite3.Connection) -> bool:
+    disclosed = role.salary_hkd_min is not None and role.salary_hkd_max is not None
+    low = role.salary_hkd_min if disclosed else role.salary_estimated_min
+    high = role.salary_hkd_max if disclosed else role.salary_estimated_max
+    if disclosed and role.salary_period == "year":
+        low = round(low / 12) if low is not None else None
+        high = round(high / 12) if high is not None else None
+    if not suitable_highlight_salary(low, high):
+        return False
+    if disclosed:
+        return True
+    row = conn.execute(
+        "SELECT salary_tier, salary_role, salary_grade FROM job_enrichments "
+        "WHERE source = ? AND source_id = ?",
+        (role.source, role.source_id),
+    ).fetchone()
+    return bool(row and suitable_highlight_estimate(
+        row["salary_tier"], row["salary_role"], row["salary_grade"],
+        role.salary_estimated_confidence,
+    ))
+
+
 @router.get(
     "/api/highlights",
     response_model=WeeklyHighlightsResponse,
@@ -471,7 +494,7 @@ def get_weekly_highlights(request: Request):
             # The home-page banner is a live promise, not an archive. A role
             # may have been approved for this week's rail and then close; omit
             # it rather than advertising a role a Seeker cannot apply for.
-            if role is None or role.closed:
+            if role is None or role.closed or not _has_highlight_salary(role, conn):
                 continue
             if role.source_tier in MEMBER_ONLY_TIERS and seeker is None:
                 continue
@@ -511,8 +534,8 @@ def get_weekly_highlight_role(source: str, source_id: str, request: Request):
             visibility=Visibility.ADDRESSABLE,
             is_admin=_is_admin_session(seeker),
         )
-    if role is None or (role.source_tier in MEMBER_ONLY_TIERS and seeker is None):
-        raise HTTPException(status_code=404, detail="Featured Role not found")
+        if role is None or not _has_highlight_salary(role, conn) or (role.source_tier in MEMBER_ONLY_TIERS and seeker is None):
+            raise HTTPException(status_code=404, detail="Featured Role not found")
     _grant_role_access(request, [role])
     return role
 

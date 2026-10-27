@@ -3,16 +3,15 @@
 The salary table is a reusable market grid, not a prompt-sized catalogue.  This
 module turns one posting into the small, auditable part of that grid that could
 plausibly apply.  The LLM then chooses *only* a role/grade coordinate from that
-set; it never prices a job from a 700-cell menu.
+set; it never prices a job from the full 1,000-plus-cell menu.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
 
 from hk_jobs import employer_segments, salary_anchors
-
 
 _TOKEN = re.compile(r"[a-z0-9+#]+")
 #: Words that carry no FUNCTION signal, so a role key made only of these has no
@@ -25,7 +24,7 @@ _TOKEN = re.compile(r"[a-z0-9+#]+")
 #: These are not discarded: `_role_vocabulary` keeps them as WEAK tokens, scored
 #: against the title only.
 _GENERIC = frozenset({
-    "and", "banking", "business", "corporate", "finance", "financial", "for",
+    "and", "banking", "business", "corporate", "development", "finance", "financial", "for",
     "general", "insurance", "management", "market", "markets", "of", "office",
     "operations", "services", "support", "the", "to",
     # grade / seniority words
@@ -38,6 +37,11 @@ _GENERIC = frozenset({
 # remaining row is still discoverable from its role key below; this is a boost,
 # not a second hidden taxonomy.
 _ROLE_TERMS: dict[str, tuple[str, ...]] = {
+    "asset_management_fixed_income_equities_analyst": ("credit research", "fixed income research"),
+    "private_banking_business_management": ("private trust", "trust business development"),
+    "investment_banking_dcm": ("debt capital markets", "debt", "dcm"),
+    "investment_banking_ipo_execution": ("ipo execution", "ipo"),
+    "investment_banking_m_a": ("mergers and acquisitions", "m&a"),
     "product_management": (
         "product manager", "product owner", "product management", "产品经理", "產品經理",
     ),
@@ -60,7 +64,7 @@ _ROLE_TERMS: dict[str, tuple[str, ...]] = {
     "risk_credit": ("credit risk", "counterparty risk", "credit approval", "信用风险", "信用風險"),
     "risk_market": ("market risk", "var", "value at risk", "市场风险", "市場風險"),
     "risk_operational": ("operational risk", "non-financial risk", "operations risk"),
-    "compliance_banking": ("compliance", "aml", "financial crime", "sanctions"),
+    "compliance_banking": ("compliance", "general compliance", "aml", "financial crime", "sanctions"),
     "audit_banking": ("internal audit", "audit"),
     "underwriting": ("underwriter", "underwriting", "核保"),
     "claims": ("claims", "claim handling"),
@@ -161,6 +165,7 @@ _ROLE_TERMS: dict[str, tuple[str, ...]] = {
     "insurance_customer_service": ("policy holder service", "insurance customer service"),
     "agency_distribution": (
         "agency", "financial planner", "insurance agent", "financial consultant",
+        "life insurance", "insurance partnership", "bancassurance",
     ),
     "legal_counsel": ("legal counsel", "company secretary", "法律"),
     "corporate_banking_rm": ("corporate banking", "corporate relationship"),
@@ -224,7 +229,8 @@ def _role_vocabulary(role: str) -> tuple[frozenset[str], frozenset[str], frozens
     strong = frozenset(term for term in explicit if not _is_phrase(term))
     key_tokens = frozenset(role.split("_"))
     strong |= {token for token in key_tokens if token not in _GENERIC}
-    weak = {token for token in key_tokens if token in _GENERIC} - strong
+    # "office" alone describes a workplace, not a financial job function.
+    weak = {token for token in key_tokens if token in _GENERIC and token not in {"office", "development"}} - strong
     return phrases, strong, frozenset(weak)
 
 
@@ -309,6 +315,24 @@ def build_salary_context(
             )
             if grades:
                 candidates.append(SalaryCandidate(tier, role, grades, score))
+
+    # The legacy M&A/ECM/DCM ladder blends several desks. When the title names
+    # one of the newly sourced specialisms, do not offer that blended fallback
+    # as a competing answer. ECM remains on the legacy ladder until sourced.
+    specialist_titles = {
+        "investment_banking_dcm": r"\b(?:dcm|debt capital markets)\b",
+        "investment_banking_m_a": r"\b(?:m&a|mergers and acquisitions)\b",
+        "investment_banking_ipo_execution": r"\bipo execution\b",
+    }
+    if any(
+        candidate.role == role and re.search(pattern, title_text)
+        for candidate in candidates
+        for role, pattern in specialist_titles.items()
+    ):
+        candidates = [
+            candidate for candidate in candidates
+            if candidate.role != "corporate_finance_ma_ecm_dcm"
+        ]
 
     candidates.sort(key=lambda candidate: (-candidate.score, candidate.tier, candidate.role))
     return SalaryContext(

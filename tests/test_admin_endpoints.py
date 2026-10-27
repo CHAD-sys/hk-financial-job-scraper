@@ -1128,11 +1128,13 @@ def test_banner_validation_stays_editable_and_includes_review_evidence(
             INSERT INTO job_enrichments (
                 source, source_id, seniority, job_category,
                 salary_estimated_min, salary_estimated_max,
-                salary_estimated_confidence, description_summary
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                salary_estimated_confidence, salary_tier, salary_role, salary_grade,
+                description_summary
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 "workday", "W1", "mid", "Risk", 75_000, 95_000, "high",
+                "middle_office", "risk_credit", "VP",
                 "Review regional credit risk and advise senior stakeholders.",
             ),
         )

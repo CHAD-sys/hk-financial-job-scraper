@@ -6,6 +6,7 @@ Sources (all in salary_guidlines/):
   - persolkelly_2025.json       -> PERSOLKELLY 2025 (annual /12; conservative)
   - adecco_2026.json            -> Adecco 2026 (monthly; mid-market)
   - hk_salary_anchor_overrides.json -> reviewed additions/corrections after the merge
+  - randstad_2025_finance.json -> finite, function-specific basic monthly bands
 
 Package-free rule (2026-08-25): Hays reports total annual package, so it never
 participates when PERSOLKELLY or Adecco covers the same (role, grade) cell. The
@@ -47,6 +48,7 @@ GUIDE_DIR = PROJECT_ROOT / "salary_guidlines"
 ANCHORS_PATH = GUIDE_DIR / "hk_salary_anchors.json"
 HAYS_PATH = GUIDE_DIR / "hays_2026.json"
 OVERRIDES_PATH = GUIDE_DIR / "hk_salary_anchor_overrides.json"
+RANDSTAD_PATH = GUIDE_DIR / "randstad_2025_finance.json"
 GLOBAL_MAX = 200_000
 WEIGHTS = [0.60, 0.25, 0.15]  # most conservative -> least, renormalised per cell
 
@@ -616,6 +618,14 @@ def _published_build(*, include_overrides: bool = True) -> dict[str, Any]:
             )
         overrides = json.loads(OVERRIDES_PATH.read_text(encoding="utf-8"))
         published = apply_merge_patch(hays, overrides)
+        randstad = json.loads(RANDSTAD_PATH.read_text(encoding="utf-8"))
+        for entry in randstad["roles"]:
+            roles = published["tables_monthly_hkd"][entry["tier"]]["roles"]
+            existing = roles.setdefault(entry["role"], {})
+            overlap = existing.keys() & entry["bands"].keys()
+            if overlap:
+                raise ValueError(f"Randstad cell collides with existing anchor: {entry['role']} {overlap}")
+            existing.update(entry["bands"])
     else:
         published = copy.deepcopy(hays)
 

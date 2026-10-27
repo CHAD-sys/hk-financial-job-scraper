@@ -141,6 +141,27 @@ def test_an_unrelated_title_still_declines():
     assert "Return null" in context.render()
 
 
+def test_debt_capital_markets_reaches_its_specific_published_function():
+    context = build_salary_context(title="Vice President, Debt Capital Markets")
+    assert _ranked(context)[0] == "investment_banking_dcm"
+    assert "corporate_finance_ma_ecm_dcm" not in _ranked(context)
+
+
+def test_business_development_does_not_become_a_trading_product_role():
+    context = build_salary_context(title="Business Development Manager (Life Insurance)")
+    assert context.candidates[0].tier != "front_office"
+
+
+def test_credit_research_is_not_credit_risk():
+    context = build_salary_context(title="Credit Research Analyst")
+    assert context.candidates[0].role == "asset_management_fixed_income_equities_analyst"
+
+
+def test_private_trust_business_development_is_not_a_private_banking_rm():
+    context = build_salary_context(title="Business Development Manager (Private Trust)")
+    assert context.candidates[0].role == "private_banking_business_management"
+
+
 # ── follow-up: the two retrieval gaps the ADR 0037 verification pass exposed ──
 
 def test_a_structured_products_dealer_reaches_the_trading_desk():

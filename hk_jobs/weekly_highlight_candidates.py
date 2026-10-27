@@ -3,7 +3,7 @@
 
 Every Sunday the latest database is filtered to Roles that a visitor can
 actually open, that were posted recently, and whose monthly salary floor is at
-least HK$40,000. The final pass rotates across pay levels and limits repetition
+least HK$60,000 with a useful range. The final pass rotates across pay levels and limits repetition
 by employer/category so one large bank cannot occupy the whole banner. The
 ordered references remain editable throughout the coming week.
 """
@@ -21,16 +21,22 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 from hk_jobs.board_visibility import board_visible_sql
+from hk_jobs.highlight_salary import (
+    MIN_MONTHLY_SALARY,
+    suitable_highlight_estimate,
+    suitable_highlight_salary,
+)
 from hk_jobs.notifications import _send_email
 from hk_jobs.weekly_highlights import WeeklyHighlightRef, save_weekly_highlights
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_SITE_URL = "https://www.finexcareers.com"
-MIN_MONTHLY_SALARY = 40_000
 LOOKBACK_DAYS = 14
 MAX_PER_EMPLOYER = 2
 MAX_PER_CATEGORY = 3
+# Matches the board reader's numeric test for annual disclosed pay.
+MAX_PLAUSIBLE_MONTHLY_SALARY = 200_000
 
 
 @dataclass(frozen=True)
@@ -136,12 +142,28 @@ def select_weekly_highlight_candidates(
     as_of: date | None = None,
     limit: int = 12,
 ) -> list[HighlightCandidate]:
-    """Return recent, visible, >=HK$40k Roles in editorially useful order."""
+    """Return recent, visible, well-priced Roles in editorially useful order."""
     if limit < 1:
         return []
     today = as_of or date.today()
     cutoff = today - timedelta(days=LOOKBACK_DAYS)
     board_where = board_visible_sql(with_hidden=False)
+    annual_disclosure = (
+        "e.salary_hkd_min > " + str(MAX_PLAUSIBLE_MONTHLY_SALARY)
+        + " AND e.salary_hkd_max > " + str(MAX_PLAUSIBLE_MONTHLY_SALARY)
+    )
+    salary_min_sql = (
+        "CASE WHEN e.salary_hkd_min IS NOT NULL AND e.salary_hkd_max IS NOT NULL "
+        f"THEN CASE WHEN {annual_disclosure} "
+        "THEN CAST(ROUND(e.salary_hkd_min / 12.0) AS INTEGER) "
+        "ELSE e.salary_hkd_min END ELSE e.salary_estimated_min END"
+    )
+    salary_max_sql = (
+        "CASE WHEN e.salary_hkd_min IS NOT NULL AND e.salary_hkd_max IS NOT NULL "
+        f"THEN CASE WHEN {annual_disclosure} "
+        "THEN CAST(ROUND(e.salary_hkd_max / 12.0) AS INTEGER) "
+        "ELSE e.salary_hkd_max END ELSE e.salary_estimated_max END"
+    )
 
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
@@ -156,10 +178,14 @@ def select_weekly_highlight_candidates(
                 COALESCE(NULLIF(e.job_category, ''), 'Finance') AS category,
                 COALESCE(NULLIF(e.seniority, ''), 'Experienced') AS seniority,
                 j.posted_at,
-                COALESCE(e.salary_hkd_min, e.salary_estimated_min) AS salary_min,
-                COALESCE(e.salary_hkd_max, e.salary_estimated_max,
-                         e.salary_hkd_min, e.salary_estimated_min) AS salary_max,
+                {salary_min_sql} AS salary_min,
+                {salary_max_sql} AS salary_max,
                 COALESCE(NULLIF(e.salary_estimated_confidence, ''), 'unknown') AS salary_confidence,
+                e.salary_hkd_min AS disclosed_min,
+                e.salary_hkd_max AS disclosed_max,
+                e.salary_tier,
+                e.salary_role,
+                e.salary_grade,
                 COALESCE(NULLIF(TRIM(e.description_summary), ''), '') AS description_summary,
                 COALESCE(NULLIF(TRIM(j.apply_url), ''), j.url, '') AS apply_url
             FROM jobs j
@@ -168,7 +194,7 @@ def select_weekly_highlight_candidates(
             WHERE {board_where}
               AND COALESCE(j.source_tier, 'mainstream') NOT IN ('boutique', 'social')
               AND DATE(j.posted_at) BETWEEN DATE(?) AND DATE(?)
-              AND COALESCE(e.salary_hkd_min, e.salary_estimated_min, 0) >= ?
+              AND {salary_min_sql} >= ?
               AND TRIM(j.title) != ''
               AND LOWER(j.title) NOT LIKE '%intern%'
             ORDER BY
@@ -184,7 +210,19 @@ def select_weekly_highlight_candidates(
     finally:
         conn.close()
 
-    return _pick_diverse([_candidate_from_row(row) for row in rows], limit)
+    eligible = [
+        _candidate_from_row(row)
+        for row in rows
+        if suitable_highlight_salary(row["salary_min"], row["salary_max"])
+        and (
+            (row["disclosed_min"] is not None and row["disclosed_max"] is not None)
+            or suitable_highlight_estimate(
+                row["salary_tier"], row["salary_role"], row["salary_grade"],
+                row["salary_confidence"],
+            )
+        )
+    ]
+    return _pick_diverse(eligible, limit)
 
 
 def _upcoming_week(as_of: date) -> tuple[date, date]:

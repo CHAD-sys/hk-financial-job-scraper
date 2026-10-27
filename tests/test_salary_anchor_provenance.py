@@ -153,8 +153,8 @@ def test_every_provenance_cell_carries_mapping_and_semantic_state() -> None:
 def test_every_reproducible_or_human_source_link_is_mapped() -> None:
     ledger = salary_anchors.ANCHOR_PROVENANCE
     assert ledger["meta"]["native_mapping_coverage"] == {
-        "confirmed_source_links": 679,
-        "mapped_source_links": 508,
+        "confirmed_source_links": 965,
+        "mapped_source_links": 794,
         "unmapped_source_links": 171,
     }
     for coordinate, cell in ledger["cells"].items():

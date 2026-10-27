@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import date
+from datetime import date, timedelta
 
 from .support import job, make_jobs_db
 
@@ -291,10 +291,11 @@ def test_market_intelligence_measures_the_catalogue_not_the_shop_window(tmp_path
     """
     path = tmp_path / "jobs.db"
     jobs = []
+    recent_posted_at = (date.today() - timedelta(days=1)).isoformat()
     for i in range(62):  # inside the window, but past the 60-per-employer cap
         jobs.append(
             job(source="workday", source_id=f"IN{i}", company="Mega Bank",
-                title="Analyst", posted_at="2026-09-18T00:00:00+00:00",
+                title="Analyst", posted_at=recent_posted_at,
                 is_active=1, is_primary=1)
         )
     for i in range(8):  # open, but older than the board's one-month window
@@ -307,7 +308,7 @@ def test_market_intelligence_measures_the_catalogue_not_the_shop_window(tmp_path
     # excluded, because counting it would double-count a single job.
     jobs.append(
         job(source="jobsdb", source_id="DUP1", company="Mega Bank", title="Analyst",
-            posted_at="2026-09-18T00:00:00+00:00", is_active=1, is_primary=0,
+            posted_at=recent_posted_at, is_active=1, is_primary=0,
             cross_posted=1)
     )
     make_jobs_db(path, jobs=jobs)

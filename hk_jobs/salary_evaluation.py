@@ -20,22 +20,28 @@ def _metrics(rows: list[dict[str, Any]]) -> dict[str, int | float]:
     if not rows:
         return {
             "n": 0,
+            "covered_n": 0,
+            "coverage_rate": 0.0,
             "range_overlap_rate": 0.0,
             "truth_midpoint_covered_rate": 0.0,
             "midpoint_mae_hkd": 0,
+            "mean_signed_midpoint_error_hkd": 0,
             "midpoint_mape": 0.0,
             "mean_estimate_width_hkd": 0,
         }
     overlap = 0
     midpoint_covered = 0
     absolute_errors: list[float] = []
+    signed_errors: list[float] = []
     percentage_errors: list[float] = []
     widths: list[int] = []
     for row in rows:
-        estimate_min = int(row["estimate_min"])
-        estimate_max = int(row["estimate_max"])
         truth_min = int(row["truth_min"])
         truth_max = int(row["truth_max"])
+        if row["estimate_min"] is None or row["estimate_max"] is None:
+            continue
+        estimate_min = int(row["estimate_min"])
+        estimate_max = int(row["estimate_max"])
         if estimate_min > estimate_max or truth_min > truth_max:
             raise ValueError("Salary bands must be ascending")
         overlap += estimate_max >= truth_min and truth_max >= estimate_min
@@ -43,16 +49,21 @@ def _metrics(rows: list[dict[str, Any]]) -> dict[str, int | float]:
         estimate_midpoint = (estimate_min + estimate_max) / 2
         midpoint_covered += estimate_min <= truth_midpoint <= estimate_max
         absolute_errors.append(abs(estimate_midpoint - truth_midpoint))
+        signed_errors.append(estimate_midpoint - truth_midpoint)
         percentage_errors.append(abs(estimate_midpoint - truth_midpoint) / truth_midpoint)
         widths.append(estimate_max - estimate_min)
     total = len(rows)
+    covered = len(absolute_errors)
     return {
         "n": total,
-        "range_overlap_rate": round(overlap / total, 4),
-        "truth_midpoint_covered_rate": round(midpoint_covered / total, 4),
-        "midpoint_mae_hkd": round(sum(absolute_errors) / total),
-        "midpoint_mape": round(sum(percentage_errors) / total, 4),
-        "mean_estimate_width_hkd": round(sum(widths) / total),
+        "covered_n": covered,
+        "coverage_rate": round(covered / total, 4),
+        "range_overlap_rate": round(overlap / covered, 4) if covered else 0.0,
+        "truth_midpoint_covered_rate": round(midpoint_covered / covered, 4) if covered else 0.0,
+        "midpoint_mae_hkd": round(sum(absolute_errors) / covered) if covered else 0,
+        "mean_signed_midpoint_error_hkd": round(sum(signed_errors) / covered) if covered else 0,
+        "midpoint_mape": round(sum(percentage_errors) / covered, 4) if covered else 0.0,
+        "mean_estimate_width_hkd": round(sum(widths) / covered) if covered else 0,
     }
 
 
@@ -68,13 +79,21 @@ def score_holdout(rows: list[dict[str, Any]]) -> dict[str, Any]:
         raise ValueError("Each holdout row needs estimated and truth endpoints")
     by_tier: dict[str, list[dict[str, Any]]] = defaultdict(list)
     by_cohort: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    by_source: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    by_pay_segment: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
         by_tier[str(row.get("tier") or "unresolved")].append(row)
         by_cohort[str(row.get("cohort") or "unclassified")].append(row)
+        by_source[str(row.get("source") or "unknown")].append(row)
+        midpoint = (int(row["truth_min"]) + int(row["truth_max"])) / 2
+        pay_segment = "under_40k" if midpoint < 40_000 else "40k_to_80k" if midpoint < 80_000 else "80k_plus"
+        by_pay_segment[pay_segment].append(row)
     return {
         "overall": _metrics(rows),
         "by_tier": {key: _metrics(value) for key, value in sorted(by_tier.items())},
         "by_cohort": {key: _metrics(value) for key, value in sorted(by_cohort.items())},
+        "by_source": {key: _metrics(value) for key, value in sorted(by_source.items())},
+        "by_pay_segment": {key: _metrics(value) for key, value in sorted(by_pay_segment.items())},
     }
 
 

@@ -45,6 +45,10 @@ def _make_highlight_client(tmp_path):
                 seniority="Director",
                 salary_estimated_min=90_000,
                 salary_estimated_max=120_000,
+                salary_estimated_confidence="high",
+                salary_tier="middle_office",
+                salary_role="risk_credit",
+                salary_grade="VP",
                 description_summary="Lead a regional risk function.",
             ),
             enrichment(
@@ -121,6 +125,37 @@ def test_highlight_feed_never_advertises_a_closed_role_on_the_homepage(tmp_path)
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["roles"] == []
+
+
+def test_highlight_feed_omits_old_editorial_picks_with_broad_salary_ranges(tmp_path):
+    db = tmp_path / "jobs.db"
+    make_jobs_db(
+        db,
+        jobs=[
+            job(source="workday", source_id="WIDE", title="Director"),
+            job(source="workday", source_id="FOCUSED", title="VP"),
+        ],
+        enrichments=[
+            enrichment(source="workday", source_id="WIDE", salary_estimated_min=110_000,
+                       salary_estimated_max=200_000, salary_estimated_confidence="high"),
+            enrichment(source="workday", source_id="FOCUSED", salary_estimated_min=80_000,
+                       salary_estimated_max=105_000, salary_estimated_confidence="high",
+                       salary_tier="middle_office", salary_role="risk_credit", salary_grade="VP"),
+        ],
+    )
+    migrate_to_phase_42(str(db))
+    start, _ = week_bounds(date.today())
+    save_weekly_highlights(
+        db,
+        [WeeklyHighlightRef("workday", "WIDE", "Banking"),
+         WeeklyHighlightRef("workday", "FOCUSED", "Banking")],
+        week_start=start,
+    )
+
+    response = TestClient(make_app(db, cookie_secure=False)).get("/api/highlights")
+
+    assert response.status_code == 200
+    assert [item["role"]["source_id"] for item in response.json()["roles"]] == ["FOCUSED"]
 
 
 def test_exact_highlight_resolver_grants_only_this_weeks_pinned_roles(tmp_path):

@@ -32,11 +32,28 @@ def test_holdout_scores_range_overlap_midpoint_error_and_strata() -> None:
     ])
     assert report["overall"] == {
         "n": 2,
+        "covered_n": 2,
+        "coverage_rate": 1.0,
         "range_overlap_rate": 0.5,
         "truth_midpoint_covered_rate": 0.5,
         "midpoint_mae_hkd": 10_000,
+        "mean_signed_midpoint_error_hkd": -10_000,
         "midpoint_mape": 0.2222,
         "mean_estimate_width_hkd": 15_000,
     }
     assert report["by_tier"]["middle_office"]["n"] == 2
     assert report["by_cohort"]["bank"]["range_overlap_rate"] == 0.5
+
+
+def test_holdout_reports_coverage_without_hiding_missing_estimates() -> None:
+    report = score_holdout([
+        {"estimate_min": 60_000, "estimate_max": 80_000, "truth_min": 50_000,
+         "truth_max": 70_000, "tier": "front_office", "cohort": "recruiter"},
+        {"estimate_min": None, "estimate_max": None, "truth_min": 40_000,
+         "truth_max": 50_000, "tier": "front_office", "cohort": "recruiter"},
+    ])
+    assert report["overall"]["n"] == 2
+    assert report["overall"]["covered_n"] == 1
+    assert report["overall"]["coverage_rate"] == 0.5
+    assert report["overall"]["mean_signed_midpoint_error_hkd"] == 10_000
+    assert report["overall"]["mean_estimate_width_hkd"] == 20_000

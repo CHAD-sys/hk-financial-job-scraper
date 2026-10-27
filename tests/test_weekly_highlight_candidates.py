@@ -40,12 +40,15 @@ def _role(
             salary_estimated_min=salary_min,
             salary_estimated_max=salary_min + 20_000,
             salary_estimated_confidence="high",
+            salary_tier="middle_office",
+            salary_role="risk_credit",
+            salary_grade="VP",
             description_summary=f"A strong {category.lower()} opportunity.",
         ),
     )
 
 
-def test_selects_recent_visible_roles_above_the_40k_floor_across_pay_levels(tmp_path):
+def test_selects_recent_visible_roles_above_the_60k_floor_across_pay_levels(tmp_path):
     rows = [
         _role(
             "executive",
@@ -60,7 +63,7 @@ def test_selects_recent_visible_roles_above_the_40k_floor_across_pay_levels(tmp_
             company="Deloitte",
             title="Risk Manager",
             category="Operations",
-            salary_min=45_000,
+            salary_min=60_000,
         ),
         _role(
             "too-low", company="Small Co", title="Analyst", category="Finance", salary_min=39_999
@@ -113,7 +116,7 @@ def test_selects_recent_visible_roles_above_the_40k_floor_across_pay_levels(tmp_
         "senior",
         "established",
     }
-    assert all(candidate.salary_min >= 40_000 for candidate in candidates)
+    assert all(candidate.salary_min >= 60_000 for candidate in candidates)
 
 
 def test_candidate_carries_the_review_summary_and_live_destination(tmp_path):
@@ -135,6 +138,53 @@ def test_candidate_carries_the_review_summary_and_live_destination(tmp_path):
 
     assert candidate.description_summary == enriched["description_summary"]
     assert candidate.apply_url == "https://careers.example.test/roles/review-me"
+
+
+def test_landing_shortlist_requires_high_pay_and_a_useful_range(tmp_path):
+    rows = [
+        _role("wide", company="Wide Bank", title="Director", category="Banking", salary_min=110_000),
+        _role("low", company="Low Bank", title="Manager", category="Banking", salary_min=45_000),
+        _role("focused", company="Focused Bank", title="VP", category="Banking", salary_min=80_000),
+    ]
+    rows[0][1]["salary_estimated_max"] = 200_000
+    rows[2][1]["salary_estimated_max"] = 105_000
+    db = tmp_path / "jobs.db"
+    make_jobs_db(db, jobs=[pair[0] for pair in rows], enrichments=[pair[1] for pair in rows])
+
+    candidates = select_weekly_highlight_candidates(db, as_of=date.today(), limit=12)
+
+    assert [candidate.source_id for candidate in candidates] == ["focused"]
+
+
+def test_landing_shortlist_excludes_unsupported_or_low_confidence_estimates(tmp_path):
+    rows = [
+        _role("strong", company="Strong Bank", title="Credit VP", category="Risk", salary_min=80_000),
+        _role("weak", company="Weak Bank", title="Credit VP", category="Risk", salary_min=80_000),
+        _role("unknown", company="Unknown Bank", title="Credit VP", category="Risk", salary_min=80_000),
+    ]
+    rows[1][1]["salary_estimated_confidence"] = "low"
+    rows[2][1]["salary_grade"] = None
+    db = tmp_path / "jobs.db"
+    make_jobs_db(db, jobs=[pair[0] for pair in rows], enrichments=[pair[1] for pair in rows])
+
+    assert [r.source_id for r in select_weekly_highlight_candidates(db, as_of=date.today())] == ["strong"]
+
+
+def test_shortlist_normalises_disclosed_annual_pay_before_quality_gate(tmp_path):
+    row, enriched = _role(
+        "annual", company="Annual Bank", title="Risk Director",
+        category="Risk", salary_min=40_000,
+    )
+    enriched["salary_hkd_min"] = 1_200_000
+    enriched["salary_hkd_max"] = 1_500_000
+    db = tmp_path / "jobs.db"
+    make_jobs_db(db, jobs=[row], enrichments=[enriched])
+
+    candidates = select_weekly_highlight_candidates(db, as_of=date.today())
+
+    assert [(r.source_id, r.salary_min, r.salary_max) for r in candidates] == [
+        ("annual", 100_000, 125_000),
+    ]
 
 
 def test_shortlist_limits_one_employer_dominating_the_email(tmp_path):
@@ -209,7 +259,7 @@ def test_sunday_candidate_selection_is_saved_for_next_weeks_banner(tmp_path):
             title="Private Bank MD",
             category="Private Banking",
             salary_min=150_000,
-            posted_at="2026-09-05",
+            posted_at=date.today().isoformat(),
         ),
         _role(
             "second",
@@ -217,14 +267,14 @@ def test_sunday_candidate_selection_is_saved_for_next_weeks_banner(tmp_path):
             title="Credit VP",
             category="Risk",
             salary_min=85_000,
-            posted_at="2026-09-04",
+            posted_at=date.today().isoformat(),
         ),
     ]
     db = tmp_path / "jobs.db"
     make_jobs_db(db, jobs=[pair[0] for pair in rows], enrichments=[pair[1] for pair in rows])
     migrate_to_phase_42(str(db))
 
-    saved = save_next_week_highlights(db, as_of=date(2026, 9, 6), limit=2)
+    saved = save_next_week_highlights(db, as_of=date.today(), limit=2)
 
     assert [(ref.source_id, ref.related_search) for ref in saved] == [
         ("first", "Private Banking"),

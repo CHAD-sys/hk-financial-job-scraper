@@ -1,0 +1,153 @@
+{
+  "by_cohort": {
+    "unclassified": {
+      "coverage_rate": 0.9512,
+      "covered_n": 39,
+      "mean_estimate_width_hkd": 23962,
+      "mean_signed_midpoint_error_hkd": 483,
+      "midpoint_mae_hkd": 8671,
+      "midpoint_mape": 0.1722,
+      "n": 41,
+      "range_overlap_rate": 0.8974,
+      "truth_midpoint_covered_rate": 0.6667
+    }
+  },
+  "by_pay_segment": {
+    "40k_to_80k": {
+      "coverage_rate": 0.963,
+      "covered_n": 26,
+      "mean_estimate_width_hkd": 26250,
+      "mean_signed_midpoint_error_hkd": -1035,
+      "midpoint_mae_hkd": 8631,
+      "midpoint_mape": 0.1533,
+      "n": 27,
+      "range_overlap_rate": 0.9615,
+      "truth_midpoint_covered_rate": 0.6923
+    },
+    "80k_plus": {
+      "coverage_rate": 1.0,
+      "covered_n": 3,
+      "mean_estimate_width_hkd": 37167,
+      "mean_signed_midpoint_error_hkd": 7306,
+      "midpoint_mae_hkd": 15361,
+      "midpoint_mape": 0.1419,
+      "n": 3,
+      "range_overlap_rate": 1.0,
+      "truth_midpoint_covered_rate": 0.6667
+    },
+    "under_40k": {
+      "coverage_rate": 0.9091,
+      "covered_n": 10,
+      "mean_estimate_width_hkd": 14050,
+      "mean_signed_midpoint_error_hkd": 2383,
+      "midpoint_mae_hkd": 6767,
+      "midpoint_mape": 0.2303,
+      "n": 11,
+      "range_overlap_rate": 0.7,
+      "truth_midpoint_covered_rate": 0.6
+    }
+  },
+  "by_source": {
+    "jobsdb": {
+      "coverage_rate": 0.75,
+      "covered_n": 3,
+      "mean_estimate_width_hkd": 8167,
+      "mean_signed_midpoint_error_hkd": -2083,
+      "midpoint_mae_hkd": 6417,
+      "midpoint_mape": 0.2607,
+      "n": 4,
+      "range_overlap_rate": 0.6667,
+      "truth_midpoint_covered_rate": 0.3333
+    },
+    "linkedin_posts": {
+      "coverage_rate": 0.973,
+      "covered_n": 36,
+      "mean_estimate_width_hkd": 25278,
+      "mean_signed_midpoint_error_hkd": 697,
+      "midpoint_mae_hkd": 8859,
+      "midpoint_mape": 0.1648,
+      "n": 37,
+      "range_overlap_rate": 0.9167,
+      "truth_midpoint_covered_rate": 0.6944
+    }
+  },
+  "by_tier": {
+    "back_office_operations": {
+      "coverage_rate": 1.0,
+      "covered_n": 8,
+      "mean_estimate_width_hkd": 22000,
+      "mean_signed_midpoint_error_hkd": 1073,
+      "midpoint_mae_hkd": 6177,
+      "midpoint_mape": 0.1582,
+      "n": 8,
+      "range_overlap_rate": 1.0,
+      "truth_midpoint_covered_rate": 0.75
+    },
+    "corporate_finance_accounting": {
+      "coverage_rate": 1.0,
+      "covered_n": 2,
+      "mean_estimate_width_hkd": 30000,
+      "mean_signed_midpoint_error_hkd": -11042,
+      "midpoint_mae_hkd": 11042,
+      "midpoint_mape": 0.1627,
+      "n": 2,
+      "range_overlap_rate": 1.0,
+      "truth_midpoint_covered_rate": 1.0
+    },
+    "front_office": {
+      "coverage_rate": 1.0,
+      "covered_n": 3,
+      "mean_estimate_width_hkd": 26500,
+      "mean_signed_midpoint_error_hkd": -12083,
+      "midpoint_mae_hkd": 12083,
+      "midpoint_mape": 0.1819,
+      "n": 3,
+      "range_overlap_rate": 1.0,
+      "truth_midpoint_covered_rate": 0.6667
+    },
+    "insurance": {
+      "coverage_rate": 1.0,
+      "covered_n": 13,
+      "mean_estimate_width_hkd": 19038,
+      "mean_signed_midpoint_error_hkd": 3545,
+      "midpoint_mae_hkd": 12199,
+      "midpoint_mape": 0.2326,
+      "n": 13,
+      "range_overlap_rate": 0.7692,
+      "truth_midpoint_covered_rate": 0.3077
+    },
+    "middle_office": {
+      "coverage_rate": 0.9286,
+      "covered_n": 13,
+      "mean_estimate_width_hkd": 28577,
+      "mean_signed_midpoint_error_hkd": 1731,
+      "midpoint_mae_hkd": 5526,
+      "midpoint_mape": 0.1196,
+      "n": 14,
+      "range_overlap_rate": 0.9231,
+      "truth_midpoint_covered_rate": 0.9231
+    },
+    "unresolved": {
+      "coverage_rate": 0.0,
+      "covered_n": 0,
+      "mean_estimate_width_hkd": 0,
+      "mean_signed_midpoint_error_hkd": 0,
+      "midpoint_mae_hkd": 0,
+      "midpoint_mape": 0.0,
+      "n": 1,
+      "range_overlap_rate": 0.0,
+      "truth_midpoint_covered_rate": 0.0
+    }
+  },
+  "overall": {
+    "coverage_rate": 0.9512,
+    "covered_n": 39,
+    "mean_estimate_width_hkd": 23962,
+    "mean_signed_midpoint_error_hkd": 483,
+    "midpoint_mae_hkd": 8671,
+    "midpoint_mape": 0.1722,
+    "n": 41,
+    "range_overlap_rate": 0.8974,
+    "truth_midpoint_covered_rate": 0.6667
+  }
+}

@@ -33,6 +33,7 @@ HISTORICAL_BASELINE_PATH = GUIDE_DIR / "hk_salary_anchors.json.bak-20260821-1124
 RAW_HAYS_PATH = GUIDE_DIR / "hays_2026.json"
 PERSOL_PATH = GUIDE_DIR / "persolkelly_2025.json"
 ADECCO_PATH = GUIDE_DIR / "adecco_2026.json"
+RANDSTAD_PATH = GUIDE_DIR / "randstad_2025_finance.json"
 BUILDER_PATH = ROOT / "scripts" / "build_merged_salary_anchors.py"
 OUTPUT_PATH = GUIDE_DIR / "hk_salary_anchor_provenance.json"
 
@@ -43,6 +44,18 @@ SOURCE_FILES = {
 }
 
 SOURCE_CATALOG: dict[str, dict[str, Any]] = {
+    "randstad_2025": {
+        "label": "Randstad Hong Kong 2025 Job Market Outlook & Salary Guide",
+        "compensation_basis": "monthly_basic_salary",
+        "native_period": "monthly",
+        "currency": "HKD",
+        "normalization_to_published_monthly_hkd": "identity",
+        "inclusions_exclusions": "Basic salary of permanent roles; AWS and fixed/variable bonus excluded.",
+        "aws_13th_month_treatment": "excluded",
+        "source_artifact": "salary_guidlines/randstad_2025_finance.json",
+        "source_url": "https://www.randstad.com.hk/s3fs-media/hk/public/2025-01/Randstad-Hong-Kong-SAR-2025-Job-Market-Outlook-Salary-Guide.pdf?VersionId=Nbc9a4xsKw0jkw6VdMPz4ygnUr6zj93H",
+        "evidence_pages": [16, 17, 18, 29, 30],
+    },
     "hays_2026": {
         "label": "Hays Asia Salary Guide 2026 — Hong Kong SAR",
         "compensation_basis": "annual_total_package",
@@ -457,7 +470,7 @@ def _semantic_status(sources: list[str], kind: str) -> str:
         if kind == "hays_package_proxy":
             return "total_package_proxy_not_base_compatible"
         return "total_package_not_base_compatible"
-    if source_set == {"persolkelly_2025"}:
+    if source_set in ({"persolkelly_2025"}, {"randstad_2025"}):
         return "base_compatible"
     if source_set == {"adecco_2026"}:
         return "monthly_salary_with_explicit_exclusions"
@@ -518,11 +531,30 @@ def build_ledger() -> dict[str, Any]:
     hays_only = _hays_only_coordinates()
     direct_bands = _normalised_source_bands()
     declared_rows = _declared_native_source_rows()
+    randstad_coordinates = {}
+    for entry in _load(RANDSTAD_PATH)["roles"]:
+        for grade, band in entry["bands"].items():
+            coordinate = f"{entry['tier']}/{entry['role']}/{grade}"
+            randstad_coordinates[coordinate] = (band, entry)
+            declared_rows[coordinate] = [{
+                "source": "randstad_2025",
+                "native_role": f"p{entry['page']}/{entry['section']}/{entry['native_title']}",
+                "native_experience_band": grade,
+            }]
 
     records: dict[str, dict[str, Any]] = {}
     for coordinate, band in current_cells.items():
         candidate_sources: list[str] = []
-        if coordinate in MORRIS_RELATIONSHIP_COORDINATES:
+        if coordinate in randstad_coordinates:
+            source_band, entry = randstad_coordinates[coordinate]
+            if band != source_band:
+                raise ValueError(f"Randstad source mismatch at {coordinate}")
+            kind, sources, note = (
+                "direct_published", ["randstad_2025"],
+                f"Direct finite basic-monthly-salary band, Randstad 2025 p.{entry['page']}; "
+                "not used as independent holdout truth.",
+            )
+        elif coordinate in MORRIS_RELATIONSHIP_COORDINATES:
             kind, sources, note = (
                 "owner_calibration",
                 ["owner_2026_08_21"],

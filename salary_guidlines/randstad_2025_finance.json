@@ -1,0 +1,1935 @@
+{
+  "source_url": "https://www.randstad.com.hk/s3fs-media/hk/public/2025-01/Randstad-Hong-Kong-SAR-2025-Job-Market-Outlook-Salary-Guide.pdf?VersionId=Nbc9a4xsKw0jkw6VdMPz4ygnUr6zj93H",
+  "period": "monthly",
+  "basis": "basic salary, excluding AWS and fixed/variable bonus",
+  "year": 2025,
+  "roles": [
+    {
+      "tier": "back_office_operations",
+      "role": "operations_asset_servicing_corporate_actions",
+      "section": "operations",
+      "native_title": "asset servicing / corporate actions",
+      "page": 18,
+      "bands": {
+        "1–3 years": [
+          18000,
+          28000
+        ],
+        "3–6 years": [
+          28000,
+          40000
+        ],
+        "7–10 years": [
+          40000,
+          70000
+        ]
+      }
+    },
+    {
+      "tier": "back_office_operations",
+      "role": "operations_branch_operations",
+      "section": "operations",
+      "native_title": "branch operations",
+      "page": 18,
+      "bands": {
+        "1–3 years": [
+          14000,
+          18000
+        ],
+        "3–6 years": [
+          18000,
+          30000
+        ],
+        "7–10 years": [
+          30000,
+          50000
+        ]
+      }
+    },
+    {
+      "tier": "back_office_operations",
+      "role": "operations_cash_operations",
+      "section": "operations",
+      "native_title": "cash operations",
+      "page": 18,
+      "bands": {
+        "1–3 years": [
+          18000,
+          25000
+        ],
+        "3–6 years": [
+          25000,
+          38000
+        ],
+        "7–10 years": [
+          38000,
+          60000
+        ]
+      }
+    },
+    {
+      "tier": "back_office_operations",
+      "role": "operations_change_management_project_management",
+      "section": "operations",
+      "native_title": "change management / project management",
+      "page": 18,
+      "bands": {
+        "1–3 years": [
+          20000,
+          35000
+        ],
+        "3–6 years": [
+          35000,
+          60000
+        ],
+        "7–10 years": [
+          60000,
+          90000
+        ]
+      }
+    },
+    {
+      "tier": "back_office_operations",
+      "role": "operations_credit_administration",
+      "section": "operations",
+      "native_title": "credit administration",
+      "page": 18,
+      "bands": {
+        "1–3 years": [
+          18000,
+          28000
+        ],
+        "3–6 years": [
+          28000,
+          38000
+        ],
+        "7–10 years": [
+          38000,
+          50000
+        ]
+      }
+    },
+    {
+      "tier": "back_office_operations",
+      "role": "operations_fund_administration_operations",
+      "section": "operations",
+      "native_title": "fund administration / operations",
+      "page": 18,
+      "bands": {
+        "1–3 years": [
+          20000,
+          35000
+        ],
+        "3–6 years": [
+          35000,
+          50000
+        ],
+        "7–10 years": [
+          50000,
+          70000
+        ]
+      }
+    },
+    {
+      "tier": "back_office_operations",
+      "role": "operations_investment_operations",
+      "section": "operations",
+      "native_title": "investment operations",
+      "page": 18,
+      "bands": {
+        "1–3 years": [
+          25000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          60000
+        ],
+        "7–10 years": [
+          60000,
+          75000
+        ]
+      }
+    },
+    {
+      "tier": "back_office_operations",
+      "role": "operations_kyc_client_onboarding_cob",
+      "section": "operations",
+      "native_title": "KYC / client onboarding (COB)",
+      "page": 18,
+      "bands": {
+        "1–3 years": [
+          20000,
+          30000
+        ],
+        "3–6 years": [
+          30000,
+          45000
+        ],
+        "7–10 years": [
+          45000,
+          65000
+        ]
+      }
+    },
+    {
+      "tier": "back_office_operations",
+      "role": "operations_loan_operations",
+      "section": "operations",
+      "native_title": "loan operations",
+      "page": 18,
+      "bands": {
+        "1–3 years": [
+          18000,
+          28000
+        ],
+        "3–6 years": [
+          28000,
+          45000
+        ],
+        "7–10 years": [
+          45000,
+          60000
+        ]
+      }
+    },
+    {
+      "tier": "back_office_operations",
+      "role": "operations_middle_office_client_servicing_sales_support",
+      "section": "operations",
+      "native_title": "middle office - client servicing / sales support",
+      "page": 18,
+      "bands": {
+        "1–3 years": [
+          30000,
+          45000
+        ],
+        "3–6 years": [
+          45000,
+          60000
+        ],
+        "7–10 years": [
+          60000,
+          85000
+        ]
+      }
+    },
+    {
+      "tier": "back_office_operations",
+      "role": "operations_middle_office_trade_support",
+      "section": "operations",
+      "native_title": "middle office - trade support",
+      "page": 18,
+      "bands": {
+        "1–3 years": [
+          25000,
+          38000
+        ],
+        "3–6 years": [
+          38000,
+          55000
+        ],
+        "7–10 years": [
+          55000,
+          75000
+        ]
+      }
+    },
+    {
+      "tier": "back_office_operations",
+      "role": "operations_settlements",
+      "section": "operations",
+      "native_title": "settlements",
+      "page": 18,
+      "bands": {
+        "1–3 years": [
+          18000,
+          28000
+        ],
+        "3–6 years": [
+          28000,
+          40000
+        ],
+        "7–10 years": [
+          40000,
+          60000
+        ]
+      }
+    },
+    {
+      "tier": "commercial_corporate_banking",
+      "role": "corporate_banking_credit_analyst",
+      "section": "corporate banking",
+      "native_title": "credit analyst",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          18000,
+          35000
+        ],
+        "3–6 years": [
+          30000,
+          60000
+        ],
+        "7–10 years": [
+          50000,
+          90000
+        ]
+      }
+    },
+    {
+      "tier": "commercial_corporate_banking",
+      "role": "transaction_banking_cash_sales",
+      "section": "transaction banking",
+      "native_title": "cash sales",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          40000,
+          60000
+        ],
+        "3–6 years": [
+          50000,
+          70000
+        ],
+        "7–10 years": [
+          70000,
+          90000
+        ]
+      }
+    },
+    {
+      "tier": "commercial_corporate_banking",
+      "role": "transaction_banking_trade_finance_sales",
+      "section": "transaction banking",
+      "native_title": "trade finance sales",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          20000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          60000
+        ],
+        "7–10 years": [
+          60000,
+          100000
+        ]
+      }
+    },
+    {
+      "tier": "corporate_finance_accounting",
+      "role": "finance_accounting_audit_accountant",
+      "section": "finance accounting & audit",
+      "native_title": "accountant",
+      "page": 18,
+      "bands": {
+        "1–3 years": [
+          20000,
+          30000
+        ],
+        "3–6 years": [
+          30000,
+          50000
+        ],
+        "7–10 years": [
+          50000,
+          60000
+        ]
+      }
+    },
+    {
+      "tier": "corporate_finance_accounting",
+      "role": "finance_accounting_audit_asset_liability_manager_treasury",
+      "section": "finance accounting & audit",
+      "native_title": "asset liability manager / treasury",
+      "page": 18,
+      "bands": {
+        "1–3 years": [
+          25000,
+          40000
+        ],
+        "3–6 years": [
+          45000,
+          65000
+        ],
+        "7–10 years": [
+          65000,
+          90000
+        ]
+      }
+    },
+    {
+      "tier": "corporate_finance_accounting",
+      "role": "finance_accounting_audit_financial_reporting",
+      "section": "finance accounting & audit",
+      "native_title": "financial reporting",
+      "page": 18,
+      "bands": {
+        "1–3 years": [
+          25000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          55000
+        ],
+        "7–10 years": [
+          55000,
+          75000
+        ]
+      }
+    },
+    {
+      "tier": "corporate_finance_accounting",
+      "role": "finance_accounting_audit_fund_accountant",
+      "section": "finance accounting & audit",
+      "native_title": "fund accountant",
+      "page": 18,
+      "bands": {
+        "1–3 years": [
+          20000,
+          30000
+        ],
+        "3–6 years": [
+          30000,
+          50000
+        ],
+        "7–10 years": [
+          50000,
+          70000
+        ]
+      }
+    },
+    {
+      "tier": "corporate_finance_accounting",
+      "role": "finance_accounting_audit_internal_auditor",
+      "section": "finance accounting & audit",
+      "native_title": "internal auditor",
+      "page": 18,
+      "bands": {
+        "1–3 years": [
+          25000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          60000
+        ],
+        "7–10 years": [
+          60000,
+          90000
+        ]
+      }
+    },
+    {
+      "tier": "corporate_finance_accounting",
+      "role": "finance_accounting_audit_it_audit",
+      "section": "finance accounting & audit",
+      "native_title": "IT audit",
+      "page": 18,
+      "bands": {
+        "1–3 years": [
+          25000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          65000
+        ],
+        "7–10 years": [
+          65000,
+          90000
+        ]
+      }
+    },
+    {
+      "tier": "corporate_finance_accounting",
+      "role": "finance_accounting_audit_product_control",
+      "section": "finance accounting & audit",
+      "native_title": "product control",
+      "page": 18,
+      "bands": {
+        "1–3 years": [
+          25000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          65000
+        ],
+        "7–10 years": [
+          65000,
+          90000
+        ]
+      }
+    },
+    {
+      "tier": "corporate_finance_accounting",
+      "role": "finance_accounting_audit_regulatory_reporting",
+      "section": "finance accounting & audit",
+      "native_title": "regulatory reporting",
+      "page": 18,
+      "bands": {
+        "1–3 years": [
+          25000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          60000
+        ],
+        "7–10 years": [
+          60000,
+          85000
+        ]
+      }
+    },
+    {
+      "tier": "corporate_finance_accounting",
+      "role": "finance_accounting_audit_system_finance",
+      "section": "finance accounting & audit",
+      "native_title": "system finance",
+      "page": 18,
+      "bands": {
+        "1–3 years": [
+          25000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          60000
+        ],
+        "7–10 years": [
+          65000,
+          85000
+        ]
+      }
+    },
+    {
+      "tier": "corporate_finance_accounting",
+      "role": "finance_accounting_audit_tax",
+      "section": "finance accounting & audit",
+      "native_title": "tax",
+      "page": 18,
+      "bands": {
+        "1–3 years": [
+          25000,
+          45000
+        ],
+        "3–6 years": [
+          45000,
+          65000
+        ],
+        "7–10 years": [
+          65000,
+          90000
+        ]
+      }
+    },
+    {
+      "tier": "front_office",
+      "role": "asset_management_fixed_income_equities_analyst",
+      "section": "asset management (fixed income, equities)",
+      "native_title": "analyst",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          30000,
+          50000
+        ],
+        "3–6 years": [
+          50000,
+          70000
+        ],
+        "7–10 years": [
+          70000,
+          90000
+        ]
+      }
+    },
+    {
+      "tier": "front_office",
+      "role": "asset_management_fixed_income_equities_trader",
+      "section": "asset management (fixed income, equities)",
+      "native_title": "trader",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          30000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          60000
+        ],
+        "7–10 years": [
+          60000,
+          100000
+        ]
+      }
+    },
+    {
+      "tier": "front_office",
+      "role": "global_market_treasury_bond_trader",
+      "section": "global market treasury",
+      "native_title": "bond trader",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          20000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          70000
+        ],
+        "7–10 years": [
+          70000,
+          110000
+        ]
+      }
+    },
+    {
+      "tier": "front_office",
+      "role": "global_market_treasury_corporate_sales",
+      "section": "global market treasury",
+      "native_title": "corporate sales",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          20000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          70000
+        ],
+        "7–10 years": [
+          70000,
+          120000
+        ]
+      }
+    },
+    {
+      "tier": "front_office",
+      "role": "global_market_treasury_credit_sales",
+      "section": "global market treasury",
+      "native_title": "credit sales",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          40000,
+          60000
+        ],
+        "3–6 years": [
+          60000,
+          100000
+        ],
+        "7–10 years": [
+          100000,
+          120000
+        ]
+      }
+    },
+    {
+      "tier": "front_office",
+      "role": "global_market_treasury_fx_trader",
+      "section": "global market treasury",
+      "native_title": "FX trader",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          20000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          70000
+        ],
+        "7–10 years": [
+          70000,
+          120000
+        ]
+      }
+    },
+    {
+      "tier": "front_office",
+      "role": "global_market_treasury_money_market_trader",
+      "section": "global market treasury",
+      "native_title": "money market trader",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          20000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          70000
+        ],
+        "7–10 years": [
+          70000,
+          110000
+        ]
+      }
+    },
+    {
+      "tier": "front_office",
+      "role": "global_market_treasury_product_development",
+      "section": "global market treasury",
+      "native_title": "product development",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          20000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          60000
+        ],
+        "7–10 years": [
+          60000,
+          80000
+        ]
+      }
+    },
+    {
+      "tier": "front_office",
+      "role": "investment_banking_corporate_finance",
+      "section": "investment banking",
+      "native_title": "corporate finance",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          50000,
+          70000
+        ],
+        "3–6 years": [
+          80000,
+          120000
+        ],
+        "7–10 years": [
+          125000,
+          175000
+        ]
+      }
+    },
+    {
+      "tier": "front_office",
+      "role": "investment_banking_dcm",
+      "section": "investment banking",
+      "native_title": "DCM",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          45000,
+          65000
+        ],
+        "3–6 years": [
+          70000,
+          110000
+        ],
+        "7–10 years": [
+          120000,
+          160000
+        ]
+      }
+    },
+    {
+      "tier": "front_office",
+      "role": "investment_banking_ipo_execution",
+      "section": "investment banking",
+      "native_title": "IPO execution",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          40000,
+          60000
+        ],
+        "3–6 years": [
+          60000,
+          95000
+        ],
+        "7–10 years": [
+          100000,
+          150000
+        ]
+      }
+    },
+    {
+      "tier": "front_office",
+      "role": "investment_banking_m_a",
+      "section": "investment banking",
+      "native_title": "M&A",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          50000,
+          70000
+        ],
+        "3–6 years": [
+          80000,
+          120000
+        ],
+        "7–10 years": [
+          125000,
+          175000
+        ]
+      }
+    },
+    {
+      "tier": "front_office",
+      "role": "private_banking_wealth_management_investment_counselor",
+      "section": "private banking & wealth management",
+      "native_title": "investment counselor",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          65000,
+          75000
+        ],
+        "3–6 years": [
+          70000,
+          100000
+        ],
+        "7–10 years": [
+          100000,
+          140000
+        ]
+      }
+    },
+    {
+      "tier": "front_office",
+      "role": "private_banking_wealth_management_investment_counselor_assistance",
+      "section": "private banking & wealth management",
+      "native_title": "investment counselor assistance",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          35000,
+          50000
+        ],
+        "3–6 years": [
+          50000,
+          65000
+        ]
+      }
+    },
+    {
+      "tier": "front_office",
+      "role": "private_banking_wealth_management_private_banking_client_services_officer",
+      "section": "private banking & wealth management",
+      "native_title": "private banking client services officer",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          35000,
+          45000
+        ],
+        "3–6 years": [
+          45000,
+          55000
+        ],
+        "7–10 years": [
+          55000,
+          65000
+        ]
+      }
+    },
+    {
+      "tier": "front_office",
+      "role": "private_banking_wealth_management_private_banking_relationship_manager",
+      "section": "private banking & wealth management",
+      "native_title": "private banking relationship manager",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          65000,
+          80000
+        ],
+        "3–6 years": [
+          80000,
+          110000
+        ],
+        "7–10 years": [
+          120000,
+          180000
+        ]
+      }
+    },
+    {
+      "tier": "front_office",
+      "role": "private_banking_wealth_management_product_management",
+      "section": "private banking & wealth management",
+      "native_title": "product management",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          50000,
+          60000
+        ],
+        "3–6 years": [
+          60000,
+          90000
+        ],
+        "7–10 years": [
+          90000,
+          120000
+        ]
+      }
+    },
+    {
+      "tier": "front_office",
+      "role": "private_banking_wealth_management_wealth_planning_specialist",
+      "section": "private banking & wealth management",
+      "native_title": "wealth planning specialist",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          40000,
+          50000
+        ],
+        "3–6 years": [
+          55000,
+          70000
+        ],
+        "7–10 years": [
+          80000,
+          100000
+        ]
+      }
+    },
+    {
+      "tier": "insurance",
+      "role": "insurance_accounting_finance",
+      "section": "accounting & finance",
+      "native_title": "director",
+      "page": 30,
+      "bands": {
+        "Director": [
+          120000,
+          160000
+        ],
+        "Senior Finance Manager": [
+          70000,
+          90000
+        ],
+        "Finance Manager": [
+          50000,
+          65000
+        ],
+        "Assistant Finance Manager": [
+          35000,
+          49000
+        ],
+        "Senior Accountant": [
+          25000,
+          35000
+        ]
+      }
+    },
+    {
+      "tier": "insurance",
+      "role": "insurance_actuarial",
+      "section": "actuarial",
+      "native_title": "director",
+      "page": 29,
+      "bands": {
+        "Director": [
+          120000,
+          180000
+        ],
+        "Associate Director": [
+          80000,
+          120000
+        ],
+        "Senior Manager": [
+          68000,
+          85000
+        ],
+        "Manager": [
+          58000,
+          75000
+        ],
+        "Assistant Manager": [
+          50000,
+          70000
+        ],
+        "Senior Associate": [
+          40000,
+          50000
+        ],
+        "Associate": [
+          30000,
+          40000
+        ]
+      }
+    },
+    {
+      "tier": "insurance",
+      "role": "insurance_alternative_distribution",
+      "section": "alternative distribution",
+      "native_title": "head of alternative distribution",
+      "page": 29,
+      "bands": {
+        "Head Of Alternative Distribution": [
+          100000,
+          150000
+        ],
+        "Channel Director": [
+          80000,
+          95000
+        ],
+        "Senior Manager": [
+          68000,
+          80000
+        ],
+        "Assistant Manager / Manager": [
+          40000,
+          65000
+        ]
+      }
+    },
+    {
+      "tier": "insurance",
+      "role": "insurance_bancassurance",
+      "section": "bancassurance",
+      "native_title": "head of bancassurance",
+      "page": 29,
+      "bands": {
+        "Head Of Bancassurance": [
+          120000,
+          180000
+        ],
+        "Senior Manager": [
+          70000,
+          92000
+        ],
+        "Assistant Manager / Manager": [
+          40000,
+          68000
+        ],
+        "Bancassurance Officer": [
+          28000,
+          38000
+        ]
+      }
+    },
+    {
+      "tier": "insurance",
+      "role": "insurance_claims",
+      "section": "claims",
+      "native_title": "head of claims",
+      "page": 29,
+      "bands": {
+        "Head Of Claims": [
+          90000,
+          140000
+        ],
+        "Senior Manager": [
+          60000,
+          80000
+        ],
+        "Manager": [
+          42000,
+          65000
+        ],
+        "Assistant Manager": [
+          38000,
+          42000
+        ],
+        "Senior Officer": [
+          25000,
+          38000
+        ],
+        "Officer": [
+          18000,
+          25000
+        ]
+      }
+    },
+    {
+      "tier": "insurance",
+      "role": "insurance_customer_service",
+      "section": "customer service",
+      "native_title": "director",
+      "page": 29,
+      "bands": {
+        "Director": [
+          80000,
+          100000
+        ],
+        "Senior Manager": [
+          60000,
+          80000
+        ],
+        "Manager": [
+          46000,
+          55000
+        ],
+        "Assistant Manager": [
+          35000,
+          45000
+        ],
+        "Senior Officer": [
+          26000,
+          35000
+        ],
+        "Officer": [
+          17000,
+          25000
+        ]
+      }
+    },
+    {
+      "tier": "insurance",
+      "role": "insurance_financial_risk_management",
+      "section": "financial risk management",
+      "native_title": "senior manager",
+      "page": 30,
+      "bands": {
+        "Senior Manager": [
+          70000,
+          90000
+        ],
+        "Manager": [
+          55000,
+          65000
+        ],
+        "Assistant Manager": [
+          35000,
+          50000
+        ],
+        "Officer": [
+          25000,
+          30000
+        ]
+      }
+    },
+    {
+      "tier": "insurance",
+      "role": "insurance_internal_audit",
+      "section": "internal audit",
+      "native_title": "head of internal audit",
+      "page": 30,
+      "bands": {
+        "Head Of Internal Audit": [
+          160000,
+          200000
+        ],
+        "Senior Audit Manager": [
+          60000,
+          100000
+        ],
+        "Audit Manager": [
+          40000,
+          60000
+        ],
+        "Assistant Manager": [
+          35000,
+          45000
+        ]
+      }
+    },
+    {
+      "tier": "insurance",
+      "role": "insurance_policy_admin",
+      "section": "policy admin",
+      "native_title": "head of policy admin",
+      "page": 29,
+      "bands": {
+        "Head Of Policy Admin": [
+          70000,
+          95000
+        ],
+        "Senior Manager": [
+          55000,
+          75000
+        ],
+        "Manager": [
+          40000,
+          55000
+        ],
+        "Assistant Manager": [
+          30000,
+          43000
+        ],
+        "Senior Officer": [
+          25000,
+          33000
+        ],
+        "Officer": [
+          18000,
+          25000
+        ]
+      }
+    },
+    {
+      "tier": "insurance",
+      "role": "insurance_product",
+      "section": "product",
+      "native_title": "director",
+      "page": 29,
+      "bands": {
+        "Director": [
+          120000,
+          180000
+        ],
+        "Senior Manager": [
+          75000,
+          95000
+        ],
+        "Manager": [
+          50000,
+          68000
+        ],
+        "Assistant Manager": [
+          38000,
+          55000
+        ],
+        "Senior Officer": [
+          30000,
+          38000
+        ],
+        "Officer": [
+          25000,
+          30000
+        ]
+      }
+    },
+    {
+      "tier": "insurance",
+      "role": "insurance_transformation",
+      "section": "transformation",
+      "native_title": "head of transformation",
+      "page": 30,
+      "bands": {
+        "Head Of Transformation": [
+          120000,
+          180000
+        ],
+        "Senior Manager": [
+          75000,
+          110000
+        ],
+        "Manager": [
+          55000,
+          70000
+        ],
+        "Senior Business Analyst": [
+          30000,
+          48000
+        ],
+        "Business Analyst": [
+          25000,
+          32000
+        ]
+      }
+    },
+    {
+      "tier": "insurance",
+      "role": "insurance_underwriting",
+      "section": "underwriting",
+      "native_title": "director",
+      "page": 29,
+      "bands": {
+        "Director": [
+          130000,
+          180000
+        ],
+        "Senior Manager": [
+          60000,
+          100000
+        ],
+        "Manager": [
+          50000,
+          65000
+        ],
+        "Assistant Manager": [
+          35000,
+          50000
+        ],
+        "Senior Officer": [
+          25000,
+          35000
+        ],
+        "Officer": [
+          25000,
+          35000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "compliance_anti_bribery_compliance",
+      "section": "compliance",
+      "native_title": "anti-bribery compliance",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          30000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          65000
+        ],
+        "7–10 years": [
+          65000,
+          100000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "compliance_anti_money_laundering_aml_financial_crime_compliance_fcc",
+      "section": "compliance",
+      "native_title": "anti-money laundering (AML) / financial crime compliance (FCC)",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          20000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          80000
+        ],
+        "7–10 years": [
+          80000,
+          150000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "compliance_asset_management_compliance_business_compliance",
+      "section": "compliance",
+      "native_title": "asset management compliance - business compliance",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          30000,
+          45000
+        ],
+        "3–6 years": [
+          45000,
+          75000
+        ],
+        "7–10 years": [
+          75000,
+          120000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "compliance_asset_management_compliance_investment_compliance",
+      "section": "compliance",
+      "native_title": "asset management compliance - investment compliance",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          25000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          75000
+        ],
+        "7–10 years": [
+          75000,
+          120000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "compliance_compliance_advisory_global_markets",
+      "section": "compliance",
+      "native_title": "compliance advisory - global markets",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          30000,
+          50000
+        ],
+        "3–6 years": [
+          50000,
+          70000
+        ],
+        "7–10 years": [
+          70000,
+          110000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "compliance_compliance_advisory_ibd_research_compliance",
+      "section": "compliance",
+      "native_title": "compliance advisory - IBD / research compliance",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          30000,
+          50000
+        ],
+        "3–6 years": [
+          50000,
+          70000
+        ],
+        "7–10 years": [
+          70000,
+          110000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "compliance_compliance_policy_and_procedure",
+      "section": "compliance",
+      "native_title": "compliance policy and procedure",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          25000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          60000
+        ],
+        "7–10 years": [
+          60000,
+          100000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "compliance_compliance_testing_assurance",
+      "section": "compliance",
+      "native_title": "compliance testing / assurance",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          25000,
+          45000
+        ],
+        "3–6 years": [
+          45000,
+          70000
+        ],
+        "7–10 years": [
+          70000,
+          100000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "compliance_control_room",
+      "section": "compliance",
+      "native_title": "control room",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          25000,
+          35000
+        ],
+        "3–6 years": [
+          35000,
+          60000
+        ],
+        "7–10 years": [
+          60000,
+          100000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "compliance_disclosure_of_interest_doi",
+      "section": "compliance",
+      "native_title": "disclosure of interest (DOI)",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          20000,
+          35000
+        ],
+        "3–6 years": [
+          35000,
+          50000
+        ],
+        "7–10 years": [
+          50000,
+          90000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "compliance_fraud_investigation_advisory",
+      "section": "compliance",
+      "native_title": "fraud investigation & advisory",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          20000,
+          45000
+        ],
+        "3–6 years": [
+          45000,
+          65000
+        ],
+        "7–10 years": [
+          65000,
+          100000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "compliance_insurance_compliance",
+      "section": "compliance",
+      "native_title": "insurance compliance",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          25000,
+          35000
+        ],
+        "3–6 years": [
+          35000,
+          65000
+        ],
+        "7–10 years": [
+          65000,
+          110000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "compliance_licensing",
+      "section": "compliance",
+      "native_title": "licensing",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          25000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          60000
+        ],
+        "7–10 years": [
+          60000,
+          80000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "compliance_regulatory_compliance",
+      "section": "compliance",
+      "native_title": "regulatory compliance",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          30000,
+          45000
+        ],
+        "3–6 years": [
+          45000,
+          65000
+        ],
+        "7–10 years": [
+          65000,
+          100000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "compliance_sanction_investigation_advisory",
+      "section": "compliance",
+      "native_title": "sanction investigation & advisory",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          20000,
+          45000
+        ],
+        "3–6 years": [
+          45000,
+          65000
+        ],
+        "7–10 years": [
+          65000,
+          100000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "compliance_trade_surveillance",
+      "section": "compliance",
+      "native_title": "trade surveillance",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          25000,
+          35000
+        ],
+        "3–6 years": [
+          35000,
+          60000
+        ],
+        "7–10 years": [
+          60000,
+          100000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "risk_management_business_risk",
+      "section": "risk management",
+      "native_title": "business risk",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          30000,
+          45000
+        ],
+        "3–6 years": [
+          45000,
+          65000
+        ],
+        "7–10 years": [
+          65000,
+          80000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "risk_management_credit_risk",
+      "section": "risk management",
+      "native_title": "credit risk",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          25000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          55000
+        ],
+        "7–10 years": [
+          55000,
+          70000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "risk_management_enterprise_risk",
+      "section": "risk management",
+      "native_title": "enterprise risk",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          30000,
+          45000
+        ],
+        "3–6 years": [
+          45000,
+          60000
+        ],
+        "7–10 years": [
+          60000,
+          80000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "risk_management_investment_risk_portfolio_risk",
+      "section": "risk management",
+      "native_title": "investment risk & portfolio risk",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          25000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          65000
+        ],
+        "7–10 years": [
+          65000,
+          80000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "risk_management_it_risk",
+      "section": "risk management",
+      "native_title": "IT risk",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          30000,
+          45000
+        ],
+        "3–6 years": [
+          45000,
+          65000
+        ],
+        "7–10 years": [
+          65000,
+          100000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "risk_management_liquidity_risk",
+      "section": "risk management",
+      "native_title": "liquidity risk",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          25000,
+          35000
+        ],
+        "3–6 years": [
+          35000,
+          50000
+        ],
+        "7–10 years": [
+          50000,
+          70000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "risk_management_market_risk",
+      "section": "risk management",
+      "native_title": "market risk",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          30000,
+          45000
+        ],
+        "3–6 years": [
+          45000,
+          65000
+        ],
+        "7–10 years": [
+          65000,
+          100000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "risk_management_model_risk_validation",
+      "section": "risk management",
+      "native_title": "model risk / validation",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          30000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          55000
+        ],
+        "7–10 years": [
+          55000,
+          80000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "risk_management_operational_risk",
+      "section": "risk management",
+      "native_title": "operational risk",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          25000,
+          40000
+        ],
+        "3–6 years": [
+          40000,
+          55000
+        ],
+        "7–10 years": [
+          55000,
+          70000
+        ]
+      }
+    },
+    {
+      "tier": "middle_office",
+      "role": "risk_management_risk_analytics_methodology",
+      "section": "risk management",
+      "native_title": "risk analytics & methodology",
+      "page": 17,
+      "bands": {
+        "1–3 years": [
+          25000,
+          35000
+        ],
+        "3–6 years": [
+          35000,
+          50000
+        ],
+        "7–10 years": [
+          50000,
+          70000
+        ]
+      }
+    },
+    {
+      "tier": "retail_banking",
+      "role": "retail_banking_insurance_specialist",
+      "section": "retail banking",
+      "native_title": "insurance specialist",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          25000,
+          35000
+        ],
+        "3–6 years": [
+          30000,
+          55000
+        ],
+        "7–10 years": [
+          45000,
+          65000
+        ]
+      }
+    },
+    {
+      "tier": "retail_banking",
+      "role": "retail_banking_investment_consultant",
+      "section": "retail banking",
+      "native_title": "investment consultant",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          38000,
+          65000
+        ],
+        "3–6 years": [
+          50000,
+          65000
+        ],
+        "7–10 years": [
+          65000,
+          85500
+        ]
+      }
+    },
+    {
+      "tier": "retail_banking",
+      "role": "retail_banking_mortgage_specialist",
+      "section": "retail banking",
+      "native_title": "mortgage specialist",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          15000,
+          21000
+        ],
+        "3–6 years": [
+          21000,
+          25000
+        ],
+        "7–10 years": [
+          25000,
+          30000
+        ]
+      }
+    },
+    {
+      "tier": "retail_banking",
+      "role": "retail_banking_personal_banker",
+      "section": "retail banking",
+      "native_title": "personal banker",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          16000,
+          27000
+        ],
+        "3–6 years": [
+          27000,
+          29000
+        ]
+      }
+    },
+    {
+      "tier": "retail_banking",
+      "role": "retail_banking_premier_banking_relationship_manager",
+      "section": "retail banking",
+      "native_title": "premier banking relationship manager",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          30000,
+          44000
+        ],
+        "3–6 years": [
+          35000,
+          65000
+        ],
+        "7–10 years": [
+          45000,
+          70000
+        ]
+      }
+    },
+    {
+      "tier": "retail_banking",
+      "role": "retail_banking_treasury_specialist",
+      "section": "retail banking",
+      "native_title": "treasury specialist",
+      "page": 16,
+      "bands": {
+        "1–3 years": [
+          33000,
+          35000
+        ],
+        "3–6 years": [
+          38000,
+          48000
+        ],
+        "7–10 years": [
+          48000,
+          55000
+        ]
+      }
+    }
+  ]
+}
