@@ -62,6 +62,11 @@ from pydantic import BaseModel, field_validator
 
 import search_index
 from hk_jobs.board_visibility import board_visible_sql
+from hk_jobs.highlight_salary import (
+    MAX_ABSOLUTE_WIDTH,
+    MAX_RELATIVE_WIDTH,
+    MIN_MONTHLY_SALARY,
+)
 from hk_jobs.mt_classifier import MT_CANDIDATE_TITLE_TERMS, classify_mt_role, review_ambiguous_mt_role
 from hk_jobs.mt_employer_links import employer_destination_for
 from hk_jobs.sources import apply_rank
@@ -738,6 +743,10 @@ class JobFilters:
     #: Mirrors /norm-it's WIDE_RATIO = 4.0 — an estimate whose max is at least
     #: 4x its min, a shape norm-it flags as too imprecise to trust.
     wide_range_only: Optional[bool] = None
+    #: Internal landing-page prefilter. The final promotion rule also checks
+    #: anchor provenance in Python; this keeps broad estimates out of the
+    #: expensive JobSummary materialisation path.
+    promotable_salary_shape: bool = False
 
     @classmethod
     def of(cls, **kwargs) -> "JobFilters":
@@ -905,6 +914,18 @@ def _where(
             f"{_as_monthly('COALESCE(e.salary_hkd_max, e.salary_estimated_max)')} <= ?"
         )
         params.append(filters.salary_max)
+
+    if filters.promotable_salary_shape:
+        conditions.append(
+            "((e.salary_hkd_min IS NOT NULL AND e.salary_hkd_max IS NOT NULL) OR "
+            "(e.salary_hkd_min IS NULL AND e.salary_hkd_max IS NULL "
+            "AND e.salary_estimated_confidence IN ('high', 'medium') "
+            f"AND e.salary_estimated_min >= {MIN_MONTHLY_SALARY} "
+            "AND e.salary_estimated_max > e.salary_estimated_min "
+            f"AND e.salary_estimated_max - e.salary_estimated_min <= {MAX_ABSOLUTE_WIDTH} "
+            "AND e.salary_estimated_max - e.salary_estimated_min "
+            f"<= e.salary_estimated_min * {MAX_RELATIVE_WIDTH}))"
+        )
 
     if filters.exp_min is not None:
         conditions.append("e.years_experience_required >= ?")

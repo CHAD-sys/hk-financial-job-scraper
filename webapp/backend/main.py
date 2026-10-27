@@ -455,7 +455,10 @@ def get_landing_high_paying_roles(request: Request):
     audience = CatalogueAudience.MEMBER if seeker is not None else CatalogueAudience.PUBLIC
     selected: list[JobSummary] = []
     with get_db(request) as conn:
-        filters = JobFilters.of(search="finance", salary_min=MIN_MONTHLY_SALARY)
+        filters = JobFilters.of(
+            search="finance", salary_min=MIN_MONTHLY_SALARY,
+            promotable_salary_shape=True,
+        )
         page = 1
         while True:
             result = job_read.list_jobs(
