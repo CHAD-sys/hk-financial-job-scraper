@@ -19,7 +19,7 @@ import SourceBadges from './SourceBadges'
 
 describe('SourceBadges', () => {
   it('shows the employer’s own careers page for every own-site source', () => {
-    for (const source of ['workday', 'eightfold', 'successfactors', 'longtail']) {
+    for (const source of ['workday', 'eightfold', 'successfactors', 'greenhouse', 'direct_site', 'longtail']) {
       const { unmount } = render(<SourceBadges sources={[source]} />)
       expect(screen.getByText('Company site'), source).toBeTruthy()
       unmount()
@@ -45,7 +45,7 @@ describe('SourceBadges', () => {
   })
 
   it('collapses several own-site sources into a single tag', () => {
-    render(<SourceBadges sources={['workday', 'successfactors', 'longtail']} />)
+    render(<SourceBadges sources={['workday', 'successfactors', 'direct_site', 'longtail']} />)
     expect(screen.getAllByText('Company site')).toHaveLength(1)
   })
 

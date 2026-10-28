@@ -1,0 +1,468 @@
+{
+ "jobs": [
+  {
+   "absolute_url": "https://www.hudsonrivertrading.com/careers/job/?gh_jid=7566004",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "internal_job_id": 804727,
+   "location": {
+    "name": "Singapore"
+   },
+   "metadata": [
+    {
+     "id": 31586,
+     "name": "Employment Type",
+     "value": "Full-Time",
+     "value_type": "single_select"
+    },
+    {
+     "id": 4118765,
+     "name": "Job Type",
+     "value": [
+      "Full-Time: Experienced"
+     ],
+     "value_type": "multi_select"
+    },
+    {
+     "id": 4168241,
+     "name": "Job Category",
+     "value": [
+      "Software Engineering:C++"
+     ],
+     "value_type": "multi_select"
+    },
+    {
+     "id": 832649,
+     "name": "Role Priority",
+     "value": "Medium",
+     "value_type": "single_select"
+    },
+    {
+     "id": 40628704,
+     "name": "Career Site Metadata",
+     "value": null,
+     "value_type": "multi_select"
+    },
+    {
+     "id": 45550074,
+     "name": "Career Site Ranking",
+     "value": null,
+     "value_type": "single_select"
+    }
+   ],
+   "id": 7566004,
+   "updated_at": "2026-10-01T10:37:16-04:00",
+   "requisition_id": "17",
+   "title": "Software Engineer - Distributed Compute",
+   "company_name": "Hudson River Trading",
+   "first_published": "2026-01-26T21:45:26-05:00",
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;p&gt;Hudson River Trading (HRT) is one of the top algorithmic trading companies in the world. Our research cluster is the backbone of our success; it\u2019s where all of our trading strategies are generated.&lt;/p&gt;\n&lt;p&gt;We use a large, customized research environment with highly advanced CPU and GPU compute, storage, and networking technology. Our team thinks about the entire software stack, from the user-level API to optimizing performance out of low-level caching. We deal with everything from the theoretical, like fair resource scheduling, to the concrete, like optimizing a trader\u2019s new program run-time performance.&amp;nbsp;&lt;/p&gt;\n&lt;p&gt;As a distributed compute engineer in a user-facing environment, you\u2019ll develop and improve on technical solutions that make research as easy and efficient as possible. You\u2019ll work every day with both talented quantitative traders and software engineers across all trading teams.&lt;/p&gt;\n&lt;p&gt;&lt;strong&gt;Responsibilities&lt;/strong&gt;&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;Ensure HRT\u2019s research environment is best in class, with a focus on user workloads&lt;/li&gt;\n&lt;ul&gt;\n&lt;li&gt;Maintain and improve resource scheduling, data caching, and job monitoring to make research as easy, fast, and efficient as possible, using both in-house and open source solutions&lt;/li&gt;\n&lt;li&gt;Optimize workloads at the user level to speed up user iteration speed&lt;/li&gt;\n&lt;li&gt;Tune workloads at the infrastructure level to make them m",
+   "departments": [
+    {
+     "id": 75196,
+     "name": "Trading Tech",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "offices": [
+    {
+     "id": 109397,
+     "name": "Hong Kong",
+     "location": "Hong Kong",
+     "child_ids": [],
+     "parent_id": null
+    },
+    {
+     "id": 5226,
+     "name": "Singapore",
+     "location": "Singapore",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "ai_disclaimer": null,
+   "include_ai_disclaimer": false,
+   "ai_opt_out_request_url": "http://app.greenhouse.io/ai_opt_out_request/job_post/7566004/ai_opt_out"
+  },
+  {
+   "absolute_url": "https://www.hudsonrivertrading.com/careers/job/?gh_jid=1229082",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "internal_job_id": 804727,
+   "location": {
+    "name": "Singapore"
+   },
+   "metadata": [
+    {
+     "id": 31586,
+     "name": "Employment Type",
+     "value": "Full-Time",
+     "value_type": "single_select"
+    },
+    {
+     "id": 4118765,
+     "name": "Job Type",
+     "value": [
+      "Full-Time: Experienced"
+     ],
+     "value_type": "multi_select"
+    },
+    {
+     "id": 4168241,
+     "name": "Job Category",
+     "value": [
+      "Software Engineering:C++"
+     ],
+     "value_type": "multi_select"
+    },
+    {
+     "id": 832649,
+     "name": "Role Priority",
+     "value": "Medium",
+     "value_type": "single_select"
+    },
+    {
+     "id": 40628704,
+     "name": "Career Site Metadata",
+     "value": null,
+     "value_type": "multi_select"
+    },
+    {
+     "id": 45550074,
+     "name": "Career Site Ranking",
+     "value": null,
+     "value_type": "single_select"
+    }
+   ],
+   "id": 1229082,
+   "updated_at": "2026-10-01T10:37:16-04:00",
+   "requisition_id": "17",
+   "title": "Software Engineer - Low Level (C++)  ",
+   "company_name": "Hudson River Trading",
+   "first_published": null,
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;p&gt;&lt;span style=&quot;font-weight: 400;&quot;&gt;We are looking for engineers to power Hudson River Trading&#39;s continued expansion into global markets. As an engineer based out of our Singapore office, you will play a critical role in the process of establishing HRT&#39;s presence in Asia-Pacific markets and work closely with our algo and operations teams to ensure the continued success of our trading. You will also be deeply involved in the continuous, ongoing process of optimizing trading in markets HRT already has a presence in.&lt;/span&gt;&lt;/p&gt;\n&lt;p&gt;&lt;span style=&quot;font-weight: 400;&quot;&gt;In this role, you&#39;ll be expected to own the process of entering new markets and manage market changes over time. With this responsibility, you&#39;ll gain broad exposure to both the technical and business aspects of our trading operation. It is difficult to overstate the impact of this role - you will immediately contribute to the bottom line as HRT begins trading in markets it previously had no presence in and HRT\u2019s trading in existing markets becomes more profitable.&lt;/span&gt;&lt;/p&gt;\n&lt;p&gt;&lt;strong&gt;Profile&lt;/strong&gt;&lt;/p&gt;\n&lt;ul&gt;\n&lt;li style=&quot;font-weight: 400;&quot;&gt;&lt;span style=&quot;font-weight: 400;&quot;&gt;In your spare time you: code, tinker, read, explore, break things, and have an insatiable curiosity for all things computer related... you&#39;ll find like-minded people here.&lt;/span&gt;&lt;/li&gt;\n&lt;li st",
+   "departments": [
+    {
+     "id": 75196,
+     "name": "Trading Tech",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "offices": [
+    {
+     "id": 109397,
+     "name": "Hong Kong",
+     "location": "Hong Kong",
+     "child_ids": [],
+     "parent_id": null
+    },
+    {
+     "id": 5226,
+     "name": "Singapore",
+     "location": "Singapore",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "ai_disclaimer": null,
+   "include_ai_disclaimer": false,
+   "ai_opt_out_request_url": "http://app.greenhouse.io/ai_opt_out_request/job_post/1229082/ai_opt_out"
+  },
+  {
+   "absolute_url": "https://www.hudsonrivertrading.com/careers/job/?gh_jid=6345536",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "internal_job_id": 804727,
+   "location": {
+    "name": "Hong Kong"
+   },
+   "metadata": [
+    {
+     "id": 31586,
+     "name": "Employment Type",
+     "value": "Full-Time",
+     "value_type": "single_select"
+    },
+    {
+     "id": 4118765,
+     "name": "Job Type",
+     "value": [
+      "Full-Time: Experienced"
+     ],
+     "value_type": "multi_select"
+    },
+    {
+     "id": 4168241,
+     "name": "Job Category",
+     "value": [
+      "Software Engineering:C++"
+     ],
+     "value_type": "multi_select"
+    },
+    {
+     "id": 832649,
+     "name": "Role Priority",
+     "value": "Medium",
+     "value_type": "single_select"
+    },
+    {
+     "id": 40628704,
+     "name": "Career Site Metadata",
+     "value": null,
+     "value_type": "multi_select"
+    },
+    {
+     "id": 45550074,
+     "name": "Career Site Ranking",
+     "value": null,
+     "value_type": "single_select"
+    }
+   ],
+   "id": 6345536,
+   "updated_at": "2026-10-01T10:37:16-04:00",
+   "requisition_id": "17",
+   "title": "Software Engineer - Low Level (C++) ",
+   "company_name": "Hudson River Trading",
+   "first_published": "2024-10-22T13:01:13-04:00",
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;p&gt;&lt;span style=&quot;font-weight: 400;&quot;&gt;We are looking for engineers to power Hudson River Trading&#39;s continued expansion into global markets. As an engineer based out of our Hong Kong office, you will play a critical role in the process of establishing HRT&#39;s presence in Asia-Pacific markets and work closely with our algo and operations teams to ensure the continued success of our trading. You will also be deeply involved in the continuous, ongoing process of optimizing trading in markets HRT already has a presence in.&lt;/span&gt;&lt;/p&gt;\n&lt;p&gt;&lt;span style=&quot;font-weight: 400;&quot;&gt;In this role, you&#39;ll be expected to own the process of entering new markets and manage market changes over time. With this responsibility, you&#39;ll gain broad exposure to both the technical and business aspects of our trading operation. It is difficult to overstate the impact of this role - you will immediately contribute to the bottom line as HRT begins trading in markets it previously had no presence in and HRT\u2019s trading in existing markets becomes more profitable.&lt;/span&gt;&lt;/p&gt;\n&lt;p&gt;&lt;strong&gt;Profile&lt;/strong&gt;&lt;/p&gt;\n&lt;ul&gt;\n&lt;li style=&quot;font-weight: 400;&quot;&gt;&lt;span style=&quot;font-weight: 400;&quot;&gt;In your spare time you: code, tinker, read, explore, break things, and have an insatiable curiosity for all things computer related... you&#39;ll find like-minded people here.&lt;/span&gt;&lt;/li&gt;\n&lt;li st",
+   "departments": [
+    {
+     "id": 75196,
+     "name": "Trading Tech",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "offices": [
+    {
+     "id": 109397,
+     "name": "Hong Kong",
+     "location": "Hong Kong",
+     "child_ids": [],
+     "parent_id": null
+    },
+    {
+     "id": 5226,
+     "name": "Singapore",
+     "location": "Singapore",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "ai_disclaimer": null,
+   "include_ai_disclaimer": false,
+   "ai_opt_out_request_url": "http://app.greenhouse.io/ai_opt_out_request/job_post/6345536/ai_opt_out"
+  },
+  {
+   "absolute_url": "https://www.hudsonrivertrading.com/careers/job/?gh_jid=7972593",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "internal_job_id": 3272443,
+   "location": {
+    "name": "London, United Kingdom; New York, NY, United States"
+   },
+   "metadata": [
+    {
+     "id": 31586,
+     "name": "Employment Type",
+     "value": "Full-Time",
+     "value_type": "single_select"
+    },
+    {
+     "id": 4118765,
+     "name": "Job Type",
+     "value": [
+      "Full-Time: Experienced"
+     ],
+     "value_type": "multi_select"
+    },
+    {
+     "id": 4168241,
+     "name": "Job Category",
+     "value": [
+      "Strategy Development"
+     ],
+     "value_type": "multi_select"
+    },
+    {
+     "id": 832649,
+     "name": "Role Priority",
+     "value": "Medium",
+     "value_type": "single_select"
+    },
+    {
+     "id": 40628704,
+     "name": "Career Site Metadata",
+     "value": null,
+     "value_type": "multi_select"
+    },
+    {
+     "id": 45550074,
+     "name": "Career Site Ranking",
+     "value": null,
+     "value_type": "single_select"
+    }
+   ],
+   "id": 7972593,
+   "updated_at": "2026-10-26T10:22:41-04:00",
+   "requisition_id": "533",
+   "title": "AI Research Engineer, Inference",
+   "company_name": "Hudson River Trading",
+   "first_published": "2026-06-01T10:20:19-04:00",
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;p&gt;Hudson River Trading (HRT) is seeking an AI Research Engineer (&lt;strong&gt;Inference&lt;/strong&gt;) to join the HAIL team. HAIL (HRT AI Labs) is the team at HRT responsible for developing and maintaining our most powerful models, which are used by our trading teams to drive a significant fraction of our trading. We are building and deploying &quot;foundation models for markets&quot;, that ingest and train on vast amounts of market and \u201calternative\u201d data (such as language) to make predictions about future market state.&lt;/p&gt;\n&lt;p&gt;As an &lt;strong&gt;inference&lt;/strong&gt; research engineer on HAIL, you will have a general mandate to improve all aspects of large-scale model inference, including but not limited to GPU kernel development, novel inference devices like ASICs and FPGAs (both off-the-shelf and in-house), and data streaming. You will work closely with our researchers to co-design and improve our models, and shape the research agenda.&lt;/p&gt;\n&lt;p&gt;We have a complex inference solution involving a variety of devices deployed around the world to meet a variety of trading needs. We are simultaneously pursuing multiple strategies and developing many model types with different purposes, and we are strongly incentivized to squeeze as much as we can out of our systems. Your work will be directly, clearly, and highly impactful on the business, and it will be challenging: this is a field with no easy or obvious solutions.&lt;/p&gt;\n&lt;p&gt;&lt;strong",
+   "departments": [
+    {
+     "id": 8564,
+     "name": "Algo",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "offices": [
+    {
+     "id": 5217,
+     "name": "New York City",
+     "location": "New York, NY, United States",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "ai_disclaimer": null,
+   "include_ai_disclaimer": false,
+   "ai_opt_out_request_url": "http://app.greenhouse.io/ai_opt_out_request/job_post/7972593/ai_opt_out"
+  },
+  {
+   "absolute_url": "https://www.hudsonrivertrading.com/careers/job/?gh_jid=7972584",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "internal_job_id": 3272443,
+   "location": {
+    "name": "London, United Kingdom; New York, NY, United States"
+   },
+   "metadata": [
+    {
+     "id": 31586,
+     "name": "Employment Type",
+     "value": "Full-Time",
+     "value_type": "single_select"
+    },
+    {
+     "id": 4118765,
+     "name": "Job Type",
+     "value": [
+      "Full-Time: Experienced"
+     ],
+     "value_type": "multi_select"
+    },
+    {
+     "id": 4168241,
+     "name": "Job Category",
+     "value": [
+      "Strategy Development"
+     ],
+     "value_type": "multi_select"
+    },
+    {
+     "id": 832649,
+     "name": "Role Priority",
+     "value": "Medium",
+     "value_type": "single_select"
+    },
+    {
+     "id": 40628704,
+     "name": "Career Site Metadata",
+     "value": null,
+     "value_type": "multi_select"
+    },
+    {
+     "id": 45550074,
+     "name": "Career Site Ranking",
+     "value": null,
+     "value_type": "single_select"
+    }
+   ],
+   "id": 7972584,
+   "updated_at": "2026-10-26T10:22:41-04:00",
+   "requisition_id": "533",
+   "title": "AI Research Engineer, Pre-Training",
+   "company_name": "Hudson River Trading",
+   "first_published": "2026-06-01T10:20:21-04:00",
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;p&gt;Hudson River Trading (HRT) is seeking an AI Research Engineer (&lt;strong&gt;Pre-training&lt;/strong&gt;) to join the HAIL team. HAIL (HRT AI Labs) is the team at HRT responsible for developing and maintaining our most powerful models, which are used by our trading teams to drive a significant fraction of our trading. We are building and deploying &quot;foundation models for markets&quot;, that ingest and train on vast amounts of market and \u201calternative\u201d data (such as language) to make predictions about future market state.&lt;/p&gt;\n&lt;p&gt;As a &lt;strong&gt;pre-training&lt;/strong&gt; research engineer on HAIL, you will have a general mandate to improve all aspects of large-scale model training, including but not limited to kernel development, training data loading, parallelism, networking, and fault-tolerance. You will work closely with our researchers to co-design and improve our models, and shape the research agenda.&lt;/p&gt;\n&lt;p&gt;We have multiple large, modern, and rapidly growing GPU clusters, and we maintain a very high GPU-to-researcher ratio. We are simultaneously pursuing multiple strategies and developing many model types with different purposes, and we are strongly incentivized to squeeze as much as we can out of our systems. Your work will be directly, clearly, and highly impactful on the business, and it will be challenging: this is a field with no easy or obvious solutions.&lt;/p&gt;\n&lt;p&gt;&lt;strong&gt;Qualifications&lt;/strong&gt;&lt;/p&gt",
+   "departments": [
+    {
+     "id": 8564,
+     "name": "Algo",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "offices": [
+    {
+     "id": 5217,
+     "name": "New York City",
+     "location": "New York, NY, United States",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "ai_disclaimer": null,
+   "include_ai_disclaimer": false,
+   "ai_opt_out_request_url": "http://app.greenhouse.io/ai_opt_out_request/job_post/7972584/ai_opt_out"
+  }
+ ],
+ "meta": {
+  "total": 5
+ }
+}

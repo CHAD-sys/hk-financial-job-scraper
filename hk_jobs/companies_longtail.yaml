@@ -436,7 +436,9 @@
   slug: hkmc-annuity-limited
   category: "Insurance Company"
   careers_url: "https://www.hkmca.hk/eng/about_us/careers.html"
-  adapter: longtail
+  # Use deterministic first-party extraction rather than LLM extraction.
+  adapter: direct_site
+  site: hkmca
 
 - name: "Wizpresso"
   slug: wizpresso

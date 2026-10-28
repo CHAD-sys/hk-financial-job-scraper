@@ -1,0 +1,517 @@
+{
+ "jobs": [
+  {
+   "absolute_url": "https://job-boards.greenhouse.io/flowtraders/jobs/7862011",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "internal_job_id": 1863550,
+   "location": {
+    "name": "New York"
+   },
+   "metadata": [
+    {
+     "id": 154575,
+     "name": "Contact",
+     "value": "Flow Traders Recruitment Team\n+31 (0)20 799 6799\ncareers.europe@flowtraders.com",
+     "value_type": "long_text"
+    },
+    {
+     "id": 10142200,
+     "name": "Start Date",
+     "value": "2026-08-01",
+     "value_type": "date"
+    },
+    {
+     "id": 13763368,
+     "name": "Division",
+     "value": "Trading",
+     "value_type": "single_select"
+    },
+    {
+     "id": 15473164,
+     "name": "High priority",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 16792934,
+     "name": "Application form required",
+     "value": null,
+     "value_type": "yes_no"
+    }
+   ],
+   "id": 7862011,
+   "updated_at": "2026-10-13T10:20:29-04:00",
+   "requisition_id": "755",
+   "title": "Digital Assets Trader",
+   "company_name": "Flow Traders",
+   "first_published": "2026-04-28T11:18:33-04:00",
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;p&gt;Flow Traders is looking for an experienced Digital Assets Trader to join our global Digital Assets Trading team, with the opportunity to be based in &lt;strong&gt;New York. &lt;/strong&gt;We are seeking candidates with a proven track record in low-latency (CeFi) trading and/or on-chain (DeFi) trading. The ideal candidate has demonstrated significant and consistent PnL generation through strategies deployed in production and brings deep expertise in crypto market structure.&lt;/p&gt;\n&lt;p&gt;You will be part of a highly collaborative global team, working closely with traders, quants, and engineers to develop and scale trading strategies across centralized and decentralized markets.&lt;/p&gt;\n&lt;p&gt;&lt;strong&gt;&lt;br&gt;What you will do&lt;/strong&gt;&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;Develop, implement, and optimize profitable trading strategies across CeFi and/or DeFi markets&lt;/li&gt;\n&lt;li&gt;Contribute to the 24/7 trading, monitoring, and risk management of our digital asset strategies&lt;/li&gt;\n&lt;li&gt;Identify and capitalize on market inefficiencies across exchanges, instruments, and protocols&lt;/li&gt;\n&lt;li&gt;Collaborate with global teams to enhance execution, tooling, and trading infrastructure&lt;/li&gt;\n&lt;li&gt;Contribute research and insights to improve overall team performance and strategy portfolio&lt;/li&gt;\n&lt;/ul&gt;\n&lt;p&gt;&amp;nbsp;&lt;/p&gt;\n&lt;p&gt;&lt;strong&gt;What you will need to succeed&amp;nbsp;&lt;/strong&gt;&lt;/p&gt;\n&lt;",
+   "departments": [
+    {
+     "id": 39724,
+     "name": "Trading",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "offices": [
+    {
+     "id": 26356,
+     "name": "Amsterdam office",
+     "location": "Amsterdam, Noord-Holland, Netherlands",
+     "child_ids": [],
+     "parent_id": null
+    },
+    {
+     "id": 26355,
+     "name": "Hong Kong office",
+     "location": "Hong Kong",
+     "child_ids": [],
+     "parent_id": null
+    },
+    {
+     "id": 26353,
+     "name": "New York office",
+     "location": "New York, New York, United States",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "ai_disclaimer": "<p>We use Greenhouse\u2019s AI-powered Talent Matching tool to help compare applications against the requirements of the role. This technology is used solely to support the recruitment process by highlighting potentially relevant skills and experience.</p><p>The tool does not make hiring or screening decisions on behalf of Flow Traders. All applications and CVs are reviewed by members of our recruitment team, and all hiring decisions are made by humans.</p>",
+   "include_ai_disclaimer": true,
+   "ai_opt_out_request_url": "http://app.greenhouse.io/ai_opt_out_request/job_post/7862011/ai_opt_out"
+  },
+  {
+   "absolute_url": "https://job-boards.greenhouse.io/flowtraders/jobs/8278361",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "internal_job_id": 1863550,
+   "location": {
+    "name": "Amsterdam"
+   },
+   "metadata": [
+    {
+     "id": 154575,
+     "name": "Contact",
+     "value": "Flow Traders Recruitment Team\n+31 (0)20 799 6799\ncareers.europe@flowtraders.com",
+     "value_type": "long_text"
+    },
+    {
+     "id": 10142200,
+     "name": "Start Date",
+     "value": "2026-08-01",
+     "value_type": "date"
+    },
+    {
+     "id": 13763368,
+     "name": "Division",
+     "value": "Trading",
+     "value_type": "single_select"
+    },
+    {
+     "id": 15473164,
+     "name": "High priority",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 16792934,
+     "name": "Application form required",
+     "value": null,
+     "value_type": "yes_no"
+    }
+   ],
+   "id": 8278361,
+   "updated_at": "2026-10-13T10:24:17-04:00",
+   "requisition_id": "755",
+   "title": "Digital Assets Trader",
+   "company_name": "Flow Traders",
+   "first_published": "2026-10-13T10:24:17-04:00",
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;p&gt;Flow Traders is looking for an Experienced Digital Assets Trader to join our global Digital Assets Trading team, with the opportunity to be based in &lt;strong&gt;Amsterdam. &lt;/strong&gt;We are seeking candidates with a proven track record in low-latency (CeFi) trading and/or on-chain (DeFi) trading. The ideal candidate has demonstrated significant and consistent PnL generation through strategies deployed in production and brings deep expertise in crypto market structure.&lt;/p&gt;\n&lt;p&gt;You will be part of a highly collaborative global team, working closely with traders, quants, and engineers to develop and scale trading strategies across centralized and decentralized markets.&lt;/p&gt;\n&lt;p&gt;&lt;strong&gt;&lt;br&gt;What you will do&lt;/strong&gt;&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;Develop, implement, and optimize profitable trading strategies across CeFi and/or DeFi markets&lt;/li&gt;\n&lt;li&gt;Contribute to the 24/7 trading, monitoring, and risk management of our digital asset strategies&lt;/li&gt;\n&lt;li&gt;Identify and capitalize on market inefficiencies across exchanges, instruments, and protocols&lt;/li&gt;\n&lt;li&gt;Collaborate with global teams to enhance execution, tooling, and trading infrastructure&lt;/li&gt;\n&lt;li&gt;Contribute research and insights to improve overall team performance and strategy portfolio&lt;/li&gt;\n&lt;/ul&gt;\n&lt;p&gt;&amp;nbsp;&lt;/p&gt;\n&lt;p&gt;&lt;strong&gt;What you will need to succeed&amp;nbsp;&lt;/strong&gt;&lt;/p&gt;\n&lt",
+   "departments": [
+    {
+     "id": 39724,
+     "name": "Trading",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "offices": [
+    {
+     "id": 26356,
+     "name": "Amsterdam office",
+     "location": "Amsterdam, Noord-Holland, Netherlands",
+     "child_ids": [],
+     "parent_id": null
+    },
+    {
+     "id": 26355,
+     "name": "Hong Kong office",
+     "location": "Hong Kong",
+     "child_ids": [],
+     "parent_id": null
+    },
+    {
+     "id": 26353,
+     "name": "New York office",
+     "location": "New York, New York, United States",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "ai_disclaimer": "<p>We use Greenhouse\u2019s AI-powered Talent Matching tool to help compare applications against the requirements of the role. This technology is used solely to support the recruitment process by highlighting potentially relevant skills and experience.</p><p>The tool does not make hiring or screening decisions on behalf of Flow Traders. All applications and CVs are reviewed by members of our recruitment team, and all hiring decisions are made by humans.</p>",
+   "include_ai_disclaimer": true,
+   "ai_opt_out_request_url": "http://app.greenhouse.io/ai_opt_out_request/job_post/8278361/ai_opt_out"
+  },
+  {
+   "absolute_url": "https://job-boards.greenhouse.io/flowtraders/jobs/7708220",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "internal_job_id": 3387153,
+   "location": {
+    "name": "Hong Kong"
+   },
+   "metadata": [
+    {
+     "id": 154575,
+     "name": "Contact",
+     "value": "APAC Recruitment Team\nHong Kong\n+852 2593 3050\ncareers.hongkong@hk.flowtraders.com",
+     "value_type": "long_text"
+    },
+    {
+     "id": 10142200,
+     "name": "Start Date",
+     "value": "2026-06-01",
+     "value_type": "date"
+    },
+    {
+     "id": 13763368,
+     "name": "Division",
+     "value": "Events",
+     "value_type": "single_select"
+    },
+    {
+     "id": 15473164,
+     "name": "High priority",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 16792934,
+     "name": "Application form required",
+     "value": null,
+     "value_type": "yes_no"
+    }
+   ],
+   "id": 7708220,
+   "updated_at": "2026-10-13T04:26:15-04:00",
+   "requisition_id": "1609",
+   "title": "Delta One Trader ",
+   "company_name": "Flow Traders",
+   "first_published": "2026-03-11T22:23:52-04:00",
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;p&gt;Flow Traders is looking for a Delta One Trader to join our growing trading team in Hong Kong. This is a unique opportunity to join a leading proprietary trading firm, working alongside some of the brightest minds in the industry.&lt;/p&gt;\n&lt;p&gt;The successful candidate will be responsible for market making, risk management, and proprietary trading of index-related products across Asian exchanges. This role requires strong expertise in ETF trading, index arbitrage, and equity derivatives, with a proven track record of managing risk and generating consistent returns.&lt;/p&gt;\n&lt;h4&gt;What You Will Do&lt;/h4&gt;\n&lt;ul&gt;\n&lt;li&gt;&lt;strong&gt;Market Making &amp;amp; Trading&lt;/strong&gt;&lt;/li&gt;\n&lt;ul&gt;\n&lt;li&gt;Provide liquidity and manage risk in ETFs, index futures, and related products across Asian exchanges.&lt;/li&gt;\n&lt;li&gt;Execute and manage &lt;strong&gt;index arbitrage books&lt;/strong&gt; and other relative value strategies.&lt;/li&gt;\n&lt;li&gt;Monitor and optimize trading positions to maximize profitability while maintaining risk discipline.&lt;/li&gt;\n&lt;/ul&gt;\n&lt;li&gt;&lt;strong&gt;Strategy &amp;amp; Risk Management&lt;/strong&gt;&lt;/li&gt;\n&lt;ul&gt;\n&lt;li&gt;Develop and implement quantitative trading strategies in Delta One products.&lt;/li&gt;\n&lt;li&gt;Manage exposure across multiple Asian markets, ensuring compliance with risk limits.&lt;/li&gt;\n&lt;li&gt;Identify and capitalize on arbitrage opportunities between cash equi",
+   "departments": [
+    {
+     "id": 39724,
+     "name": "Trading",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "offices": [
+    {
+     "id": 26355,
+     "name": "Hong Kong office",
+     "location": "Hong Kong",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "ai_disclaimer": "<p>We use Greenhouse\u2019s AI-powered Talent Matching tool to help compare applications against the requirements of the role. This technology is used solely to support the recruitment process by highlighting potentially relevant skills and experience.</p><p>The tool does not make hiring or screening decisions on behalf of Flow Traders. All applications and CVs are reviewed by members of our recruitment team, and all hiring decisions are made by humans.</p>",
+   "include_ai_disclaimer": true,
+   "ai_opt_out_request_url": "http://app.greenhouse.io/ai_opt_out_request/job_post/7708220/ai_opt_out"
+  },
+  {
+   "absolute_url": "https://job-boards.greenhouse.io/flowtraders/jobs/7770955",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "internal_job_id": 1863550,
+   "location": {
+    "name": "Hong Kong"
+   },
+   "metadata": [
+    {
+     "id": 154575,
+     "name": "Contact",
+     "value": "Flow Traders Recruitment Team\n+31 (0)20 799 6799\ncareers.europe@flowtraders.com",
+     "value_type": "long_text"
+    },
+    {
+     "id": 10142200,
+     "name": "Start Date",
+     "value": "2026-08-01",
+     "value_type": "date"
+    },
+    {
+     "id": 13763368,
+     "name": "Division",
+     "value": "Trading",
+     "value_type": "single_select"
+    },
+    {
+     "id": 15473164,
+     "name": "High priority",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 16792934,
+     "name": "Application form required",
+     "value": null,
+     "value_type": "yes_no"
+    }
+   ],
+   "id": 7770955,
+   "updated_at": "2026-10-13T10:21:11-04:00",
+   "requisition_id": "755",
+   "title": "Digital Assets Trader ",
+   "company_name": "Flow Traders",
+   "first_published": "2026-04-01T03:10:00-04:00",
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;p&gt;Flow Traders is looking for an Experienced Digital Assets Trader to join our global Digital Assets Trading team, with the opportunity to be based in&amp;nbsp;&lt;strong&gt;Hong Kong.&amp;nbsp;&lt;/strong&gt;We are seeking candidates with a proven track record in low-latency (CeFi) trading and/or on-chain (DeFi) trading. The ideal candidate has demonstrated significant and consistent PnL generation through strategies deployed in production and brings deep expertise in crypto market structure.&lt;/p&gt;\n&lt;p&gt;You will be part of a highly collaborative global team, working closely with traders, quants, and engineers to develop and scale trading strategies across centralized and decentralized markets.&lt;/p&gt;\n&lt;p&gt;&lt;strong&gt;&lt;br&gt;What you will do&lt;/strong&gt;&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;Develop, implement, and optimize profitable trading strategies across CeFi and/or DeFi markets&lt;/li&gt;\n&lt;li&gt;Contribute to the 24/7 trading, monitoring, and risk management of our digital asset strategies&lt;/li&gt;\n&lt;li&gt;Identify and capitalize on market inefficiencies across exchanges, instruments, and protocols&lt;/li&gt;\n&lt;li&gt;Collaborate with global teams to enhance execution, tooling, and trading infrastructure&lt;/li&gt;\n&lt;li&gt;Contribute research and insights to improve overall team performance and strategy portfolio&lt;/li&gt;\n&lt;/ul&gt;\n&lt;p&gt;&amp;nbsp;&lt;/p&gt;\n&lt;p&gt;&lt;strong&gt;What you will need to succeed&amp;nbsp;&lt;/strong",
+   "departments": [
+    {
+     "id": 39724,
+     "name": "Trading",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "offices": [
+    {
+     "id": 26356,
+     "name": "Amsterdam office",
+     "location": "Amsterdam, Noord-Holland, Netherlands",
+     "child_ids": [],
+     "parent_id": null
+    },
+    {
+     "id": 26355,
+     "name": "Hong Kong office",
+     "location": "Hong Kong",
+     "child_ids": [],
+     "parent_id": null
+    },
+    {
+     "id": 26353,
+     "name": "New York office",
+     "location": "New York, New York, United States",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "ai_disclaimer": "<p>We use Greenhouse\u2019s AI-powered Talent Matching tool to help compare applications against the requirements of the role. This technology is used solely to support the recruitment process by highlighting potentially relevant skills and experience.</p><p>The tool does not make hiring or screening decisions on behalf of Flow Traders. All applications and CVs are reviewed by members of our recruitment team, and all hiring decisions are made by humans.</p>",
+   "include_ai_disclaimer": true,
+   "ai_opt_out_request_url": "http://app.greenhouse.io/ai_opt_out_request/job_post/7770955/ai_opt_out"
+  },
+  {
+   "absolute_url": "https://job-boards.greenhouse.io/flowtraders/jobs/8258529",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "internal_job_id": 3573491,
+   "location": {
+    "name": "Amsterdam"
+   },
+   "metadata": [
+    {
+     "id": 154575,
+     "name": "Contact",
+     "value": "Flow Traders Careers\n+31 (0)20 799 6799 \nrecruitment.europe@flowtraders.com",
+     "value_type": "long_text"
+    },
+    {
+     "id": 10142200,
+     "name": "Start Date",
+     "value": "2026-09-01",
+     "value_type": "date"
+    },
+    {
+     "id": 13763368,
+     "name": "Division",
+     "value": "Technology",
+     "value_type": "single_select"
+    },
+    {
+     "id": 15473164,
+     "name": "High priority",
+     "value": "High priority",
+     "value_type": "single_select"
+    },
+    {
+     "id": 16792934,
+     "name": "Application form required",
+     "value": null,
+     "value_type": "yes_no"
+    }
+   ],
+   "id": 8258529,
+   "updated_at": "2026-10-26T11:31:15-04:00",
+   "requisition_id": "1704",
+   "title": "AI Engineering Manager",
+   "company_name": "Flow Traders",
+   "first_published": "2026-10-16T09:02:17-04:00",
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;p&gt;&lt;strong&gt;AI Engineering Manager&lt;/strong&gt;&lt;br&gt;&lt;br&gt;We&#39;re setting up a new AI team within Data and AI and are looking for an Engineering Manager to lead it. Good engineering management makes a big difference to how well teams grow, keep their people and deliver, and that is what we want from this role.&lt;br&gt;&lt;br&gt;You&#39;ll look after the planning and people side: delivery, growth, performance, culture and hiring. You work alongside technical leads who own architecture, technical direction and hands-on execution. You need each other, so expect to work closely.&lt;br&gt;We&#39;ll judge you on how your engineers develop and what your team delivers. Most of your time goes to understanding how the business works and unlocking use cases where AI makes a real difference, next to leading your people and your delivery.&lt;br&gt;&lt;br&gt;&lt;strong&gt;What you&#39;ll do:&lt;/strong&gt;&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;Get to know how the business runs. Spend time with the teams, understand their processes and find where AI, or sometimes just a better tool, would help.&lt;/li&gt;\n&lt;li&gt;Unlock use cases and take them from first idea to something live, including the business case and how success will be measured.&lt;/li&gt;\n&lt;li&gt;Own the AI roadmap: set priorities and sequence the work in line with company goals.&lt;/li&gt;\n&lt;li&gt;Coach and develop your engineers, including career planning, promotions and regular performance conversations",
+   "departments": [
+    {
+     "id": 237105,
+     "name": "Data",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "offices": [
+    {
+     "id": 26356,
+     "name": "Amsterdam office",
+     "location": "Amsterdam, Noord-Holland, Netherlands",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "ai_disclaimer": "<p>We use Greenhouse\u2019s AI-powered Talent Matching tool to help compare applications against the requirements of the role. This technology is used solely to support the recruitment process by highlighting potentially relevant skills and experience.</p><p>The tool does not make hiring or screening decisions on behalf of Flow Traders. All applications and CVs are reviewed by members of our recruitment team, and all hiring decisions are made by humans.</p>",
+   "include_ai_disclaimer": true,
+   "ai_opt_out_request_url": "http://app.greenhouse.io/ai_opt_out_request/job_post/8258529/ai_opt_out"
+  },
+  {
+   "absolute_url": "https://job-boards.greenhouse.io/flowtraders/jobs/8255381",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "internal_job_id": 3572306,
+   "location": {
+    "name": "New York"
+   },
+   "metadata": [
+    {
+     "id": 154575,
+     "name": "Contact",
+     "value": "Alex Rickles\nRecruiter\nNew York Office\n+1 917 210 5000\ncareers.newyork@us.flowtraders.com",
+     "value_type": "long_text"
+    },
+    {
+     "id": 10142200,
+     "name": "Start Date",
+     "value": "2027-01-11",
+     "value_type": "date"
+    },
+    {
+     "id": 13763368,
+     "name": "Division",
+     "value": "Business Support",
+     "value_type": "single_select"
+    },
+    {
+     "id": 15473164,
+     "name": "High priority",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 16792934,
+     "name": "Application form required",
+     "value": null,
+     "value_type": "yes_no"
+    }
+   ],
+   "id": 8255381,
+   "updated_at": "2026-10-13T16:53:09-04:00",
+   "requisition_id": "1702",
+   "title": "Corporate Receptionist",
+   "company_name": "Flow Traders",
+   "first_published": "2026-10-05T12:54:25-04:00",
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;p&gt;Flow Traders is seeking a Corporate Receptionist to join our growing Office Management team in New York. The ideal candidate is passionate about workplace experience and takes the lead to create a positive and impactful impression for employees and visitors to the office. This is a unique opportunity to join a leading proprietary trading firm with an entrepreneurial and innovative culture at the heart of its business. We value quick-witted, creative minds, and challenge them to make full use of their capacities.&lt;/p&gt;\n&lt;p&gt;As the Corporate Receptionist, you will play an important role in supporting the Office Management team\u2019s mission: establish an exceptional workplace experience. This mission will be carried out through employee and visitor interactions, visitor management, travel coordination, vendor communications, administrative support, and the execution of concierge services. With hospitality and professionalism at the forefront of your mind, you will be responsible for ensuring employees and visitors have access to all the services and amenities we offer in the workplace. We are looking for someone who will bring energy, passion, and a strong work ethic.&lt;/p&gt;\n&lt;p&gt;This position will be full time.&amp;nbsp;&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;Lead the department&#39;s mission to deliver exceptional workplace experience as the primary front-of-house specialist.&lt;/li&gt;\n&lt;li&gt;Open the office on time and ensure readiness to welcome, greet, and ",
+   "departments": [
+    {
+     "id": 133296,
+     "name": "Facilities & Office Management ",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "offices": [
+    {
+     "id": 26353,
+     "name": "New York office",
+     "location": "New York, New York, United States",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "ai_disclaimer": "<p>We use Greenhouse\u2019s AI-powered Talent Matching tool to help compare applications against the requirements of the role. This technology is used solely to support the recruitment process by highlighting potentially relevant skills and experience.</p><p>The tool does not make hiring or screening decisions on behalf of Flow Traders. All applications and CVs are reviewed by members of our recruitment team, and all hiring decisions are made by humans.</p>",
+   "include_ai_disclaimer": true,
+   "ai_opt_out_request_url": "http://app.greenhouse.io/ai_opt_out_request/job_post/8255381/ai_opt_out"
+  }
+ ],
+ "meta": {
+  "total": 6
+ }
+}

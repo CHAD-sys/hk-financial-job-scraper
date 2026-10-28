@@ -371,6 +371,48 @@ companies:
       jobsdb_slug: Hong-Kong-Monetary-Authority
       use_company_profile: true
 
+  # Verified against the employer's vacancy table on 2026-10-28. This copy
+  # has the official application URL and a full description for each role.
+  - name: Hong Kong Monetary Authority (HKMA)
+    slug: hkma
+    adapter: direct_site
+    enabled: true
+    config:
+      site: hkma
+
+  # Verified against HKMC's public job openings page on 2026-10-28.
+  - name: The Hong Kong Mortgage Corporation Limited
+    slug: hong-kong-mortgage-corporation
+    adapter: direct_site
+    enabled: true
+    config:
+      site: hkmc
+
+  # Verified against both employers' own Taleo portals on 2026-10-28.
+  - name: MTR Corporation
+    slug: mtr-corporation
+    adapter: direct_site
+    enabled: true
+    config:
+      site: mtr
+
+  - name: Airport Authority Hong Kong
+    slug: airport-authority-hong-kong
+    adapter: direct_site
+    enabled: true
+    config:
+      site: hkairport
+
+  # Extractors are ready, but the employers' published site terms restrict
+  # copying/storing their content elsewhere. Keep these off pending a rights
+  # review. HKMC Annuity's existing longtail entry is disabled separately.
+  - name: The Hong Kong and China Gas Company Limited (Towngas)
+    slug: towngas
+    adapter: direct_site
+    enabled: true
+    config:
+      site: towngas
+
   # ── Virtual banks ─────────────────────────────────────────────────────────
   - name: ZA Bank
     slug: za-bank
@@ -2129,3 +2171,75 @@ companies:
       # Security, People & OD.
       fetch_details: true
       category: "Racing, Wagering & Charities (in-house finance function)"
+
+  # ── 2026-10-28: quant / hedge-fund careers sites, mapped in docs/careers_recon/ ──
+  # Every one below is a plain-HTTP feed (no browser, no LLM). Hong Kong is
+  # filtered client-side; roles appear and disappear, so 0 jobs is a valid run.
+  - name: Flow Traders
+    slug: flow-traders
+    adapter: greenhouse
+    enabled: true
+    config:
+      board_token: flowtraders
+
+  - name: Hudson River Trading
+    slug: hudson-river-trading
+    adapter: greenhouse
+    enabled: true
+    config:
+      board_token: wehrtyou          # NOT "hudsonrivertrading" (404)
+
+  - name: Point72
+    slug: point72
+    adapter: greenhouse
+    enabled: true
+    config:
+      board_token: point72
+
+  - name: Squarepoint Capital
+    slug: squarepoint-capital
+    adapter: greenhouse
+    enabled: true
+    config:
+      board_token: squarepointcapital
+
+  # Same slug as the eFinancialCareers entry above, so the two reconcile as one
+  # company. No Hong Kong roles on Man's own board as of 2026-10-28.
+  - name: Man Group Hong Kong
+    slug: man-group-hk
+    adapter: greenhouse
+    enabled: true
+    config:
+      board_token: mangroup
+
+  - name: Millennium Management
+    slug: millennium
+    adapter: eightfold
+    enabled: true                # 37 HK roles on 2026-10-28; the listing has no
+    config:                      # description, description_fetcher fills it in
+      tenant: mlp
+      domain: mlp.com
+
+  - name: Jane Street
+    slug: jane-street
+    adapter: direct_site
+    enabled: true
+    config:
+      site: janestreet
+
+  - name: Optiver
+    slug: optiver
+    adapter: direct_site
+    enabled: true                # 0 HK roles on 2026-10-28 (office exists)
+    config:
+      site: optiver
+
+  - name: Two Sigma
+    slug: two-sigma
+    adapter: direct_site
+    enabled: true                # 0 HK roles on 2026-10-28 (office exists)
+    config:
+      site: twosigma
+
+  # Citadel / Citadel Securities: NOT added. Every page is behind a Cloudflare
+  # Turnstile challenge (docs/careers_recon/citadel.md); bypassing it is not an option.
