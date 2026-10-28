@@ -1,0 +1,138 @@
+{
+ "items": [
+  {
+   "reactComponentName": "Components.JobsListItem",
+   "serverOnlyRender": false,
+   "clientOnlyRender": false,
+   "title": "Market Risk Internship 2027 - Singapore",
+   "location": "Singapore",
+   "experience": "Internship",
+   "domain": "Risk, Finance & Legal",
+   "href": "/join-us/jobs/risk-finance-and-legal/singapore/market-risk-internship-2027-singapore/",
+   "jobClickTracking": {
+    "vacancyName": "Market Risk Internship 2027 - Singapore",
+    "vacancyOffice": "singapore",
+    "vacancyDomain": "risk-finance-and-legal",
+    "vacancyLevel": "internship"
+   },
+   "componentID": 17147,
+   "culture": "en",
+   "anchorId": null
+  },
+  {
+   "reactComponentName": "Components.JobsListItem",
+   "serverOnlyRender": false,
+   "clientOnlyRender": false,
+   "title": "Legal Counsel",
+   "location": "Singapore",
+   "experience": "Experienced",
+   "domain": "Risk, Finance & Legal",
+   "href": "/join-us/jobs/risk-finance-and-legal/singapore/legal-counsel/",
+   "jobClickTracking": {
+    "vacancyName": "Legal Counsel",
+    "vacancyOffice": "singapore",
+    "vacancyDomain": "risk-finance-and-legal",
+    "vacancyLevel": "experienced"
+   },
+   "componentID": 16702,
+   "culture": "en",
+   "anchorId": null
+  },
+  {
+   "reactComponentName": "Components.JobsListItem",
+   "serverOnlyRender": false,
+   "clientOnlyRender": false,
+   "title": "Digital Assets Trader (Crypto Options)",
+   "location": "Singapore",
+   "experience": "Experienced",
+   "domain": "Trading",
+   "href": "/join-us/jobs/trading/singapore/digital-assets-trader-crypto-options/",
+   "jobClickTracking": {
+    "vacancyName": "Digital Assets Trader (Crypto Options)",
+    "vacancyOffice": "singapore",
+    "vacancyDomain": "trading",
+    "vacancyLevel": "experienced"
+   },
+   "componentID": 17019,
+   "culture": "en",
+   "anchorId": null
+  },
+  {
+   "reactComponentName": "Components.JobsListItem",
+   "serverOnlyRender": false,
+   "clientOnlyRender": false,
+   "title": "Quantitative Trading Internship (Singapore) - 2027",
+   "location": "Singapore",
+   "experience": "Internship",
+   "domain": "Trading",
+   "href": "/join-us/jobs/trading/singapore/quantitative-trading-internship-singapore-2027/",
+   "jobClickTracking": {
+    "vacancyName": "Quantitative Trading Internship (Singapore) - 2027",
+    "vacancyOffice": "singapore",
+    "vacancyDomain": "trading",
+    "vacancyLevel": "internship"
+   },
+   "componentID": 17082,
+   "culture": "en",
+   "anchorId": null
+  },
+  {
+   "reactComponentName": "Components.JobsListItem",
+   "serverOnlyRender": false,
+   "clientOnlyRender": false,
+   "title": "Data Center Engineer",
+   "location": "Singapore",
+   "experience": "Experienced",
+   "domain": "Technology",
+   "href": "/join-us/jobs/technology/singapore/data-center-engineer/",
+   "jobClickTracking": {
+    "vacancyName": "Data Center Engineer",
+    "vacancyOffice": "singapore",
+    "vacancyDomain": "technology",
+    "vacancyLevel": "experienced"
+   },
+   "componentID": 16101,
+   "culture": "en",
+   "anchorId": null
+  },
+  {
+   "reactComponentName": "Components.JobsListItem",
+   "serverOnlyRender": false,
+   "clientOnlyRender": false,
+   "title": "Experienced Options Trader",
+   "location": "Singapore",
+   "experience": "Experienced",
+   "domain": "Trading",
+   "href": "/join-us/jobs/trading/singapore/experienced-options-trader/",
+   "jobClickTracking": {
+    "vacancyName": "Experienced Options Trader",
+    "vacancyOffice": "singapore",
+    "vacancyDomain": "trading",
+    "vacancyLevel": "experienced"
+   },
+   "componentID": 17040,
+   "culture": "en",
+   "anchorId": null
+  },
+  {
+   "reactComponentName": "Components.JobsListItem",
+   "serverOnlyRender": false,
+   "clientOnlyRender": false,
+   "title": "C++ Software Engineer",
+   "location": "Singapore",
+   "experience": "Experienced",
+   "domain": "Technology",
+   "href": "/join-us/jobs/technology/singapore/c-plus-plus-software-engineer/",
+   "jobClickTracking": {
+    "vacancyName": "C++ Software Engineer",
+    "vacancyOffice": "singapore",
+    "vacancyDomain": "technology",
+    "vacancyLevel": "experienced"
+   },
+   "componentID": 14983,
+   "culture": "en",
+   "anchorId": null
+  }
+ ],
+ "totalCount": 7
+}

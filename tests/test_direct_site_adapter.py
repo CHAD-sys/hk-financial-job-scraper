@@ -51,6 +51,9 @@ def test_targeted_portals_are_configured_once_with_reviewed_enablement():
         "hkairport": True,
         "hkmc": True,
         "hkmca": False,
+        "janestreet": True,
+        "optiver": True,
+        "twosigma": True,
     }
-    assert len(direct) == 6
+    assert len(direct) == 9
     assert not any(entry.slug == "hkmc-annuity-limited" and entry.adapter == "longtail" for entry in entries)

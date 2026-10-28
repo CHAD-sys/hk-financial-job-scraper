@@ -36,6 +36,7 @@ _REQUIRED_CONFIG_KEYS: dict[str, list[str]] = {
     "efinancialcareers": ["efc_employer"],
     "successfactors": ["sf_host"],
     "direct_site": ["site"],
+    "greenhouse": ["board_token"],
 }
 
 # Top-level entry keys that are NOT adapter config. Everything else at the top

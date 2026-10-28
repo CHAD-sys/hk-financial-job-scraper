@@ -1,0 +1,62 @@
+[
+ {
+  "id": 8596771002,
+  "position": "ꓟachine ꓡearning ꓣesearcher",
+  "category": "Trading, Research, and Machine Learning",
+  "availability": "Summer Internship",
+  "city": "HKG",
+  "overview": "<p><strong>About the position</strong></p>\n<p>Our goals are to give you a real sense of what it&#39;s like to work at Jane Street as a Machine Learning Researcher while also providing a truly unparalleled educational experience. You&#39;ll work side by side with experienced ML Researchers on projects that we&#39;ve selected for their combination of novel ML ideas and relevance to real-world systematic trading strategies. You&#39;ll learn how we think about markets through challenging classes and activities, and practice using established methods alongside our own unique twists to train practical models.</p>\n<p>At Jane Street, the lines between research, technology, and trading are intentionally blurry, and you’ll have access to petabytes of data, a computing cluster with hundreds of thousands of cores, and a growing GPU cluster containing tens of thousands of high-end GPUs. Trading poses unusual challenges—large models and nonstationary datasets in a competitive multi-agent environment—that force us to search for novel techniques.</p>\n<p>You&#39;ll spend the bulk of your internship working closely with full-time machine learning researchers on projects drawn from their own work. Yo",
+  "team": "Machine Learning",
+  "duration": "May-August",
+  "min_salary": null,
+  "max_salary": null
+ },
+ {
+  "id": 7979592002,
+  "position": "AV Engineer",
+  "category": "Technology",
+  "availability": "Full-Time: Experienced",
+  "city": "HKG",
+  "overview": "<h3>About the Position</h3>\n<p>We are looking for an Audio/Video (AV) Engineer with a strong background in project delivery to design, implement and support our growing AV/UC infrastructure. Technology is a key component of Jane Street’s core business, and our AV needs are evolving as we grow. <br><br>In this role, you will be responsible for all AV systems, collaboration platforms and videoconferencing services, including complex event spaces (~300-person auditoriums), standard meeting rooms (4-50 person capacity), trading floor communication systems, live event support and digital signage/IPTV networks. The ideal person for the role will be passionate about the AV technology space and eager to help solve issues by researching, testing and implementing creative, appropriate technology solutions in a fast-paced financial environment.<br><br>The scope of this role is broad, and we will rely on you to serve as a subject-matter expert in AV systems—from maintaining and supporting our existing technologies, to developing design standards for new and expanding spaces, as well as sourcing and managing MSP contracts to scale operations. You’ll be expected to provide exceptional technical ",
+  "team": "IT and Systems Engineering",
+  "duration": "Permanent",
+  "min_salary": null,
+  "max_salary": null
+ },
+ {
+  "id": 8469230002,
+  "position": "Campus Recruiter",
+  "category": "HR and Recruiting",
+  "availability": "Full-Time: Experienced",
+  "city": "HKG",
+  "overview": "<h3>About the Position</h3>\n<p>We are looking for an experienced Campus Recruiter to help us find and hire outstanding interns to join Jane Street. We’re focused on growing and diversifying our recruiting efforts, and the candidate landscape is more competitive than ever—your input will be critical as we work to stay ahead of the curve.&nbsp;</p>\n<p>We’re looking for someone who can manage their own pipeline while also bringing fresh ideas to our approach and processes. This will require finding solutions to big, interesting problems while also getting the details right.&nbsp;</p>\n<p>You will be instrumental in helping to grow our internship and in-house programme pipelines. Your day-to-day work will involve facilitating interviews, sourcing and pipelining, maintaining real-time updates in our applicant tracking system and data reporting tools and assisting with various recruitment events.&nbsp;</p>\n<p>Our team has a long record of hiring great recruiters and coaching them to their full potential, and we spend a lot of time teaching our new hires the ins and outs of recruiting at Jane Street. This includes a thoughtful onboarding process that offers a deep dive into our big-picture",
+  "team": "Recruiting",
+  "duration": "Permanent",
+  "min_salary": null,
+  "max_salary": null
+ },
+ {
+  "id": 8151903002,
+  "position": "Campus Recruiter, Early Careers Partnerships & Initiatives ",
+  "category": "HR and Recruiting",
+  "availability": "Full-Time: Experienced",
+  "city": "HKG",
+  "overview": "<h3>About the Position</h3>\n<p>We are looking for a strategic thinker and skilled relationship-builder who can help us spearhead the planning and execution of a range of campus recruiting initiatives to attract outstanding interns and full-time employees across multiple countries and business areas. <br><br>The ideal candidate will excel at cultivating and maintaining productive partnerships with universities, career centres and student organisations throughout the region, while enthusiastically engaging potential candidates and thinking critically about our strategy to build this pipeline of talent. Campus recruiting experience is required, while knowledge of the recruiting landscape across the APAC region would be ideal, but is not a prerequisite. <br><br>Our team has a long record of hiring great recruiters and coaching them to their full potential, and we spend a lot of time teaching our new hires the ins and outs of recruiting at Jane Street. This includes a thoughtful onboarding process that offers a deep dive into our big-picture strategy and how it applies to our daily work. Over time, we will continue to support your professional growth with hands-on training and mentorshi",
+  "team": "Recruiting",
+  "duration": "Permanent",
+  "min_salary": null,
+  "max_salary": null
+ },
+ {
+  "id": 8631912002,
+  "position": "Accounting Coordinator",
+  "category": "Finance and Operations",
+  "availability": "Full-Time: Experienced",
+  "city": "NYC",
+  "overview": "<h3>About the Position</h3>\n<p>We are looking for an organized and discreet Accounting Coordinator to manage a variety of daily tasks and projects across our global Accounting team.&nbsp;</p>\n<p>You don’t need to be an expert in accounting to thrive in this role—we are happy to teach you what you need to know. You’ll learn from seasoned colleagues how to manage the moving pieces that keep our systems and processes running smoothly.</p>\n<p>Additional responsibilities of this role might include:</p>\n<ul>\n<li>Coordinating document signatures and follow-ups</li>\n<li>Assisting with calendar management, maintenance, and updating</li>\n<li>Completing audit-related tasks, such as tracking requests, and coordinating with other Jane Street teams to ensure proper follow-up</li>\n<li>Distributing monthly financials to counterparties, maintaining the distribution list, and updating it as relationships and requirements change</li>\n<li>Coordinating financial statement deliverables with the AML team during onboarding</li>\n<li>Assisting with credit card administration, including requesting new cards, managing limits, communicating with third-party vendors, and coordinating with banks in the event of ",
+  "team": "Accounting",
+  "duration": "Permanent",
+  "min_salary": "100,000",
+  "max_salary": "120,000"
+ }
+]

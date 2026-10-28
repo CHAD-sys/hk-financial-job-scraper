@@ -22,6 +22,7 @@ const SOURCE_LABELS: Record<string, string> = {
   successfactors: 'SuccessFactors',
   workday: 'Workday',
   eightfold: 'Eightfold',
+  greenhouse: 'Greenhouse',
   indeed: 'Indeed',
   direct: 'Employer submissions',
 }

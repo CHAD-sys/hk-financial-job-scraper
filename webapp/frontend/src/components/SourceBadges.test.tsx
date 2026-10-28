@@ -19,7 +19,7 @@ import SourceBadges from './SourceBadges'
 
 describe('SourceBadges', () => {
   it('shows the employer’s own careers page for every own-site source', () => {
-    for (const source of ['workday', 'eightfold', 'successfactors', 'direct_site', 'longtail']) {
+    for (const source of ['workday', 'eightfold', 'successfactors', 'greenhouse', 'direct_site', 'longtail']) {
       const { unmount } = render(<SourceBadges sources={[source]} />)
       expect(screen.getByText('Company site'), source).toBeTruthy()
       unmount()
