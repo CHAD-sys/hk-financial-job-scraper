@@ -55,14 +55,11 @@ def test_janestreet_multi_city_value_and_robots_exclusion():
     assert [j.source_id for j in parse_janestreet_feed(rows, "J", "j")] == ["j:1"]
 
 
-def test_janestreet_internship_and_first_seen_date():
+def test_janestreet_internship_and_no_source_date():
     jobs = parse_janestreet_feed(_js_rows(), "Jane Street", "jane-street")
     intern = [j for j in jobs if j.employment_type == "internship"]
-    assert intern
-    # The feed has no dates; the board fails closed on a missing one, so the
-    # first-seen date is stamped and flagged for storage to preserve.
-    assert all(j.posted_at is not None for j in jobs)
-    assert all(j.board_signals["posted_at_is_first_seen"] is True for j in jobs)
+    # The feed has no dates; storage dates such roles by first-seen.
+    assert intern and all(j.posted_at is None for j in jobs)
 
 
 def test_janestreet_fetch_rejects_a_changed_feed_shape():
