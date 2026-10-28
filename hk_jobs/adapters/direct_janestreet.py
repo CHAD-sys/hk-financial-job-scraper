@@ -3,12 +3,16 @@
 The careers page is an empty shell that its own JavaScript fills from one static
 JSON file, ``/jobs/main.json`` (every office, descriptions inline, no paging).
 Hong Kong rows have ``city == "HKG"`` (or a multi-city value such as "NYC/HKG").
-The feed has no posting date, so ``posted_at`` stays None.
+The feed has no posting date at all, and the board fails closed on a missing one
+(ADR 0035), so each role is dated by when we first saw it. That is an upper bound
+on its age, not its true posting date; ``posted_at_is_first_seen`` tells storage
+to keep the earliest value across re-scrapes instead of re-stamping it nightly.
 """
 
 import html
 import logging
 import re
+from datetime import UTC, datetime
 
 import httpx
 
@@ -45,6 +49,7 @@ def parse_janestreet_feed(
 ) -> list[Job]:
     jobs: list[Job] = []
     seen: set[str] = set()
+    first_seen = datetime.now(UTC)
     for row in rows:
         job_id = str(row.get("id") or "")
         title = clean_title(row.get("position") or "")
@@ -74,7 +79,9 @@ def parse_janestreet_feed(
                 if "internship" in (row.get("availability") or "").lower()
                 else None,
                 scraped_under_slug=company_slug,
+                posted_at=first_seen,
                 board_signals={
+                    "posted_at_is_first_seen": True,
                     "availability": row.get("availability"),
                     "duration": row.get("duration"),
                     "category": row.get("category"),

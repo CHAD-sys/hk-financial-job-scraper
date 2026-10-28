@@ -517,7 +517,16 @@ ON CONFLICT (source, source_id) DO UPDATE SET
     skills_required    = excluded.skills_required,
     skills_preferred   = excluded.skills_preferred,
     years_experience_min = excluded.years_experience_min,
-    posted_at          = excluded.posted_at,
+    -- A source with no posting date at all (Jane Street) stamps the date it first
+    -- SAW a Listing and flags it `posted_at_is_first_seen`. That date must survive
+    -- re-scrapes, or every Listing would look freshly posted every night and never
+    -- age out of the board. Every other source keeps the plain overwrite.
+    posted_at          = CASE
+                           WHEN json_valid(excluded.board_signals)
+                            AND json_extract(excluded.board_signals, '$.posted_at_is_first_seen') = 1
+                           THEN COALESCE(jobs.posted_at, excluded.posted_at)
+                           ELSE excluded.posted_at
+                         END,
     fetched_at         = excluded.fetched_at,
     dedup_hash         = excluded.dedup_hash,
     url                = excluded.url,

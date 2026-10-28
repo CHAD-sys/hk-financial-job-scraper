@@ -338,3 +338,35 @@ def test_refresh_signal_flags_leaves_other_signals_untouched_by_the_cap(migrated
     migrated_store.refresh_signal_flags()
     assert _grp(migrated_store, "grp_urgent") == 1
     assert _board_signals(migrated_store)["urgently_hiring"] is True
+
+
+# ── first-seen posted_at (sources that publish no posting date) ───────────────
+
+def _posted(store: JobStore, source_id: str) -> str:
+    return store._conn.execute(
+        "SELECT posted_at FROM jobs WHERE source_id = ?", (source_id,)
+    ).fetchone()["posted_at"]
+
+
+def test_first_seen_posted_at_survives_a_rescrape(store):
+    first = datetime(2026, 10, 1, tzinfo=UTC)
+    later = datetime(2026, 10, 20, tzinfo=UTC)
+    flag = {"posted_at_is_first_seen": True}
+    store.upsert_many([_job("JS-1", posted_at=first, board_signals=flag)])
+    store.upsert_many([_job("JS-1", posted_at=later, board_signals=flag)])
+    assert _posted(store, "JS-1") == first.isoformat()
+
+
+def test_first_seen_fills_a_row_that_has_no_date_yet(store):
+    store.upsert_many([_job("JS-2", posted_at=None)])  # published before the change
+    seen = datetime(2026, 10, 28, tzinfo=UTC)
+    store.upsert_many([_job("JS-2", posted_at=seen, board_signals={"posted_at_is_first_seen": True})])
+    assert _posted(store, "JS-2") == seen.isoformat()
+
+
+def test_an_unflagged_source_still_overwrites_posted_at(store):
+    first = datetime(2026, 10, 1, tzinfo=UTC)
+    updated = datetime(2026, 10, 20, tzinfo=UTC)
+    store.upsert_many([_job("W-1", posted_at=first)])
+    store.upsert_many([_job("W-1", posted_at=updated)])
+    assert _posted(store, "W-1") == updated.isoformat()
