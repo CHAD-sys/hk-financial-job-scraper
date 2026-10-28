@@ -17,6 +17,9 @@ argon2-cffi-bindings==25.1.0
 # whatever a test-only transitive resolves to. Matches the repo's decided HTTP
 # client (CLAUDE.md: httpx, not requests) — hk_jobs already depends on it.
 httpx==0.28.1
+# MTR's public Taleo listing is encoded in page script data; the direct-site
+# adapter uses Scrapling's lightweight deterministic Selector to read it.
+scrapling==0.4.8
 # Backs RedisRateLimiter (webapp/backend/rate_limit.py) — the shared rate
 # limiter used once Settings.redis_url is set (more than one replica, or
 # taking payment; see rate_limit.py's module docstring). Optional at runtime:
