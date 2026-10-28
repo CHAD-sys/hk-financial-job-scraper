@@ -1113,6 +1113,54 @@ export async function resetPassword(token: string, password: string): Promise<Se
 
 export type SavedRole = Job
 
+export type ApplicationStatus = 'applied' | 'interview' | 'offer' | 'not_selected' | 'no_response'
+
+export interface ApplicationProgress {
+  source: string
+  source_id: string
+  status: ApplicationStatus | null
+  status_updated_at: string | null
+  apply_click_count: number
+  last_apply_clicked_at: string | null
+}
+
+export async function fetchApplicationProgress(): Promise<ApplicationProgress[]> {
+  const res = await apiFetch('/api/me/applications')
+  if (!res.ok) throw new ApiError(res.status, `Could not load application progress (${res.status}).`)
+  return res.json()
+}
+
+export async function updateApplicationStatus(
+  job: Pick<Job, 'source' | 'source_id' | 'access_token'>,
+  status: ApplicationStatus | null,
+): Promise<ApplicationProgress> {
+  if (!job.access_token) throw new ApiError(403, 'Open this Role from the board before updating its progress.')
+  const path = `/api/me/applications/${encodeURIComponent(job.source)}/${encodeURIComponent(job.source_id)}`
+  const res = await apiFetch(path, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Role-Access': job.access_token,
+    },
+    body: JSON.stringify({ status }),
+  })
+  if (!res.ok) throw new ApiError(res.status, `Could not update application progress (${res.status}).`)
+  return res.json()
+}
+
+export async function recordApplicationClick(
+  job: Pick<Job, 'source' | 'source_id' | 'access_token'>,
+): Promise<void> {
+  if (!job.access_token) return
+  const path = `/api/me/applications/${encodeURIComponent(job.source)}/${encodeURIComponent(job.source_id)}/click`
+  const res = await apiFetch(path, {
+    method: 'POST',
+    headers: { 'X-Role-Access': job.access_token },
+    keepalive: true,
+  })
+  if (!res.ok) throw new ApiError(res.status, `Could not record the application link click (${res.status}).`)
+}
+
 export async function fetchSavedRoles(): Promise<SavedRole[]> {
   const res = await apiFetch('/api/me/saved')
   if (!res.ok) throw new ApiError(res.status, `Could not load your Saved Roles (${res.status}).`)

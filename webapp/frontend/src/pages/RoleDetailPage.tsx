@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { ArrowLeft, ArrowUpRight, Bookmark, BriefcaseBusiness, CalendarDays, Check, DollarSign, MapPin, Tag } from 'lucide-react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import type { Job, JobDetail } from '../api/client'
-import { fetchJobDetail } from '../api/client'
+import { fetchJobDetail, recordApplicationClick } from '../api/client'
+import { useAuth } from '../auth/useAuth'
 import Nav from '../components/Nav'
 import { useSavedRoles } from '../savedRoles/useSavedRoles'
 import {
@@ -30,6 +31,7 @@ export default function RoleDetailPage() {
   const { source = '', sourceId = '' } = useParams()
   const location = useLocation()
   const { isSaved, toggle } = useSavedRoles()
+  const { seeker } = useAuth()
   const state = useMemo(() => routeState(location.state), [location.state])
   const seed = state.job?.source === source && state.job.source_id === sourceId ? state.job : null
   const [detail, setDetail] = useState<JobDetail | null>(null)
@@ -150,7 +152,13 @@ export default function RoleDetailPage() {
           ) : (
             <div className="role-detail-page__actions">
               {role.url ? (
-                <a href={role.url} target="_blank" rel="noopener noreferrer" className="role-detail-page__apply">
+                <a
+                  href={role.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="role-detail-page__apply"
+                  onClick={() => { if (seeker) void recordApplicationClick(role).catch(() => {}) }}
+                >
                   {destinationLabel} <ArrowUpRight size={18} aria-hidden="true" />
                 </a>
               ) : (

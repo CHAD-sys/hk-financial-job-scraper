@@ -78,6 +78,15 @@ Closed once the Role is gone. It stops being listed once it has been Closed a
 fortnight: still saved, still reachable, no longer in the way (`docs/adr/0011`).
 _Avoid_: bookmark, favourite, shortlist, starred job
 
+**Application progress**:
+A private, Seeker-owned note of what happened after opening a Role's external
+application link. The link-open count is recorded automatically for signed-in
+Seekers; stages such as Applied, Interview, Offer, Not moving forward, or No
+response are entered by the Seeker. Opening a link never means an application
+was submitted. It remains available alongside Saved Roles and is erased when the
+Seeker deletes their account.
+_Avoid_: application status (can imply employer-confirmed status), auto-applied
+
 **Closed**:
 A Role that is no longer open. The Listing is kept rather than removed, so a Seeker can
 still look at a vacancy after it stops accepting applications — which is the whole point

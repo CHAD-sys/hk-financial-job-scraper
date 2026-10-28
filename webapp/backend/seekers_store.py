@@ -659,6 +659,37 @@ def migrate_to_phase_11(conn: sqlite3.Connection) -> None:
         )
 
 
+def migrate_to_phase_12(conn: sqlite3.Connection) -> None:
+    """Let a Seeker keep application progress beside their Saved Roles.
+
+    The employer still receives the application on its own site. This table
+    records only that the Seeker opened the apply link and any progress they
+    choose to enter themselves; it never claims an application was submitted.
+    The row belongs to the Seeker and is removed with their account.
+    """
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS seeker_role_applications (
+            seeker_id            TEXT NOT NULL REFERENCES seekers (id) ON DELETE CASCADE,
+            source               TEXT NOT NULL,
+            source_id            TEXT NOT NULL,
+            status               TEXT CHECK (status IN (
+                                     'applied', 'interview', 'offer',
+                                     'not_selected', 'no_response'
+                                 )),
+            status_updated_at    TEXT,
+            apply_click_count    INTEGER NOT NULL DEFAULT 0 CHECK (apply_click_count >= 0),
+            last_apply_clicked_at TEXT,
+            PRIMARY KEY (seeker_id, source, source_id)
+        )
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_role_applications_seeker "
+        "ON seeker_role_applications (seeker_id, status_updated_at DESC)"
+    )
+
+
 # Every phase, in order. A future phase appends here; it never edits an applied
 # phase because seekers.db is irreplaceable first-party account data.
 _MIGRATIONS = (
@@ -673,6 +704,7 @@ _MIGRATIONS = (
     migrate_to_phase_9,
     migrate_to_phase_10,
     migrate_to_phase_11,
+    migrate_to_phase_12,
 )
 
 
@@ -1341,6 +1373,83 @@ class SeekerStore:
                 "SELECT COUNT(*) FROM saved_roles WHERE seeker_id = ?", (seeker_id,)
             ).fetchone()[0]
         return int(after - before)
+
+    # -- application progress -----------------------------------------------
+
+    def list_application_progress(self, seeker_id: str) -> list[dict[str, Any]]:
+        """Return the Seeker's own application status and outbound-link counts."""
+        rows = self._conn().execute(
+            """
+            SELECT source, source_id, status, status_updated_at,
+                   apply_click_count, last_apply_clicked_at
+            FROM seeker_role_applications
+            WHERE seeker_id = ?
+            ORDER BY COALESCE(status_updated_at, last_apply_clicked_at) DESC,
+                     source, source_id
+            """,
+            (seeker_id,),
+        )
+        return [dict(row) for row in rows]
+
+    def set_application_status(
+        self,
+        seeker_id: str,
+        source: str,
+        source_id: str,
+        status: str | None,
+        *,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Save a status chosen by the Seeker, preserving any apply-link clicks."""
+        allowed = {"applied", "interview", "offer", "not_selected", "no_response"}
+        if status is not None and status not in allowed:
+            raise ValueError(f"unknown application status {status!r}")
+        stamp = to_iso(now or utcnow())
+        with self._write() as conn:
+            conn.execute(
+                """
+                INSERT INTO seeker_role_applications
+                    (seeker_id, source, source_id, status, status_updated_at)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT (seeker_id, source, source_id) DO UPDATE SET
+                    status = excluded.status,
+                    status_updated_at = excluded.status_updated_at
+                """,
+                (seeker_id, source, source_id, status, stamp if status is not None else None),
+            )
+            row = conn.execute(
+                """
+                SELECT source, source_id, status, status_updated_at,
+                       apply_click_count, last_apply_clicked_at
+                FROM seeker_role_applications
+                WHERE seeker_id = ? AND source = ? AND source_id = ?
+                """,
+                (seeker_id, source, source_id),
+            ).fetchone()
+        return dict(row)
+
+    def record_application_click(
+        self,
+        seeker_id: str,
+        source: str,
+        source_id: str,
+        *,
+        now: datetime | None = None,
+    ) -> None:
+        """Count a Seeker opening the employer or recruiter application link."""
+        stamp = to_iso(now or utcnow())
+        with self._write() as conn:
+            conn.execute(
+                """
+                INSERT INTO seeker_role_applications
+                    (seeker_id, source, source_id, apply_click_count, last_apply_clicked_at)
+                VALUES (?, ?, ?, 1, ?)
+                ON CONFLICT (seeker_id, source, source_id) DO UPDATE SET
+                    apply_click_count = seeker_role_applications.apply_click_count + 1,
+                    last_apply_clicked_at = excluded.last_apply_clicked_at
+                """,
+                (seeker_id, source, source_id, stamp),
+            )
 
     # -- recommendation signals --------------------------------------------
 
@@ -2238,6 +2347,9 @@ class SeekerStore:
             conn.execute("DELETE FROM sessions WHERE seeker_id = ?", (seeker_id,))
             conn.execute("DELETE FROM email_tokens WHERE seeker_id = ?", (seeker_id,))
             conn.execute("DELETE FROM saved_roles WHERE seeker_id = ?", (seeker_id,))
+            conn.execute(
+                "DELETE FROM seeker_role_applications WHERE seeker_id = ?", (seeker_id,)
+            )
             conn.execute(
                 "DELETE FROM seeker_discovery_events WHERE seeker_id = ?", (seeker_id,)
             )

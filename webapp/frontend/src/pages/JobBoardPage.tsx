@@ -10,6 +10,7 @@ import {
   DEFAULT_FILTERS, fetchJobs, fetchFilters, fetchStats,
   filtersToSearchParams, searchParamsToFilters,
   countActiveFilters, recordDiscovery, hasResearchScope, fetchWeeklyHighlightRole,
+  recordApplicationClick,
 } from '../api/client'
 import type { JobFilters } from '../api/client'
 import { useAuth } from '../auth/useAuth'
@@ -90,6 +91,9 @@ export default function JobBoardPage() {
   const [adminBrowse, setAdminBrowse] = useState(false)
   const { toggle: toggleSave, isSaved } = useSavedRoles()
   const { seeker, loading: authLoading } = useAuth()
+  const noteApplicationClick = useCallback((job: Job) => {
+    if (seeker) void recordApplicationClick(job).catch(() => {})
+  }, [seeker])
   // The phone discovery hub belongs only to the root route. `/jobs` is the
   // Careers product on every device, so a visitor following “More hot jobs”
   // reaches the searchable catalogue instead of seeing the same home again.
@@ -572,6 +576,7 @@ export default function JobBoardPage() {
           saved={isSaved(selectedJob)}
           onToggleSave={toggleSave}
           onClose={() => setSelectedJob(null)}
+          onApplyClick={noteApplicationClick}
         />
       )}
 

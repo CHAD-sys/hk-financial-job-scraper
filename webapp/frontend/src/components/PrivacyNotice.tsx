@@ -14,14 +14,14 @@ import { FileText, ShieldCheck, SlidersHorizontal, Trash2 } from 'lucide-react'
  * 2. ACCOUNTS_LIVE controls whether this notice describes the account system.
  *    Accounts shipped (docs/PLAN_ACCOUNTS.md), so this is true, and the account
  *    clauses below must match every account-backed feature, including Saved
- *    Roles and first-party recommendation activity. If accounts are ever
+ *    Roles, recommendation activity, and application progress. If accounts are ever
  *    pulled back out, set this back to false FIRST and match the clause text to
  *    it, not the other way round — DPP1 requires the notice to describe what is
  *    actually collected, not what may return later.
  */
 const ACCOUNTS_LIVE = true
 
-const LAST_UPDATED = '11 August 2026'
+const LAST_UPDATED = '28 October 2026'
 const CONTACT_EMAIL = 'amine@finexclub.org'
 
 interface Clause {
@@ -60,6 +60,8 @@ const CLAUSES: Clause[] = [
             ACCOUNTS_LIVE &&
               'Recommendation activity — for signed-in Seekers, the searches and filters you settle on, the number of matching results, which recommended Roles we showed or you opened, and feedback you give such as “More like this” or “Not for me”. We do not record your keystrokes or anonymous browsing.',
             ACCOUNTS_LIVE &&
+              'Application progress — for signed-in Seekers, when you open a Role’s external application link and any stage you choose to record, such as Applied or Interview. Opening a link does not tell us whether you submitted an application.',
+            ACCOUNTS_LIVE &&
               'Resume data — if you choose to upload one, we hold the PDF or DOCX, the text extracted from it, and derived evidence such as skills, role families, sector and experience level. Only one resume is held at a time; a successful replacement deletes the previous one.',
             'Technical data — your IP address and request details, recorded briefly by the server to rate-limit abuse of public forms and account actions.',
           ]
@@ -90,7 +92,7 @@ const CLAUSES: Clause[] = [
       <>
         Strictly the purpose described here: reviewing a role you
         submitted{ACCOUNTS_LIVE ? ', operating your account, keeping your saved roles in sync, ordering the “Roles for you” feed from first-party activity, and—only if you upload a resume—surfacing strong experience matches and adding a limited resume signal to that feed' : ''},
-        and keeping the forms free of abuse. The recommendation ranking is automated, but it
+        recording the application progress you choose to keep, and keeping the forms free of abuse. The recommendation ranking is automated, but it
         only orders current vacancies: it does not decide whether you are eligible, prevent
         you applying to a Role you found, or send data to an employer.
       </>
@@ -148,7 +150,7 @@ const CLAUSES: Clause[] = [
         stored elsewhere; we take reasonably practicable steps to ensure it is protected to
         a comparable standard. We keep Role submissions only as long as needed
         to review them and to keep a record of what was published
-        {ACCOUNTS_LIVE ? ', and account data — including recommendation activity — for as long as your account is open. A resume and its derived evidence are kept until you remove or replace it, or delete the account' : ''}. Data
+        {ACCOUNTS_LIVE ? ', and account data — including recommendation activity and application progress — for as long as your account is open. A resume and its derived evidence are kept until you remove or replace it, or delete the account' : ''}. Data
         that is no longer needed for the purpose it was collected for is erased.
       </>
     ),
@@ -187,8 +189,8 @@ const CLAUSES: Clause[] = [
     body: (
       <>
         We set no advertising or third-party tracking cookies. We set a strictly necessary
-        sign-in cookie for account sessions. When you are signed in, Saved Roles and
-        recommendation activity—and any resume you choose to add—are held with your account
+        sign-in cookie for account sessions. When you are signed in, Saved Roles,
+        recommendation activity, application progress, and any resume you choose to add are held with your account
         and are erased when that account is deleted. Without an account, Saved Roles stay in your browser's local storage,
         which you can clear at any time from your browser settings. “More like this” can be
         toggled from a Role, and a “Not for me” choice can be undone when it is made.
