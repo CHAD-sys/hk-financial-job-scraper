@@ -409,7 +409,7 @@ companies:
   - name: The Hong Kong and China Gas Company Limited (Towngas)
     slug: towngas
     adapter: direct_site
-    enabled: true
+    enabled: false              # site terms restrict copying; off pending rights review
     config:
       site: towngas
 

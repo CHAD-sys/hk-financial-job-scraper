@@ -439,6 +439,7 @@
   # Use deterministic first-party extraction rather than LLM extraction.
   adapter: direct_site
   site: hkmca
+  enabled: false   # site terms restrict copying; off pending rights review
 
 - name: "Wizpresso"
   slug: wizpresso
