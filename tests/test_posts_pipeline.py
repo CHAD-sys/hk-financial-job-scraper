@@ -178,7 +178,7 @@ def test_resolve_since_no_prior_fetch_uses_catchup_floor():
 def test_resolve_since_recent_fetch_uses_that_watermark():
     recent = (datetime.now(UTC) - timedelta(hours=2)).isoformat()
     since = _resolve_since(recent)
-    assert since == datetime.now(UTC).date().isoformat()
+    assert since == datetime.fromisoformat(recent).date().isoformat()
 
 
 def test_resolve_since_stale_fetch_capped_at_catchup_floor():
