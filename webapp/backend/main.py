@@ -2938,6 +2938,19 @@ class SaveRoleIn(BaseModel):
     access_token: str = Field(min_length=1, max_length=2_048)
 
 
+class ApplicationProgressIn(BaseModel):
+    status: Literal["applied", "interview", "offer", "not_selected", "no_response"] | None
+
+
+class ApplicationProgressOut(BaseModel):
+    source: str
+    source_id: str
+    status: Literal["applied", "interview", "offer", "not_selected", "no_response"] | None
+    status_updated_at: Optional[str] = None
+    apply_click_count: int = 0
+    last_apply_clicked_at: Optional[str] = None
+
+
 class MergeSavedIn(BaseModel):
     roles: list[SaveRoleIn] = Field(default_factory=list, max_length=500)
 
@@ -3332,6 +3345,59 @@ def unsave_role(source: str, source_id: str, request: Request):
     """204 whether or not it was saved — unsaving twice is not an error."""
     seeker = _require_seeker(request)
     seekers_store.get_store().unsave_role(seeker["id"], source, source_id)
+    return Response(status_code=204)
+
+
+@router.get(
+    "/api/me/applications",
+    response_model=list[ApplicationProgressOut],
+    tags=["saved"],
+)
+def list_application_progress(request: Request):
+    """Return application progress belonging to the signed-in Seeker."""
+    seeker = _require_seeker(request)
+    return seekers_store.get_store().list_application_progress(seeker["id"])
+
+
+@router.put(
+    "/api/me/applications/{source}/{source_id}",
+    response_model=ApplicationProgressOut,
+    tags=["saved"],
+)
+def update_application_progress(
+    source: str,
+    source_id: str,
+    payload: ApplicationProgressIn,
+    request: Request,
+    access_token: Optional[str] = Header(None, alias="X-Role-Access", max_length=2_048),
+):
+    """Save an application stage only for a Role reached through an allowed path."""
+    seeker = _require_seeker(request)
+    if not request.app.state.role_access.allows(access_token, source, source_id):
+        raise HTTPException(status_code=404, detail="Job not found")
+    return seekers_store.get_store().set_application_status(
+        seeker["id"], source, source_id, payload.status
+    )
+
+
+@router.post(
+    "/api/me/applications/{source}/{source_id}/click",
+    status_code=204,
+    tags=["saved"],
+)
+def record_application_click(
+    source: str,
+    source_id: str,
+    request: Request,
+    access_token: Optional[str] = Header(None, alias="X-Role-Access", max_length=2_048),
+):
+    """Record that a Seeker opened a Role's external application destination."""
+    seeker = _require_seeker(request)
+    if not request.app.state.role_access.allows(access_token, source, source_id):
+        raise HTTPException(status_code=404, detail="Job not found")
+    seekers_store.get_store().record_application_click(
+        seeker["id"], source, source_id
+    )
     return Response(status_code=204)
 
 

@@ -19,9 +19,10 @@ interface Props {
   saved: boolean
   onToggleSave: (job: Job) => void
   onClose: () => void
+  onApplyClick?: (job: Job) => void
 }
 
-export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Props) {
+export default function JobDetailModal({ job, saved, onToggleSave, onClose, onApplyClick }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [detail, setDetail] = useState<JobDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -164,7 +165,7 @@ export default function JobDetailModal({ job, saved, onToggleSave, onClose }: Pr
           </div>
         </div>
 
-        {job.closed ? <ClosedFooter job={job} /> : <ApplyFooter job={job} />}
+        {job.closed ? <ClosedFooter job={job} /> : <ApplyFooter job={job} onApplyClick={onApplyClick} />}
       </div>
     </dialog>
   )
@@ -579,7 +580,7 @@ function DescriptionSection({ loading, text }: { loading: boolean; text: string 
 // formal "apply" flow, so the primary CTA is "DM to apply" (message the
 // recruiter), with the original post as a secondary link, per decision #9.
 
-function ApplyFooter({ job }: { job: Job }) {
+function ApplyFooter({ job, onApplyClick }: { job: Job; onApplyClick?: (job: Job) => void }) {
   // A Recruiter Post has exactly one destination: the post. The profile link
   // ("DM {recruiter} to apply") and the mailto that used to sit here are gone —
   // see the note in JobCard.tsx. job.url is the post permalink for this source,
@@ -596,6 +597,7 @@ function ApplyFooter({ job }: { job: Job }) {
           destinationLabel="View the original LinkedIn post"
           destinationHint="Respond to the recruiter’s post"
           destinationTone="social"
+          onApplyClick={onApplyClick}
         />
       </div>
     )
@@ -613,6 +615,7 @@ function ApplyFooter({ job }: { job: Job }) {
           destinationLabel="Application instructions"
           destinationHint="See the Role overview above"
           destinationTone="instructions"
+          onApplyClick={onApplyClick}
         />
       </div>
     )
@@ -629,6 +632,7 @@ function ApplyFooter({ job }: { job: Job }) {
         destinationLabel="Apply on company site"
         destinationHint="Employer site · opens a new tab"
         destinationTone="apply"
+        onApplyClick={onApplyClick}
       />
     </div>
   )
@@ -640,12 +644,14 @@ function RoleActionDeck({
   destinationLabel,
   destinationHint,
   destinationTone,
+  onApplyClick,
 }: {
   job: Job
   destinationHref: string
   destinationLabel: string
   destinationHint: string
   destinationTone: 'apply' | 'social' | 'instructions'
+  onApplyClick?: (job: Job) => void
 }) {
   return (
     <div className="role-action-deck" role="group" aria-label="Role actions">
@@ -655,6 +661,7 @@ function RoleActionDeck({
           target="_blank"
           rel="noopener noreferrer"
           className={`role-action role-action--${destinationTone}`}
+          onClick={() => onApplyClick?.(job)}
         >
           <span className="role-action__icon" aria-hidden="true">
             <ExternalLink size={16} strokeWidth={1.9} />

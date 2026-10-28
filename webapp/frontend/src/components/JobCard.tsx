@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Bookmark, MapPin, Briefcase, Clock, Star, Flame, Sparkles, Repeat2, Users, EyeOff, ShieldCheck, Archive, SquarePen } from 'lucide-react'
-import type { Job, LinkedInPostSignals } from '../api/client'
+import type { ApplicationProgress, ApplicationStatus, Job, LinkedInPostSignals } from '../api/client'
 import { SourceTag } from './SourceBadges'
 import CareerCoachingTag from './CareerCoachingTag'
 import {
@@ -27,6 +27,9 @@ interface Props {
    * drawn, never whether the write is allowed.
    */
   onEdit?: (job: Job) => void
+  /** Application progress is supplied only on the signed-in Saved Roles page. */
+  applicationProgress?: ApplicationProgress
+  onApplicationStatusChange?: (job: Job, status: ApplicationStatus | null) => void
 }
 
 type SectorColor = ReturnType<typeof getSectorColor>
@@ -50,7 +53,10 @@ const CLOSED_NEUTRAL: SectorColor = {
   accent: 'var(--color-border-strong)',
 }
 
-export default function JobCard({ job, saved, onToggleSave, onClick, onEdit, compact = false }: Props) {
+export default function JobCard({
+  job, saved, onToggleSave, onClick, onEdit, compact = false,
+  applicationProgress, onApplicationStatusChange,
+}: Props) {
   const sectorColor = job.closed ? CLOSED_NEUTRAL : getSectorColor(job.sector)
   // Prefer the AI English title (Chinese postings); fall back to the original.
   const displayTitle = job.title_en || job.title
@@ -186,7 +192,54 @@ export default function JobCard({ job, saved, onToggleSave, onClick, onEdit, com
       {!compact && !job.closed && <CareerCoachingTag company={job.company} />}
 
       <CardFooter job={job} />
+      {!compact && onApplicationStatusChange && (
+        <ApplicationProgressControl
+          job={job}
+          progress={applicationProgress}
+          onChange={onApplicationStatusChange}
+        />
+      )}
     </article>
+  )
+}
+
+function ApplicationProgressControl({
+  job,
+  progress,
+  onChange,
+}: {
+  job: Job
+  progress?: ApplicationProgress
+  onChange: (job: Job, status: ApplicationStatus | null) => void
+}) {
+  return (
+    <div className="application-progress-control" onClick={event => event.stopPropagation()}>
+      <div className="application-progress-heading">
+        <label htmlFor={`application-stage-${job.source}-${job.source_id}`}>Application progress</label>
+        {progress?.status && (
+          <span className="application-progress-status" data-status={progress.status}>
+            {progress.status === 'not_selected' ? 'Not moving forward' : progress.status === 'no_response' ? 'No response' : progress.status[0].toUpperCase() + progress.status.slice(1)}
+          </span>
+        )}
+      </div>
+      <select
+        id={`application-stage-${job.source}-${job.source_id}`}
+        value={progress?.status ?? ''}
+        onChange={event => onChange(job, (event.target.value || null) as ApplicationStatus | null)}
+      >
+        <option value="">Choose a stage</option>
+        <option value="applied">Applied</option>
+        <option value="interview">Interview</option>
+        <option value="offer">Offer</option>
+        <option value="not_selected">Not moving forward</option>
+        <option value="no_response">No response</option>
+      </select>
+      {progress && progress.apply_click_count > 0 && (
+        <span className="application-progress-clicks" aria-live="polite">
+          Apply link opened {progress.apply_click_count} {progress.apply_click_count === 1 ? 'time' : 'times'}
+        </span>
+      )}
+    </div>
   )
 }
 

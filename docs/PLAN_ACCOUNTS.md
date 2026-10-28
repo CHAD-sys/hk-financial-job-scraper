@@ -1,13 +1,14 @@
 # PLAN — Seeker accounts (v1)
 
-**Status:** built, not yet shipped — `ACCOUNTS_LIVE = false`
-**Date:** 2026-07-30 (plan) · 2026-08-04 (status)
+**Status:** Seeker accounts are live. Application progress was implemented locally
+on 2026-10-28 and is not deployed.
+**Date:** 2026-07-30 (original plan) · 2026-10-28 (application progress)
 
-Everything in §8's build order exists: `webapp/backend/auth.py`,
-`webapp/backend/seekers_store.py`, and the Sign in / Register / Forgot password /
-Account pages. What remains is the *ship* step — decision 17's
-`ACCOUNTS_LIVE` flag in `PrivacyNotice.tsx` is still `false`, so the privacy
-copy does not yet describe accounts. Flip it when the feature goes public.
+This document preserves decisions from the original account launch. Its launch
+checklist and deferred-feature list below describe the state at that time; use
+`CONTEXT.md` and current code for the live product. The application progress
+addition is Seeker-owned data in `seekers.db`, records link opens separately from
+Seeker-entered stages, and is removed with the account.
 **Supersedes:** the 27 July accounts plan, deleted in full. No decision from it carries
 over; every decision below was re-derived from scratch.
 
@@ -141,7 +142,7 @@ for a foundation release with few Seekers. It wants to be persistent before paid
 
 ---
 
-## 6. Deferred, with the shape already decided
+## 6. Deferred at the time, with the shape already decided
 
 Not in v1, but the design is settled so it is not re-litigated later:
 
@@ -151,9 +152,9 @@ Not in v1, but the design is settled so it is not re-litigated later:
   later for free. ~800 emails/month at 200 Seekers, well inside the existing mail
   host's limits (ADR 0009 replaced the Resend plan); daily
   would be ~6,000 and outside it. **Blocked on the open item in §9.**
-- **Application tracking** — Seeker-owned status on roles already saved. Needs no email,
-  no scheduled job, no fresh `jobs.db`. The cheapest way to give the account a visible
-  purpose if signups disappoint.
+- **Application progress** — now implemented locally: Seeker-owned stage on a Role,
+  alongside a separate count of opens of its external application link. No email,
+  scheduled job, or write to `jobs.db`; see `CONTEXT.md` for the user-facing meaning.
 - ~~**LinkedIn sign-in** — third provider against the same Seeker record, configured
   through a generic OIDC slot. Brand value, not data value.~~ **Shipped 2026-08-07**:
   `webapp/backend/main.py`'s `linkedin_start`/`linkedin_callback`, `LinkedInButton`
