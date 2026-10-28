@@ -371,6 +371,48 @@ companies:
       jobsdb_slug: Hong-Kong-Monetary-Authority
       use_company_profile: true
 
+  # Verified against the employer's vacancy table on 2026-10-28. This copy
+  # has the official application URL and a full description for each role.
+  - name: Hong Kong Monetary Authority (HKMA)
+    slug: hkma
+    adapter: direct_site
+    enabled: true
+    config:
+      site: hkma
+
+  # Verified against HKMC's public job openings page on 2026-10-28.
+  - name: The Hong Kong Mortgage Corporation Limited
+    slug: hong-kong-mortgage-corporation
+    adapter: direct_site
+    enabled: true
+    config:
+      site: hkmc
+
+  # Verified against both employers' own Taleo portals on 2026-10-28.
+  - name: MTR Corporation
+    slug: mtr-corporation
+    adapter: direct_site
+    enabled: true
+    config:
+      site: mtr
+
+  - name: Airport Authority Hong Kong
+    slug: airport-authority-hong-kong
+    adapter: direct_site
+    enabled: true
+    config:
+      site: hkairport
+
+  # Extractors are ready, but the employers' published site terms restrict
+  # copying/storing their content elsewhere. Keep these off pending a rights
+  # review. HKMC Annuity's existing longtail entry is disabled separately.
+  - name: The Hong Kong and China Gas Company Limited (Towngas)
+    slug: towngas
+    adapter: direct_site
+    enabled: true
+    config:
+      site: towngas
+
   # ── Virtual banks ─────────────────────────────────────────────────────────
   - name: ZA Bank
     slug: za-bank

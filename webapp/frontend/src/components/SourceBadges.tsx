@@ -35,7 +35,7 @@ const BOARDS: Record<string, Board> = {
 // by normalise() below: it survives neither branch, so the tag never renders.
 // That is not hypothetical — `successfactors` was absent here for two days and
 // HKJC's roles showed no "Listed on" section at all.
-const OWN_SITE = new Set(['workday', 'eightfold', 'successfactors', 'longtail'])
+const OWN_SITE = new Set(['workday', 'eightfold', 'successfactors', 'direct_site', 'longtail'])
 
 // Display order: own site first, then boards by preference, recruiter posts last
 // (lowest priority everywhere else in the pipeline too — sources.py APPLY_ORDER).

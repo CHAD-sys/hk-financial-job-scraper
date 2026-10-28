@@ -6,6 +6,7 @@ handles that source. Add new adapters here as they are implemented.
 """
 
 from hk_jobs.adapters.base import BaseAdapter
+from hk_jobs.adapters.direct_site import DirectSiteAdapter
 from hk_jobs.adapters.efc import EfcAdapter
 from hk_jobs.adapters.eightfold import EightfoldAdapter
 from hk_jobs.adapters.indeed import IndeedAdapter
@@ -25,4 +26,5 @@ ADAPTERS: dict[str, type[BaseAdapter]] = {
     "longtail": LongtailAdapter,
     "efinancialcareers": EfcAdapter,
     "successfactors": SuccessFactorsAdapter,
+    "direct_site": DirectSiteAdapter,
 }

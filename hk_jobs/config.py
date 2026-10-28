@@ -17,6 +17,7 @@ from typing import Any
 import yaml
 
 from hk_jobs.adapters import ADAPTERS
+from hk_jobs.adapters.direct_site import SITE_FETCHERS
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ _REQUIRED_CONFIG_KEYS: dict[str, list[str]] = {
     "longtail": ["careers_url"],
     "efinancialcareers": ["efc_employer"],
     "successfactors": ["sf_host"],
+    "direct_site": ["site"],
 }
 
 # Top-level entry keys that are NOT adapter config. Everything else at the top
@@ -134,3 +136,10 @@ def _validate(cfg: CompanyConfig) -> None:
             f"config keys {missing} but they are absent from the 'config:' "
             f"block in companies.yaml."
         )
+    if cfg.adapter == "direct_site":
+        site = cfg.config.get("site")
+        if not isinstance(site, str) or site not in SITE_FETCHERS:
+            raise ValueError(
+                f"Company {cfg.name!r}: unknown direct site {site!r}. "
+                f"Expected one of {sorted(SITE_FETCHERS)}."
+            )
