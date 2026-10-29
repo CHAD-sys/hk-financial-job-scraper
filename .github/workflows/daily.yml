@@ -140,7 +140,15 @@ jobs:
       # fetchers need, which is the one authority on the actual requirement
       # rather than us guessing at it from outside.
       - name: Install Scrapling browser dependencies
-        run: scrapling install
+        # `scrapling install` runs `playwright install chromium` through
+        # subprocess.check_output, which swallows its stdout; when the installer
+        # failed (2026-10-28 onward) the log held only a Python traceback and no
+        # reason. Run the installer directly first so its output is in the log.
+        run: |
+          df -h / | tail -1
+          python -m playwright --version
+          python -m playwright install chromium
+          scrapling install
 
       - name: Execute canonical Daily Run
         id: daily_run
