@@ -341,3 +341,38 @@ def test_without_facets_search_text_is_still_used(monkeypatch):
     sent = transport.bodies[0]
     assert sent["appliedFacets"] == {}
     assert sent["searchText"] == "Hong Kong"
+
+
+# ── location_label (tenants whose own location strings are office codes) ──────
+
+def _labelled(monkeypatch, listing_data, detail_data, **kw):
+    transport = _MockTransport(listing_data, detail_data)
+    monkeypatch.setattr("hk_jobs.adapters.workday._DETAIL_SLEEP", 0)
+    monkeypatch.setattr(
+        WorkdayAdapter, "_client",
+        lambda self, timeout=20.0: httpx.Client(transport=transport, follow_redirects=True),
+    )
+    return WorkdayAdapter(company="HKEX", company_slug="hkex", tenant="hkex", site="HKEXCareerPage", **kw)
+
+
+def test_location_label_replaces_office_codes(monkeypatch, listing_data, detail_data):
+    jobs = _labelled(monkeypatch, listing_data, detail_data, location_label="Hong Kong").fetch_jobs()
+    assert jobs and all(j.locations == ["Hong Kong"] for j in jobs)
+
+
+def test_location_label_applies_without_detail_fetch(monkeypatch, listing_data, detail_data):
+    jobs = _labelled(
+        monkeypatch, listing_data, detail_data, location_label="Hong Kong", fetch_details=False
+    ).fetch_jobs()
+    assert jobs and all(j.locations == ["Hong Kong"] for j in jobs)
+
+
+def test_without_a_label_locations_come_from_the_feed(monkeypatch, listing_data, detail_data):
+    adapter = _labelled(monkeypatch, listing_data, detail_data, fetch_details=False)
+    assert adapter.location_label is None
+    expected = {
+        p["jobReqId"]: _parse_locations(p.get("locationsText") or "")
+        for p in listing_data["jobPostings"] if p.get("jobReqId")
+    }
+    got = {j.source_id: j.locations for j in adapter.fetch_jobs()}
+    assert got and all(got[k] == v for k, v in expected.items() if k in got)
