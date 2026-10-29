@@ -117,6 +117,7 @@ class WorkdayAdapter(BaseAdapter):
         location_filter: str = "Hong Kong",
         applied_facets: dict[str, list[str]] | None = None,
         fetch_details: bool = True,
+        location_label: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(company, company_slug, tenant=tenant, site=site, wd=wd, **kwargs)
@@ -140,6 +141,10 @@ class WorkdayAdapter(BaseAdapter):
         # and the keyword half would silently re-truncate the facet's results.
         self.applied_facets = applied_facets or {}
         self.fetch_details = fetch_details
+        # For a tenant whose own location strings are internal office codes
+        # (HKEX: "HK-TKO 5/F", or blank), and whose `applied_facets` already
+        # guarantee every result is in one place, store that place instead.
+        self.location_label = location_label
 
         self._base_url = f"https://{tenant}.{wd}.myworkdayjobs.com"
         self._api_base = f"{self._base_url}/wday/cxs/{tenant}/{site}"
@@ -209,7 +214,11 @@ class WorkdayAdapter(BaseAdapter):
             company_slug=self.company_slug,
             url=url,
             title=posting.get("title") or "",
-            locations=_parse_locations(posting.get("locationsText") or ""),
+            locations=(
+                [self.location_label]
+                if self.location_label
+                else _parse_locations(posting.get("locationsText") or "")
+            ),
         )
 
     def _fetch_detail(self, client: httpx.Client, job: Job, posting: dict) -> Job:
@@ -246,6 +255,8 @@ class WorkdayAdapter(BaseAdapter):
                 locations.append(extra)
         if not locations:
             locations = job.locations  # fall back to listing-level data
+        if self.location_label:
+            locations = [self.location_label]
 
         # Workday's startDate is ISO-like: "2024-03-01T00:00:00.000Z"
         posted_at: datetime | None = None

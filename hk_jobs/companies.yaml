@@ -2243,3 +2243,164 @@ companies:
 
   # Citadel / Citadel Securities: NOT added. Every page is behind a Cloudflare
   # Turnstile challenge (docs/careers_recon/citadel.md); bypassing it is not an option.
+
+  # ── 2026-10-29: employers' own Workday feeds (docs/careers_recon/existing/<slug>.md) ──
+  # Same slug as the JobsDB/LinkedIn entries above, so the board reconciles them as one
+  # company and sends applicants to the employer's own careers site first.
+
+  - name: Citibank Hong Kong
+    slug: citibank-hk
+    adapter: workday
+    enabled: true
+    config:
+      tenant: citi
+      site: "2"
+      wd: wd5
+      applied_facets:
+        Country_and_Jurisdiction:
+          - d4afdeb461d446e4babd204bd102dba8
+
+  - name: Hong Kong Exchanges and Clearing
+    slug: hkex
+    adapter: workday
+    enabled: true
+    config:
+      tenant: hkex
+      site: "HKEXCareerPage"
+      wd: wd3
+      location_label: Hong Kong   # office codes like "HK-TKO 5/F" otherwise; facet below limits it to HK
+      applied_facets:
+        hiringCompany:
+          - 805bd8e78349100188a171a485520000
+
+  - name: OCBC Wing Hang Bank
+    slug: ocbc-wing-hang
+    adapter: workday
+    enabled: true
+    config:
+      tenant: ocbc
+      site: "External"
+      wd: wd102
+      applied_facets:
+        Country:
+          - d4afdeb461d446e4babd204bd102dba8
+
+  - name: Manulife Hong Kong
+    slug: manulife-hk
+    adapter: workday
+    enabled: true
+    config:
+      tenant: manulife
+      site: "MFCJH_Jobs"
+      wd: wd3
+      applied_facets:
+        Location_Country:
+          - d4afdeb461d446e4babd204bd102dba8
+
+  - name: Mitsubishi UFJ (MUFG)
+    slug: mufg
+    adapter: workday
+    enabled: true
+    config:
+      tenant: mufgub
+      site: "MUFG-Careers"
+      wd: wd3
+      applied_facets:
+        Country:
+          - d4afdeb461d446e4babd204bd102dba8
+
+  - name: UOB
+    slug: uob
+    adapter: workday
+    enabled: true
+    config:
+      tenant: uobgroup
+      site: "UOBExternal"
+      wd: wd3
+      applied_facets:
+        locationCountry:
+          - d4afdeb461d446e4babd204bd102dba8
+
+  - name: Invesco
+    slug: invesco
+    adapter: workday
+    enabled: true
+    config:
+      tenant: invesco
+      site: "IVZ"
+      wd: wd1
+      applied_facets:
+        locations:
+          - 1804888b7f5a100128d467efb26b0000
+
+  - name: Deutsche Bank
+    slug: deutsche-bank
+    adapter: workday
+    enabled: true
+    config:
+      tenant: db
+      site: "DBWebsite"
+      wd: wd3
+      applied_facets:
+        Country:
+          - d4afdeb461d446e4babd204bd102dba8
+
+  - name: State Street Global Advisors
+    slug: state-street
+    adapter: workday
+    enabled: true
+    config:
+      tenant: statestreet
+      site: "Global"
+      wd: wd1
+      applied_facets:
+        Location_Country:
+          - d4afdeb461d446e4babd204bd102dba8
+
+  - name: Fidelity International HK
+    slug: fidelity-international-hk
+    adapter: workday
+    enabled: true
+    config:
+      tenant: fil
+      site: "001"
+      wd: wd3
+      applied_facets:
+        locationCountry:
+          - d4afdeb461d446e4babd204bd102dba8
+
+  - name: PIMCO Hong Kong
+    slug: pimco-hk
+    adapter: workday
+    enabled: true
+    config:
+      tenant: pimco
+      site: "pimco-careers"
+      wd: wd1
+      applied_facets:
+        locationCountry:
+          - d4afdeb461d446e4babd204bd102dba8
+
+  - name: BlackRock Hong Kong
+    slug: blackrock-hk
+    adapter: workday
+    enabled: true
+    config:
+      tenant: blackrock
+      site: "BlackRock_Professional"
+      wd: wd1
+      applied_facets:
+        locations:
+          - 131d7f8fcf9f018876bd6e57f75078cd
+
+  - name: Northern Trust
+    slug: northern-trust
+    adapter: workday
+    enabled: true
+    config:
+      tenant: ntrs
+      site: "northerntrust"
+      wd: wd1
+      applied_facets:
+        locationCountry:
+          - d4afdeb461d446e4babd204bd102dba8
