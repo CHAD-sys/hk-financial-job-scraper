@@ -55,9 +55,10 @@ def test_janestreet_multi_city_value_and_robots_exclusion():
     assert [j.source_id for j in parse_janestreet_feed(rows, "J", "j")] == ["j:1"]
 
 
-def test_janestreet_internship_and_missing_date():
+def test_janestreet_internship_and_no_source_date():
     jobs = parse_janestreet_feed(_js_rows(), "Jane Street", "jane-street")
     intern = [j for j in jobs if j.employment_type == "internship"]
+    # The feed has no dates; storage dates such roles by first-seen.
     assert intern and all(j.posted_at is None for j in jobs)
 
 

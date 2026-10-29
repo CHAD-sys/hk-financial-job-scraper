@@ -517,7 +517,18 @@ ON CONFLICT (source, source_id) DO UPDATE SET
     skills_required    = excluded.skills_required,
     skills_preferred   = excluded.skills_preferred,
     years_experience_min = excluded.years_experience_min,
-    posted_at          = excluded.posted_at,
+    -- A Listing whose source publishes no posting date (boutique careers pages,
+    -- Jane Street's feed) is dated by when we first SAW it, because the board
+    -- fails closed on a missing date (ADR 0035) and would otherwise never show
+    -- it. `_job_to_row` fills that date in and sets `posted_at_is_estimate`; here
+    -- an estimate never replaces an earlier value, so a re-scrape does not make
+    -- every such Listing look freshly posted each night. A real date from the
+    -- source always wins, and a real date is never overwritten by an estimate.
+    posted_at          = CASE
+                           WHEN :posted_at_is_estimate = 1
+                           THEN COALESCE(jobs.posted_at, excluded.posted_at)
+                           ELSE excluded.posted_at
+                         END,
     fetched_at         = excluded.fetched_at,
     dedup_hash         = excluded.dedup_hash,
     url                = excluded.url,
@@ -1234,7 +1245,9 @@ def _job_to_row(job: Job) -> dict[str, Any]:
         "skills_required": json.dumps(job.skills_required),
         "skills_preferred": json.dumps(job.skills_preferred),
         "years_experience_min": job.years_experience_min,
-        "posted_at": job.posted_at.isoformat() if job.posted_at else None,
+        # No source date -> first-seen (see the posted_at CASE in _UPSERT).
+        "posted_at": (job.posted_at or job.fetched_at).isoformat(),
+        "posted_at_is_estimate": int(job.posted_at is None),
         "fetched_at": job.fetched_at.isoformat(),
         "scraped_under_slug": job.scraped_under_slug,
         "source_tier": job.source_tier,

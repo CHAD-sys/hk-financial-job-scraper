@@ -3,7 +3,8 @@
 The careers page is an empty shell that its own JavaScript fills from one static
 JSON file, ``/jobs/main.json`` (every office, descriptions inline, no paging).
 Hong Kong rows have ``city == "HKG"`` (or a multi-city value such as "NYC/HKG").
-The feed has no posting date, so ``posted_at`` stays None.
+The feed has no posting date, so ``posted_at`` stays None; storage dates such a
+role by when it was first seen.
 """
 
 import html

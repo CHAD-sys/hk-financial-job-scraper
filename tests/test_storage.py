@@ -319,8 +319,15 @@ def test_refresh_signal_flags_expires_new_job_past_the_cap(migrated_store):
 def test_refresh_signal_flags_expires_new_job_with_no_posted_at(migrated_store):
     # Fails closed: no posted_at means the age can't be verified, so it must
     # not be trusted as new either.
-    job = _job("J-001", posted_at=None, board_signals={"new_job": True})
-    migrated_store.upsert_many([job])
+    # upsert_many now dates every Listing (first-seen), so build the legacy shape
+    # directly: a row stored before that rule, with no posted_at at all.
+    migrated_store._conn.execute(
+        "INSERT INTO jobs (source, source_id, company, company_slug, url, dedup_hash, title,"
+        " fetched_at, is_active, board_signals)"
+        " VALUES ('workday','J-001','HSBC','hsbc','u','h','T',"
+        " datetime('now'), 1, '{\"new_job\": true}')"
+    )
+    migrated_store._conn.commit()
     migrated_store.refresh_signal_flags()
     assert _grp(migrated_store, "grp_new") == 0
     assert "new_job" not in _board_signals(migrated_store)
@@ -338,3 +345,61 @@ def test_refresh_signal_flags_leaves_other_signals_untouched_by_the_cap(migrated
     migrated_store.refresh_signal_flags()
     assert _grp(migrated_store, "grp_urgent") == 1
     assert _board_signals(migrated_store)["urgently_hiring"] is True
+
+
+# ── first-seen posted_at (sources that publish no posting date) ───────────────
+#
+# The board fails closed on a missing posted_at (ADR 0035), so a Listing whose
+# source gives no date is dated by when we first saw it, and keeps that date.
+
+def _posted(store: JobStore, source_id: str) -> str | None:
+    return store._conn.execute(
+        "SELECT posted_at FROM jobs WHERE source_id = ?", (source_id,)
+    ).fetchone()["posted_at"]
+
+
+def test_a_dateless_listing_is_dated_by_when_it_was_first_seen(store):
+    seen = datetime(2026, 10, 1, tzinfo=UTC)
+    store.upsert_many([_job("D-1", posted_at=None, fetched_at=seen)])
+    assert _posted(store, "D-1") == seen.isoformat()
+
+
+def test_the_first_seen_date_survives_later_scrapes(store):
+    first = datetime(2026, 10, 1, tzinfo=UTC)
+    store.upsert_many([_job("D-2", posted_at=None, fetched_at=first)])
+    store.upsert_many([_job("D-2", posted_at=None, fetched_at=datetime(2026, 10, 20, tzinfo=UTC))])
+    assert _posted(store, "D-2") == first.isoformat()
+
+
+def test_a_row_stored_without_any_date_is_filled_on_its_next_scrape(store):
+    store._conn.execute(
+        "INSERT INTO jobs (source, source_id, company, company_slug, url, dedup_hash, title,"
+        " fetched_at, is_active) VALUES ('longtail','D-3','Co','co','u','h','T',"
+        " '2026-09-01T00:00:00+00:00', 1)"
+    )
+    store._conn.commit()
+    assert _posted(store, "D-3") is None  # how rows from before this rule look
+    seen = datetime(2026, 10, 28, tzinfo=UTC)
+    store.upsert_many([_job("D-3", source="longtail", posted_at=None, fetched_at=seen)])
+    assert _posted(store, "D-3") == seen.isoformat()
+
+
+def test_a_real_date_replaces_the_estimate(store):
+    store.upsert_many([_job("D-4", posted_at=None, fetched_at=datetime(2026, 10, 1, tzinfo=UTC))])
+    real = datetime(2026, 9, 15, tzinfo=UTC)
+    store.upsert_many([_job("D-4", posted_at=real)])
+    assert _posted(store, "D-4") == real.isoformat()
+
+
+def test_a_real_date_is_not_lost_when_the_source_stops_giving_one(store):
+    real = datetime(2026, 9, 15, tzinfo=UTC)
+    store.upsert_many([_job("D-5", posted_at=real)])
+    store.upsert_many([_job("D-5", posted_at=None, fetched_at=datetime(2026, 10, 20, tzinfo=UTC))])
+    assert _posted(store, "D-5") == real.isoformat()
+
+
+def test_a_source_that_dates_its_listings_still_overwrites_posted_at(store):
+    store.upsert_many([_job("W-1", posted_at=datetime(2026, 10, 1, tzinfo=UTC))])
+    updated = datetime(2026, 10, 20, tzinfo=UTC)
+    store.upsert_many([_job("W-1", posted_at=updated)])
+    assert _posted(store, "W-1") == updated.isoformat()
