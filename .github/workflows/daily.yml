@@ -44,7 +44,12 @@ concurrency:
 jobs:
   daily-run:
     name: Daily Run
-    runs-on: ubuntu-latest
+    # Pinned, not `ubuntu-latest`: GitHub moved `ubuntu-latest` to Ubuntu 26.04 on
+    # 2026-10-28, and Playwright 1.59.0 (requirements.txt) has no chromium build for
+    # it ("does not support chromium on ubuntu26.04-x64"), which failed every run at
+    # the browser install. Unpin once Playwright is upgraded to a release that
+    # supports the newer image.
+    runs-on: ubuntu-24.04
     # Recent runs take 27-67 minutes. 300 is headroom, not the expected time —
     # it exists so a hung Playwright call (network_idle=True is the known way
     # to trigger this; see the adapters' own docstrings) fails the run instead
@@ -140,7 +145,15 @@ jobs:
       # fetchers need, which is the one authority on the actual requirement
       # rather than us guessing at it from outside.
       - name: Install Scrapling browser dependencies
-        run: scrapling install
+        # `scrapling install` runs `playwright install chromium` through
+        # subprocess.check_output, which swallows its stdout; when the installer
+        # failed (2026-10-28 onward) the log held only a Python traceback and no
+        # reason. Run the installer directly first so its output is in the log.
+        run: |
+          df -h / | tail -1
+          python -m playwright --version
+          python -m playwright install chromium
+          scrapling install
 
       - name: Execute canonical Daily Run
         id: daily_run
