@@ -454,3 +454,20 @@
   adapter: longtail
   # JS-rendered (AEM/React) — httpx sees 0 visible chars, longtail adapter's
   # _needs_browser() correctly triggers the Scrapling headless fallback.
+
+# ── 2026-10-30: direct feeds for boutique firms with a real careers page; the LLM entry above
+# stays as the fallback (docs/careers_recon/existing/<slug>.md).
+
+- name: "Hong Kong Life Insurance Limited"
+  slug: hong-kong-life-insurance-limited
+  category: "Insurance Company"
+  careers_url: "https://www.hklife.com.hk/tc/join-us/index.html"
+  adapter: direct_site
+  site: hong-kong-life-insurance-limited
+
+- name: "Wizpresso"
+  slug: wizpresso
+  category: "RegTech"
+  careers_url: "https://wizpresso.com/Careers"
+  adapter: direct_site
+  site: wizpresso

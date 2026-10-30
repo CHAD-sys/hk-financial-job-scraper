@@ -1,0 +1,41 @@
+{
+ "TotalJobsCount": 5,
+ "requisitionList": [
+  {
+   "Id": "1709",
+   "Title": "Investment Product Analyst, Multi-Asset",
+   "PostedDate": "2026-10-24",
+   "PrimaryLocation": "Hong Kong",
+   "PrimaryLocationCountry": "HK",
+   "GeographyId": 300000000304314,
+   "JobFamily": null,
+   "JobFunction": null,
+   "ShortDescriptionStr": "",
+   "secondaryLocations": []
+  },
+  {
+   "Id": "2189",
+   "Title": "Implementation Portfolio Manager, Asian Equities",
+   "PostedDate": "2026-10-20",
+   "PrimaryLocation": "Hong Kong",
+   "PrimaryLocationCountry": "HK",
+   "GeographyId": 300000000304314,
+   "JobFamily": null,
+   "JobFunction": null,
+   "ShortDescriptionStr": "",
+   "secondaryLocations": []
+  },
+  {
+   "Id": "2143",
+   "Title": "2027 Sales Internship Programme (HK)",
+   "PostedDate": "2026-09-30",
+   "PrimaryLocation": "Hong Kong",
+   "PrimaryLocationCountry": "HK",
+   "GeographyId": 300000000304314,
+   "JobFamily": null,
+   "JobFunction": null,
+   "ShortDescriptionStr": "",
+   "secondaryLocations": []
+  }
+ ]
+}

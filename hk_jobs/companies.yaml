@@ -2404,3 +2404,224 @@ companies:
       applied_facets:
         locationCountry:
           - d4afdeb461d446e4babd204bd102dba8
+
+  # ── 2026-10-30: employers' own careers feeds (docs/careers_recon/existing/<slug>.md) ──
+  # Same slug as the aggregator entries, so the board treats them as one company, applies
+  # on the employer's own page first and keeps JobsDB/LinkedIn as the fallback.
+
+  - name: Allianz
+    slug: allianz
+    adapter: direct_site
+    enabled: true
+    config:
+      site: allianz
+
+  - name: Amundi Hong Kong
+    slug: amundi-hk
+    adapter: direct_site
+    enabled: true
+    config:
+      site: amundi-hk
+
+  - name: AXA Hong Kong
+    slug: axa-hk
+    adapter: direct_site
+    enabled: true
+    config:
+      site: axa-hk
+
+  - name: Bank of America
+    slug: bank-of-america
+    adapter: direct_site
+    enabled: true
+    config:
+      site: bank-of-america
+
+  - name: Bank of Communications
+    slug: bank-of-communications
+    adapter: direct_site
+    enabled: true
+    config:
+      site: bank-of-communications
+
+  - name: Barclays
+    slug: barclays
+    adapter: direct_site
+    enabled: true
+    config:
+      site: barclays
+
+  - name: Bank of China (Hong Kong)
+    slug: bochk
+    adapter: direct_site
+    enabled: true
+    config:
+      site: bochk
+
+  - name: China Construction Bank (Asia)
+    slug: ccb-asia
+    adapter: direct_site
+    enabled: true
+    config:
+      site: ccb-asia
+
+  - name: China Merchants Bank
+    slug: china-merchants-bank
+    adapter: direct_site
+    enabled: false   # same feed as cmb-wing-lung (CMB Wing Lung Bank): enabling both lists every role twice
+    config:
+      site: china-merchants-bank
+
+  - name: Chubb
+    slug: chubb
+    adapter: direct_site
+    enabled: true
+    config:
+      site: chubb
+
+  - name: CICC
+    slug: cicc
+    adapter: direct_site
+    enabled: true
+    config:
+      site: cicc
+
+  - name: CMB Wing Lung Bank
+    slug: cmb-wing-lung
+    adapter: direct_site
+    enabled: true
+    config:
+      site: cmb-wing-lung
+
+  - name: Deloitte
+    slug: deloitte
+    adapter: direct_site
+    enabled: true
+    config:
+      site: deloitte
+
+  - name: EY
+    slug: ey
+    adapter: direct_site
+    enabled: true
+    config:
+      site: ey
+
+  - name: Goldman Sachs
+    slug: goldman-sachs
+    adapter: direct_site
+    enabled: true
+    config:
+      site: goldman-sachs
+
+  - name: HashKey
+    slug: hashkey
+    adapter: direct_site
+    enabled: true
+    config:
+      site: hashkey
+
+  - name: ICBC (Asia)
+    slug: icbc-asia
+    adapter: direct_site
+    enabled: true
+    config:
+      site: icbc-asia
+
+  - name: JPMorgan
+    slug: jpmorgan
+    adapter: direct_site
+    enabled: true
+    config:
+      site: jpmorgan
+
+  - name: KPMG
+    slug: kpmg
+    adapter: direct_site
+    enabled: true
+    config:
+      site: kpmg
+
+  - name: Macquarie Group
+    slug: macquarie
+    adapter: direct_site
+    enabled: true
+    config:
+      site: macquarie
+
+  - name: China Minsheng Bank
+    slug: minsheng-bank
+    adapter: direct_site
+    enabled: true
+    config:
+      site: minsheng-bank
+
+  - name: Morgan Stanley
+    slug: morgan-stanley
+    adapter: direct_site
+    enabled: true
+    config:
+      site: morgan-stanley
+
+  - name: Mox Bank
+    slug: mox-bank
+    adapter: direct_site
+    enabled: true
+    config:
+      site: mox-bank
+
+  - name: Ping An Insurance
+    slug: ping-an
+    adapter: direct_site
+    enabled: true
+    config:
+      site: ping-an
+
+  - name: QBE (Mortgage Insurance Asia)
+    slug: qbe
+    adapter: direct_site
+    enabled: true
+    config:
+      site: qbe
+
+  - name: Schroders Hong Kong
+    slug: schroders-hk
+    adapter: direct_site
+    enabled: true
+    config:
+      site: schroders-hk
+
+  - name: Swiss Re
+    slug: swiss-re
+    adapter: direct_site
+    enabled: true
+    config:
+      site: swiss-re
+
+  - name: UBS Asset Management HK
+    slug: ubs-am-hk
+    adapter: direct_site
+    enabled: true
+    config:
+      site: ubs-am-hk
+
+  - name: WeLab Bank
+    slug: welab-bank
+    adapter: direct_site
+    enabled: true
+    config:
+      site: welab-bank
+
+  - name: ZA Bank
+    slug: za-bank
+    adapter: direct_site
+    enabled: true
+    config:
+      site: za-bank
+
+  - name: Zurich Hong Kong
+    slug: zurich-hk
+    adapter: direct_site
+    enabled: true
+    config:
+      site: zurich-hk

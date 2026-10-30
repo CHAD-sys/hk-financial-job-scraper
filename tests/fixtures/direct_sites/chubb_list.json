@@ -1,0 +1,41 @@
+{
+ "TotalJobsCount": 28,
+ "requisitionList": [
+  {
+   "Id": "38113",
+   "Title": "Senior Underwriter, Accident & Health Corporate",
+   "PostedDate": "2026-10-30",
+   "PrimaryLocation": "Hong Kong",
+   "PrimaryLocationCountry": "HK",
+   "GeographyId": 300000000467173,
+   "JobFamily": null,
+   "JobFunction": null,
+   "ShortDescriptionStr": "",
+   "secondaryLocations": []
+  },
+  {
+   "Id": "37200",
+   "Title": "Chubb Life HK - Manager, Product Pricing",
+   "PostedDate": "2026-10-29",
+   "PrimaryLocation": "Hong Kong",
+   "PrimaryLocationCountry": "HK",
+   "GeographyId": 300000000467173,
+   "JobFamily": null,
+   "JobFunction": null,
+   "ShortDescriptionStr": "",
+   "secondaryLocations": []
+  },
+  {
+   "Id": "38116",
+   "Title": "Underwriter, Marine & Specialty",
+   "PostedDate": "2026-10-29",
+   "PrimaryLocation": "Hong Kong",
+   "PrimaryLocationCountry": "HK",
+   "GeographyId": 300000000467173,
+   "JobFamily": null,
+   "JobFunction": null,
+   "ShortDescriptionStr": "",
+   "secondaryLocations": []
+  }
+ ]
+}

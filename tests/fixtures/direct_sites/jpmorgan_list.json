@@ -1,0 +1,63 @@
+{
+ "TotalJobsCount": 110,
+ "requisitionList": [
+  {
+   "Id": "210756183",
+   "Title": "Regional Strategy & Transaction Manager - Vice President",
+   "PostedDate": "2026-06-16",
+   "PrimaryLocation": "Singapore, Singapore",
+   "PrimaryLocationCountry": "SG",
+   "GeographyId": 300000020333146,
+   "JobFamily": "Real Estate Management / Maint",
+   "JobFunction": "Real Estate Admin",
+   "ShortDescriptionStr": "Lead and manage real estate transactions and strategic studies across Asia Pacific, driving impactful portfolio solutions.",
+   "secondaryLocations": [
+    {
+     "RequisitionLocationId": 300089614721228,
+     "GeographyNodeId": 100302248439180,
+     "GeographyId": 300000000289330,
+     "Name": "Hong Kong",
+     "CountryCode": "HK",
+     "Latitude": 22.41589,
+     "Longitude": 114.15024
+    }
+   ]
+  },
+  {
+   "Id": "210795342",
+   "Title": "Commercial & Investment Bank - Strategy - Executive Director",
+   "PostedDate": "2026-10-29",
+   "PrimaryLocation": "Hong Kong",
+   "PrimaryLocationCountry": "HK",
+   "GeographyId": 300000000289330,
+   "JobFamily": "Strategy",
+   "JobFunction": "Strategy & Development",
+   "ShortDescriptionStr": "Advise the APAC CEO and business leadership to shape Asia Pacific strategy and drive priority initiatives from decision to execution. ",
+   "secondaryLocations": []
+  },
+  {
+   "Id": "210745738",
+   "Title": "APAC Onboarding Officer",
+   "PostedDate": "2026-10-28",
+   "PrimaryLocation": "Kwun Tong, Kowloon, Hong Kong",
+   "PrimaryLocationCountry": "HK",
+   "GeographyId": 300000020278295,
+   "JobFamily": "Client Operations",
+   "JobFunction": "Operations",
+   "ShortDescriptionStr": "Join us as an APAC Onboarding officer to enhance client onboarding and support across products and platforms.",
+   "secondaryLocations": []
+  },
+  {
+   "Id": "210803273",
+   "Title": "Private Bank Marketing Content Editor (Traditional Chinese) - Associate",
+   "PostedDate": "2026-10-28",
+   "PrimaryLocation": "Hong Kong",
+   "PrimaryLocationCountry": "HK",
+   "GeographyId": 300000000289330,
+   "JobFamily": "Marketing Strategy",
+   "JobFunction": "Marketing & Communications",
+   "ShortDescriptionStr": "Translate and deliver Traditional Chinese marketing content while contributing to overall content strategy.",
+   "secondaryLocations": []
+  }
+ ]
+}
