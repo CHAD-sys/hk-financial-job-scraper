@@ -1,0 +1,180 @@
+{
+ "success": true,
+ "messages": [],
+ "attributes": {},
+ "dataType": 2,
+ "data": {
+  "pageNo": 1,
+  "pageSize": 100,
+  "pageCount": 1,
+  "items": [
+   {
+    "careerRecruitment_regions_name": "宝鸡,西安",
+    "careerRecruitment_career_enterprise_name": "西安分行",
+    "careerRecruitment_career_jobFamily_name": "公司客户服务",
+    "careerRecruitment_career_publishDate": "2026-10-27 12:23:38",
+    "careerRecruitment_career_name": "公司客户经理",
+    "careerRecruitment_career_expirationDate": "2026-12-31",
+    "id": "7eabafe1-a7ca-46ad-867a-10bc4f574426"
+   },
+   {
+    "careerRecruitment_regions_name": "武汉",
+    "careerRecruitment_career_enterprise_name": "武汉研发中心",
+    "careerRecruitment_career_jobFamily_name": "数据模型",
+    "careerRecruitment_career_publishDate": "2026-10-20 14:43:09",
+    "careerRecruitment_career_name": "数据模型序列助理工程师岗（智能算法方向）-武汉",
+    "careerRecruitment_career_expirationDate": "2026-12-31",
+    "id": "ad9502ad-1842-403a-a635-15cda2c5f549"
+   },
+   {
+    "careerRecruitment_regions_name": "武汉",
+    "careerRecruitment_career_enterprise_name": "武汉研发中心",
+    "careerRecruitment_career_jobFamily_name": "数据平台",
+    "careerRecruitment_career_publishDate": "2026-10-20 14:43:09",
+    "careerRecruitment_career_name": "数据平台序列工程师岗（AI平台开发方向）-武汉",
+    "careerRecruitment_career_expirationDate": "2026-12-31",
+    "id": "e691927f-fff2-483f-a426-91446ed282d1"
+   },
+   {
+    "careerRecruitment_regions_name": "香港",
+    "careerRecruitment_career_enterprise_name": "香港分行",
+    "careerRecruitment_career_jobFamily_name": "运营合规管理",
+    "careerRecruitment_career_publishDate": "2026-09-21 15:06:16",
+    "careerRecruitment_career_name": "运营支持岗-财富管理部",
+    "careerRecruitment_career_expirationDate": "2026-12-31",
+    "id": "cb34b901-cf79-4e27-adf3-ad9be304cc32"
+   },
+   {
+    "careerRecruitment_regions_name": "香港",
+    "careerRecruitment_career_enterprise_name": "民生金融租赁",
+    "careerRecruitment_career_jobFamily_name": "行政管理",
+    "careerRecruitment_career_publishDate": "2026-09-21 14:51:25",
+    "careerRecruitment_career_name": "香港子公司-综合管理部行政综合岗",
+    "careerRecruitment_career_expirationDate": "2027-02-28",
+    "id": "ba780342-b7ef-4255-abb3-c161b2520903"
+   },
+   {
+    "careerRecruitment_regions_name": "香港",
+    "careerRecruitment_career_enterprise_name": "香港分行",
+    "careerRecruitment_career_jobFamily_name": "公司/机构客群营销",
+    "careerRecruitment_career_publishDate": "2026-09-16 18:31:43",
+    "careerRecruitment_career_name": "市场营销崗-经理/高级经理(对公业务条线)",
+    "careerRecruitment_career_expirationDate": "2027-01-31",
+    "id": "286cab04-6b02-4ed1-9047-47bee1a7fea3"
+   },
+   {
+    "careerRecruitment_regions_name": "香港",
+    "careerRecruitment_career_enterprise_name": "香港分行",
+    "careerRecruitment_career_publishDate": "2026-09-16 18:31:43",
+    "careerRecruitment_career_name": "对公业务部门中管正职",
+    "careerRecruitment_career_expirationDate": "2027-01-31",
+    "id": "5bb727ba-260c-4dd8-90dc-9b0a60217ab3"
+   },
+   {
+    "careerRecruitment_regions_name": "香港",
+    "careerRecruitment_career_enterprise_name": "民生金融租赁",
+    "careerRecruitment_career_jobFamily_name": "财务管理",
+    "careerRecruitment_career_publishDate": "2026-09-16 18:31:43",
+    "careerRecruitment_career_name": "香港子公司-会计核算岗",
+    "careerRecruitment_career_expirationDate": "2027-02-28",
+    "id": "aa7fda36-67e5-43e3-9977-335f751f6c68"
+   },
+   {
+    "careerRecruitment_regions_name": "香港",
+    "careerRecruitment_career_enterprise_name": "民生金融租赁",
+    "careerRecruitment_career_jobFamily_name": "合规管理",
+    "careerRecruitment_career_publishDate": "2026-09-16 18:31:43",
+    "careerRecruitment_career_name": "香港子公司-合规管理岗",
+    "careerRecruitment_career_expirationDate": "2027-02-28",
+    "id": "bce94c27-605f-428c-b69e-b73466076774"
+   },
+   {
+    "careerRecruitment_regions_name": "香港",
+    "careerRecruitment_career_enterprise_name": "民生金融租赁",
+    "careerRecruitment_career_jobFamily_name": "法律风险管理",
+    "careerRecruitment_career_publishDate": "2026-09-16 18:31:43",
+    "careerRecruitment_career_name": "香港子公司-法律审查岗",
+    "careerRecruitment_career_expirationDate": "2027-02-28",
+    "id": "5a8fb77e-03ae-4b4f-b885-9a0734e8223c"
+   },
+   {
+    "careerRecruitment_regions_name": "香港",
+    "careerRecruitment_career_enterprise_name": "民生金融租赁",
+    "careerRecruitment_career_jobFamily_name": "财务管理",
+    "careerRecruitment_career_publishDate": "2026-09-16 18:31:43",
+    "careerRecruitment_career_name": "香港子公司-财务管理岗",
+    "careerRecruitment_career_expirationDate": "2027-02-28",
+    "id": "63aacb50-3f22-4ac6-bb2d-ea29f415287e"
+   },
+   {
+    "careerRecruitment_regions_name": "香港",
+    "careerRecruitment_career_enterprise_name": "香港分行",
+    "careerRecruitment_career_jobFamily_name": "金融市场客群营销",
+    "careerRecruitment_career_publishDate": "2026-08-28 10:35:28",
+    "careerRecruitment_career_name": "市场营销岗(非银)-经理/高级经理(金融同业部)",
+    "careerRecruitment_career_expirationDate": "2026-12-31",
+    "id": "ff6f5bde-351e-4da9-8368-e3409be46f95"
+   },
+   {
+    "careerRecruitment_regions_name": "香港",
+    "careerRecruitment_career_enterprise_name": "香港分行",
+    "careerRecruitment_career_jobFamily_name": "风险调查与监测",
+    "careerRecruitment_career_publishDate": "2026-08-28 10:35:28",
+    "careerRecruitment_career_name": "模型风险管理岗-经理/高級经理 (风险管理部) ",
+    "careerRecruitment_career_expirationDate": "2026-12-31",
+    "id": "9f157841-5f47-415f-a7be-ae552841fd89"
+   },
+   {
+    "careerRecruitment_regions_name": "香港",
+    "careerRecruitment_career_enterprise_name": "香港分行",
+    "careerRecruitment_career_jobFamily_name": "反洗钱管理",
+    "careerRecruitment_career_publishDate": "2026-08-28 10:35:28",
+    "careerRecruitment_career_name": "反洗錢崗-助理经理/经理 (法律合规部) ",
+    "careerRecruitment_career_expirationDate": "2026-12-31",
+    "id": "33356ada-d41b-4c7a-8f07-219b0c10b369"
+   },
+   {
+    "careerRecruitment_regions_name": "香港",
+    "careerRecruitment_career_enterprise_name": "香港分行",
+    "careerRecruitment_career_jobFamily_name": "零售/小微产品",
+    "careerRecruitment_career_publishDate": "2026-07-03 18:15:11",
+    "careerRecruitment_career_name": "产品经理岗 (投资产品) – 零售银行(私人银行/财富管理)",
+    "careerRecruitment_career_expirationDate": "2026-10-31",
+    "id": "3e7793fb-8129-40b1-8821-f9f58a6f9174"
+   },
+   {
+    "careerRecruitment_regions_name": "香港",
+    "careerRecruitment_career_enterprise_name": "香港分行",
+    "careerRecruitment_career_jobFamily_name": "零售/小微客群营销",
+    "careerRecruitment_career_publishDate": "2026-07-03 18:15:11",
+    "careerRecruitment_career_name": "财富经理岗 - 零售银行(私人银行/财富管理)",
+    "careerRecruitment_career_expirationDate": "2026-10-31",
+    "id": "611843b3-7650-4ead-9142-c3ea5ac0d873"
+   },
+   {
+    "careerRecruitment_regions_name": "香港",
+    "careerRecruitment_career_enterprise_name": "香港分行",
+    "careerRecruitment_career_jobFamily_name": "零售/小微客群营销",
+    "careerRecruitment_career_publishDate": "2026-07-03 18:15:11",
+    "careerRecruitment_career_name": "投资顾问岗 – 零售银行(私人银行/财富管理) ",
+    "careerRecruitment_career_expirationDate": "2026-10-31",
+    "id": "8dd1780f-7f3b-4c74-9825-e19883a4116a"
+   },
+   {
+    "careerRecruitment_regions_name": "香港",
+    "careerRecruitment_career_enterprise_name": "香港分行",
+    "careerRecruitment_career_jobFamily_name": "公司/机构客群营销",
+    "careerRecruitment_career_publishDate": "2026-07-03 18:15:11",
+    "careerRecruitment_career_name": "市场营销崗-经理/高级经理(对公业务条线)",
+    "careerRecruitment_career_expirationDate": "2026-10-31",
+    "id": "ef605800-bcdf-4819-8b1c-35c6c8e88230"
+   }
+  ],
+  "sortField": "careerRecruitment_career_publishDate",
+  "totalLine": 102,
+  "sortOrder": "desc",
+  "startLine": 0,
+  "endLine": 0
+ },
+ "newobject": false
+}
