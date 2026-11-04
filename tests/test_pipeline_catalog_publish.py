@@ -63,6 +63,46 @@ def _gzip_snapshot(path: Path) -> tuple[bytes, str]:
     return gzip.compress(raw, compresslevel=1), hashlib.sha256(raw).hexdigest()
 
 
+def test_search_rebuild_does_not_materialize_the_whole_catalogue(tmp_path):
+    """A daily rebuild must keep memory bounded as the catalogue grows."""
+    import pipeline_publish
+
+    db = _migrated(
+        tmp_path / "jobs.db",
+        [("workday", "W1", "Treasury Analyst", 1), ("jobsdb", "J2", "Credit Analyst", 1)],
+    )
+
+    class StreamingCursor:
+        def __init__(self, cursor):
+            self.cursor = cursor
+
+        def fetchall(self):
+            raise AssertionError("search rebuild loaded every job row into RAM")
+
+        def fetchmany(self, size):
+            assert 0 < size <= 256
+            return self.cursor.fetchmany(size)
+
+    class GuardedConnection:
+        def __init__(self, conn):
+            self.conn = conn
+
+        def execute(self, sql, params=()):
+            cursor = self.conn.execute(sql, params)
+            return StreamingCursor(cursor) if "SELECT j.rowid, j.title" in sql else cursor
+
+        def executemany(self, sql, rows):
+            return self.conn.executemany(sql, rows)
+
+    with sqlite3.connect(db) as conn:
+        assert pipeline_publish._rebuild_search(GuardedConnection(conn)) == 2
+        assert conn.execute("SELECT COUNT(*) FROM jobs_fts").fetchone()[0] == 2
+        assert (
+            conn.execute("SELECT doc_count FROM search_vocab WHERE word='analyst'").fetchone()[0]
+            == 2
+        )
+
+
 def _post(client: TestClient, snapshot: Path, *, token: str = TOKEN, run_id: str = "12345"):
     body, digest = _gzip_snapshot(snapshot)
     return client.post(
