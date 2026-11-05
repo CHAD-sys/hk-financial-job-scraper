@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import gc
 import io
 import sys
+import weakref
 import zipfile
-from pathlib import Path
 from datetime import datetime, timezone
+from pathlib import Path
 from xml.sax.saxutils import escape
 
 import pytest
@@ -20,6 +22,8 @@ from resume_intelligence import (  # noqa: E402
     FAMILY_POINTS,
     RESUME_MATCH_FLOOR,
     _deglue,
+    _skill_cache,
+    _skill_in_resume,
     glue_score,
     DOCX_MEDIA_TYPE,
     _dated_spans,
@@ -750,6 +754,24 @@ def test_a_skill_everybody_asks_for_scores_nothing_at_all():
     )
     assert fit.score == 0
     assert not any(reason.startswith("Skills aligned") for reason in fit.reasons)
+
+
+def test_skill_match_cache_releases_resume_evidence_after_request():
+    evidence = evidence_from_storage(
+        "Python developer with credit risk experience.",
+        {"skills": [], "role_families": [], "sectors": [], "years_experience": 3,
+         "seniority": "mid", "certifications": []},
+    )
+    reference = weakref.ref(evidence)
+
+    assert _skill_in_resume("python", evidence) is True
+    assert reference() in _skill_cache
+
+    del evidence
+    gc.collect()
+
+    assert reference() is None
+    assert reference() not in _skill_cache
 
 
 def test_an_internship_is_not_offered_to_someone_years_past_it():

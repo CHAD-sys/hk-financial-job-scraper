@@ -42,7 +42,7 @@ from main import _NOINDEX_PREFIXES, _ROUTE_META  # noqa: E402
 #: that are not here are served by App.tsx's DefaultTitleLayout instead.
 _PAGE_FOR_ROUTE = {
     "/about": "AboutPage.tsx",
-    "/learning": "LearningPage.tsx",
+    "/learning": "LegacyLearningPage.tsx",  # admin-only preview of the new centre until launch
     "/career-coaches": "CareerCoachesPage.tsx",
     "/privacy": "PrivacyPage.tsx",
 }

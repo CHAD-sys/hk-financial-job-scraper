@@ -318,37 +318,41 @@ def _rebuild_search(conn: sqlite3.Connection) -> int:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_search_vocab_lookup ON search_vocab(first, len)")
     conn.execute("DELETE FROM jobs_fts")
     conn.execute("DELETE FROM search_vocab")
-    rows = conn.execute(
+    cursor = conn.execute(
         """
         SELECT j.rowid, j.title, COALESCE(e.title_en, ''), j.company,
                COALESCE(e.required_skills, ''), COALESCE(j.description_clean, '')
         FROM jobs j LEFT JOIN job_enrichments e
           ON j.source=e.source AND j.source_id=e.source_id
         """
-    ).fetchall()
-    if rows:
+    )
+    count = 0
+    vocab: dict[str, int] = {}
+    while rows := cursor.fetchmany(256):
+        # The catalogue can contain tens of thousands of descriptions. Keep
+        # only this batch in Python while SQLite builds the index on disk.
         conn.executemany(
             "INSERT INTO jobs_fts(rowid,title,title_en,company,skills,description) "
             "VALUES (?,?,?,?,?,?)",
             rows,
         )
-    vocab: dict[str, int] = {}
-    for row in rows:
-        words: set[str] = set()
-        for value in row[1:]:
-            words.update(
-                word
-                for word in _TOKEN.split(str(value).lower())
-                if len(word) >= 2 and word.isascii()
-            )
-        for word in words:
-            vocab[word] = vocab.get(word, 0) + 1
+        count += len(rows)
+        for row in rows:
+            words: set[str] = set()
+            for value in row[1:]:
+                words.update(
+                    word
+                    for word in _TOKEN.split(str(value).lower())
+                    if len(word) >= 2 and word.isascii()
+                )
+            for word in words:
+                vocab[word] = vocab.get(word, 0) + 1
     if vocab:
         conn.executemany(
             "INSERT INTO search_vocab(word,first,len,doc_count) VALUES (?,?,?,?)",
-            [(word, word[0], len(word), count) for word, count in vocab.items()],
+            ((word, word[0], len(word), doc_count) for word, doc_count in vocab.items()),
         )
-    return len(rows)
+    return count
 
 
 def _rows_as_dicts(conn: sqlite3.Connection, table: str, where: str) -> list[dict[str, Any]]:

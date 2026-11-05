@@ -371,6 +371,29 @@ export interface LearningContentResponse {
   }>
 }
 
+export interface LearningPortalState {
+  member: boolean
+  enrolments: { course_id: string; requested_at: string; completed_steps: number }[]
+}
+
+export interface CapstoneSubmission {
+  course_id: string
+  notebook_url: string
+  memo_url: string
+  slides_url: string | null
+  note: string | null
+  submitted_at: string
+  feedback: string | null
+  score: number | null
+  reviewed_at: string | null
+}
+
+export interface CapstoneQueueItem extends CapstoneSubmission {
+  seeker_id: string
+  email: string
+  display_name: string | null
+}
+
 export interface RecommendedRole {
   job: Job
   score: number
@@ -767,6 +790,64 @@ export async function fetchStats(): Promise<StatsResponse> {
 export async function fetchLearningContent(): Promise<LearningContentResponse> {
   const res = await apiFetch('/api/learning')
   if (!res.ok) throw new Error(`Learning content fetch failed: ${res.status}`)
+  return res.json()
+}
+
+export async function fetchMyLearning(): Promise<LearningPortalState> {
+  const res = await apiFetch('/api/me/learning')
+  if (!res.ok) throw new ApiError(res.status, await readDetail(res) || 'Could not load learning progress.')
+  return res.json()
+}
+
+export async function requestCourseEnrolment(courseId: string): Promise<LearningPortalState> {
+  const res = await apiFetch('/api/me/learning/enrol', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ course_id: courseId }),
+  })
+  if (!res.ok) throw new ApiError(res.status, await readDetail(res) || 'Could not request enrolment.')
+  return res.json()
+}
+
+export async function fetchMyCapstone(courseId: string): Promise<CapstoneSubmission | null> {
+  const res = await apiFetch(`/api/me/learning/${encodeURIComponent(courseId)}/capstone`)
+  if (!res.ok) throw new ApiError(res.status, await readDetail(res) || 'Could not load your capstone.')
+  return (await res.json()).submission
+}
+
+export async function submitCapstone(
+  courseId: string,
+  body: { notebook_url: string; memo_url: string; slides_url?: string; note?: string },
+): Promise<CapstoneSubmission> {
+  const res = await apiFetch(`/api/me/learning/${encodeURIComponent(courseId)}/capstone`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new ApiError(res.status, await readDetail(res) || 'Could not submit your capstone.')
+  return (await res.json()).submission
+}
+
+export async function fetchCapstoneQueue(): Promise<CapstoneQueueItem[]> {
+  const res = await apiFetch('/api/admin/learning/capstones')
+  if (!res.ok) throw new ApiError(res.status, await readDetail(res) || 'Could not load capstone submissions.')
+  return res.json()
+}
+
+export async function reviewCapstone(
+  seekerId: string, courseId: string, body: { feedback: string; score: number },
+): Promise<CapstoneSubmission> {
+  const res = await apiFetch(
+    `/api/admin/learning/capstones/${encodeURIComponent(seekerId)}/${encodeURIComponent(courseId)}/review`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
+  )
+  if (!res.ok) throw new ApiError(res.status, await readDetail(res) || 'Could not save the review.')
+  return res.json()
+}
+
+export async function saveLearningProgress(courseId: string, completedSteps: number): Promise<LearningPortalState> {
+  const res = await apiFetch(`/api/me/learning/${encodeURIComponent(courseId)}/progress`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ completed_steps: completedSteps }),
+  })
+  if (!res.ok) throw new ApiError(res.status, await readDetail(res) || 'Could not save progress.')
   return res.json()
 }
 
