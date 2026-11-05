@@ -4,6 +4,7 @@ import { Navigate } from 'react-router-dom'
 import Nav from '../components/Nav'
 import AccountsDirectory from '../components/admin/AccountsDirectory'
 import AnalyticsOverview from '../components/admin/AnalyticsOverview'
+import CapstoneReviews from '../components/admin/CapstoneReviews'
 import AdminSectionNav from '../components/admin/AdminSectionNav'
 import EmployerPerspective from '../components/admin/EmployerPerspective'
 import JobEditor from '../components/admin/JobEditor'
@@ -272,6 +273,14 @@ export default function AdminPage() {
             <p className="mt-1.5 text-sm leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>Review employer-submitted roles before they become part of the public market dataset.</p>
           </div>
           <SubmissionsPanel />
+        </section>
+
+        <section id="capstone-reviews" className="mt-16 scroll-mt-28 border-t pt-12" style={{ borderColor: 'var(--color-border)' }}>
+          <div className="mb-5 max-w-3xl">
+            <h2 className="text-2xl font-semibold tracking-tight" style={{ color: 'var(--color-ink)', fontFamily: 'var(--font-display)' }}>Capstone reviews</h2>
+            <p className="mt-1.5 text-sm leading-relaxed" style={{ color: 'var(--color-ink-muted)' }}>Learners&rsquo; final projects from the course pages. Your written feedback and score appear on the learner&rsquo;s course page.</p>
+          </div>
+          <CapstoneReviews />
         </section>
 
         {seeker?.is_super_admin && (

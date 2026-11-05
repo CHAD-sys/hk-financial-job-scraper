@@ -697,7 +697,6 @@ button, a, input, select, [role="button"], [role="tab"] {
     background: transparent;
     font-size: 0.9rem;
   }
-  [data-discovery-home='true'] .desktop-navigation { display: none; }
 }
 
 @media (min-width: 1180px) {

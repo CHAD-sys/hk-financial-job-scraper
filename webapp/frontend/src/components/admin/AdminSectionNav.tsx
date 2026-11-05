@@ -5,6 +5,7 @@ import {
   CalendarSync,
   Building2,
   ClipboardCheck,
+  GraduationCap,
   IdCard,
   SquarePen,
   Users,
@@ -25,6 +26,7 @@ const SECTIONS: SectionItem[] = [
   { href: '#market-intelligence', label: 'Market intelligence', detail: 'Roles · salaries · demand', icon: BarChart3 },
   { href: '#daily-collection', label: 'Daily collection', detail: 'Today’s pipeline totals', icon: CalendarSync },
   { href: '#verification', label: 'Verification', detail: 'Submitted Role review', icon: ClipboardCheck },
+  { href: '#capstone-reviews', label: 'Capstone reviews', detail: 'Course feedback queue', icon: GraduationCap },
   { href: '#accounts', label: 'Account directory', detail: 'Every Seeker and Employer', icon: IdCard, superAdminOnly: true },
   // Ultimate-Admin-only for the same reason as the directory above it: this
   // joins one Employer's identity to their submissions and their Roles.

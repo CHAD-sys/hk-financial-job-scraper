@@ -15,12 +15,14 @@ from __future__ import annotations
 import hashlib
 import io
 import re
+import threading
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import PurePath
 from typing import Iterable
+from weakref import WeakKeyDictionary
 from xml.etree import ElementTree
 
 import finance_vocabulary as vocabulary
@@ -935,24 +937,33 @@ def _normalise(value: object) -> str:
     return " ".join(str(value or "").casefold().split())
 
 
-@lru_cache(maxsize=8_192)
+_skill_cache: WeakKeyDictionary[ResumeEvidence, dict[str, bool]] = WeakKeyDictionary()
+_skill_cache_lock = threading.RLock()
+
+
 def _skill_in_resume(skill: str, evidence: ResumeEvidence) -> bool:
     """Does this Role's required skill appear in the CV?
 
-    Cached on (skill, evidence): one ranking pass asks the same question for
-    the same CV hundreds of times, because `python` and `risk management` are
-    required by hundreds of the Roles being scored. `ResumeEvidence` is a
-    frozen dataclass of strings and tuples, so it hashes by value and two
-    reads of the same stored resume share a cache entry.
+    Cached only while this request still owns its ResumeEvidence. A process-wide
+    LRU keyed by evidence kept full resume text alive after a Seeker's request
+    finished. The weak-key cache still reuses skill checks across Roles during
+    ranking, then releases them when the evidence is no longer in use.
     """
     value = _normalise(skill)
     if not value:
         return False
-    if _contains_phrase(evidence.text, value):
-        return True
-    aliases = _SKILL_ALIASES.get(value, ())
-    return any(_contains_phrase(evidence.text, alias) for alias in aliases)
+    with _skill_cache_lock:
+        cached = _skill_cache.get(evidence, {}).get(value)
+    if cached is not None:
+        return cached
 
+    matched = _contains_phrase(evidence.text, value) or any(
+        _contains_phrase(evidence.text, alias)
+        for alias in _SKILL_ALIASES.get(value, ())
+    )
+    with _skill_cache_lock:
+        _skill_cache.setdefault(evidence, {})[value] = matched
+    return matched
 
 #: The most one matched skill can be worth, before its rarity scales it down.
 #: A single genuine specialism (`statistical arbitrage`, `q/kdb`) is worth more

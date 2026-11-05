@@ -13,6 +13,8 @@ const SavedJobsPage = lazy(() => import('./pages/SavedJobsPage'))
 const AboutPage = lazy(() => import('./pages/AboutPage'))
 const PostRolePage = lazy(() => import('./pages/PostRolePage'))
 const LearningPage = lazy(() => import('./pages/LearningPage'))
+const CourseDetailPage = lazy(() => import('./pages/CourseDetailPage'))
+const CoursePlayerPage = lazy(() => import('./pages/CoursePlayerPage'))
 const ManagementTraineePage = lazy(() => import('./pages/ManagementTraineePage'))
 const MTEmployerPage = lazy(() => import('./pages/MTEmployerPage'))
 const RoleDetailPage = lazy(() => import('./pages/RoleDetailPage'))
@@ -154,6 +156,8 @@ export default function App() {
                     <Route path="/jobs" element={<JobBoardPage />} />
                     <Route path="/roles/:source/:sourceId" element={<RoleDetailPage />} />
                     <Route path="/learning" element={<LearningPage />} />
+                    <Route path="/learning/courses/:courseId" element={<CourseDetailPage />} />
+                    <Route path="/learning/courses/:courseId/learn/:week/:item" element={<CoursePlayerPage />} />
                     <Route path="/management-trainee" element={<ManagementTraineePage />} />
                     <Route path="/management-trainee/:employerSlug" element={<MTEmployerPage />} />
                     <Route path="/career-coaches" element={<CareerCoachesPage />} />

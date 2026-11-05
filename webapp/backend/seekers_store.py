@@ -690,6 +690,53 @@ def migrate_to_phase_12(conn: sqlite3.Connection) -> None:
     )
 
 
+def migrate_to_phase_13(conn: sqlite3.Connection) -> None:
+    """Keep learning requests and progress with the Seeker account.
+
+    A request is not a paid or confirmed seat. Membership is granted only by
+    staff after checking the Club's records; signing up never grants it.
+    """
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS learning_enrolments (
+            seeker_id TEXT NOT NULL REFERENCES seekers (id) ON DELETE CASCADE,
+            course_id TEXT NOT NULL,
+            requested_at TEXT NOT NULL,
+            completed_steps INTEGER NOT NULL DEFAULT 0 CHECK (completed_steps BETWEEN 0 AND 3),
+            PRIMARY KEY (seeker_id, course_id)
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS learning_memberships (
+            seeker_id TEXT PRIMARY KEY REFERENCES seekers (id) ON DELETE CASCADE,
+            verified_at TEXT NOT NULL
+        )
+    """)
+
+
+def migrate_to_phase_14(conn: sqlite3.Connection) -> None:
+    """Capstone submissions and the reviewer's written feedback.
+
+    One row per Seeker and course. A resubmission replaces the links and clears
+    any earlier review, so feedback always refers to the work it was written for.
+    """
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS learning_submissions (
+            seeker_id TEXT NOT NULL REFERENCES seekers (id) ON DELETE CASCADE,
+            course_id TEXT NOT NULL,
+            notebook_url TEXT NOT NULL,
+            memo_url TEXT NOT NULL,
+            slides_url TEXT,
+            note TEXT,
+            submitted_at TEXT NOT NULL,
+            feedback TEXT,
+            score INTEGER CHECK (score IS NULL OR score BETWEEN 0 AND 100),
+            reviewer_id TEXT,
+            reviewed_at TEXT,
+            PRIMARY KEY (seeker_id, course_id)
+        )
+    """)
+
+
 # Every phase, in order. A future phase appends here; it never edits an applied
 # phase because seekers.db is irreplaceable first-party account data.
 _MIGRATIONS = (
@@ -705,6 +752,8 @@ _MIGRATIONS = (
     migrate_to_phase_10,
     migrate_to_phase_11,
     migrate_to_phase_12,
+    migrate_to_phase_13,
+    migrate_to_phase_14,
 )
 
 
@@ -2377,6 +2426,116 @@ class SeekerStore:
             )
         logger.info("Deleted seeker %s (rows removed, sessions revoked, event logged)", seeker_id)
         return True
+
+
+    # -- learning portal ------------------------------------------------------
+
+    def learning_state(self, seeker_id: str) -> dict[str, Any]:
+        """Return only this Seeker's requests and staff-verified membership."""
+        rows = self._conn().execute(
+            "SELECT course_id, requested_at, completed_steps FROM learning_enrolments "
+            "WHERE seeker_id = ? ORDER BY requested_at DESC", (seeker_id,)
+        ).fetchall()
+        member = self._conn().execute(
+            "SELECT 1 FROM learning_memberships WHERE seeker_id = ?", (seeker_id,)
+        ).fetchone()
+        return {"member": member is not None, "enrolments": [dict(row) for row in rows]}
+
+    def request_learning_enrolment(self, seeker_id: str, course_id: str) -> dict[str, Any]:
+        """Request a place once; a repeat request preserves existing progress."""
+        with self._write() as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO learning_enrolments "
+                "(seeker_id, course_id, requested_at) VALUES (?, ?, ?)",
+                (seeker_id, course_id, to_iso(utcnow())),
+            )
+        return self.learning_state(seeker_id)
+
+    def set_learning_progress(self, seeker_id: str, course_id: str, steps: int) -> dict[str, Any]:
+        """Save completed checklist stages on an existing enrolment."""
+        with self._write() as conn:
+            changed = conn.execute(
+                "UPDATE learning_enrolments SET completed_steps = ? "
+                "WHERE seeker_id = ? AND course_id = ?",
+                (steps, seeker_id, course_id),
+            ).rowcount
+            if not changed:
+                raise ValueError("Course enrolment does not exist")
+        return self.learning_state(seeker_id)
+
+    def verify_learning_member(self, seeker_id: str) -> None:
+        """Staff-only write after membership has been checked outside this app."""
+        with self._write() as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO learning_memberships (seeker_id, verified_at) "
+                "VALUES (?, ?)", (seeker_id, to_iso(utcnow())),
+            )
+
+    def list_learning_requests(self) -> list[dict[str, Any]]:
+        """Staff queue: contact details and course IDs for fulfilment."""
+        rows = self._conn().execute(
+            "SELECT e.seeker_id, s.email, s.display_name, e.course_id, "
+            "e.requested_at, e.completed_steps FROM learning_enrolments e "
+            "JOIN seekers s ON s.id = e.seeker_id ORDER BY e.requested_at DESC"
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+
+    # -- capstone submissions --------------------------------------------------
+
+    _SUBMISSION_COLUMNS = (
+        "course_id, notebook_url, memo_url, slides_url, note, submitted_at, "
+        "feedback, score, reviewed_at"
+    )
+
+    def get_submission(self, seeker_id: str, course_id: str) -> dict[str, Any] | None:
+        """This Seeker's capstone for one course, with any review, or None."""
+        row = self._conn().execute(
+            f"SELECT {self._SUBMISSION_COLUMNS} FROM learning_submissions "
+            "WHERE seeker_id = ? AND course_id = ?", (seeker_id, course_id)
+        ).fetchone()
+        return dict(row) if row else None
+
+    def submit_capstone(
+        self, seeker_id: str, course_id: str, *, notebook_url: str, memo_url: str,
+        slides_url: str | None, note: str | None,
+    ) -> dict[str, Any]:
+        """Create or replace a submission; replacing it clears the old review."""
+        with self._write() as conn:
+            conn.execute(
+                "INSERT INTO learning_submissions (seeker_id, course_id, notebook_url, memo_url, "
+                "slides_url, note, submitted_at) VALUES (?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT (seeker_id, course_id) DO UPDATE SET notebook_url = excluded.notebook_url, "
+                "memo_url = excluded.memo_url, slides_url = excluded.slides_url, note = excluded.note, "
+                "submitted_at = excluded.submitted_at, feedback = NULL, score = NULL, "
+                "reviewer_id = NULL, reviewed_at = NULL",
+                (seeker_id, course_id, notebook_url, memo_url, slides_url, note, to_iso(utcnow())),
+            )
+        return self.get_submission(seeker_id, course_id)  # type: ignore[return-value]
+
+    def list_submissions(self) -> list[dict[str, Any]]:
+        """Staff queue, unreviewed first, then most recent."""
+        rows = self._conn().execute(
+            "SELECT l.seeker_id, s.email, s.display_name, l.course_id, l.notebook_url, l.memo_url, "
+            "l.slides_url, l.note, l.submitted_at, l.feedback, l.score, l.reviewed_at "
+            "FROM learning_submissions l JOIN seekers s ON s.id = l.seeker_id "
+            "ORDER BY l.reviewed_at IS NOT NULL, l.submitted_at DESC"
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    def review_submission(
+        self, seeker_id: str, course_id: str, *, reviewer_id: str, feedback: str, score: int,
+    ) -> dict[str, Any]:
+        """Staff-only: attach written feedback and a score to a submission."""
+        with self._write() as conn:
+            changed = conn.execute(
+                "UPDATE learning_submissions SET feedback = ?, score = ?, reviewer_id = ?, reviewed_at = ? "
+                "WHERE seeker_id = ? AND course_id = ?",
+                (feedback, score, reviewer_id, to_iso(utcnow()), seeker_id, course_id),
+            ).rowcount
+            if not changed:
+                raise ValueError("Submission does not exist")
+        return self.get_submission(seeker_id, course_id)  # type: ignore[return-value]
 
 
 # ── Process-wide instance ─────────────────────────────────────────────────────

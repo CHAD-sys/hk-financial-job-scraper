@@ -1673,6 +1673,8 @@ _ROUTE_META: dict[str, tuple[str, str]] = {
         "boards.",
     ),
     "/learning": (
+        # Public copy: the new learning centre is an admin-only preview for now,
+        # so crawlers and ordinary visitors get the current page (LegacyLearningPage.tsx).
         "Learning & Events for HK Finance — FinEx Careers",
         "Professional learning from the Financial Executive Club: training strands, "
         "a video library and upcoming events for Hong Kong finance professionals.",
@@ -2550,6 +2552,142 @@ def get_learning_content(request: Request):
     """Serve the last-known-good metadata without contacting either source."""
 
     return learning_content.public_snapshot(cfg(request).learning_content_path)
+
+
+# The verified public catalogue is in frontend/src/content/learning.ts. These
+# stable IDs are the server's allowlist for Seeker-owned learning records.
+_LEARNING_COURSE_IDS = frozenset({"01", "02", "03", "04", "05", "member-ai-roundtable"})
+
+
+class LearningEnrolmentIn(BaseModel):
+    course_id: str
+
+
+class LearningProgressIn(BaseModel):
+    completed_steps: int = Field(ge=0, le=3)
+
+
+@router.get("/api/me/learning", tags=["learning"])
+def get_my_learning(request: Request):
+    seeker = _require_seeker(request)
+    return seekers_store.get_store().learning_state(seeker["id"])
+
+
+@router.post("/api/me/learning/enrol", tags=["learning"])
+def request_learning_enrolment(payload: LearningEnrolmentIn, request: Request):
+    seeker = _require_seeker(request)
+    if payload.course_id not in _LEARNING_COURSE_IDS:
+        raise HTTPException(404, "Course not found")
+    store = seekers_store.get_store()
+    if payload.course_id.startswith("member-") and not store.learning_state(seeker["id"])["member"]:
+        raise HTTPException(403, "Verified FinEx Club membership required")
+    return store.request_learning_enrolment(seeker["id"], payload.course_id)
+
+
+@router.put("/api/me/learning/{course_id}/progress", tags=["learning"])
+def update_learning_progress(course_id: str, payload: LearningProgressIn, request: Request):
+    seeker = _require_seeker(request)
+    if course_id not in _LEARNING_COURSE_IDS:
+        raise HTTPException(404, "Course not found")
+    try:
+        return seekers_store.get_store().set_learning_progress(
+            seeker["id"], course_id, payload.completed_steps
+        )
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+# Courses with a reviewed capstone. These are course-page IDs (learning/catalogue.ts),
+# separate from the verified public catalogue IDs above.
+_CAPSTONE_COURSE_IDS = frozenset({"quant"})
+
+
+def _https_url(value: str | None) -> str | None:
+    if value is None or not value.strip():
+        return None
+    value = value.strip()
+    if not value.startswith("https://") or len(value) > 500 or any(c.isspace() for c in value):
+        raise ValueError("must be an https:// link")
+    return value
+
+
+class CapstoneIn(BaseModel):
+    notebook_url: str = Field(max_length=500)
+    memo_url: str = Field(max_length=500)
+    slides_url: str | None = Field(default=None, max_length=500)
+    note: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("notebook_url", "memo_url")
+    @classmethod
+    def _required_link(cls, value: str) -> str:
+        link = _https_url(value)
+        if link is None:
+            raise ValueError("is required")
+        return link
+
+    @field_validator("slides_url")
+    @classmethod
+    def _optional_link(cls, value: str | None) -> str | None:
+        return _https_url(value)
+
+
+class CapstoneReviewIn(BaseModel):
+    feedback: str = Field(min_length=20, max_length=5000)
+    score: int = Field(ge=0, le=100)
+
+
+@router.get("/api/me/learning/{course_id}/capstone", tags=["learning"])
+def get_my_capstone(course_id: str, request: Request):
+    seeker = _require_seeker(request)
+    if course_id not in _CAPSTONE_COURSE_IDS:
+        raise HTTPException(404, "Course not found")
+    return {"submission": seekers_store.get_store().get_submission(seeker["id"], course_id)}
+
+
+@router.put("/api/me/learning/{course_id}/capstone", tags=["learning"])
+def submit_my_capstone(course_id: str, payload: CapstoneIn, request: Request):
+    seeker = _require_seeker(request)
+    if course_id not in _CAPSTONE_COURSE_IDS:
+        raise HTTPException(404, "Course not found")
+    submission = seekers_store.get_store().submit_capstone(
+        seeker["id"], course_id, notebook_url=payload.notebook_url, memo_url=payload.memo_url,
+        slides_url=payload.slides_url, note=(payload.note or "").strip() or None,
+    )
+    return {"submission": submission}
+
+
+@router.get("/api/admin/learning/capstones", tags=["learning"])
+def list_capstones(request: Request):
+    _require_admin(request)
+    return seekers_store.get_store().list_submissions()
+
+
+@router.post("/api/admin/learning/capstones/{seeker_id}/{course_id}/review", tags=["learning"])
+def review_capstone(seeker_id: str, course_id: str, payload: CapstoneReviewIn, request: Request):
+    admin = _require_admin(request)
+    try:
+        return seekers_store.get_store().review_submission(
+            seeker_id, course_id, reviewer_id=admin["id"],
+            feedback=payload.feedback.strip(), score=payload.score,
+        )
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@router.post("/api/admin/learning/members/{seeker_id}", status_code=204, tags=["learning"])
+def verify_learning_member(seeker_id: str, request: Request):
+    _require_admin(request)
+    store = seekers_store.get_store()
+    if store.get_seeker(seeker_id) is None:
+        raise HTTPException(404, "Seeker not found")
+    store.verify_learning_member(seeker_id)
+    return Response(status_code=204)
+
+
+@router.get("/api/admin/learning/requests", tags=["learning"])
+def list_learning_requests(request: Request):
+    _require_admin(request)
+    return seekers_store.get_store().list_learning_requests()
 
 
 # ── Write endpoints ───────────────────────────────────────────────────────────
